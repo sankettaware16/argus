@@ -1,0 +1,462 @@
+{
+  "_id": "2f104c344b39094df57bbe8cf77e3f03e17249a01091c9c179dc8ae728f05e0a",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-08T22:48:38.612Z",
+    "destination": {
+      "as": {
+        "number": 210644,
+        "organization": {
+          "name": "Aeza Group LLC"
+        }
+      },
+      "bytes": 370,
+      "geo": {
+        "city_name": "Amsterdam",
+        "country_iso_code": "NL",
+        "country_name": "The Netherlands",
+        "location": {
+          "lat": 52.3759,
+          "lon": 4.8975
+        }
+      },
+      "ip": "33.178.85.107"
+    },
+    "ecs": {
+      "version": "8.11.0"
+    },
+    "event": {
+      "action": "TCP_MISS",
+      "category": "web",
+      "duration": 266,
+      "ingested": "2026-10-08T22:43:33.006016+00:00",
+      "module": "squid",
+      "original": "2026-10-09T04:13:33+00:00 qpdtxh5v (squid-3)[1959]: 1791499413.525    266 10.148.212.157:50088 198.18.1.254:13847 TCP_MISS/404 370 GET http://33.178.85.107/108945648 - ORIGINAL_DST/33.178.85.107 text/plain",
+      "outcome": "success",
+      "timestamp_source": "log",
+      "type": "access"
+    },
+    "event.kind": "signal",
+    "host": {
+      "name": "qpdtxh5v"
+    },
+    "http": {
+      "request": {
+        "method": "GET"
+      },
+      "response": {
+        "mime_type": "text/plain",
+        "status_code": 404
+      }
+    },
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "vVF1nEwwZiRYhs__5e0w",
+        "index": "acme-logs-squid-2026.10.08",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-08T22:48:38.612Z",
+    "kibana.alert.last_detected": "2026-10-08T22:48:38.755Z",
+    "kibana.alert.original_event.action": "TCP_MISS",
+    "kibana.alert.original_event.category": "web",
+    "kibana.alert.original_event.duration": 266,
+    "kibana.alert.original_event.ingested": "2026-10-08T22:43:33.006016+00:00",
+    "kibana.alert.original_event.kind": "event",
+    "kibana.alert.original_event.module": "squid",
+    "kibana.alert.original_event.original": "2026-10-09T04:13:33+00:00 qpdtxh5v (squid-3)[1959]: 1791499413.525    266 10.148.212.157:50088 198.18.1.254:13847 TCP_MISS/404 370 GET http://33.178.85.107/108945648 - ORIGINAL_DST/33.178.85.107 text/plain",
+    "kibana.alert.original_event.outcome": "success",
+    "kibana.alert.original_event.timestamp_source": "log",
+    "kibana.alert.original_event.type": "access",
+    "kibana.alert.original_time": "2026-10-08T22:43:33.525Z",
+    "kibana.alert.reason": "web event with process squid-3, source 10.148.212.157:50088, destination 33.178.85.107 on qpdtxh5v created critical alert CERT-X D-UNIV PS1Bot IOC match.",
+    "kibana.alert.risk_score": 99,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [],
+    "kibana.alert.rule.category": "Indicator Match Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-10-08T09:03:20.089Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Detects network activity in UNIV infrastructure logs (Squid proxy, DNS, Nginx, Postfix) that involves indicators of compromise from CERT-X incident notification D-UNIV (PS1Bot / SUNSEED.PS compromise).\n\nPS1Bot is a modular, in-memory PowerShell/C# malware framework operated by threat cluster UNC6872. It is delivered through malvertising and SEO-poisoned ZIP downloads containing a \"FULL DOCUMENT .js\" downloader. Its capabilities include browser credential theft, keylogging with clipboard capture, screenshot collection, AD domain reconnaissance, AV enumeration, and privilege escalation to SYSTEM via COM Surrogate.\n\nThe rule matches source.ip / destination.ip against the CERT-X IP list (primary C2 33.178.85.107, the Aeza hosting block 33.178.84.116/23, and related UNC6872 infrastructure), and matches DNS queries and proxy destination domains against the UNC6872 delivery domains. Indicators are stored in the abuse-ioc index.\n\nAn outbound connection or DNS lookup from an internal host to a high-confidence indicator should be treated as a likely active infection.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-08T22:48:38.755Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "86be99d9-c7f2-708e-17b4-183208e61782",
+    "kibana.alert.rule.false_positives": [
+      "Hits on the 33.178.84.116/23 Aeza hosting block (confidence: medium) may be unrelated sites on shared VPS hosting. Treat them as suspicious until verified, but do not assume compromise without a match on the primary C2 or a beacon pattern.",
+      "Security team activity, such as SOC analysts or researchers looking up, browsing, pinging, or sandboxing IOCs from the CERT-X advisory. Check source.ip against SOC analyst workstations and sandbox hosts.",
+      "Inbound connections from IOC IPs to UNIV Nginx or Postfix servers (source.ip match) indicate scanning or probing by attacker infrastructure, not an internal infection. Investigate them, but classify them separately from outbound C2 traffic.",
+      "IOC infrastructure can be reassigned over time. Matches long after the advisory date may involve new, unrelated tenants of the same IP.",
+      "DNS queries made by internal recursive resolvers or forwarders, or by mail and web security gateways that check links found in emails or web pages. Identify the actual client that made the request before attributing the infection to it.",
+      "197.194.115.55 (from UNIV_Campus_IP.csv) may belong to CDN or shared infrastructure. Verify against the CERT-X advisory before escalating."
+    ],
+    "kibana.alert.rule.from": "now-15m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-*"
+    ],
+    "kibana.alert.rule.interval": "5m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.kibana_siem_app_url": "https://10.122.252.228:5601/s/acme-univcc/app/security",
+    "kibana.alert.rule.name": "CERT-X D-UNIV PS1Bot IOC match",
+    "kibana.alert.rule.note": "## Triage\n1. Check `threat.enrichments.matched.field` to see which field matched:\n   - `destination.ip` / `dns.question.name` / `destination.domain` from an **internal** host = likely infection.\n   - `source.ip` on nginx/postfix = inbound scanning from attacker infrastructure.\n2. Check `threat.enrichments.indicator.confidence`: **high** means a C2 or UNC6872 indicator; **medium** means the shared Aeza block or an unverified IP.\n3. In Squid logs, check for beacon patterns in the URL: `/<6-10 digits>?k=`, `?i=` (AD domain exfiltrated), `/pzqm`, `/transform`, `/api/get-file/`.\n\n## If an internal host matches\n- Isolate the host immediately and treat the infection as live.\n- Preserve memory and disk images **before** any cleanup.\n- Check the C: volume serial number (`vol C:`) against CERT-X candidate 067E-60F0.\n- Look for persistence: a random directory under C:\\ProgramData containing .ps1 + .ico files, and an LNK in the Startup folder.\n- Reimage the host (the framework runs in memory, so cleanup alone is not enough), and rotate all credentials used on it.\n- Retro-hunt the same source.ip across all acme-logs-* indices back to 13 April 2026.\n\n## Reporting\nRecord the findings against CERT-X request items 1–3 (endpoint details, forensic images, lateral-movement assessment).",
+    "kibana.alert.rule.parameters": {
+      "author": [],
+      "description": "Detects network activity in UNIV infrastructure logs (Squid proxy, DNS, Nginx, Postfix) that involves indicators of compromise from CERT-X incident notification D-UNIV (PS1Bot / SUNSEED.PS compromise).\n\nPS1Bot is a modular, in-memory PowerShell/C# malware framework operated by threat cluster UNC6872. It is delivered through malvertising and SEO-poisoned ZIP downloads containing a \"FULL DOCUMENT .js\" downloader. Its capabilities include browser credential theft, keylogging with clipboard capture, screenshot collection, AD domain reconnaissance, AV enumeration, and privilege escalation to SYSTEM via COM Surrogate.\n\nThe rule matches source.ip / destination.ip against the CERT-X IP list (primary C2 33.178.85.107, the Aeza hosting block 33.178.84.116/23, and related UNC6872 infrastructure), and matches DNS queries and proxy destination domains against the UNC6872 delivery domains. Indicators are stored in the abuse-ioc index.\n\nAn outbound connection or DNS lookup from an internal host to a high-confidence indicator should be treated as a likely active infection.",
+      "exceptions_list": [],
+      "false_positives": [
+        "Hits on the 33.178.84.116/23 Aeza hosting block (confidence: medium) may be unrelated sites on shared VPS hosting. Treat them as suspicious until verified, but do not assume compromise without a match on the primary C2 or a beacon pattern.",
+        "Security team activity, such as SOC analysts or researchers looking up, browsing, pinging, or sandboxing IOCs from the CERT-X advisory. Check source.ip against SOC analyst workstations and sandbox hosts.",
+        "Inbound connections from IOC IPs to UNIV Nginx or Postfix servers (source.ip match) indicate scanning or probing by attacker infrastructure, not an internal infection. Investigate them, but classify them separately from outbound C2 traffic.",
+        "IOC infrastructure can be reassigned over time. Matches long after the advisory date may involve new, unrelated tenants of the same IP.",
+        "DNS queries made by internal recursive resolvers or forwarders, or by mail and web security gateways that check links found in emails or web pages. Identify the actual client that made the request before attributing the infection to it.",
+        "197.194.115.55 (from UNIV_Campus_IP.csv) may belong to CDN or shared infrastructure. Verify against the CERT-X advisory before escalating."
+      ],
+      "filters": [],
+      "from": "now-15m",
+      "immutable": false,
+      "index": [
+        "acme-logs-*"
+      ],
+      "investigation_fields": {
+        "field_names": [
+          "destination.ip",
+          "source.ip",
+          "dns.question.name.keyword",
+          "destination.domain.keyword",
+          "source.domain"
+        ]
+      },
+      "language": "kuery",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "kibana_siem_app_url": "https://10.122.252.228:5601/s/acme-univcc/app/security"
+      },
+      "note": "## Triage\n1. Check `threat.enrichments.matched.field` to see which field matched:\n   - `destination.ip` / `dns.question.name` / `destination.domain` from an **internal** host = likely infection.\n   - `source.ip` on nginx/postfix = inbound scanning from attacker infrastructure.\n2. Check `threat.enrichments.indicator.confidence`: **high** means a C2 or UNC6872 indicator; **medium** means the shared Aeza block or an unverified IP.\n3. In Squid logs, check for beacon patterns in the URL: `/<6-10 digits>?k=`, `?i=` (AD domain exfiltrated), `/pzqm`, `/transform`, `/api/get-file/`.\n\n## If an internal host matches\n- Isolate the host immediately and treat the infection as live.\n- Preserve memory and disk images **before** any cleanup.\n- Check the C: volume serial number (`vol C:`) against CERT-X candidate 067E-60F0.\n- Look for persistence: a random directory under C:\\ProgramData containing .ps1 + .ico files, and an LNK in the Startup folder.\n- Reimage the host (the framework runs in memory, so cleanup alone is not enough), and rotate all credentials used on it.\n- Retro-hunt the same source.ip across all acme-logs-* indices back to 13 April 2026.\n\n## Reporting\nRecord the findings against CERT-X request items 1–3 (endpoint details, forensic images, lateral-movement assessment).",
+      "query": "*:*",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 99,
+      "risk_score_mapping": [],
+      "rule_id": "72fc3179-acbe-4f20-b063-dbefd3b661bb",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "critical",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1071",
+              "name": "Application Layer Protocol",
+              "reference": "https://attack.mitre.org/techniques/T1071/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1105",
+              "name": "Ingress Tool Transfer",
+              "reference": "https://attack.mitre.org/techniques/T1105/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1573",
+              "name": "Encrypted Channel",
+              "reference": "https://attack.mitre.org/techniques/T1573/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0010",
+            "name": "Exfiltration",
+            "reference": "https://attack.mitre.org/tactics/TA0010/"
+          },
+          "technique": [
+            {
+              "id": "T1041",
+              "name": "Exfiltration Over C2 Channel",
+              "reference": "https://attack.mitre.org/techniques/T1041/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0001",
+            "name": "Initial Access",
+            "reference": "https://attack.mitre.org/tactics/TA0001/"
+          },
+          "technique": [
+            {
+              "id": "T1189",
+              "name": "Drive-by Compromise",
+              "reference": "https://attack.mitre.org/techniques/T1189/",
+              "subtechnique": []
+            }
+          ]
+        }
+      ],
+      "threat_filters": [],
+      "threat_index": [
+        "abuse-ioc"
+      ],
+      "threat_indicator_path": "threat.indicator",
+      "threat_language": "kuery",
+      "threat_mapping": [
+        {
+          "entries": [
+            {
+              "field": "destination.ip",
+              "type": "mapping",
+              "value": "threat.indicator.ip"
+            }
+          ]
+        },
+        {
+          "entries": [
+            {
+              "field": "source.ip",
+              "type": "mapping",
+              "value": "threat.indicator.ip"
+            }
+          ]
+        },
+        {
+          "entries": [
+            {
+              "field": "dns.question.name.keyword",
+              "type": "mapping",
+              "value": "threat.indicator.url.domain"
+            }
+          ]
+        },
+        {
+          "entries": [
+            {
+              "field": "destination.domain.keyword",
+              "type": "mapping",
+              "value": "threat.indicator.url.domain"
+            }
+          ]
+        },
+        {
+          "entries": [
+            {
+              "field": "source.domain.keyword",
+              "type": "mapping",
+              "value": "threat.indicator.url.domain"
+            }
+          ]
+        }
+      ],
+      "threat_query": "@timestamp >= \"now-30d/d\"",
+      "to": "now",
+      "type": "threat_match",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 1,
+    "kibana.alert.rule.risk_score": 99,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "72fc3179-acbe-4f20-b063-dbefd3b661bb",
+    "kibana.alert.rule.rule_type_id": "siem.indicatorRule",
+    "kibana.alert.rule.severity": "critical",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1071",
+            "name": "Application Layer Protocol",
+            "reference": "https://attack.mitre.org/techniques/T1071/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1105",
+            "name": "Ingress Tool Transfer",
+            "reference": "https://attack.mitre.org/techniques/T1105/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1573",
+            "name": "Encrypted Channel",
+            "reference": "https://attack.mitre.org/techniques/T1573/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0010",
+          "name": "Exfiltration",
+          "reference": "https://attack.mitre.org/tactics/TA0010/"
+        },
+        "technique": [
+          {
+            "id": "T1041",
+            "name": "Exfiltration Over C2 Channel",
+            "reference": "https://attack.mitre.org/techniques/T1041/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0001",
+          "name": "Initial Access",
+          "reference": "https://attack.mitre.org/tactics/TA0001/"
+        },
+        "technique": [
+          {
+            "id": "T1189",
+            "name": "Drive-by Compromise",
+            "reference": "https://attack.mitre.org/techniques/T1189/",
+            "subtechnique": []
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "threat_match",
+    "kibana.alert.rule.updated_at": "2026-10-08T09:06:52.595Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "106242ec-d69e-4ff8-ad5a-507f728c1d8f",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "critical",
+    "kibana.alert.start": "2026-10-08T22:48:38.755Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.uuid": "2f104c344b39094df57bbe8cf77e3f03e17249a01091c9c179dc8ae728f05e0a",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "network": {
+      "protocol": "http",
+      "transport": "tcp"
+    },
+    "observer": {
+      "dept": "org-7zadsgjk",
+      "env": "production",
+      "hostname": "qpdtxh5v",
+      "ingress": {
+        "interface": {
+          "id": "13847"
+        }
+      },
+      "ip": "198.18.1.254",
+      "org": "univ",
+      "product": "Squid Proxy",
+      "server": "emlnapoe",
+      "source_host": "emlnapoe",
+      "source_program": "squid",
+      "type": "proxy",
+      "vendor": "Squid"
+    },
+    "process": {
+      "name": "squid-3",
+      "pid": 1959
+    },
+    "service": {
+      "type": "proxy"
+    },
+    "service_name": "squid",
+    "source": {
+      "ip": "10.148.212.157",
+      "port": 50088
+    },
+    "threat": {
+      "enrichments": [
+        {
+          "indicator": {
+            "confidence": "high",
+            "description": "PS1Bot primary C2 (80/443, panel 12685)",
+            "ip": "33.178.85.107",
+            "provider": "CERT-X",
+            "reference": "CERT-X D-UNIV PS1Bot",
+            "type": "ipv4-addr"
+          },
+          "matched": {
+            "atomic": "33.178.85.107",
+            "field": "destination.ip",
+            "id": "id-opurzxmrxid3kv47haze",
+            "index": "abuse-ioc",
+            "type": "indicator_match_rule"
+          }
+        }
+      ]
+    },
+    "url": {
+      "original": "http://33.178.85.107/108945648"
+    }
+  }
+}

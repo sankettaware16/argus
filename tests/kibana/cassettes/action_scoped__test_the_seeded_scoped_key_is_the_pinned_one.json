@@ -1,0 +1,235 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-6b7c79-seeded-scoped-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-6b7c79-seeded-scoped\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-6b7c79-seeded-scoped\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-6b7c79-seeded-scoped",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-6b7c79-seeded-scoped (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run seeded-scoped",
+    "query": "tier.run: \"<run>-6b7c79-seeded-scoped\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-6b7c79-seeded-scoped",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-6b7c79-seeded-scoped"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (seeded scoped).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-6b7c79"
+    ],
+    "title": "seeded scoped",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (seeded scoped).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-6b7c79"
+    ],
+    "title": "seeded scoped"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-6b7c79"
+    ],
+    "title": "seeded scoped",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "API [POST /internal/rac/alerts/bulk_update] is unauthorized for user, this action is granted by the Kibana privileges [rac]",
+    "statusCode": 403
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "ids": [
+     "<hex:1>"
+    ],
+    "index": ".alerts-security.alerts-acme-soc",
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/internal/rac/alerts/bulk_update",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.case_ids": [
+     "<uuid:1>"
+    ],
+    "kibana.alert.workflow_status": "open"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

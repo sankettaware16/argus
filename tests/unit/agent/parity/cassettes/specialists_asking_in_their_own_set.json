@@ -1,0 +1,40 @@
+{
+ "entries": {
+  "1f9c1c3b5af766dbb29d50f0dcf12bc82373e7d3e06a5962afada0a2bf590060": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"notes\\\": \\\"proxy: one destination\\\", \\\"cites\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "8859eae6d8497f30c13f3fd10334ac48cf154302672ce64f8e7db7fe2071ba52": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"notes\\\": \\\"intel: check the address\\\", \\\"cites\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "972d8af7221381c98c86a2e109079469901e4cc84bf73e6bd3d4054760ac3890": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"with three checks\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "c2854696ecdb3e2f7436bc72de1753316b36675bfca901fdaf50bffbe22f1ef9": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [\\\"proxy\\\", \\\"intel\\\"], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "d93193c99cdcd125c514073dc4b7aa3c834db917e61094b546f6253328b0869a": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"proxy.destination\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

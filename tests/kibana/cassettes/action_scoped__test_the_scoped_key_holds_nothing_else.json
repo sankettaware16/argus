@@ -1,0 +1,409 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-6e7765-scoped-no-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-6e7765-scoped-no\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-6e7765-scoped-no\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-6e7765-scoped-no",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-6e7765-scoped-no (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run scoped-no",
+    "query": "tier.run: \"<run>-6e7765-scoped-no\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-6e7765-scoped-no",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-6e7765-scoped-no"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "all"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-scopedno-r",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "scopedno-o@run.argus.invalid",
+    "full_name": "Run scopedno-o",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-scopedno-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-scopedno-o",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "api_key": "<secret>",
+    "encoded": "<secret>",
+    "expiration": "<millis>",
+    "id": "<id:1>",
+    "name": "t-<run>-scopedno"
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "api_key": {
+     "expiration": "1h",
+     "name": "t-<run>-scopedno",
+     "role_descriptors": {
+      "scoped": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "login:",
+          "cases:securitySolution/createCase",
+          "cases:securitySolution/getCase",
+          "cases:securitySolution/getComment",
+          "cases:securitySolution/getTags",
+          "cases:securitySolution/getReporters",
+          "cases:securitySolution/getUserActions",
+          "cases:securitySolution/findConfigurations",
+          "cases:securitySolution/updateCase",
+          "cases:securitySolution/createComment",
+          "cases:securitySolution/reopenCase",
+          "alerting:siem.eqlRule/siem/alert/get",
+          "alerting:siem.esqlRule/siem/alert/get",
+          "alerting:siem.indicatorRule/siem/alert/get",
+          "alerting:siem.mlRule/siem/alert/get",
+          "alerting:siem.newTermsRule/siem/alert/get",
+          "alerting:siem.notifications/siem/alert/get",
+          "alerting:siem.queryRule/siem/alert/get",
+          "alerting:siem.savedQueryRule/siem/alert/get",
+          "alerting:siem.thresholdRule/siem/alert/get"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "indices": []
+      }
+     }
+    },
+    "grant_type": "password",
+    "password": "<secret>",
+    "username": "t-<run>-scopedno-o"
+   },
+   "method": "POST",
+   "path": "/_security/api_key/grant",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "scopedno-o@run.argus.invalid",
+     "full_name": "Run scopedno-o",
+     "username": "t-<run>-scopedno-o"
+    },
+    "customFields": [],
+    "description": "Contract test case (scoped refusals).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-6e7765"
+    ],
+    "title": "scoped refusals",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (scoped refusals).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-6e7765"
+    ],
+    "title": "scoped refusals"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to delete case with owners: \"securitySolution\"",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "method": "DELETE",
+   "params": [
+    [
+     "ids",
+     "[\"<uuid:1>\"]"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to get actions",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {},
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/connector/none/_push",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to create case configuration of any owner",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "closure_type": "close-by-user",
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "owner": "securitySolution"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/configure",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to update case with owners: \"securitySolution\"",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "cases": [
+     {
+      "assignees": [
+       {
+        "uid": "u_tier_assignee_0"
+       }
+      ],
+      "id": "<uuid:1>",
+      "version": "<version:1>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "API [POST /internal/rac/alerts/bulk_update] is unauthorized for user, this action is granted by the Kibana privileges [rac]",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "ids": [
+     "<hex:1>"
+    ],
+    "index": ".alerts-security.alerts-acme-soc",
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/internal/rac/alerts/bulk_update",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "API [POST /api/detection_engine/signals/status] is unauthorized for user, this action is granted by the Kibana privileges [securitySolution]",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "signal_ids": [
+     "<hex:1>"
+    ],
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "API [POST /api/detection_engine/signals/search] is unauthorized for user, this action is granted by the Kibana privileges [securitySolution]",
+    "statusCode": 403
+   },
+   "as": "run-key:scopedno",
+   "body": {
+    "query": {
+     "match_all": {}
+    },
+    "size": 0
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/search",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "open"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

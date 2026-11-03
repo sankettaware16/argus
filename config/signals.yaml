@@ -1,0 +1,172 @@
+# Display registry (plan §5.4, D-058): how each signal reads in the Inbox. Every signal a pack
+# emits needs an entry (a test checks); names ending in ".*" cover a family.
+# sentence: {value} is the signal's value; how_to_read: one plain line for TAs/RAs.
+alert_count:
+  label: Alerts
+  sentence: "{value} alerts"
+  how_to_read: How many alerts the rule raised for this activity on this day.
+duplicate_count:
+  label: Repeats
+  sentence: "{value} repeats of a detection already counted"
+  how_to_read: The rule reported the same event again; repeats are not new activity.
+late_arrivals:
+  label: Late alerts
+  sentence: "{value} alerts arrived after the day had begun to be reviewed"
+  how_to_read: Alerts ARGUS stored after their time; the investigation may have grown.
+span_minutes:
+  label: Duration
+  sentence: "{value} minutes from the first to the last alert"
+  how_to_read: A short burst and a whole day of steady alerts read differently.
+related_investigations:
+  label: Related investigations
+  sentence: "{value} other investigations share a host, IP, domain or user"
+  how_to_read: Activity of the same actor or target under other rules or days.
+continues_previous_day:
+  label: Continues from yesterday
+  sentence: "{value}"
+  how_to_read: The same rule and key had an investigation the day before.
+entities.*:
+  label: "Distinct {part}"
+  sentence: "{value}"
+  how_to_read: How many different IPs, domains, hosts or users the alerts name.
+steps.answered:
+  label: Steps answered
+  sentence: "{value} of the rule's investigation steps answered from the alerts"
+  how_to_read: Steps of the rule's own note that the stored alerts answer.
+steps.deferred:
+  label: Steps waiting
+  sentence: "{value} steps wait for a check ARGUS does not make yet"
+  how_to_read: They need log or threat-intel evidence that later packs bring.
+steps.manual:
+  label: Steps for you
+  sentence: "{value} steps are for a person to decide or do"
+  how_to_read: Actions such as blocking or notifying an owner.
+steps.unknown:
+  label: Steps without data
+  sentence: "{value} steps name fields no alert carries"
+  how_to_read: The rule's note asks for something its alerts do not include.
+remote_total:
+  label: Remote rows
+  sentence: "{value} rows"
+  how_to_read: A test signal (test packs only).
+ti.values:
+  label: Indicators checked
+  sentence: "{value} IPs, domains, URLs or hashes looked up in threat intel"
+  how_to_read: Outside addresses and names of this investigation, checked against the feeds.
+ti.listed:
+  label: On a threat list
+  sentence: "{value} of them on a threat-intel list"
+  how_to_read: A listed indicator is a strong reason to look; "none listed" needs every feed fresh and checked.
+ti.listed_remote:
+  label: On {lookups}
+  sentence: "{value} found in {lookups}"
+  how_to_read: Looked up in the large feed for this investigation.
+same_ioc.investigations:
+  label: Same indicator elsewhere
+  sentence: "{value} other investigations name a listed indicator"
+  how_to_read: Other hosts or rules that touched the same listed address or name.
+alerts.cadence_cv:
+  label: Alert regularity
+  sentence: "{value} (0 = perfectly regular)"
+  how_to_read: How evenly the alerts were spaced; rule suppression shapes it, so it is not proof of a beacon.
+proxy.destinations:
+  label: Destinations reached
+  sentence: "{value} destinations reached by the host through the proxy"
+  how_to_read: From the proxy logs around the alerts; many destinations can mean scanning or a busy machine.
+proxy.bytes:
+  label: Bytes received
+  sentence: "{value} bytes received through the proxy"
+  how_to_read: The size of the replies the host received in the window.
+proxy.busy_slots:
+  label: Active periods
+  sentence: "{value} ten-minute periods with traffic"
+  how_to_read: Steady traffic all day and a short burst read differently.
+proxy.regularity:
+  label: Traffic regularity
+  sentence: "{value} (0 = perfectly regular)"
+  how_to_read: Near 0, the host talks at a fixed rhythm, as a beacon or an update check would.
+proxy.hosts_to_destination:
+  label: Hosts reaching the destination
+  sentence: "{value} internal hosts reached this destination"
+  how_to_read: Many hosts suggest a common service (telemetry); one host stands out.
+web.path_categories:
+  label: Kinds of paths tried
+  sentence: "{value} kinds of sensitive paths tried (traversal, config, admin, injection, CMS)"
+  how_to_read: What the attacker looked for; see the decoded paths in the facts.
+web.scanner_agents:
+  label: Scanner tools
+  sentence: "{value} known scanner tools in the user agents"
+  how_to_read: Automated scanning (sqlmap, nuclei, ...) is noisy and usually generic.
+web.successes_after:
+  label: Successful answers after
+  sentence: "{value} successful (2xx) answers to the client after the first alert"
+  how_to_read: A success after a block may mean the attacker found a way through; look at those paths.
+ports.risky:
+  label: Remote-admin, P2P or anonymizer ports
+  sentence: "{value} connections on remote-admin, peer-to-peer or anonymizer ports"
+  how_to_read: SSH/RDP out, torrents or Tor-like ports; often legitimate for admins and researchers.
+proxy.denied:
+  label: Denied requests
+  sentence: "{value} requests the proxy denied"
+  how_to_read: Repeated denials can be malware calling out or a misconfigured client.
+nat.hint:
+  label: Many users behind one address
+  sentence: "{value}"
+  how_to_read: Many different browsers or apps from one address; it may be a shared gateway, not one machine.
+# Q-F4: the evidence templates of batch 1 (context/beacon.py, dns.py, paths.py, source_events.py).
+pair.beats:
+  label: Contacts over time
+  sentence: "{value} time buckets in which the host reached the destination"
+  how_to_read: How often the host and the destination talked in the window, minute by minute.
+pair.period_s:
+  label: Rhythm
+  sentence: "about every {value} seconds"
+  how_to_read: The host reaches the destination at a fixed rhythm, as a beacon or an update check does.
+pair.jitter_s:
+  label: Rhythm spread
+  sentence: "± {value} seconds"
+  how_to_read: How much the gaps vary; never finer than the check's one- or two-minute buckets.
+pair.last_beat:
+  label: Last contact
+  sentence: "{value}"
+  how_to_read: When the host last reached the destination in the window.
+pair.still_active:
+  label: Still active
+  sentence: "{value}"
+  how_to_read: The rhythm went on to the end of the window checked.
+contact.hosts:
+  label: Hosts that reached it
+  sentence: "{value} campus hosts reached the destination"
+  how_to_read: Every campus host the proxy logs show reaching the destination that day.
+contact.last:
+  label: Last contact from campus
+  sentence: "{value}"
+  how_to_read: The newest request any campus host made to the destination that day.
+dns.lookups:
+  label: DNS lookups
+  sentence: "{value} DNS lookups"
+  how_to_read: How many names the client asked the DNS servers for in the window.
+dns.names:
+  label: Distinct names looked up
+  sentence: "{value} distinct names"
+  how_to_read: Thousands of distinct names in two hours is unusual for one machine.
+dns.tunnel_suspected:
+  label: DNS tunnel pattern
+  sentence: "{value}"
+  how_to_read: Very many distinct names under one parent domain, long enough to carry data, as data hidden in DNS looks; reverse lookups and blocklist checks are left out.
+web.paths_success:
+  label: Attacked paths that succeeded
+  sentence: "{value} paths got a successful answer unlike the others"
+  how_to_read: A 2xx answer that differs from the site's answer to the other paths tried.
+web.paths_catch_all:
+  label: Catch-all answers
+  sentence: "{value} paths got what looks like the site's catch-all page"
+  how_to_read: The site seems to answer these paths with the same page, so a 2xx there is not shown to succeed; look at the answer if the path matters.
+web.paths_possible:
+  label: Answers that cannot be compared
+  sentence: "{value} paths got a 2xx ARGUS cannot compare"
+  how_to_read: A 2xx with nothing to compare it with; a person should look at the answer.
+source_events.rows:
+  label: Source events
+  sentence: "{value} log events of the client in the alert's window"
+  how_to_read: The events behind a threshold or ES|QL alert; all of the client's, not only those the rule counted.

@@ -1,0 +1,134 @@
+"""The case writer's own grants (Q-D4 review R8): the writer's login stops being a member of
+``argus_runtime``.
+
+Migration 0037 gave the writer the runtime's grants by membership, so its login could also do
+everything the runtime can: re-enable a disabled user, change capabilities, set a session's
+step-up, lift a mirror pause. The approvals' send-time checks rely on those facts. The group role
+``argus_writer`` now holds exactly what the writer needs, the way ``argus_web`` does (see
+``argus.db.roles.WRITER_GRANTS``, which ``argus doctor`` checks against every table):
+
+* SELECT on what it reads: the cases and their events and members, the approvals and the
+  identity checks that its send-time checks read, the people, the alerts it attaches, the
+  mirror, the lane's health and switches;
+* INSERT on the audit trail, the findings and the lane's request ledger; UPDATE of the lane's
+  state (the same columns as the runtime);
+* SELECT on its own five tables (0037 gave INSERT and UPDATE columns; the runtime read them);
+* EXECUTE on the functions of the send-time check (0030): the two that move a closure write and
+  the one that asks a person to re-confirm an approval that no longer holds.
+
+``argus db bootstrap`` takes the writer's login out of ``argus_runtime`` (it is repaired like
+any other membership), and ``argus doctor`` reports a login that still belongs to it. The role
+names are written out, not imported (see 0003).
+
+Revision ID: 0038
+Revises: 0037
+Create Date: 2026-10-26
+"""
+
+from collections.abc import Sequence
+
+from alembic import op
+
+from argus.db.siem_names import RENAME
+
+revision: str = "0038"
+down_revision: str | None = "0037"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+READS = (
+    "alert_records",
+    "approval_decisions",
+    "approval_requests",
+    "case_events",
+    "case_members",
+    "cases",
+    "siem_live_sessions",
+    "siem_probes",
+    "siem_switches",
+    "identity_checks",
+    "investigation_alerts",
+    "kibana_mirror",
+    "users",
+    # its own tables (0037 granted the writing; the runtime's SELECT came with the membership)
+    "kibana_outbox",
+    "kibana_steps",
+    "kibana_lookups",
+    "kibana_writer_runs",
+    "kibana_writer_ramp",
+)
+AUDIT_INSERT = (
+    "actor",
+    "action",
+    "outcome",
+    "target_type",
+    "target_id",
+    "correlation_id",
+    "details",
+)
+FINDINGS_INSERT = (
+    "found_at",
+    "kind",
+    "severity",
+    "kibana_case_id",
+    "case_id",
+    "dedupe_key",
+    "lag_s",
+    "details",
+)
+LEDGER_INSERT = (
+    "at",
+    "component",
+    "purpose",
+    "template",
+    "version",
+    "indices",
+    "outcome",
+    "http_status",
+    "took_ms",
+    "elapsed_ms",
+    "response_bytes",
+    "attempts",
+    "live_session",
+    "task_key",
+    "lane",
+    "target",
+    "outbox_id",
+    "payload_hash",
+    "write_class",
+    "approval_id",
+    "health",
+    "switches",
+)
+FUNCTIONS = (
+    "argus_approval_propose(text, uuid, integer, text, text, bigint, jsonb, text, text,"
+    " timestamptz, text)",
+    "argus_closure_write_move(bigint, text, text)",
+    "argus_closure_write_lock(bigint)",
+)
+INSERTS = (
+    ("audit_events", AUDIT_INSERT),
+    ("kibana_findings", FINDINGS_INSERT),
+    ("siem_requests", LEDGER_INSERT),
+)
+
+
+def upgrade() -> None:
+    op.execute(RENAME)  # an old database's tables first (argus.db.siem_names)
+    for table in READS:
+        op.execute(f"GRANT SELECT ON {table} TO argus_writer")
+    for table, columns in INSERTS:
+        op.execute(f"GRANT SELECT, INSERT ({', '.join(columns)}) ON {table} TO argus_writer")
+    op.execute("GRANT SELECT, UPDATE (state, updated_at) ON siem_state TO argus_writer")
+    for function in FUNCTIONS:
+        op.execute(f"GRANT EXECUTE ON FUNCTION {function} TO argus_writer")
+
+
+def downgrade() -> None:
+    for function in FUNCTIONS:
+        op.execute(f"REVOKE EXECUTE ON FUNCTION {function} FROM argus_writer")
+    op.execute("REVOKE SELECT, UPDATE (state, updated_at) ON siem_state FROM argus_writer")
+    for table, columns in INSERTS:
+        op.execute(f"REVOKE SELECT, INSERT ({', '.join(columns)}) ON {table} FROM argus_writer")
+    for table in READS:
+        op.execute(f"REVOKE SELECT ON {table} FROM argus_writer")  # noqa: S608 - fixed names

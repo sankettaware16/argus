@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Report{% endblock %}
+{% set kinds = {"hidden": "Hidden", "new": "New", "nothing_found": "Nothing found", "could_not_tell": "Could not tell", "failed": "Failed", "not_checked": "Not checked", "still_open": "Still open"} %}
+{% set grades = {"strong": "Strong", "moderate": "Moderate", "weak": "Weak"} %}
+{% set statuses = {"no_decision": "made no proposal", "queued": "has not assessed it yet", "running": "is assessing it now", "failed": "could not finish", "none": "has not assessed it"} %}
+{% macro eids(list) %}{% if list %} <span class="mono hint">{{ list | join(", ") }}</span>{% endif %}{% endmacro %}
+{% macro values(list) %}{% if list %}<ul class="values">{% for v in list %}<li>{{ v.label | u(60) }}: <span class="mono">{{ v.text | u(200) }}</span>{% if v.count is not none %} ({{ v.count }}){% endif %}</li>{% endfor %}</ul>{% endif %}{% endmacro %}
+{% block main %}
+<article class="inv report" id="report">
+  <header class="inv-head">
+    <p class="crumb"><a href="/investigations/{{ inv.id }}">← Back to the investigation</a></p>
+    <h1>Report: {{ (inv.rule_name or inv.rule_id) | u(160) }}</h1>
+    <p class="hint">What ARGUS found, where each fact came from (its E-number), and what is still open. Version {{ report.version }} of the investigation.{% if report.note %} Note: {{ report.note | u(300) }}.{% endif %}</p>
+    {% if reports | length > 1 %}
+    <nav class="tabs" aria-label="Reports of this investigation">
+      {% for r in reports %}<a href="/investigations/{{ inv.id }}/report{% if r.assessment_id %}?assessment={{ r.assessment_id }}{% endif %}"{% if r.assessment_id == report.assessment_id %} aria-current="page"{% endif %}>{{ r.verdict.source[:1] | upper }}{{ r.verdict.source[1:] }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+  </header>
+
+  <section>
+    <h2>Verdict</h2>
+    {% set v = report.verdict %}
+    <p><strong>{{ v.source[:1] | upper }}{{ v.source[1:] }}</strong>
+      {% if v.status == "proposed" %}proposes <strong>{{ outcomes.get(v.outcome, v.outcome) }}</strong>{% else %}{{ statuses.get(v.status, v.status) }}{% endif %}{% if v.model_confidence is not none %} <span class="hint">(the model's confidence {{ (v.model_confidence * 100) | round | int }}%)</span>{% endif %}{% if v.at %}, <time title="{{ v.at | utc }}">{{ v.at | ist }}</time>{% endif %}.</p>
+    {% if v.why %}<ul>{% for w in v.why %}<li>{{ w | u(600) }}</li>{% endfor %}</ul>{% endif %}
+    {% set st = report.strength %}
+    <p><strong>Evidence strength: {{ grades[st.grade] }}.</strong> <span class="hint">{{ st.reasons | join("; ") | u(600) }}. This is a count of what ARGUS could check, separate from any confidence.</span></p>
+  </section>
+
+  {% if report.summary %}
+  <section>
+    <h2>Summary, in the AI investigator's words</h2>
+    <p>{{ report.summary.text | u(2000) }}</p>
+    <p class="hint">{{ report.summary.note | u(300) }}</p>
+    {% if report.summary.cites %}<ul>{% for c in report.summary.cites %}<li><q>{{ c.quote | u(300) }}</q>{{ eids(c.eids) }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>What ARGUS found with extra SIEM queries</h2>
+    <p class="hint">{{ report.found.checks }} check{{ "s" if report.found.checks != 1 }} sent to the SIEM, {{ report.found.server_ms }} ms of its server time. Compared with what the alerts alone say.</p>
+    {% if report.found.items %}
+    <ul class="facts-list">
+      {% for item in report.found.items %}
+      <li><strong>{{ kinds[item.kind] }}:</strong> {{ item.sentence | u(600) }}{{ eids(item.eids) }}{{ values(item.values) }}{% if item.note %}<div class="hint mono">{{ item.note | u(400) }}</div>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">No SIEM query was made for this investigation version.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    <ol>
+      {% for e in report.timeline %}
+      <li><time title="{{ e.at | utc }}">{{ e.at | ist }}</time>{% if e.until %} to <time title="{{ e.until | utc }}">{{ e.until | ist }}</time>{% endif %}: {{ e.sentence | u(600) }}{{ eids(e.eids) }}{{ values(e.values) }}</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section>
+    <h2>Evidence</h2>
+    <p class="hint">Each known fact, read against {{ outcomes.get(report.relative_to, report.relative_to) }}{% if report.verdict.status != "proposed" %} (there is no proposal){% endif %}.</p>
+    <div class="table-scroll">
+    <table class="list">
+      <thead><tr><th scope="col">Bears on it</th><th scope="col">Fact</th><th scope="col">From</th></tr></thead>
+      <tbody>
+        {% for row in report.evidence %}
+        <tr><td>{{ {"supports": "supports", "contradicts": "contradicts", "neutral": "neutral"}[row.stance] }}</td><td>{{ row.fact.sentence | u(600) }}{{ values(row.fact.values) }}</td><td class="mono">{% if row.fact.eids or row.fact.source %}{{ row.fact.eids | join(", ") }}{% if row.fact.eids and row.fact.source %}, {% endif %}{% if row.fact.source %}{{ row.fact.source | u(120) }}{% endif %}{% else %}the alerts{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Hypotheses</h2>
+    <table class="list hypotheses">
+      <thead><tr><th scope="col">Hypothesis</th><th scope="col">For it</th><th scope="col">Against it</th></tr></thead>
+      <tbody>{% for h in report.hypotheses %}<tr><td>{{ h.name | u(200) }} <span class="hint">({{ "ARGUS" if h.by == "argus" else "the model" }})</span></td><td>{% for r in h.support %}<div>{{ r.text | u(300) }}{{ eids(r.eids) }}</div>{% else %}—{% endfor %}</td><td>{% for r in h.against %}<div>{{ r.text | u(300) }}{{ eids(r.eids) }}</div>{% else %}—{% endfor %}</td></tr>{% endfor %}</tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Checked and unknown</h2>
+    {% if report.unknowns %}
+    <ul>{% for g in report.unknowns %}<li>{% if g.floor %}<strong>Blocks a benign proposal.</strong> {% endif %}{{ g.what | u(300) }} Why: {{ g.why | u(300) }}. Who can resolve it: {{ g.who | u(200) }}.{{ eids(g.eids) }}</li>{% endfor %}</ul>
+    {% else %}<p class="empty">Nothing open.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Actions</h2>
+    <ul>{% for a in report.actions %}<li>{{ a.text | u(300) }} <span class="hint">Who: {{ a.who | u(200) }}.{% if a.why %} Why: {{ a.why | u(300) }}.{% endif %}</span></li>{% endfor %}</ul>
+  </section>
+
+  <section>
+    <h2>Cost</h2>
+    {% set co = report.cost %}
+    <p>{{ co.siem_requests }} SIEM request{{ "s" if co.siem_requests != 1 }}, {{ co.siem_server_ms }} ms of server time, {{ co.reused }} answer{{ "s" if co.reused != 1 }} reused from an earlier version{% if co.model_calls %}; {{ co.model_calls }} model call{{ "s" if co.model_calls != 1 }}, ${{ "%.4f" | format(co.model_cost_usd) }}{% endif %}.</p>
+  </section>
+
+  <section>
+    <h2>Where each fact came from</h2>
+    <p class="hint">Every SIEM request behind this report, by its E-number: the query, what it returned and when.</p>
+    <ul class="mono">{% for p in report.provenance %}<li>{{ p.line | u(400) }}</li>{% else %}<li>No SIEM query.</li>{% endfor %}</ul>
+    <details><summary>The exact queries and answers (raw)</summary><pre class="raw">{{ report.model_dump(mode="json")["provenance"] | raw }}</pre></details>
+  </section>
+  {% if report.hidden %}<p class="hint">The results of {{ report.hidden }} log check{{ "s" if report.hidden != 1 }} are hidden: they need log access in ELK.</p>{% endif %}
+</article>
+{% endblock %}

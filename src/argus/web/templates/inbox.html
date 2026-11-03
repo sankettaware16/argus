@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ views[view] }}{% endblock %}
+{% block main %}
+<h1>{{ views[view] }}</h1>
+{% if rule %}<p class="filter">Rule: <span class="mono">{{ rule | u }}</span> · <a href="/?view={{ view }}">clear</a></p>{% endif %}
+{% if kind and value %}<p class="filter">{{ kind }}: <span class="mono">{{ value | u }}</span> · <a href="/?view={{ view }}">clear</a></p>{% endif %}
+{% if counts %}
+<ul class="summary" aria-label="Summary">
+  <li><a href="/"><strong>{{ counts.attention }}</strong> need attention</a></li>
+  <li><a href="/?view=known"><strong>{{ counts.known }}</strong> notified, still active</a> <span class="sub">(counted, not raised)</span></li>
+  <li><a href="/?view=open"><strong>{{ counts.open }}</strong> not reviewed</a></li>
+  <li><strong>{{ counts.follow_up }}</strong> follow-ups</li>
+  <li><strong>{{ counts.changed }}</strong> changed since review</li>
+  <li><a href="/?view=reviewed"><strong>{{ counts.reviewed }}</strong> reviewed</a> ({{ counts.reviewed_today }} in the last 24 h)</li>
+  <li><a href="/?view=all"><strong>{{ counts.all }}</strong> in all</a></li>
+</ul>
+<form class="find" method="get" action="/">
+  <input type="hidden" name="view" value="all">
+  <label for="find-kind">Find</label>
+  <select id="find-kind" name="kind">
+    <option value="ip">IP address</option><option value="host">host</option>
+    <option value="domain">domain</option><option value="user">user</option>
+  </select>
+  <label for="find-value" class="sr">Value</label>
+  <input id="find-value" name="value" maxlength="300" required placeholder="e.g. 10.8.235.157">
+  <button type="submit">Find</button>
+</form>
+{% endif %}
+{% if view == "attention" %}
+<p class="hint">Start here. Follow-ups, investigations that changed since someone reviewed them, and unreviewed ones the rule rates high or critical or ARGUS raised from its own evidence (a threat-list hit, success after an attack, beacon-like regularity, risky ports). These are reasons to look, not verdicts.</p>
+{% elif view == "known" %}
+<p class="hint">Investigations of devices whose owner was told (a notified case). ARGUS counts their alerts and keeps them out of Needs attention; one comes back there, with its reason, only when something changed since the notice. Each shows its case in the investigation page.</p>
+{% elif view == "open" %}
+<p class="hint">Every investigation nobody has reviewed yet, whatever its severity. ARGUS's assessment of each is in the AI column.</p>
+{% elif view == "reviewed" %}
+<p class="hint">Every investigation decided at least once, with the decision, who made it and when. One that changed since then is also in Needs attention.</p>
+{% else %}
+<p class="hint">Every investigation ARGUS has grouped, reviewed or not.</p>
+{% endif %}
+<p class="sorting">Sorted <strong>{{ sorts[sort] }}</strong>{% if sort in ("newest", "oldest") %} (by the last alert){% endif %} · sort:
+  {% for key in (["newest", "oldest", "urgent"] + (["reviewed"] if view == "reviewed" else [])) %}{% if key != sort %}<a href="/?view={{ view }}&amp;sort={{ key }}{% if rule %}&amp;rule={{ rule | urlencode }}{% endif %}{% if kind and value %}&amp;kind={{ kind }}&amp;value={{ value | urlencode }}{% endif %}">{{ sorts[key] }}</a>{% else %}<span aria-current="true">{{ sorts[key] }}</span>{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+</p>
+{% if not items %}
+<p class="empty">Nothing here.</p>
+{% else %}
+<table class="list cards">
+  <caption class="sr">Investigations</caption>
+  <thead><tr><th scope="col">Investigation</th><th scope="col">Alerts</th><th scope="col">Last alert</th><th scope="col">Severity</th><th scope="col">State</th><th scope="col">AI</th>{% if view == "reviewed" %}<th scope="col">Decision</th><th scope="col">By</th><th scope="col">When</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for i in items %}
+    <tr>
+      <td>
+        <a href="/investigations/{{ i.id }}">{{ (i.rule_name or i.rule_id) | u(120) }}</a>
+        {% if since and i.created_at > since %}<span class="tag new">new</span>{% endif %}
+        <div class="sub">{% for f, v in i.key_fields %}<span class="mono">{{ f | u(40) }} {{ v | u(80) }}</span>{% if not loop.last %} · {% endif %}{% else %}single alert{% endfor %}</div>
+      </td>
+      <td class="num">{{ i.alert_count }}{% if i.duplicate_count %} <span class="sub">(+{{ i.duplicate_count }} repeats)</span>{% endif %}</td>
+      <td><time title="{{ i.last_event_at | utc }}">{{ i.last_event_at | ist }}</time></td>
+      <td>{% if i.severity %}<span class="sev sev-{{ i.severity | u(10) }}">{{ i.severity | u(10) }}</span>{% else %}—{% endif %}</td>
+      <td><span class="state state-{{ i.human_state }}">{{ i.human_state | replace("_", " ") }}</span></td>
+      <td>{% set v = ai.get(i.id) %}{% if not v %}<span class="sub">—</span>{% elif v.status == "proposed" %}<span class="ai ai-{{ v.outcome }}">{{ outcomes.get(v.outcome, v.outcome) }}</span>{% if v.confidence is not none %} <span class="sub">{{ (v.confidence * 100) | round | int }}%</span>{% endif %}{% elif v.status == "no_decision" %}<span class="sub">no proposal</span>{% elif v.status in ("queued", "running") %}<span class="sub">working</span>{% else %}<span class="sub">failed</span>{% endif %}</td>
+      {% if view == "reviewed" %}
+      <td>{% if i.last_outcome %}{{ outcomes.get(i.last_outcome, i.last_outcome) | u(40) }}{% else %}<span class="sub">follow-up or no outcome</span>{% endif %}</td>
+      <td>{{ (i.last_reviewer or "") | u(60) }}</td>
+      <td><time title="{{ i.last_reviewed_at | utc }}">{{ i.last_reviewed_at | ist }}</time></td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<nav class="pager" aria-label="Pages">
+  {% if offset > 0 %}<a href="/?view={{ view }}&sort={{ sort }}&offset={{ [offset - page_size, 0] | max }}{% if rule %}&rule={{ rule | urlencode }}{% endif %}{% if kind and value %}&kind={{ kind | urlencode }}&value={{ value | urlencode }}{% endif %}">Previous</a>{% endif %}
+  {% if items | length == page_size and offset + page_size <= deepest %}<a href="/?view={{ view }}&sort={{ sort }}&offset={{ offset + page_size }}{% if rule %}&rule={{ rule | urlencode }}{% endif %}{% if kind and value %}&kind={{ kind | urlencode }}&value={{ value | urlencode }}{% endif %}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

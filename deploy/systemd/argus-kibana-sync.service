@@ -1,0 +1,22 @@
+[Unit]
+Description=ARGUS Kibana sync (Phase 3, Q-D3: read-back and reconciliation)
+# Disabled: enabled at its production step (Q-D3's first live read, with the user). Until its
+# command exists the condition below skips a start instead of failing it again and again.
+# Restart=on-failure: `sync run` exits 0 while kibana.enabled or kibana.sync.enabled is false,
+# so an enabled unit of an off read-back stays stopped (it does not start again every 30 s).
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+# The Kibana lane on (its own file, never the shared .env) and the reader key as a credential (D-214)
+EnvironmentFile=@ROOT@/local/argus-kibana-read.env
+Environment=CREDENTIALS_DIRECTORY=@ROOT@/local/creds-sync
+ExecCondition=@UV@ run argus kibana sync --help
+ExecStart=@UV@ run argus kibana sync run
+Restart=on-failure
+RestartSec=30
+MemoryMax=512M
+Nice=10
+
+[Install]
+WantedBy=default.target

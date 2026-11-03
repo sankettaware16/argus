@@ -1,0 +1,231 @@
+/* ARGUS's design tokens (Q-B1, plan §7.5): calm and neutral, colour only where it carries meaning
+   and always with text, light and dark from the system (DQ25). OKLCH tokens; Tailwind reads them
+   through @theme. Everything is in this file: the CSP refuses inline style. */
+@import "tailwindcss";
+
+/* Inter, served by ARGUS itself (OFL, src/assets/fonts/Inter-LICENSE.txt): the same type on
+   every machine, whatever the system's default font (a TA/RA's was monospace, 2026-10-27) */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./assets/fonts/inter-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  color-scheme: light;
+  --bg: oklch(0.982 0.003 250);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.966 0.005 250);
+  --surface-3: oklch(0.936 0.007 250);
+  --border: oklch(0.885 0.008 250);
+  --border-strong: oklch(0.74 0.012 250);
+  --text: oklch(0.24 0.015 255);
+  --text-muted: oklch(0.45 0.015 255);
+  --accent: oklch(0.45 0.09 250);
+  --accent-hover: oklch(0.40 0.09 250);
+  --accent-fg: oklch(0.99 0 0);
+  --accent-soft: oklch(0.94 0.025 250);
+  --focus: oklch(0.52 0.16 255);
+  /* meaning: each pair (strong text on soft background) is at least 4.5:1 */
+  --critical: oklch(0.47 0.16 25);
+  --critical-soft: oklch(0.95 0.03 25);
+  --high: oklch(0.49 0.13 50);
+  --high-soft: oklch(0.95 0.035 60);
+  --medium: oklch(0.47 0.09 85);
+  --medium-soft: oklch(0.95 0.045 90);
+  --low: oklch(0.45 0.07 235);
+  --low-soft: oklch(0.95 0.02 235);
+  --ok: oklch(0.45 0.09 155);
+  --ok-soft: oklch(0.95 0.035 155);
+  --warn: oklch(0.48 0.1 70);
+  --warn-soft: oklch(0.95 0.045 80);
+  --danger: oklch(0.48 0.17 25);
+  --danger-soft: oklch(0.95 0.03 25);
+  --info: oklch(0.45 0.07 250);
+  --info-soft: oklch(0.95 0.02 250);
+  --marker: oklch(0.42 0.13 330);
+  --marker-soft: oklch(0.94 0.035 330);
+  --shadow: 0 1px 2px oklch(0.2 0.02 255 / 0.08), 0 4px 16px oklch(0.2 0.02 255 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: oklch(0.19 0.01 255);
+    --surface: oklch(0.225 0.012 255);
+    --surface-2: oklch(0.255 0.013 255);
+    --surface-3: oklch(0.29 0.014 255);
+    --border: oklch(0.34 0.014 255);
+    --border-strong: oklch(0.48 0.016 255);
+    --text: oklch(0.93 0.008 255);
+    --text-muted: oklch(0.76 0.012 255);
+    --accent: oklch(0.74 0.1 250);
+    --accent-hover: oklch(0.80 0.09 250);
+    --accent-fg: oklch(0.18 0.02 255);
+    --accent-soft: oklch(0.30 0.04 250);
+    --focus: oklch(0.76 0.13 250);
+    --critical: oklch(0.80 0.11 25);
+    --critical-soft: oklch(0.30 0.06 25);
+    --high: oklch(0.82 0.1 55);
+    --high-soft: oklch(0.30 0.05 55);
+    --medium: oklch(0.85 0.09 90);
+    --medium-soft: oklch(0.30 0.04 90);
+    --low: oklch(0.82 0.06 235);
+    --low-soft: oklch(0.29 0.03 235);
+    --ok: oklch(0.82 0.1 155);
+    --ok-soft: oklch(0.29 0.04 155);
+    --warn: oklch(0.85 0.1 80);
+    --warn-soft: oklch(0.30 0.045 80);
+    --danger: oklch(0.80 0.11 25);
+    --danger-soft: oklch(0.30 0.06 25);
+    --info: oklch(0.82 0.06 250);
+    --info-soft: oklch(0.29 0.03 250);
+    --marker: oklch(0.84 0.09 330);
+    --marker-soft: oklch(0.30 0.05 330);
+    --shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.3);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-focus: var(--focus);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-high: var(--high);
+  --color-high-soft: var(--high-soft);
+  --color-medium: var(--medium);
+  --color-medium-soft: var(--medium-soft);
+  --color-low: var(--low);
+  --color-low-soft: var(--low-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-marker: var(--marker);
+  --color-marker-soft: var(--marker-soft);
+  --shadow-card: var(--shadow);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu,
+    Cantarell, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  --radius-control: 0.375rem;
+  --radius-card: 0.625rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--accent);
+    text-decoration-line: underline;
+    text-underline-offset: 2px;
+  }
+  a:hover {
+    color: var(--accent-hover);
+  }
+  code,
+  pre,
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+}
+
+@layer components {
+  /* a visible marker for an invisible or reordering character in untrusted text */
+  .ut-mark {
+    display: inline-block;
+    margin-inline: 1px;
+    padding-inline: 3px;
+    border-radius: 3px;
+    border: 1px solid var(--marker);
+    background: var(--marker-soft);
+    color: var(--marker);
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    line-height: 1.35;
+    vertical-align: baseline;
+    white-space: nowrap;
+    unicode-bidi: isolate;
+  }
+  .ut-idn {
+    margin-inline-start: 4px;
+    padding-inline: 4px;
+    border-radius: 3px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    white-space: nowrap;
+    unicode-bidi: isolate;
+  }
+  .ut {
+    unicode-bidi: isolate;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  /* inside a one-line (truncated) cell the text stays on one line, or a fixed-height row
+     (the inbox list) overflows into the next one */
+  .truncate .ut {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

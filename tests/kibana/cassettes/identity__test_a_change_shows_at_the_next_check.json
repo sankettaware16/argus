@@ -1,0 +1,361 @@
+{
+ "exchanges": [
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [
+      {
+       "names": [
+        ".alerts-security.alerts-acme-soc",
+        ".internal.alerts-security.alerts-acme-soc-*"
+       ],
+       "privileges": [
+        "read",
+        "view_index_metadata"
+       ]
+      }
+     ],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "read"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-chg-r",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "chg@run.argus.invalid",
+    "full_name": "Run chg",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-chg-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-chg",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {},
+    "realm": "native",
+    "roles": [
+     "t-<run>-chg-r"
+    ],
+    "type": "realm",
+    "username": "t-<run>-chg"
+   },
+   "as": "run-user:chg",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/getCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "run-user:chg",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {},
+   "as": "elastic",
+   "body": {
+    "password": "<secret>"
+   },
+   "method": "POST",
+   "path": "/_security/user/t-<run>-chg/_password",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [t-<run>-chg] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [t-<run>-chg] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "run-user:chg",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {},
+    "realm": "native",
+    "roles": [
+     "t-<run>-chg-r"
+    ],
+    "type": "realm",
+    "username": "t-<run>-chg"
+   },
+   "as": "run-user:chg-new",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": false
+   },
+   "as": "elastic",
+   "body": {
+    "roles": []
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-chg",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [],
+    "kibana": []
+   },
+   "as": "run-user:chg-new",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {},
+   "as": "elastic",
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-chg/_disable",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [t-<run>-chg] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [t-<run>-chg] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "run-user:chg-new",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {},
+   "as": "elastic",
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-chg/_enable",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {},
+    "realm": "native",
+    "roles": [],
+    "type": "realm",
+    "username": "t-<run>-chg"
+   },
+   "as": "run-user:chg-new",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

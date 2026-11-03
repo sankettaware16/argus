@@ -1,0 +1,13 @@
+[Unit]
+Description=ARGUS weekly report (Q-H3): the figures of the last complete Monday-to-Sunday UTC week, and of any other week of the last 4 that a missed run left out, from ARGUS's own database
+# Started by argus-report-weekly.timer. Reads the local database only (no SIEM request, no model call), stores
+# the report once (a period already made is left as it is) and audits it. Off until the user has
+# read two reports (docs/gates/q-h3.md, production steps).
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus report weekly
+MemoryMax=512M
+TimeoutStartSec=10min
+Nice=10

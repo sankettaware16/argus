@@ -1,0 +1,19 @@
+{
+ "entries": {
+  "40c2719034430e585be3a70d38b809e9d0687b5df9c875bd7c980bff31aa4120": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}, {\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}, {\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"evil.example\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "b4b61a32711bc3d81ef338f5f4420dab14802cf7eabfb9e600409e267d0aafaa": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"the history says what was held\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

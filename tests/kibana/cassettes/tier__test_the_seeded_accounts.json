@@ -1,0 +1,201 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "argus": {
+     "enabled": false,
+     "metadata": {
+      "argus_service": true
+     },
+     "roles": [
+      "argus_kibana_reader"
+     ]
+    },
+    "tier-analyst": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "45f1fa76-a3fe-5287-a212-60021a7d0e8d"
+     },
+     "roles": [
+      "acme_analyst"
+     ]
+    },
+    "tier-approver": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "da1d2770-d00d-5de6-ab4a-a80763d61946"
+     },
+     "roles": [
+      "acme_analyst",
+      "argus_approver"
+     ]
+    },
+    "tier-argusadmin": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "83b32d77-2815-50ab-a4c6-a4ae077e6ee0"
+     },
+     "roles": [
+      "acme_viewer",
+      "argus_admin"
+     ]
+    },
+    "tier-disabled": {
+     "enabled": false,
+     "metadata": {
+      "argus_uid": "550666be-04a9-5f5b-8afa-e7cd5d35c6e9"
+     },
+     "roles": [
+      "acme_viewer"
+     ]
+    },
+    "tier-elkadmin": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "f80419a4-cf1b-505f-8c99-2319b9333e55"
+     },
+     "roles": [
+      "acme_elk_admin"
+     ]
+    },
+    "tier-manager": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "198db03d-f90b-50e4-bf44-9e0db1183ddc"
+     },
+     "roles": [
+      "acme_case_manager"
+     ]
+    },
+    "tier-otherspace": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "ae285c8b-c504-5d29-b48a-7afd3918280a"
+     },
+     "roles": [
+      "acme_other_space"
+     ]
+    },
+    "tier-reviewer": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "ea3722c6-59ec-5851-923d-8d0798e8ecdb"
+     },
+     "roles": [
+      "acme_reviewer"
+     ]
+    },
+    "tier-superuser": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "7039ec26-e74a-5c0a-8e70-25a9de397eb0"
+     },
+     "roles": [
+      "superuser"
+     ]
+    },
+    "tier-viewer": {
+     "enabled": true,
+     "metadata": {
+      "argus_uid": "9694dc05-934c-549d-8a06-865300c8187a"
+     },
+     "roles": [
+      "acme_viewer"
+     ]
+    }
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/_security/user/tier-superuser,tier-elkadmin,tier-argusadmin,tier-approver,tier-analyst,tier-manager,tier-reviewer,tier-viewer,tier-disabled,tier-otherspace,argus",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "indices": [],
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/security/role/argus_kibana_reader",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "indices": [],
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "all"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/security/role/argus_cases_writer",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "indices": [
+     {
+      "allow_restricted_indices": false,
+      "names": [
+       ".alerts-security.alerts-acme-soc",
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance",
+       "view_index_metadata"
+      ]
+     }
+    ],
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/security/role/argus_alert_writer",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

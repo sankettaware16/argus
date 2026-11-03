@@ -1,0 +1,53 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "nohealth@run.argus.invalid",
+    "full_name": "Run nohealth",
+    "password": "<secret>",
+    "roles": []
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-nohealth",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "active_primary_shards": 1,
+    "status": "green",
+    "unassigned_primary_shards": 0
+   },
+   "as": "key:argus-reader",
+   "method": "GET",
+   "path": "/_cluster/health/.security",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "reason": "action [cluster:monitor/health] is unauthorized for user [t-<run>-nohealth] with effective roles [], this action is granted by the cluster privileges [monitor,manage,all]",
+     "root_cause": [
+      {
+       "reason": "action [cluster:monitor/health] is unauthorized for user [t-<run>-nohealth] with effective roles [], this action is granted by the cluster privileges [monitor,manage,all]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 403
+   },
+   "as": "run-user:nohealth",
+   "method": "GET",
+   "path": "/_cluster/health/.security",
+   "status": 403,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

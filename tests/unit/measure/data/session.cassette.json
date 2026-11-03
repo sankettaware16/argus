@@ -1,0 +1,215 @@
+{
+ "entries": {
+  "110988708e67e0c9e2961cfc913044327ea9f747c03dbf97ef18c3423ae15143": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-threat-intel/_search",
+   "status": 200,
+   "template": "ti.lookup@1"
+  },
+  "128774a61ee1fdcedca2f2b9c12eeadc585429727e32ae2830e9f642cc6d7718": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.destination@1"
+  },
+  "1facbce5d3f55957d582eeb8084717d37692d3629d708cbd3c01bca99f40edc6": {
+   "body": "{\"docs\": [{\"_id\": \"id-0-0\", \"found\": true}, {\"_id\": \"id-0-1\", \"found\": true}, {\"_id\": \"id-0-2\", \"found\": true}, {\"_id\": \"id-0-3\", \"found\": true}, {\"_id\": \"id-0-4\", \"found\": true}, {\"_id\": \"id-0-5\", \"found\": true}, {\"_id\": \"id-0-6\", \"found\": true}, {\"_id\": \"id-0-7\", \"found\": true}, {\"_id\": \"id-0-8\", \"found\": true}, {\"_id\": \"id-0-9\", \"found\": true}, {\"_id\": \"id-0-10\", \"found\": true}, {\"_id\": \"id-0-11\", \"found\": true}, {\"_id\": \"id-0-12\", \"found\": true}, {\"_id\": \"id-0-13\", \"found\": true}, {\"_id\": \"id-0-14\", \"found\": true}, {\"_id\": \"id-0-15\", \"found\": true}, {\"_id\": \"id-0-16\", \"found\": true}, {\"_id\": \"id-0-17\", \"found\": true}, {\"_id\": \"id-0-18\", \"found\": true}, {\"_id\": \"id-0-19\", \"found\": true}, {\"_id\": \"id-0-20\", \"found\": true}, {\"_id\": \"id-0-21\", \"found\": true}, {\"_id\": \"id-0-22\", \"found\": true}, {\"_id\": \"id-0-23\", \"found\": true}, {\"_id\": \"id-0-24\", \"found\": true}, {\"_id\": \"id-0-25\", \"found\": true}, {\"_id\": \"id-0-26\", \"found\": true}, {\"_id\": \"id-0-27\", \"found\": true}, {\"_id\": \"id-0-28\", \"found\": true}, {\"_id\": \"id-0-29\", \"found\": true}, {\"_id\": \"id-0-30\", \"found\": true}, {\"_id\": \"id-0-31\", \"found\": true}, {\"_id\": \"id-0-32\", \"found\": true}, {\"_id\": \"id-0-33\", \"found\": true}, {\"_id\": \"id-0-34\", \"found\": true}, {\"_id\": \"id-0-35\", \"found\": true}, {\"_id\": \"id-0-36\", \"found\": true}, {\"_id\": \"id-0-37\", \"found\": true}, {\"_id\": \"id-0-38\", \"found\": true}, {\"_id\": \"id-0-39\", \"found\": true}, {\"_id\": \"id-0-40\", \"found\": true}, {\"_id\": \"id-0-41\", \"found\": true}, {\"_id\": \"id-0-42\", \"found\": true}, {\"_id\": \"id-0-43\", \"found\": true}, {\"_id\": \"id-0-44\", \"found\": true}, {\"_id\": \"id-0-45\", \"found\": true}, {\"_id\": \"id-0-46\", \"found\": true}, {\"_id\": \"id-0-47\", \"found\": true}, {\"_id\": \"id-0-48\", \"found\": true}, {\"_id\": \"id-0-49\", \"found\": true}, {\"_id\": \"id-0-50\", \"found\": true}, {\"_id\": \"id-0-51\", \"found\": true}, {\"_id\": \"id-0-52\", \"found\": true}, {\"_id\": \"id-0-53\", \"found\": true}, {\"_id\": \"id-0-54\", \"found\": true}, {\"_id\": \"id-0-55\", \"found\": true}, {\"_id\": \"id-0-56\", \"found\": true}, {\"_id\": \"id-0-57\", \"found\": true}, {\"_id\": \"id-0-58\", \"found\": true}, {\"_id\": \"id-0-59\", \"found\": true}, {\"_id\": \"id-0-60\", \"found\": true}, {\"_id\": \"id-0-61\", \"found\": true}, {\"_id\": \"id-0-62\", \"found\": true}, {\"_id\": \"id-0-63\", \"found\": true}, {\"_id\": \"id-0-64\", \"found\": true}, {\"_id\": \"id-0-65\", \"found\": true}, {\"_id\": \"id-0-66\", \"found\": true}, {\"_id\": \"id-0-67\", \"found\": true}, {\"_id\": \"id-0-68\", \"found\": true}, {\"_id\": \"id-0-69\", \"found\": true}, {\"_id\": \"id-0-70\", \"found\": true}, {\"_id\": \"id-0-71\", \"found\": true}, {\"_id\": \"id-0-72\", \"found\": true}, {\"_id\": \"id-0-73\", \"found\": true}, {\"_id\": \"id-0-74\", \"found\": true}, {\"_id\": \"id-0-75\", \"found\": true}, {\"_id\": \"id-0-76\", \"found\": true}, {\"_id\": \"id-0-77\", \"found\": true}, {\"_id\": \"id-0-78\", \"found\": true}, {\"_id\": \"id-0-79\", \"found\": true}, {\"_id\": \"id-0-80\", \"found\": true}, {\"_id\": \"id-0-81\", \"found\": true}, {\"_id\": \"id-0-82\", \"found\": true}, {\"_id\": \"id-0-83\", \"found\": true}, {\"_id\": \"id-0-84\", \"found\": true}, {\"_id\": \"id-0-85\", \"found\": true}, {\"_id\": \"id-0-86\", \"found\": true}, {\"_id\": \"id-0-87\", \"found\": true}, {\"_id\": \"id-0-88\", \"found\": true}, {\"_id\": \"id-0-89\", \"found\": true}, {\"_id\": \"id-0-90\", \"found\": true}, {\"_id\": \"id-0-91\", \"found\": true}, {\"_id\": \"id-0-92\", \"found\": true}, {\"_id\": \"id-0-93\", \"found\": true}, {\"_id\": \"id-0-94\", \"found\": true}, {\"_id\": \"id-0-95\", \"found\": true}, {\"_id\": \"id-0-96\", \"found\": true}, {\"_id\": \"id-0-97\", \"found\": true}, {\"_id\": \"id-0-98\", \"found\": true}, {\"_id\": \"id-0-99\", \"found\": true}, {\"_id\": \"id-0-100\", \"found\": true}, {\"_id\": \"id-0-101\", \"found\": true}, {\"_id\": \"id-0-102\", \"found\": true}, {\"_id\": \"id-0-103\", \"found\": true}, {\"_id\": \"id-0-104\", \"found\": true}, {\"_id\": \"id-0-105\", \"found\": true}, {\"_id\": \"id-0-106\", \"found\": true}, {\"_id\": \"id-0-107\", \"found\": true}, {\"_id\": \"id-0-108\", \"found\": true}, {\"_id\": \"id-0-109\", \"found\": true}, {\"_id\": \"id-0-110\", \"found\": true}, {\"_id\": \"id-0-111\", \"found\": true}, {\"_id\": \"id-0-112\", \"found\": true}, {\"_id\": \"id-0-113\", \"found\": true}, {\"_id\": \"id-0-114\", \"found\": true}, {\"_id\": \"id-0-115\", \"found\": true}, {\"_id\": \"id-0-116\", \"found\": true}, {\"_id\": \"id-0-117\", \"found\": true}, {\"_id\": \"id-0-118\", \"found\": true}, {\"_id\": \"id-0-119\", \"found\": true}, {\"_id\": \"id-0-120\", \"found\": true}, {\"_id\": \"id-0-121\", \"found\": true}, {\"_id\": \"id-0-122\", \"found\": true}, {\"_id\": \"id-0-123\", \"found\": true}, {\"_id\": \"id-0-124\", \"found\": true}, {\"_id\": \"id-0-125\", \"found\": true}, {\"_id\": \"id-0-126\", \"found\": true}, {\"_id\": \"id-0-127\", \"found\": true}, {\"_id\": \"id-0-128\", \"found\": true}, {\"_id\": \"id-0-129\", \"found\": true}, {\"_id\": \"id-0-130\", \"found\": true}, {\"_id\": \"id-0-131\", \"found\": true}, {\"_id\": \"id-0-132\", \"found\": true}, {\"_id\": \"id-0-133\", \"found\": true}, {\"_id\": \"id-0-134\", \"found\": true}, {\"_id\": \"id-0-135\", \"found\": true}, {\"_id\": \"id-0-136\", \"found\": true}, {\"_id\": \"id-0-137\", \"found\": true}, {\"_id\": \"id-0-138\", \"found\": true}, {\"_id\": \"id-0-139\", \"found\": true}, {\"_id\": \"id-0-140\", \"found\": true}, {\"_id\": \"id-0-141\", \"found\": true}, {\"_id\": \"id-0-142\", \"found\": true}, {\"_id\": \"id-0-143\", \"found\": true}, {\"_id\": \"id-0-144\", \"found\": true}, {\"_id\": \"id-0-145\", \"found\": true}, {\"_id\": \"id-0-146\", \"found\": true}, {\"_id\": \"id-0-147\", \"found\": true}, {\"_id\": \"id-0-148\", \"found\": true}, {\"_id\": \"id-0-149\", \"found\": true}, {\"_id\": \"id-0-150\", \"found\": true}, {\"_id\": \"id-0-151\", \"found\": true}, {\"_id\": \"id-0-152\", \"found\": true}, {\"_id\": \"id-0-153\", \"found\": true}, {\"_id\": \"id-0-154\", \"found\": true}, {\"_id\": \"id-0-155\", \"found\": true}, {\"_id\": \"id-0-156\", \"found\": true}, {\"_id\": \"id-0-157\", \"found\": true}, {\"_id\": \"id-0-158\", \"found\": true}, {\"_id\": \"id-0-159\", \"found\": true}, {\"_id\": \"id-0-160\", \"found\": true}, {\"_id\": \"id-0-161\", \"found\": true}, {\"_id\": \"id-0-162\", \"found\": true}, {\"_id\": \"id-0-163\", \"found\": true}, {\"_id\": \"id-0-164\", \"found\": true}, {\"_id\": \"id-0-165\", \"found\": true}, {\"_id\": \"id-0-166\", \"found\": true}, {\"_id\": \"id-0-167\", \"found\": true}, {\"_id\": \"id-0-168\", \"found\": true}, {\"_id\": \"id-0-169\", \"found\": true}, {\"_id\": \"id-0-170\", \"found\": true}, {\"_id\": \"id-0-171\", \"found\": true}, {\"_id\": \"id-0-172\", \"found\": true}, {\"_id\": \"id-0-173\", \"found\": true}, {\"_id\": \"id-0-174\", \"found\": true}, {\"_id\": \"id-0-175\", \"found\": true}, {\"_id\": \"id-0-176\", \"found\": true}, {\"_id\": \"id-0-177\", \"found\": true}, {\"_id\": \"id-0-178\", \"found\": true}, {\"_id\": \"id-0-179\", \"found\": true}, {\"_id\": \"id-0-180\", \"found\": true}, {\"_id\": \"id-0-181\", \"found\": true}, {\"_id\": \"id-0-182\", \"found\": true}, {\"_id\": \"id-0-183\", \"found\": true}, {\"_id\": \"id-0-184\", \"found\": true}, {\"_id\": \"id-0-185\", \"found\": true}, {\"_id\": \"id-0-186\", \"found\": true}, {\"_id\": \"id-0-187\", \"found\": true}, {\"_id\": \"id-0-188\", \"found\": true}, {\"_id\": \"id-0-189\", \"found\": true}, {\"_id\": \"id-0-190\", \"found\": true}, {\"_id\": \"id-0-191\", \"found\": true}, {\"_id\": \"id-0-192\", \"found\": true}, {\"_id\": \"id-0-193\", \"found\": true}, {\"_id\": \"id-0-194\", \"found\": true}, {\"_id\": \"id-0-195\", \"found\": true}, {\"_id\": \"id-0-196\", \"found\": true}, {\"_id\": \"id-0-197\", \"found\": true}, {\"_id\": \"id-0-198\", \"found\": true}, {\"_id\": \"id-0-199\", \"found\": true}]}",
+   "elapsed_ms": 15,
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_mget",
+   "status": 200,
+   "template": "alerts.mget@1"
+  },
+  "20cd7fc85215b7fce6e087f4594913a378915c08719cc62ec194da4bb036213a": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.states@1"
+  },
+  "2b5423a19ccb55013750ff19a6799c141bb7fe2ca14986bc4831c21ba6401fa2": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.counts@1"
+  },
+  "2d58974130b763f3d170e29af5f8607de5c77598cc8974d1fa65022d7d0a9b53": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.counts@1"
+  },
+  "2fbd99ea8e07d51edc24a64ec800b093ad8fd7a972f6ad410af6cbb6f5d31c9f": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.ids@1"
+  },
+  "36176fb8d82660de7a6798dcf91fabcd21f9b79f54664a5e30756939d43d1bcc": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-threat-intel/_search",
+   "status": 200,
+   "template": "ti.lookup@1"
+  },
+  "3c3a19865d2b94d0ecb02ab448751dd296b5585d84e515c5a2eb56be3e6341e5": {
+   "body": "{\"indices\": [{\"name\": \"acme-logs-nginx-2026.10.23\"}, {\"name\": \"acme-logs-nginx-2026.10.22\"}, {\"name\": \"acme-logs-nginx-2026.10.21\"}, {\"name\": \"acme-logs-nginx-2026.10.20\"}, {\"name\": \"acme-logs-nginx-2026.10.19\"}]}",
+   "elapsed_ms": 5.0,
+   "path": "/_resolve/index/acme-logs-nginx-*",
+   "status": 200,
+   "template": "indices.listing@1"
+  },
+  "3cee6f4073e8ee2b2cbccca2eda104192ab0ad79d01790696cf545d763ca93f0": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.states@1"
+  },
+  "4447569753e2169f4fcf5fc42a7ab5295214f2a786fb7e7a1e2e192119db91ee": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/abuse-ioc/_search",
+   "status": 200,
+   "template": "ti.newest@1"
+  },
+  "4ea088e3b77f99069e2583996112e2316f1751dd5f542915b7a6417406cc7538": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-threat-intel/_search",
+   "status": 200,
+   "template": "ti.newest@1"
+  },
+  "52048d9777a3497a8a78923ca5d11328114e95506087c5bcaa25f6ea11605f00": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-nginx-2026.10.23/_search",
+   "status": 200,
+   "template": "web.followups@1"
+  },
+  "5bd936dec5e294a79bf322f458ceaf8963d2fb81e74274f83fc358161e9e550f": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.ids@1"
+  },
+  "633583b0ba3d6db7cb059531c01cb572cdc4b341d2954de21b0fa1f90d0327a7": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.ids@1"
+  },
+  "73c6c3aa290fb80d767df7fbae196cb4784063bc5bde1609cc647dbee0b871e1": {
+   "body": "{\"docs\": [{\"_id\": \"id-2-0\", \"found\": true}, {\"_id\": \"id-2-1\", \"found\": true}, {\"_id\": \"id-2-2\", \"found\": true}, {\"_id\": \"id-2-3\", \"found\": true}, {\"_id\": \"id-2-4\", \"found\": true}, {\"_id\": \"id-2-5\", \"found\": true}, {\"_id\": \"id-2-6\", \"found\": true}, {\"_id\": \"id-2-7\", \"found\": true}, {\"_id\": \"id-2-8\", \"found\": true}, {\"_id\": \"id-2-9\", \"found\": true}, {\"_id\": \"id-2-10\", \"found\": true}, {\"_id\": \"id-2-11\", \"found\": true}, {\"_id\": \"id-2-12\", \"found\": true}, {\"_id\": \"id-2-13\", \"found\": true}, {\"_id\": \"id-2-14\", \"found\": true}, {\"_id\": \"id-2-15\", \"found\": true}, {\"_id\": \"id-2-16\", \"found\": true}, {\"_id\": \"id-2-17\", \"found\": true}, {\"_id\": \"id-2-18\", \"found\": true}, {\"_id\": \"id-2-19\", \"found\": true}, {\"_id\": \"id-2-20\", \"found\": true}, {\"_id\": \"id-2-21\", \"found\": true}, {\"_id\": \"id-2-22\", \"found\": true}, {\"_id\": \"id-2-23\", \"found\": true}, {\"_id\": \"id-2-24\", \"found\": true}, {\"_id\": \"id-2-25\", \"found\": true}, {\"_id\": \"id-2-26\", \"found\": true}, {\"_id\": \"id-2-27\", \"found\": true}, {\"_id\": \"id-2-28\", \"found\": true}, {\"_id\": \"id-2-29\", \"found\": true}, {\"_id\": \"id-2-30\", \"found\": true}, {\"_id\": \"id-2-31\", \"found\": true}, {\"_id\": \"id-2-32\", \"found\": true}, {\"_id\": \"id-2-33\", \"found\": true}, {\"_id\": \"id-2-34\", \"found\": true}, {\"_id\": \"id-2-35\", \"found\": true}, {\"_id\": \"id-2-36\", \"found\": true}, {\"_id\": \"id-2-37\", \"found\": true}, {\"_id\": \"id-2-38\", \"found\": true}, {\"_id\": \"id-2-39\", \"found\": true}, {\"_id\": \"id-2-40\", \"found\": true}, {\"_id\": \"id-2-41\", \"found\": true}, {\"_id\": \"id-2-42\", \"found\": true}, {\"_id\": \"id-2-43\", \"found\": true}, {\"_id\": \"id-2-44\", \"found\": true}, {\"_id\": \"id-2-45\", \"found\": true}, {\"_id\": \"id-2-46\", \"found\": true}, {\"_id\": \"id-2-47\", \"found\": true}, {\"_id\": \"id-2-48\", \"found\": true}, {\"_id\": \"id-2-49\", \"found\": true}, {\"_id\": \"id-2-50\", \"found\": true}, {\"_id\": \"id-2-51\", \"found\": true}, {\"_id\": \"id-2-52\", \"found\": true}, {\"_id\": \"id-2-53\", \"found\": true}, {\"_id\": \"id-2-54\", \"found\": true}, {\"_id\": \"id-2-55\", \"found\": true}, {\"_id\": \"id-2-56\", \"found\": true}, {\"_id\": \"id-2-57\", \"found\": true}, {\"_id\": \"id-2-58\", \"found\": true}, {\"_id\": \"id-2-59\", \"found\": true}, {\"_id\": \"id-2-60\", \"found\": true}, {\"_id\": \"id-2-61\", \"found\": true}, {\"_id\": \"id-2-62\", \"found\": true}, {\"_id\": \"id-2-63\", \"found\": true}, {\"_id\": \"id-2-64\", \"found\": true}, {\"_id\": \"id-2-65\", \"found\": true}, {\"_id\": \"id-2-66\", \"found\": true}, {\"_id\": \"id-2-67\", \"found\": true}, {\"_id\": \"id-2-68\", \"found\": true}, {\"_id\": \"id-2-69\", \"found\": true}, {\"_id\": \"id-2-70\", \"found\": true}, {\"_id\": \"id-2-71\", \"found\": true}, {\"_id\": \"id-2-72\", \"found\": true}, {\"_id\": \"id-2-73\", \"found\": true}, {\"_id\": \"id-2-74\", \"found\": true}, {\"_id\": \"id-2-75\", \"found\": true}, {\"_id\": \"id-2-76\", \"found\": true}, {\"_id\": \"id-2-77\", \"found\": true}, {\"_id\": \"id-2-78\", \"found\": true}, {\"_id\": \"id-2-79\", \"found\": true}, {\"_id\": \"id-2-80\", \"found\": true}, {\"_id\": \"id-2-81\", \"found\": true}, {\"_id\": \"id-2-82\", \"found\": true}, {\"_id\": \"id-2-83\", \"found\": true}, {\"_id\": \"id-2-84\", \"found\": true}, {\"_id\": \"id-2-85\", \"found\": true}, {\"_id\": \"id-2-86\", \"found\": true}, {\"_id\": \"id-2-87\", \"found\": true}, {\"_id\": \"id-2-88\", \"found\": true}, {\"_id\": \"id-2-89\", \"found\": true}, {\"_id\": \"id-2-90\", \"found\": true}, {\"_id\": \"id-2-91\", \"found\": true}, {\"_id\": \"id-2-92\", \"found\": true}, {\"_id\": \"id-2-93\", \"found\": true}, {\"_id\": \"id-2-94\", \"found\": true}, {\"_id\": \"id-2-95\", \"found\": true}, {\"_id\": \"id-2-96\", \"found\": true}, {\"_id\": \"id-2-97\", \"found\": true}, {\"_id\": \"id-2-98\", \"found\": true}, {\"_id\": \"id-2-99\", \"found\": true}, {\"_id\": \"id-2-100\", \"found\": true}, {\"_id\": \"id-2-101\", \"found\": true}, {\"_id\": \"id-2-102\", \"found\": true}, {\"_id\": \"id-2-103\", \"found\": true}, {\"_id\": \"id-2-104\", \"found\": true}, {\"_id\": \"id-2-105\", \"found\": true}, {\"_id\": \"id-2-106\", \"found\": true}, {\"_id\": \"id-2-107\", \"found\": true}, {\"_id\": \"id-2-108\", \"found\": true}, {\"_id\": \"id-2-109\", \"found\": true}, {\"_id\": \"id-2-110\", \"found\": true}, {\"_id\": \"id-2-111\", \"found\": true}, {\"_id\": \"id-2-112\", \"found\": true}, {\"_id\": \"id-2-113\", \"found\": true}, {\"_id\": \"id-2-114\", \"found\": true}, {\"_id\": \"id-2-115\", \"found\": true}, {\"_id\": \"id-2-116\", \"found\": true}, {\"_id\": \"id-2-117\", \"found\": true}, {\"_id\": \"id-2-118\", \"found\": true}, {\"_id\": \"id-2-119\", \"found\": true}, {\"_id\": \"id-2-120\", \"found\": true}, {\"_id\": \"id-2-121\", \"found\": true}, {\"_id\": \"id-2-122\", \"found\": true}, {\"_id\": \"id-2-123\", \"found\": true}, {\"_id\": \"id-2-124\", \"found\": true}, {\"_id\": \"id-2-125\", \"found\": true}, {\"_id\": \"id-2-126\", \"found\": true}, {\"_id\": \"id-2-127\", \"found\": true}, {\"_id\": \"id-2-128\", \"found\": true}, {\"_id\": \"id-2-129\", \"found\": true}, {\"_id\": \"id-2-130\", \"found\": true}, {\"_id\": \"id-2-131\", \"found\": true}, {\"_id\": \"id-2-132\", \"found\": true}, {\"_id\": \"id-2-133\", \"found\": true}, {\"_id\": \"id-2-134\", \"found\": true}, {\"_id\": \"id-2-135\", \"found\": true}, {\"_id\": \"id-2-136\", \"found\": true}, {\"_id\": \"id-2-137\", \"found\": true}, {\"_id\": \"id-2-138\", \"found\": true}, {\"_id\": \"id-2-139\", \"found\": true}, {\"_id\": \"id-2-140\", \"found\": true}, {\"_id\": \"id-2-141\", \"found\": true}, {\"_id\": \"id-2-142\", \"found\": true}, {\"_id\": \"id-2-143\", \"found\": true}, {\"_id\": \"id-2-144\", \"found\": true}, {\"_id\": \"id-2-145\", \"found\": true}, {\"_id\": \"id-2-146\", \"found\": true}, {\"_id\": \"id-2-147\", \"found\": true}, {\"_id\": \"id-2-148\", \"found\": true}, {\"_id\": \"id-2-149\", \"found\": true}, {\"_id\": \"id-2-150\", \"found\": true}, {\"_id\": \"id-2-151\", \"found\": true}, {\"_id\": \"id-2-152\", \"found\": true}, {\"_id\": \"id-2-153\", \"found\": true}, {\"_id\": \"id-2-154\", \"found\": true}, {\"_id\": \"id-2-155\", \"found\": true}, {\"_id\": \"id-2-156\", \"found\": true}, {\"_id\": \"id-2-157\", \"found\": true}, {\"_id\": \"id-2-158\", \"found\": true}, {\"_id\": \"id-2-159\", \"found\": true}, {\"_id\": \"id-2-160\", \"found\": true}, {\"_id\": \"id-2-161\", \"found\": true}, {\"_id\": \"id-2-162\", \"found\": true}, {\"_id\": \"id-2-163\", \"found\": true}, {\"_id\": \"id-2-164\", \"found\": true}, {\"_id\": \"id-2-165\", \"found\": true}, {\"_id\": \"id-2-166\", \"found\": true}, {\"_id\": \"id-2-167\", \"found\": true}, {\"_id\": \"id-2-168\", \"found\": true}, {\"_id\": \"id-2-169\", \"found\": true}, {\"_id\": \"id-2-170\", \"found\": true}, {\"_id\": \"id-2-171\", \"found\": true}, {\"_id\": \"id-2-172\", \"found\": true}, {\"_id\": \"id-2-173\", \"found\": true}, {\"_id\": \"id-2-174\", \"found\": true}, {\"_id\": \"id-2-175\", \"found\": true}, {\"_id\": \"id-2-176\", \"found\": true}, {\"_id\": \"id-2-177\", \"found\": true}, {\"_id\": \"id-2-178\", \"found\": true}, {\"_id\": \"id-2-179\", \"found\": true}, {\"_id\": \"id-2-180\", \"found\": true}, {\"_id\": \"id-2-181\", \"found\": true}, {\"_id\": \"id-2-182\", \"found\": true}, {\"_id\": \"id-2-183\", \"found\": true}, {\"_id\": \"id-2-184\", \"found\": true}, {\"_id\": \"id-2-185\", \"found\": true}, {\"_id\": \"id-2-186\", \"found\": true}, {\"_id\": \"id-2-187\", \"found\": true}, {\"_id\": \"id-2-188\", \"found\": true}, {\"_id\": \"id-2-189\", \"found\": true}, {\"_id\": \"id-2-190\", \"found\": true}, {\"_id\": \"id-2-191\", \"found\": true}, {\"_id\": \"id-2-192\", \"found\": true}, {\"_id\": \"id-2-193\", \"found\": true}, {\"_id\": \"id-2-194\", \"found\": true}, {\"_id\": \"id-2-195\", \"found\": true}, {\"_id\": \"id-2-196\", \"found\": true}, {\"_id\": \"id-2-197\", \"found\": true}, {\"_id\": \"id-2-198\", \"found\": true}, {\"_id\": \"id-2-199\", \"found\": true}]}",
+   "elapsed_ms": 15,
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_mget",
+   "status": 200,
+   "template": "alerts.mget@1"
+  },
+  "73d055a9f6b4cdcffcd8ba32838fa2b8dcbb3792123bbe36266eeb5ca64804de": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.host@1"
+  },
+  "7fe168755ce160b96afa54ccbb47e29ba131b46fe988f4718125f98415b2f11f": {
+   "body": "{\"docs\": [{\"_id\": \"id-1-0\", \"found\": true}, {\"_id\": \"id-1-1\", \"found\": true}, {\"_id\": \"id-1-2\", \"found\": true}, {\"_id\": \"id-1-3\", \"found\": true}, {\"_id\": \"id-1-4\", \"found\": true}, {\"_id\": \"id-1-5\", \"found\": true}, {\"_id\": \"id-1-6\", \"found\": true}, {\"_id\": \"id-1-7\", \"found\": true}, {\"_id\": \"id-1-8\", \"found\": true}, {\"_id\": \"id-1-9\", \"found\": true}, {\"_id\": \"id-1-10\", \"found\": true}, {\"_id\": \"id-1-11\", \"found\": true}, {\"_id\": \"id-1-12\", \"found\": true}, {\"_id\": \"id-1-13\", \"found\": true}, {\"_id\": \"id-1-14\", \"found\": true}, {\"_id\": \"id-1-15\", \"found\": true}, {\"_id\": \"id-1-16\", \"found\": true}, {\"_id\": \"id-1-17\", \"found\": true}, {\"_id\": \"id-1-18\", \"found\": true}, {\"_id\": \"id-1-19\", \"found\": true}, {\"_id\": \"id-1-20\", \"found\": true}, {\"_id\": \"id-1-21\", \"found\": true}, {\"_id\": \"id-1-22\", \"found\": true}, {\"_id\": \"id-1-23\", \"found\": true}, {\"_id\": \"id-1-24\", \"found\": true}, {\"_id\": \"id-1-25\", \"found\": true}, {\"_id\": \"id-1-26\", \"found\": true}, {\"_id\": \"id-1-27\", \"found\": true}, {\"_id\": \"id-1-28\", \"found\": true}, {\"_id\": \"id-1-29\", \"found\": true}, {\"_id\": \"id-1-30\", \"found\": true}, {\"_id\": \"id-1-31\", \"found\": true}, {\"_id\": \"id-1-32\", \"found\": true}, {\"_id\": \"id-1-33\", \"found\": true}, {\"_id\": \"id-1-34\", \"found\": true}, {\"_id\": \"id-1-35\", \"found\": true}, {\"_id\": \"id-1-36\", \"found\": true}, {\"_id\": \"id-1-37\", \"found\": true}, {\"_id\": \"id-1-38\", \"found\": true}, {\"_id\": \"id-1-39\", \"found\": true}, {\"_id\": \"id-1-40\", \"found\": true}, {\"_id\": \"id-1-41\", \"found\": true}, {\"_id\": \"id-1-42\", \"found\": true}, {\"_id\": \"id-1-43\", \"found\": true}, {\"_id\": \"id-1-44\", \"found\": true}, {\"_id\": \"id-1-45\", \"found\": true}, {\"_id\": \"id-1-46\", \"found\": true}, {\"_id\": \"id-1-47\", \"found\": true}, {\"_id\": \"id-1-48\", \"found\": true}, {\"_id\": \"id-1-49\", \"found\": true}, {\"_id\": \"id-1-50\", \"found\": true}, {\"_id\": \"id-1-51\", \"found\": true}, {\"_id\": \"id-1-52\", \"found\": true}, {\"_id\": \"id-1-53\", \"found\": true}, {\"_id\": \"id-1-54\", \"found\": true}, {\"_id\": \"id-1-55\", \"found\": true}, {\"_id\": \"id-1-56\", \"found\": true}, {\"_id\": \"id-1-57\", \"found\": true}, {\"_id\": \"id-1-58\", \"found\": true}, {\"_id\": \"id-1-59\", \"found\": true}, {\"_id\": \"id-1-60\", \"found\": true}, {\"_id\": \"id-1-61\", \"found\": true}, {\"_id\": \"id-1-62\", \"found\": true}, {\"_id\": \"id-1-63\", \"found\": true}, {\"_id\": \"id-1-64\", \"found\": true}, {\"_id\": \"id-1-65\", \"found\": true}, {\"_id\": \"id-1-66\", \"found\": true}, {\"_id\": \"id-1-67\", \"found\": true}, {\"_id\": \"id-1-68\", \"found\": true}, {\"_id\": \"id-1-69\", \"found\": true}, {\"_id\": \"id-1-70\", \"found\": true}, {\"_id\": \"id-1-71\", \"found\": true}, {\"_id\": \"id-1-72\", \"found\": true}, {\"_id\": \"id-1-73\", \"found\": true}, {\"_id\": \"id-1-74\", \"found\": true}, {\"_id\": \"id-1-75\", \"found\": true}, {\"_id\": \"id-1-76\", \"found\": true}, {\"_id\": \"id-1-77\", \"found\": true}, {\"_id\": \"id-1-78\", \"found\": true}, {\"_id\": \"id-1-79\", \"found\": true}, {\"_id\": \"id-1-80\", \"found\": true}, {\"_id\": \"id-1-81\", \"found\": true}, {\"_id\": \"id-1-82\", \"found\": true}, {\"_id\": \"id-1-83\", \"found\": true}, {\"_id\": \"id-1-84\", \"found\": true}, {\"_id\": \"id-1-85\", \"found\": true}, {\"_id\": \"id-1-86\", \"found\": true}, {\"_id\": \"id-1-87\", \"found\": true}, {\"_id\": \"id-1-88\", \"found\": true}, {\"_id\": \"id-1-89\", \"found\": true}, {\"_id\": \"id-1-90\", \"found\": true}, {\"_id\": \"id-1-91\", \"found\": true}, {\"_id\": \"id-1-92\", \"found\": true}, {\"_id\": \"id-1-93\", \"found\": true}, {\"_id\": \"id-1-94\", \"found\": true}, {\"_id\": \"id-1-95\", \"found\": true}, {\"_id\": \"id-1-96\", \"found\": true}, {\"_id\": \"id-1-97\", \"found\": true}, {\"_id\": \"id-1-98\", \"found\": true}, {\"_id\": \"id-1-99\", \"found\": true}, {\"_id\": \"id-1-100\", \"found\": true}, {\"_id\": \"id-1-101\", \"found\": true}, {\"_id\": \"id-1-102\", \"found\": true}, {\"_id\": \"id-1-103\", \"found\": true}, {\"_id\": \"id-1-104\", \"found\": true}, {\"_id\": \"id-1-105\", \"found\": true}, {\"_id\": \"id-1-106\", \"found\": true}, {\"_id\": \"id-1-107\", \"found\": true}, {\"_id\": \"id-1-108\", \"found\": true}, {\"_id\": \"id-1-109\", \"found\": true}, {\"_id\": \"id-1-110\", \"found\": true}, {\"_id\": \"id-1-111\", \"found\": true}, {\"_id\": \"id-1-112\", \"found\": true}, {\"_id\": \"id-1-113\", \"found\": true}, {\"_id\": \"id-1-114\", \"found\": true}, {\"_id\": \"id-1-115\", \"found\": true}, {\"_id\": \"id-1-116\", \"found\": true}, {\"_id\": \"id-1-117\", \"found\": true}, {\"_id\": \"id-1-118\", \"found\": true}, {\"_id\": \"id-1-119\", \"found\": true}, {\"_id\": \"id-1-120\", \"found\": true}, {\"_id\": \"id-1-121\", \"found\": true}, {\"_id\": \"id-1-122\", \"found\": true}, {\"_id\": \"id-1-123\", \"found\": true}, {\"_id\": \"id-1-124\", \"found\": true}, {\"_id\": \"id-1-125\", \"found\": true}, {\"_id\": \"id-1-126\", \"found\": true}, {\"_id\": \"id-1-127\", \"found\": true}, {\"_id\": \"id-1-128\", \"found\": true}, {\"_id\": \"id-1-129\", \"found\": true}, {\"_id\": \"id-1-130\", \"found\": true}, {\"_id\": \"id-1-131\", \"found\": true}, {\"_id\": \"id-1-132\", \"found\": true}, {\"_id\": \"id-1-133\", \"found\": true}, {\"_id\": \"id-1-134\", \"found\": true}, {\"_id\": \"id-1-135\", \"found\": true}, {\"_id\": \"id-1-136\", \"found\": true}, {\"_id\": \"id-1-137\", \"found\": true}, {\"_id\": \"id-1-138\", \"found\": true}, {\"_id\": \"id-1-139\", \"found\": true}, {\"_id\": \"id-1-140\", \"found\": true}, {\"_id\": \"id-1-141\", \"found\": true}, {\"_id\": \"id-1-142\", \"found\": true}, {\"_id\": \"id-1-143\", \"found\": true}, {\"_id\": \"id-1-144\", \"found\": true}, {\"_id\": \"id-1-145\", \"found\": true}, {\"_id\": \"id-1-146\", \"found\": true}, {\"_id\": \"id-1-147\", \"found\": true}, {\"_id\": \"id-1-148\", \"found\": true}, {\"_id\": \"id-1-149\", \"found\": true}, {\"_id\": \"id-1-150\", \"found\": true}, {\"_id\": \"id-1-151\", \"found\": true}, {\"_id\": \"id-1-152\", \"found\": true}, {\"_id\": \"id-1-153\", \"found\": true}, {\"_id\": \"id-1-154\", \"found\": true}, {\"_id\": \"id-1-155\", \"found\": true}, {\"_id\": \"id-1-156\", \"found\": true}, {\"_id\": \"id-1-157\", \"found\": true}, {\"_id\": \"id-1-158\", \"found\": true}, {\"_id\": \"id-1-159\", \"found\": true}, {\"_id\": \"id-1-160\", \"found\": true}, {\"_id\": \"id-1-161\", \"found\": true}, {\"_id\": \"id-1-162\", \"found\": true}, {\"_id\": \"id-1-163\", \"found\": true}, {\"_id\": \"id-1-164\", \"found\": true}, {\"_id\": \"id-1-165\", \"found\": true}, {\"_id\": \"id-1-166\", \"found\": true}, {\"_id\": \"id-1-167\", \"found\": true}, {\"_id\": \"id-1-168\", \"found\": true}, {\"_id\": \"id-1-169\", \"found\": true}, {\"_id\": \"id-1-170\", \"found\": true}, {\"_id\": \"id-1-171\", \"found\": true}, {\"_id\": \"id-1-172\", \"found\": true}, {\"_id\": \"id-1-173\", \"found\": true}, {\"_id\": \"id-1-174\", \"found\": true}, {\"_id\": \"id-1-175\", \"found\": true}, {\"_id\": \"id-1-176\", \"found\": true}, {\"_id\": \"id-1-177\", \"found\": true}, {\"_id\": \"id-1-178\", \"found\": true}, {\"_id\": \"id-1-179\", \"found\": true}, {\"_id\": \"id-1-180\", \"found\": true}, {\"_id\": \"id-1-181\", \"found\": true}, {\"_id\": \"id-1-182\", \"found\": true}, {\"_id\": \"id-1-183\", \"found\": true}, {\"_id\": \"id-1-184\", \"found\": true}, {\"_id\": \"id-1-185\", \"found\": true}, {\"_id\": \"id-1-186\", \"found\": true}, {\"_id\": \"id-1-187\", \"found\": true}, {\"_id\": \"id-1-188\", \"found\": true}, {\"_id\": \"id-1-189\", \"found\": true}, {\"_id\": \"id-1-190\", \"found\": true}, {\"_id\": \"id-1-191\", \"found\": true}, {\"_id\": \"id-1-192\", \"found\": true}, {\"_id\": \"id-1-193\", \"found\": true}, {\"_id\": \"id-1-194\", \"found\": true}, {\"_id\": \"id-1-195\", \"found\": true}, {\"_id\": \"id-1-196\", \"found\": true}, {\"_id\": \"id-1-197\", \"found\": true}, {\"_id\": \"id-1-198\", \"found\": true}, {\"_id\": \"id-1-199\", \"found\": true}]}",
+   "elapsed_ms": 15,
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_mget",
+   "status": 200,
+   "template": "alerts.mget@1"
+  },
+  "9dc6ee2dec3a01a745314115c3753fa427810b9904e9ccfdf3b090d33eb95b5a": {
+   "body": "{\"_nodes\": {\"total\": 1, \"successful\": 1, \"failed\": 0}, \"nodes\": {\"n\": {\"fs\": {\"total\": {\"total_in_bytes\": 100, \"available_in_bytes\": 40}}, \"jvm\": {\"mem\": {\"heap_used_percent\": 50}}, \"os\": {\"cpu\": {\"load_average\": {\"1m\": 2.0}}}, \"thread_pool\": {\"search\": {\"queue\": 0, \"rejected\": 7}, \"write\": {\"rejected\": 3}}, \"breakers\": {\"parent\": {\"tripped\": 0}}}}}",
+   "elapsed_ms": 5.0,
+   "path": "/_nodes/_local/stats/fs,jvm,os,thread_pool,breaker",
+   "status": 200,
+   "template": "health.node_stats@2"
+  },
+  "a000c93de31938849960e2ee611aae1fcd6df1a01be98ece16897b2ab1c188b8": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.destination@1"
+  },
+  "a97e9e2f6479c4eabff73252316b8e63b82b337623db30b6a6e5b99b192f3817": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.host@1"
+  },
+  "b26f23fe006551743a6cc5b7260b4aba22f9f29e29eb69fd46e1181e8f3e5729": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.destination@1"
+  },
+  "b609e9a372803be89f5509f05c8bb6e5e96bf7fcc631283a7e7cd4638b281908": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.states@1"
+  },
+  "d4d582ac39e8042bf23be820a3d136c3f694cb3065da0bf80d6f9e23c06fd059": {
+   "body": "{\"indices\": [{\"name\": \"acme-logs-squid-2026.10.23\"}, {\"name\": \"acme-logs-squid-2026.10.22\"}, {\"name\": \"acme-logs-squid-2026.10.21\"}, {\"name\": \"acme-logs-squid-2026.10.20\"}, {\"name\": \"acme-logs-squid-2026.10.19\"}]}",
+   "elapsed_ms": 5.0,
+   "path": "/_resolve/index/acme-logs-squid-*",
+   "status": 200,
+   "template": "indices.listing@1"
+  },
+  "d62c2f3d1fb6075e36fbae99a28650e4b35e7e10e7a78e09b0318123298e468d": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "template": "alerts.counts@1"
+  },
+  "d89aae8416501724972d2f1e9a69f455ba1213f48873c6acdecee4f98bcb333e": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-nginx-2026.10.23/_search",
+   "status": 200,
+   "template": "web.followups@1"
+  },
+  "d9031c583c40e701cea0a59eb08b511b1317d2c3fe6ec8581814e3c27f7e7910": {
+   "body": "{\".internal.alerts-security.alerts-acme-soc-000001\": {\"settings\": {\"index.uuid\": \"u\"}}}",
+   "elapsed_ms": 5.0,
+   "path": "/.alerts-security.alerts-acme-soc,acme-logs-squid-2026.10.23,acme-logs-dns-2026.10.23,acme-logs-nginx-2026.10.23,acme-logs-postfix-2026.10.23/_settings/index.blocks.*,index.uuid",
+   "status": 200,
+   "template": "health.index_blocks@2"
+  },
+  "e45d82f36bb3f22657a327435e65b4ab86c0954c465582376ca73662866eb1e9": {
+   "body": "{\"took\": 650, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-squid-2026.10.23/_search",
+   "status": 200,
+   "template": "proxy.host@1"
+  },
+  "f70c181a6b839dc06fda8f84657f77ae159861c8abd36c56637b41e67ab5e819": {
+   "body": "{\"took\": 60, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-logs-nginx-2026.10.23/_search",
+   "status": 200,
+   "template": "web.followups@1"
+  },
+  "fd8df8c152998f6a9326351fd0ca717de1e518da3bbd1336216e85e38b938a21": {
+   "body": "{\"took\": 15, \"timed_out\": false, \"_shards\": {\"total\": 1, \"successful\": 1, \"skipped\": 0, \"failed\": 0}, \"hits\": {\"hits\": []}}",
+   "elapsed_ms": 5.0,
+   "path": "/acme-threat-intel/_search",
+   "status": 200,
+   "template": "ti.lookup@1"
+  }
+ },
+ "format": 1
+}

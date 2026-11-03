@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}By host or IP{% endblock %}
+{% block main %}
+<h1>By host or IP</h1>
+<p class="hint">An address seen in more than 200 investigations (a proxy, a scanner target) is marked common: it says little about any one of them.</p>
+<div class="table-scroll"><table class="list">
+  <caption class="sr">Hosts and addresses</caption>
+  <thead><tr><th scope="col">Host or IP</th><th scope="col">Investigations</th></tr></thead>
+  <tbody>
+  {% for e in entities %}
+    <tr>
+      <td><a href="/?view=all&kind={{ e.kind | urlencode }}&value={{ e.value | urlencode }}"><span class="mono">{{ e.value | u(120) }}</span></a> <span class="sub">{{ e.kind }}</span>{% if e.supernode %} <span class="tag">common</span>{% endif %}</td>
+      <td class="num">{{ e.investigations }}</td>
+    </tr>
+  {% else %}<tr><td colspan="2" class="empty">Nothing yet.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

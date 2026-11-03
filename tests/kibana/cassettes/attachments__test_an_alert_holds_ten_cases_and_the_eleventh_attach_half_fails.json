@@ -1,0 +1,1331 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-cc812e-ten-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-cc812e-ten\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-cc812e-ten\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-cc812e-ten",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-cc812e-ten (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run ten",
+    "query": "tier.run: \"<run>-cc812e-ten\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-cc812e-ten",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-cc812e-ten"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 00).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 00",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 00).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 00"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 01).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 01",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:2>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 01).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 01"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 02).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:3>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 02",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:3>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 02).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 02"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 03).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:4>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 03",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:4>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 03).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 03"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 04).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:5>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 04",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:5>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 04).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 04"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 05).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:6>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 05",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:6>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 05).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 05"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 06).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:7>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 06",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:7>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 06).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 06"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 07).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:8>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 07",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:8>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 07).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 07"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 08).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:9>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 08",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:9>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 08).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 08"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 09).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:10>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 09",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:10>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 09).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 09"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (ten 10).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:11>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 10",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:11>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (ten 10).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 10"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 00",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:12>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:2>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 01",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:13>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:3>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 02",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:14>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:3>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:4>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 03",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:15>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:4>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:5>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 04",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:16>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:5>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:6>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 05",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:17>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:6>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:7>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 06",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:18>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:7>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:8>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 07",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:19>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:8>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:9>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 08",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:20>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:9>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:10>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-cc812e"
+    ],
+    "title": "ten 09",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:21>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:10>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Bad Request",
+    "message": "You cannot attach more than 10 cases to an alert",
+    "statusCode": 400
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:11>/comments",
+   "status": 400,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.case_ids": [
+     "<uuid:1>",
+     "<uuid:2>",
+     "<uuid:3>",
+     "<uuid:4>",
+     "<uuid:5>",
+     "<uuid:6>",
+     "<uuid:7>",
+     "<uuid:8>",
+     "<uuid:9>",
+     "<uuid:10>"
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.case_ids"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": [
+    "<hex:1>"
+   ],
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:11>/alerts",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

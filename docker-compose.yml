@@ -1,0 +1,141 @@
+# Local services for ARGUS (POC runs on the developer machine — see D-001).
+# Postgres is bound to 127.0.0.1 only. Credentials come from .env (gitignored).
+# Its superuser is ARGUS's schema owner (D-029): `argus db` logs in as it. ARGUS itself runs as
+# the runtime role that `argus db bootstrap` creates (ARGUS_DATABASE__USER / __PASSWORD).
+name: argus
+
+services:
+  db:
+    # Pinned by digest (supply-chain safety, D-029/§5.7); update deliberately.
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    # a second ARGUS on this machine sets COMPOSE_PROJECT_NAME, COMPOSE_DB_CONTAINER and
+    # ARGUS_DATABASE__PORT in its .env (argus init refuses another checkout's container)
+    container_name: ${COMPOSE_DB_CONTAINER:-argus-db}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${ARGUS_DATABASE__OWNER_USER:-argus}
+      POSTGRES_PASSWORD: ${ARGUS_DATABASE__OWNER_PASSWORD:?set ARGUS_DATABASE__OWNER_PASSWORD in .env}
+      POSTGRES_DB: ${ARGUS_DATABASE__NAME:-argus}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:${ARGUS_DATABASE__PORT:-55432}:5432"
+    volumes:
+      - argus-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    shm_size: 256mb
+
+  # Local Elasticsearch replica for offline development and the es-local test tier (D-030):
+  # same version as the SIEM, security + TLS on, loaded with the captured corpus by
+  # scripts/replica.py. Opt-in: `docker compose --profile replica up -d es-local`.
+  es-local:
+    profiles: ["replica"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.12
+    container_name: argus-es-local
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      # No xpack.security.* here: setting one switches off the 8.x auto-configuration, which
+      # turns on security and TLS and writes config/certs/http_ca.crt on the first start.
+      ELASTIC_PASSWORD: ${REPLICA_ELASTIC_PASSWORD:?set REPLICA_ELASTIC_PASSWORD in .env}
+      xpack.ml.enabled: "false"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+    ports:
+      - "127.0.0.1:59200:9200"
+    volumes:
+      - argus-esdata:/usr/share/elasticsearch/data
+    mem_limit: 1536m
+
+  # The local Kibana 8.19.12 Basic tier (Q-D1, docs/runbooks/kibana-tier.md): Elasticsearch and
+  # Kibana as on the SIEM (security on, Basic, HTTPS with a CA; the site's space), seeded by
+  # scripts/kibana_tier.py, which is the only way to start, stop or reset it: it names these two
+  # services in every command, so db and es-local are never touched. Its CA, certificates and
+  # passwords are made by that script outside every checkout (KIBANA_TIER_DIR), so every
+  # worktree starts the same containers. Neither the variable nor anything else here may be
+  # required (no ":?"): a required variable would break every compose command, db's included.
+  kibana-es:
+    profiles: ["kibana"]
+    # Pinned by digest like db (supply-chain safety); the same release as the SIEM.
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.12@sha256:6711d4eff91dce95b900eb3c771c5298672ba00f6d20cab79551c4acc133f629
+    container_name: argus-kibana-es
+    # elastic's password (bootstrap.password) goes from the tier's file into the keystore
+    # through stdin before the image's own entrypoint starts Elasticsearch, so no environment
+    # variable or command line ever holds it: the image's ELASTIC_PASSWORD_FILE would export
+    # ELASTIC_PASSWORD into every Elasticsearch process (Q-D1 review F3).
+    entrypoint:
+      - /bin/tini
+      - --
+      - /bin/bash
+      - -e
+      - -c
+      - |
+        cd /usr/share/elasticsearch
+        test -f config/elasticsearch.keystore || elasticsearch-keystore create
+        elasticsearch-keystore add -x -f bootstrap.password < /usr/share/elasticsearch/config/tier/elastic-password
+        exec /usr/local/bin/docker-entrypoint.sh eswrapper
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms768m -Xmx768m
+      xpack.license.self_generated.type: basic
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "true"
+      xpack.security.http.ssl.key: tier/es.key
+      xpack.security.http.ssl.certificate: tier/es.crt
+      xpack.security.http.ssl.certificate_authorities: tier/ca.crt
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.ml.enabled: "false"
+      xpack.watcher.enabled: "false"
+      ingest.geoip.downloader.enabled: "false"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+      action.destructive_requires_name: "true"
+    ports:
+      - "127.0.0.1:59210:9200"
+    volumes:
+      - argus-kibana-esdata:/usr/share/elasticsearch/data
+      - ${KIBANA_TIER_DIR:-${HOME}/.local/share/argus-kibana-tier}/es:/usr/share/elasticsearch/config/tier:ro
+    # Measured (Q-D1): about 1.25 GiB of anonymous memory with the 768 MB heap under the
+    # contract suite; 1.75 GiB leaves room for its off-heap use. The tier's caps add up to
+    # 3 GiB, inside the day-1 budget of 3.5 GB beside production.
+    mem_limit: 1792m
+    memswap_limit: 1792m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/tier/ca.crt https://localhost:9200/ | grep -q 'missing authentication credentials'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  kibana:
+    profiles: ["kibana"]
+    image: docker.elastic.co/kibana/kibana:8.19.12@sha256:e11aecaca4efaed10493e05a5ad9c051b3cb32deca2db4aba74c0687e83ab677
+    container_name: argus-kibana
+    depends_on:
+      kibana-es:
+        condition: service_healthy
+    environment:
+      # Caps Node's heap well below the container's limit, so Kibana slows down before it is
+      # killed (measured: about 0.7 GiB of anonymous memory under the contract suite).
+      NODE_OPTIONS: --max-old-space-size=768
+    ports:
+      - "127.0.0.1:55610:5601"
+    volumes:
+      - argus-kibana-data:/usr/share/kibana/data
+      # kibana.yml holds kibana_system's password and the encryption keys (mode 0600).
+      - ${KIBANA_TIER_DIR:-${HOME}/.local/share/argus-kibana-tier}/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ${KIBANA_TIER_DIR:-${HOME}/.local/share/argus-kibana-tier}/kibana/tls:/usr/share/kibana/config/tier:ro
+    mem_limit: 1280m
+    memswap_limit: 1280m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' --cacert config/tier/ca.crt https://localhost:5601/api/status | grep -qE '^(200|401)$'"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  argus-pgdata:
+  argus-esdata:
+  argus-kibana-esdata:
+  argus-kibana-data:

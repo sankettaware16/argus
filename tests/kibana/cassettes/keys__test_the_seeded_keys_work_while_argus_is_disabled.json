@@ -1,0 +1,154 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "enabled": false,
+    "metadata": {
+     "argus_service": true
+    },
+    "roles": [
+     "argus_kibana_reader"
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/_security/user/argus",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [argus] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [argus] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "user:argus",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "key": "argus-kibana-reader",
+    "type": "api_key",
+    "username": "argus"
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-e08b07"
+    ],
+    [
+     "perPage",
+     "1"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (while argus is disabled).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-e08b07"
+    ],
+    "title": "while argus is disabled",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (while argus is disabled).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-e08b07"
+    ],
+    "title": "while argus is disabled"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

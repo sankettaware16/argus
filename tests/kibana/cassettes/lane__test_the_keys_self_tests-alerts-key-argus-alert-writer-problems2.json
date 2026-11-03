@@ -1,0 +1,121 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "name": "argus-kibana",
+    "status": {
+     "overall": {
+      "level": "available",
+      "summary": "All services and plugins are available"
+     }
+    },
+    "version": {
+     "build_date": "<time>",
+     "build_flavor": "traditional",
+     "build_hash": "a2a93735478172a315d2ced4aded3024cc029648",
+     "build_number": 87025,
+     "build_snapshot": false,
+     "number": "8.19.12"
+    }
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "application": {
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/assignCase": false,
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/createConfiguration": false,
+       "cases:securitySolution/deleteCase": false,
+       "cases:securitySolution/pushCase": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "cases:securitySolution/updateConfiguration": false
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "all": false,
+      "create_index": false,
+      "delete": false,
+      "delete_index": false,
+      "index": true,
+      "maintenance": true,
+      "manage": false,
+      "read": true,
+      "view_index_metadata": true
+     }
+    },
+    "username": "argus"
+   },
+   "as": "key:argus-alert-writer",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/assignCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/createConfiguration",
+       "cases:securitySolution/deleteCase",
+       "cases:securitySolution/pushCase",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/updateConfiguration"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "all",
+       "create_index",
+       "delete",
+       "delete_index",
+       "index",
+       "maintenance",
+       "manage",
+       "read",
+       "view_index_metadata"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

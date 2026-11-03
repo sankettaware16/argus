@@ -1,0 +1,8 @@
+[Unit]
+Description=ARGUS soak sample (Phase 2 soak, D-092)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus soak sample
+Nice=10

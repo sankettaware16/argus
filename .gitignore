@@ -1,0 +1,65 @@
+# --- Secrets & local-only material (never commit) ---------------------------
+# reference/ holds credentials, API keys and raw production alerts.
+# Only the architecture brief is safe to track.
+reference/*
+!reference/project_breif.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Asset map copied from the SIEM (internal network plan) and other local data
+/data/
+# The site profile `argus discover --write` proposes for one installation (D-282): per site, not code
+/config/site.yaml
+# This installation's own values (D-294): the SIEM's and Kibana's addresses, pins, private overlays
+/config/local.yaml
+/config/*.local.yaml
+# Incident indicators and other local-only notes (referenced from tracked docs by id)
+local/
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+# scripts/mutation.py: repository copies and results
+.mutation/
+*.egg-info/
+build/
+dist/
+
+# --- Node / frontend --------------------------------------------------------
+# The build itself is committed (DQ25, Q-B1): frontend/ builds into src/argus/web/spa/.
+node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/reports/
+frontend/.stryker-tmp/
+frontend/test-results/
+
+# --- Editors / OS -----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+
+# machine-specific files dropped next to the local-LLM scripts (certificates, keys)
+deploy/local-llm/*.crt
+deploy/local-llm/*.key
+deploy/local-llm/*.env
+# a local-LLM hand-over saved in the wrong place: it holds the API key
+*handover*.txt
+*.eml
+
+# Schemathesis run cache (written by every API test run)
+.schemathesis/
+frontend/node_modules

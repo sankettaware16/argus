@@ -1,0 +1,9 @@
+# Group-key fields per rule (plan §7.1), for rules that declare no alert suppression.
+# Order of sources for an alert's key fields: the rule's alert_suppression.group_by, a threshold
+# rule's threshold.field, this file, then [source.ip, destination.ip]. Unknown keys are errors.
+#
+# rules:
+#   <kibana.alert.rule.rule_id>:
+#     key_fields: [source.ip, url.domain]
+version: 1
+rules: {}

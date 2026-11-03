@@ -1,0 +1,79 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "enabled": true,
+    "index": [
+     "argus-tier-events"
+    ],
+    "query": "tier.run: \"seed\"",
+    "rule_id": "argus-tier-seed",
+    "type": "query"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "rule_id",
+     "argus-tier-seed"
+    ]
+   ],
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": 12,
+   "as": "elastic",
+   "body": {
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-seed"
+     }
+    }
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_count",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": [
+    {
+     "alerts": 2,
+     "by": "tier-analyst",
+     "comments": 0,
+     "sync": true,
+     "title": "Tier seed: a person's case"
+    },
+    {
+     "alerts": 0,
+     "by": "argus",
+     "comments": 1,
+     "sync": false,
+     "title": "[ARGUS 0] Tier seed: ARGUS's case"
+    }
+   ],
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "tier-seed"
+    ],
+    [
+     "sortField",
+     "title"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

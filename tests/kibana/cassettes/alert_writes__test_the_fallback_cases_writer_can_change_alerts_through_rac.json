@@ -1,0 +1,122 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-04fcd0-writer-rac-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-04fcd0-writer-rac\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-04fcd0-writer-rac\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-04fcd0-writer-rac",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-04fcd0-writer-rac (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run writer-rac",
+    "query": "tier.run: \"<run>-04fcd0-writer-rac\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-04fcd0-writer-rac",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-04fcd0-writer-rac"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "errors": false,
+    "results": [
+     "updated"
+    ],
+    "success": true
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "ids": [
+     "<hex:1>"
+    ],
+    "index": ".alerts-security.alerts-acme-soc",
+    "status": "acknowledged"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/internal/rac/alerts/bulk_update",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "acknowledged"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

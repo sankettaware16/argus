@@ -1,0 +1,67 @@
+{
+  "adapter": "esql_aggregate",
+  "alert_id": "1111111111111111111111111111111111111111",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "",
+      "index": "",
+      "kind": "empty",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T12:17:34.357000Z",
+  "detection_lag": "P3DT3H17M34.357S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "180.126.44.249"
+    }
+  ],
+  "event_time": "2026-10-06T09:00:00Z",
+  "event_time_approximate": true,
+  "evidence_window": {
+    "approximate": true,
+    "basis": "esql_lookback",
+    "end": "2026-10-06T09:00:00Z",
+    "start": "2026-10-06T08:49:00Z"
+  },
+  "execution_type": "manual",
+  "execution_uuid": "849e89dd-dfd8-6970-2d0a-388bdd40ba8b",
+  "field_issues": [],
+  "fingerprint": "b9e84a3a62f3994b46eb5ee61ae5b5f4687b75cb6b8cff6e365a1feee1feeba2",
+  "group_key": {
+    "canonical": "[[\"destination.ip\",null],[\"source.ip\",\"180.126.44.249\"]]",
+    "fields": [
+      "source.ip",
+      "destination.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "generic",
+    "values": [
+      "180.126.44.249",
+      null
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-06T09:00:00Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": null,
+  "risk_score": 21.0,
+  "rule_id": "8af4af12-2a0e-4e66-bbe8-092b65db958d",
+  "rule_name": "Automated Vulnerability Scanning",
+  "rule_revision": 1,
+  "rule_type": "esql",
+  "rule_type_raw": "esql",
+  "rule_uuid": "ce57cb54-cf28-40da-93fb-2cc231f90468",
+  "sequence_group_id": null,
+  "severity": "low",
+  "time_anomalies": [],
+  "time_basis": "intended_timestamp",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

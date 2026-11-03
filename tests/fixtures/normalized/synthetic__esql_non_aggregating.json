@@ -1,0 +1,67 @@
+{
+  "adapter": "event",
+  "alert_id": "2222222222222222222222222222222222222222",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "rowAncestor0001",
+      "index": "acme-logs-nginx-2026.10.09",
+      "kind": "concrete",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T12:17:34.357000Z",
+  "detection_lag": "PT2M33.107S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "180.126.44.249"
+    }
+  ],
+  "event_time": "2026-10-09T12:15:01.250000Z",
+  "event_time_approximate": false,
+  "evidence_window": {
+    "approximate": false,
+    "basis": "point",
+    "end": "2026-10-09T12:15:01.250000Z",
+    "start": "2026-10-09T12:15:01.250000Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "849e89dd-dfd8-6970-2d0a-388bdd40ba8b",
+  "field_issues": [],
+  "fingerprint": "14687f319b9a338e45545d7cd27ea345f2dae7b756733d0aa89da0b382a616a7",
+  "group_key": {
+    "canonical": "[[\"destination.ip\",null],[\"source.ip\",\"180.126.44.249\"]]",
+    "fields": [
+      "source.ip",
+      "destination.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "generic",
+    "values": [
+      "180.126.44.249",
+      null
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-09T12:17:34.357000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": "2026-10-09T12:15:01.250000Z",
+  "risk_score": 21.0,
+  "rule_id": "8af4af12-2a0e-4e66-bbe8-092b65db958d",
+  "rule_name": "Automated Vulnerability Scanning",
+  "rule_revision": 1,
+  "rule_type": "esql",
+  "rule_type_raw": "esql",
+  "rule_uuid": "ce57cb54-cf28-40da-93fb-2cc231f90468",
+  "sequence_group_id": null,
+  "severity": "low",
+  "time_anomalies": [],
+  "time_basis": "original_time",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

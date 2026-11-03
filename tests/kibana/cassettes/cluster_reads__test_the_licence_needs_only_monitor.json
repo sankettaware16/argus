@@ -1,0 +1,118 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "role": {
+     "created": true
+    }
+   },
+   "as": "elastic",
+   "body": {
+    "cluster": [
+     "monitor"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/role/t-<run>-mon-r",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "mon@run.argus.invalid",
+    "full_name": "Run mon",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-mon-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-mon",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "nomon@run.argus.invalid",
+    "full_name": "Run nomon",
+    "password": "<secret>",
+    "roles": []
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-nomon",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "status": "active",
+    "type": "basic"
+   },
+   "as": "run-user:mon",
+   "method": "GET",
+   "path": "/_license",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "status": "active",
+    "type": "basic"
+   },
+   "as": "key:argus-reader",
+   "method": "GET",
+   "path": "/_license",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "reason": "action [cluster:monitor/xpack/license/get] is unauthorized for user [t-<run>-nomon] with effective roles [], this action is granted by the cluster privileges [monitor,manage,all]",
+     "root_cause": [
+      {
+       "reason": "action [cluster:monitor/xpack/license/get] is unauthorized for user [t-<run>-nomon] with effective roles [], this action is granted by the cluster privileges [monitor,manage,all]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 403
+   },
+   "as": "run-user:nomon",
+   "method": "GET",
+   "path": "/_license",
+   "status": 403,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "reason": "action [cluster:monitor/xpack/license/get] is unauthorized for API key id [<id:1>] of user [argus], this action is granted by the cluster privileges [monitor,manage,all]",
+     "root_cause": [
+      {
+       "reason": "action [cluster:monitor/xpack/license/get] is unauthorized for API key id [<id:1>] of user [argus], this action is granted by the cluster privileges [monitor,manage,all]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 403
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/_license",
+   "status": 403,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

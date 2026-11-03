@@ -1,0 +1,143 @@
+{
+ "exchanges": [
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "all"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-nologin-r",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "nologin-o@run.argus.invalid",
+    "full_name": "Run nologin-o",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-nologin-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-nologin-o",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "api_key": "<secret>",
+    "encoded": "<secret>",
+    "expiration": "<millis>",
+    "id": "<id:1>",
+    "name": "t-<run>-nologin"
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "api_key": {
+     "expiration": "1h",
+     "name": "t-<run>-nologin",
+     "role_descriptors": {
+      "scoped": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "cases:securitySolution/createCase",
+          "cases:securitySolution/getCase",
+          "cases:securitySolution/getComment",
+          "cases:securitySolution/getTags",
+          "cases:securitySolution/getReporters",
+          "cases:securitySolution/getUserActions",
+          "cases:securitySolution/findConfigurations",
+          "cases:securitySolution/updateCase",
+          "cases:securitySolution/createComment",
+          "cases:securitySolution/reopenCase",
+          "alerting:siem.eqlRule/siem/alert/get",
+          "alerting:siem.esqlRule/siem/alert/get",
+          "alerting:siem.indicatorRule/siem/alert/get",
+          "alerting:siem.mlRule/siem/alert/get",
+          "alerting:siem.newTermsRule/siem/alert/get",
+          "alerting:siem.notifications/siem/alert/get",
+          "alerting:siem.queryRule/siem/alert/get",
+          "alerting:siem.savedQueryRule/siem/alert/get",
+          "alerting:siem.thresholdRule/siem/alert/get"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "indices": []
+      }
+     }
+    },
+    "grant_type": "password",
+    "password": "<secret>",
+    "username": "t-<run>-nologin-o"
+   },
+   "method": "POST",
+   "path": "/_security/api_key/grant",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to get acme-soc space",
+    "statusCode": 403
+   },
+   "as": "run-key:nologin",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (no login).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-d1e957"
+    ],
+    "title": "no login"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 403,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

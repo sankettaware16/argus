@@ -1,0 +1,56 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [argus] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [argus] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "user:argus",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_service": true
+    },
+    "realm": "_es_api_key",
+    "roles": [],
+    "type": "api_key",
+    "username": "argus"
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

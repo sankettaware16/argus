@@ -1,0 +1,33 @@
+{
+ "entries": {
+  "1f9c1c3b5af766dbb29d50f0dcf12bc82373e7d3e06a5962afada0a2bf590060": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"notes\\\": \\\"proxy: busy host\\\", \\\"cites\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "a0f1dbbe55c9e01940ca19ad7d3ef46c28988c91b62d961ca5ebbc3811d3a863": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"the last call\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "a5f8b25181c974de6c5c769239338eada933f23c4365c5051a5df30fdb2f1f8d": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [\\\"intel\\\"], \\\"ask\\\": [{\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}, {\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "c2854696ecdb3e2f7436bc72de1753316b36675bfca901fdaf50bffbe22f1ef9": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [\\\"proxy\\\"], \\\"ask\\\": [{\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}, {\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

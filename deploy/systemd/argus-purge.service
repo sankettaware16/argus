@@ -1,0 +1,11 @@
+[Unit]
+Description=ARGUS retention purge (Q-A4, D-028)
+# Started by argus-purge.timer, after the nightly dump. Deletes only once the schedule is
+# approved (retention.scheduled) and the last restore drill passed within 8 days.
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus purge run --apply --scheduled
+MemoryMax=1G
+Nice=10

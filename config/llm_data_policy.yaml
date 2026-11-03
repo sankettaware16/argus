@@ -1,0 +1,70 @@
+# What a language model may see of a dossier (Phase 2, P1; plan §2.1, D-075).
+# Default deny: a field not listed here is withheld, and the item says how many were.
+#
+# Field actions (applied to each top value of a field in the context pack):
+#   send    - the value as text; identifiers in it are still replaced by pseudonyms
+#   number  - a count or size: exact below 100, else rounded to 2 significant figures
+#   ip      - public addresses as they are; private, campus and asset-map ones pseudonymized
+#   domain  - campus domains pseudonymized (SITE_n), others as they are
+#   url     - host as for ip/domain; the path and query values with identifiers replaced
+#   host    - always pseudonymized (HOST_n)
+#   user    - always pseudonymized (USER_n)
+#   drop    - never sent
+# Every request is checked again, byte by byte, by the egress validator (argus.llm.egress).
+version: 1
+
+# Campus domains: the organisation's own domains (site.own_domains in config/argus.yaml) and their
+# subdomains are always pseudonymized. Domains listed here are pseudonymized as well (an install
+# that listed them here before site.own_domains existed keeps working); none by default.
+# The two lists together must name at least one domain: with none, ARGUS builds no text for a model
+# (the privacy layer refuses, `argus doctor` says so; D-285).
+campus_domains: []
+
+# What an address in the asset map may say about itself (a generalisation, never its name).
+asset_fields: [site.type, site.zone]
+
+# URL query values are sent only for the site's web families (the WAF and web logs, where the
+# payload is the evidence; acme-logs-nginx-* as acme-logs-nginx*); elsewhere (the proxy: people's
+# searches) only the keys are sent. query_values_for: [<index pattern>, ...] lists other patterns
+# instead (D-294).
+
+# The longest untrusted string sent (rule text, a URL, a user agent); cut on a token boundary.
+text_chars: 300
+# The most top values per field, entities per kind and threat-intel answers per item.
+top_values: 5
+entities: 10
+ti_answers: 10
+
+fields:
+  source.ip: ip
+  destination.ip: ip
+  host.name: host
+  user.name: user
+  source.geo.name: drop
+  http.request.method: send
+  http.response.status_code: send
+  event.action: send
+  destination.port: send
+  destination.as.organization.name: send
+  destination.geo.country_name: send
+  user_agent.original: send
+  url.original: url
+  url.path: url
+  url.domain: domain
+  destination.domain: domain
+  dns.question.name: domain
+  source.bytes: number
+  http.response.body.bytes: number
+  event.original: drop          # the raw log line: the fields above carry what matters
+  nginx.naxsi.score: send
+  nginx.naxsi.zone: send
+  nginx.naxsi.var_name: send
+  rule.id: send
+  threat.enrichments.matched.field: send
+  threat.enrichments.indicator.confidence: send
+  # an investigation's entities by kind (P7's tuning report, D-090): handled as their kind
+  entity.ip: ip
+  entity.domain: domain
+  entity.host: host
+  entity.user: user
+  entity.url: url

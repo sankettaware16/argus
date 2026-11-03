@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Your access{% endblock %}
+{% block main %}
+<h1>Your access</h1>
+<p>You are signed in as <strong>{{ me.display_name | u(60) }}</strong> with {{ v.mode_text }}{% if v.elk_username %} (<code>{{ v.elk_username | u(80) }}</code>){% endif %}.</p>
+<p class="{% if v.status_ok %}hint{% else %}message{% endif %}" role="status">{{ v.status }}</p>
+{% if v.custody %}<p class="hint">{{ v.custody }}</p>{% endif %}
+<table class="list">
+  <thead><tr><th scope="col">What</th><th scope="col">You</th><th scope="col">If not</th></tr></thead>
+  <tbody>
+  {% for r in v.rows %}
+    <tr>
+      <td>{{ r.label }}</td>
+      <td>{% if r.held %}<strong>may</strong>{% else %}may not{% endif %}</td>
+      <td>{% if not r.held %}{{ r.needs }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="hint">The session ends after {{ v.idle_minutes }} minutes without a click{% if v.ends %} and at the latest at {{ v.ends | ist }}{% endif %}.</p>
+{% endblock %}

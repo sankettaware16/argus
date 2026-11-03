@@ -1,0 +1,216 @@
+{
+  "_id": "e34527aebb369781954d3090d26b149ed566c4e8",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-09T12:22:59.228Z",
+    "attempted_paths": [
+      "/blog/xmlrpc.php",
+      "/xmlrpc.php",
+      "/wp-login.php"
+    ],
+    "event.kind": "signal",
+    "hits": 5,
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "",
+        "index": "",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-09T12:22:59.228Z",
+    "kibana.alert.last_detected": "2026-10-09T12:22:59.451Z",
+    "kibana.alert.reason": "event with source 131.130.27.79 created low alert Sensitive Path Enumeration.",
+    "kibana.alert.risk_score": 21,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [],
+    "kibana.alert.rule.category": "ES|QL Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-06-08T11:09:53.987Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Detects repeated attempts from a single IP to access common administrative, configuration, or sensitive repository paths.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-09T12:22:59.451Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "bfe18753-543c-e2eb-deca-39701a80ff1d",
+    "kibana.alert.rule.false_positives": [
+      "Internal vulnerability scanners (if not excluded); poorly configured internal monitoring tools."
+    ],
+    "kibana.alert.rule.from": "now-6m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-nginx-*"
+    ],
+    "kibana.alert.rule.interval": "5m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.kibana_siem_app_url": "https://10.122.252.228:5601/s/acme-univcc/app/security",
+    "kibana.alert.rule.name": "Sensitive Path Enumeration",
+    "kibana.alert.rule.note": "### Investigation Steps\n1. **Review Targets:** Look at the `url.path` list. Since the CC app is custom, attempts to access `wp-admin` indicate a generic \"spray and pray\" attack rather than a targeted intrusion.\n2. **Check for Success:** Filter the index for this `source.ip` and check if any requests returned a `200 OK`. \n3. **Action:** These are highly noisy events. Use this alert primarily for intelligence gathering to feed automated IP blocking systems rather than manual escalation, unless a `200 OK` is observed.",
+    "kibana.alert.rule.parameters": {
+      "author": [],
+      "description": "Detects repeated attempts from a single IP to access common administrative, configuration, or sensitive repository paths.",
+      "exceptions_list": [],
+      "false_positives": [
+        "Internal vulnerability scanners (if not excluded); poorly configured internal monitoring tools."
+      ],
+      "from": "now-6m",
+      "immutable": false,
+      "investigation_fields": {
+        "field_names": [
+          "source.ip",
+          "url.path",
+          "hits"
+        ]
+      },
+      "language": "esql",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "kibana_siem_app_url": "https://10.122.252.228:5601/s/acme-univcc/app/security"
+      },
+      "note": "### Investigation Steps\n1. **Review Targets:** Look at the `url.path` list. Since the CC app is custom, attempts to access `wp-admin` indicate a generic \"spray and pray\" attack rather than a targeted intrusion.\n2. **Check for Success:** Filter the index for this `source.ip` and check if any requests returned a `200 OK`. \n3. **Action:** These are highly noisy events. Use this alert primarily for intelligence gathering to feed automated IP blocking systems rather than manual escalation, unless a `200 OK` is observed.",
+      "query": "FROM acme-logs-nginx-*\n| WHERE url.path RLIKE \".*(wp-admin|wp-login|phpmyadmin|xmlrpc|\\\\.git|\\\\.env).*\"\n| STATS\n    hits = COUNT(),\n    unique_sensitive_paths = COUNT_DISTINCT(url.path),\n    attempted_paths = VALUES(url.path),\n    methods = VALUES(http.request.method),\n    statuses = VALUES(http.response.status_code)\nBY source.ip,\n   source.geo.country_name,\n   user_agent.original\n| WHERE\n    hits >= 10\n    OR unique_sensitive_paths >= 3",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 21,
+      "risk_score_mapping": [],
+      "rule_id": "2354794a-f3f0-4501-a451-fc5c6b6ccab2",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "low",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0043",
+            "name": "Reconnaissance",
+            "reference": "https://attack.mitre.org/tactics/TA0043/"
+          },
+          "technique": [
+            {
+              "id": "T1595",
+              "name": "Active Scanning",
+              "reference": "https://attack.mitre.org/techniques/T1595/",
+              "subtechnique": [
+                {
+                  "id": "T1595.002",
+                  "name": "Vulnerability Scanning",
+                  "reference": "https://attack.mitre.org/techniques/T1595/002/"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0007",
+            "name": "Discovery",
+            "reference": "https://attack.mitre.org/tactics/TA0007/"
+          },
+          "technique": [
+            {
+              "id": "T1083",
+              "name": "File and Directory Discovery",
+              "reference": "https://attack.mitre.org/techniques/T1083/",
+              "subtechnique": []
+            }
+          ]
+        }
+      ],
+      "to": "now",
+      "type": "esql",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 1,
+    "kibana.alert.rule.risk_score": 21,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "2354794a-f3f0-4501-a451-fc5c6b6ccab2",
+    "kibana.alert.rule.rule_type_id": "siem.esqlRule",
+    "kibana.alert.rule.severity": "low",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [
+      "Discovery",
+      "Web-Attack",
+      "Nginx"
+    ],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0043",
+          "name": "Reconnaissance",
+          "reference": "https://attack.mitre.org/tactics/TA0043/"
+        },
+        "technique": [
+          {
+            "id": "T1595",
+            "name": "Active Scanning",
+            "reference": "https://attack.mitre.org/techniques/T1595/",
+            "subtechnique": [
+              {
+                "id": "T1595.002",
+                "name": "Vulnerability Scanning",
+                "reference": "https://attack.mitre.org/techniques/T1595/002/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0007",
+          "name": "Discovery",
+          "reference": "https://attack.mitre.org/tactics/TA0007/"
+        },
+        "technique": [
+          {
+            "id": "T1083",
+            "name": "File and Directory Discovery",
+            "reference": "https://attack.mitre.org/techniques/T1083/",
+            "subtechnique": []
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "esql",
+    "kibana.alert.rule.updated_at": "2026-06-08T11:17:24.256Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "ae7de6ce-3430-46cb-b534-035f4153c100",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "low",
+    "kibana.alert.start": "2026-10-09T12:22:59.451Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.uuid": "e34527aebb369781954d3090d26b149ed566c4e8",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "methods": [
+      "POST",
+      "GET"
+    ],
+    "source.geo.country_name": "India",
+    "source.ip": "131.130.27.79",
+    "statuses": [
+      302,
+      404
+    ],
+    "unique_sensitive_paths": 3,
+    "user_agent.original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+  }
+}

@@ -1,0 +1,205 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 2
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-b1187f-rac-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-b1187f-rac\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-b1187f-rac\", \"n\": 1}}\n{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-b1187f-rac-02\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 2 of <run>-b1187f-rac\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.12\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-2\"}, \"url\": {\"path\": \"/index.html\"}, \"tier\": {\"run\": \"<run>-b1187f-rac\", \"n\": 2}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-b1187f-rac",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-b1187f-rac (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run rac",
+    "query": "tier.run: \"<run>-b1187f-rac\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-b1187f-rac",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    },
+    {
+     "_id": "<hex:2>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-b1187f-rac"
+     }
+    },
+    "size": 2,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-secread",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "secread@run.argus.invalid",
+    "full_name": "Run secread",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-secread"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-secread",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "errors": false,
+    "results": [
+     "updated"
+    ],
+    "success": true
+   },
+   "as": "run-user:secread",
+   "body": {
+    "ids": [
+     "<hex:1>"
+    ],
+    "index": ".alerts-security.alerts-acme-soc",
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/internal/rac/alerts/bulk_update",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "closed"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "message": "security_exception: action [indices:data/write/update/byquery] is unauthorized for user [t-<run>-secread] with effective roles [t-<run>-secread] on indices [.alerts-security.alerts-acme-soc], this action is granted by the index privileges [index,write,all]",
+    "status_code": 403
+   },
+   "as": "run-user:secread",
+   "body": {
+    "signal_ids": [
+     "<hex:2>"
+    ],
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "open"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:2>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

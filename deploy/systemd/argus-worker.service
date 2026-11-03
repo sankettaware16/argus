@@ -1,0 +1,16 @@
+[Unit]
+Description=ARGUS worker
+# The database is the Docker container (restart: unless-stopped); until it is up a start
+# fails and is retried.
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus worker run
+Restart=always
+RestartSec=30
+MemoryMax=2G
+Nice=10
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,319 @@
+{
+  "_id": "9054241ac7b561b9e5a7c7d0b51299475fc29dab61c0be8c0fec29911d06000e",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-09T11:04:52.664Z",
+    "destination": {
+      "as": {
+        "number": 214351,
+        "organization": {
+          "name": "Femo It Solutions Limited"
+        }
+      },
+      "bytes": 370053,
+      "geo": {
+        "city_name": "Frankfurt am Main",
+        "country_iso_code": "DE",
+        "country_name": "Germany",
+        "location": {
+          "lat": 50.1169,
+          "lon": 8.6837
+        }
+      },
+      "ip": "71.72.47.85"
+    },
+    "ecs": {
+      "version": "8.11.0"
+    },
+    "event": {
+      "action": "TCP_MISS",
+      "category": "web",
+      "duration": 18518,
+      "ingested": "2026-10-09T11:02:31.266928+00:00",
+      "module": "squid",
+      "original": "2026-10-09T16:32:31+00:00 l7mrlrv5 (squid-11)[2003]: 1791543751.623  18518 10.218.128.246:60862 198.18.0.71:10954 TCP_MISS/200 370053 GET http://71.72.47.85/vid/random.exe - ORIGINAL_DST/71.72.47.85 application/x-msdos-program",
+      "outcome": "success",
+      "timestamp_source": "log",
+      "type": "access"
+    },
+    "event.kind": "signal",
+    "host": {
+      "name": "l7mrlrv5"
+    },
+    "http": {
+      "request": {
+        "method": "GET"
+      },
+      "response": {
+        "mime_type": "application/x-msdos-program",
+        "status_code": 200
+      }
+    },
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "qQvSXZJe81SnZ2icsItj",
+        "index": "acme-logs-squid-2026.10.09",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-09T11:04:52.664Z",
+    "kibana.alert.last_detected": "2026-10-09T11:04:52.728Z",
+    "kibana.alert.original_event.action": "TCP_MISS",
+    "kibana.alert.original_event.category": "web",
+    "kibana.alert.original_event.duration": 18518,
+    "kibana.alert.original_event.ingested": "2026-10-09T11:02:31.266928+00:00",
+    "kibana.alert.original_event.kind": "event",
+    "kibana.alert.original_event.module": "squid",
+    "kibana.alert.original_event.original": "2026-10-09T16:32:31+00:00 l7mrlrv5 (squid-11)[2003]: 1791543751.623  18518 10.218.128.246:60862 198.18.0.71:10954 TCP_MISS/200 370053 GET http://71.72.47.85/vid/random.exe - ORIGINAL_DST/71.72.47.85 application/x-msdos-program",
+    "kibana.alert.original_event.outcome": "success",
+    "kibana.alert.original_event.timestamp_source": "log",
+    "kibana.alert.original_event.type": "access",
+    "kibana.alert.original_time": "2026-10-09T11:02:31.623Z",
+    "kibana.alert.reason": "web event with process squid-11, source 10.218.128.246:60862, destination 71.72.47.85 on l7mrlrv5 created medium alert Proxy: Executable or Script Download over Plain HTTP.",
+    "kibana.alert.risk_score": 47,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [
+      "ACME"
+    ],
+    "kibana.alert.rule.category": "Custom Query Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-10-05T09:23:29.786Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Detects a successful (200/206) GET over unencrypted HTTP where the URL ends in an executable or script extension (exe, dll, ps1, bat, cmd, vbs, hta, scr, msi, jar). Windows Update / Delivery Optimization traffic, which produces most such downloads (via msdownload / filestreamingservice paths and Microsoft ASNs), is excluded. Plain-HTTP binaries are a common malware delivery and tool-transfer channel and can be tampered with in transit. Baseline on 2026-10-05: ~3 matching events per 10 minutes after exclusions.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-09T11:04:52.728Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "bdc6b9f3-ce50-898b-ca16-c0e5d3246d75",
+    "kibana.alert.rule.false_positives": [],
+    "kibana.alert.rule.from": "now-6m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-squid*"
+    ],
+    "kibana.alert.rule.interval": "5m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.created_from": "CC_Report_Writer proxy baseline 2026-10-05",
+    "kibana.alert.rule.name": "Proxy: Executable or Script Download over Plain HTTP",
+    "kibana.alert.rule.note": "### Investigation Steps\n1. Review `url.original` and `destination.domain` / `destination.ip`. Is it a known vendor download site (e.g. software-dl.ti.com, dl.google.com) or an unknown IP/host?\n2. Check `destination.as.organization.name`, `destination.geo.country_name`, and whether the same URL was fetched by many hosts (patching) or one host (targeted).\n3. If the file came from a raw IP or a recently registered domain, obtain the file hash from the endpoint and check VirusTotal.\n4. `http.response.status_code: 206` with many requests = resumable download, normal for updaters.\n\n### False positives\nSoftware updaters that still use HTTP (TI Code Composer, some Linux repos, Java tooling). Add trusted domains to the exception list.",
+    "kibana.alert.rule.parameters": {
+      "alert_suppression": {
+        "duration": {
+          "unit": "h",
+          "value": 6
+        },
+        "group_by": [
+          "source.ip",
+          "destination.ip"
+        ],
+        "missing_fields_strategy": "suppress"
+      },
+      "author": [
+        "ACME"
+      ],
+      "description": "Detects a successful (200/206) GET over unencrypted HTTP where the URL ends in an executable or script extension (exe, dll, ps1, bat, cmd, vbs, hta, scr, msi, jar). Windows Update / Delivery Optimization traffic, which produces most such downloads (via msdownload / filestreamingservice paths and Microsoft ASNs), is excluded. Plain-HTTP binaries are a common malware delivery and tool-transfer channel and can be tampered with in transit. Baseline on 2026-10-05: ~3 matching events per 10 minutes after exclusions.",
+      "exceptions_list": [],
+      "false_positives": [],
+      "filters": [],
+      "from": "now-6m",
+      "immutable": false,
+      "index": [
+        "acme-logs-squid*"
+      ],
+      "investigation_fields": {
+        "field_names": [
+          "source.ip",
+          "url.original",
+          "destination.domain",
+          "destination.ip",
+          "destination.as.organization.name",
+          "http.response.mime_type",
+          "destination.bytes"
+        ]
+      },
+      "language": "lucene",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "created_from": "CC_Report_Writer proxy baseline 2026-10-05"
+      },
+      "note": "### Investigation Steps\n1. Review `url.original` and `destination.domain` / `destination.ip`. Is it a known vendor download site (e.g. software-dl.ti.com, dl.google.com) or an unknown IP/host?\n2. Check `destination.as.organization.name`, `destination.geo.country_name`, and whether the same URL was fetched by many hosts (patching) or one host (targeted).\n3. If the file came from a raw IP or a recently registered domain, obtain the file hash from the endpoint and check VirusTotal.\n4. `http.response.status_code: 206` with many requests = resumable download, normal for updaters.\n\n### False positives\nSoftware updaters that still use HTTP (TI Code Composer, some Linux repos, Java tooling). Add trusted domains to the exception list.",
+      "query": "network.protocol:http AND http.request.method:GET AND http.response.status_code:(200 OR 206) AND url.original.keyword:/.*\\.([Ee][Xx][Ee]|[Dd][Ll][Ll]|[Pp][Ss]1|[Bb][Aa][Tt]|[Cc][Mm][Dd]|[Vv][Bb][Ss]|[Hh][Tt][Aa]|[Ss][Cc][Rr]|[Mm][Ss][Ii]|[Jj][Aa][Rr])(\\?.*)?/ AND NOT url.original.keyword:*msdownload* AND NOT url.original.keyword:*windowsupdate* AND NOT url.original.keyword:*filestreamingservice* AND NOT destination.as.organization.name.keyword:\"Microsoft Corporation\"",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 47,
+      "risk_score_mapping": [],
+      "rule_id": "d0cb148b-00e9-4fd5-a3b1-c0f48d48526a",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "medium",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1105",
+              "name": "Ingress Tool Transfer",
+              "reference": "https://attack.mitre.org/techniques/T1105/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0002",
+            "name": "Execution",
+            "reference": "https://attack.mitre.org/tactics/TA0002/"
+          },
+          "technique": [
+            {
+              "id": "T1204",
+              "name": "User Execution",
+              "reference": "https://attack.mitre.org/techniques/T1204/",
+              "subtechnique": [
+                {
+                  "id": "T1204.002",
+                  "name": "Malicious File",
+                  "reference": "https://attack.mitre.org/techniques/T1204/002/"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "to": "now",
+      "type": "query",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 0,
+    "kibana.alert.rule.risk_score": 47,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "d0cb148b-00e9-4fd5-a3b1-c0f48d48526a",
+    "kibana.alert.rule.rule_type_id": "siem.queryRule",
+    "kibana.alert.rule.severity": "medium",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [
+      "Proxy",
+      "Squid",
+      "ACME",
+      "Malware-Delivery"
+    ],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1105",
+            "name": "Ingress Tool Transfer",
+            "reference": "https://attack.mitre.org/techniques/T1105/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0002",
+          "name": "Execution",
+          "reference": "https://attack.mitre.org/tactics/TA0002/"
+        },
+        "technique": [
+          {
+            "id": "T1204",
+            "name": "User Execution",
+            "reference": "https://attack.mitre.org/techniques/T1204/",
+            "subtechnique": [
+              {
+                "id": "T1204.002",
+                "name": "Malicious File",
+                "reference": "https://attack.mitre.org/techniques/T1204/002/"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "query",
+    "kibana.alert.rule.updated_at": "2026-10-05T09:23:39.881Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "ae1185ca-332d-4f21-ba38-4186a099cb24",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "medium",
+    "kibana.alert.start": "2026-10-09T11:04:52.728Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.uuid": "9054241ac7b561b9e5a7c7d0b51299475fc29dab61c0be8c0fec29911d06000e",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "network": {
+      "protocol": "http",
+      "transport": "tcp"
+    },
+    "observer": {
+      "dept": "org-7zadsgjk",
+      "env": "production",
+      "hostname": "l7mrlrv5",
+      "ingress": {
+        "interface": {
+          "id": "10954"
+        }
+      },
+      "ip": "198.18.0.71",
+      "org": "univ",
+      "product": "Squid Proxy",
+      "server": "emlnapoe",
+      "source_host": "emlnapoe",
+      "source_program": "squid",
+      "type": "proxy",
+      "vendor": "Squid"
+    },
+    "process": {
+      "name": "squid-11",
+      "pid": 2003
+    },
+    "service": {
+      "type": "proxy"
+    },
+    "service_name": "squid",
+    "source": {
+      "geo": {
+        "name": "pl-y7qgz646"
+      },
+      "ip": "10.218.128.246",
+      "port": 60862,
+      "site": {
+        "department": "pl-y7qgz646",
+        "organization": "Example University",
+        "zone": "department"
+      }
+    },
+    "url": {
+      "original": "http://71.72.47.85/vid/random.exe"
+    }
+  }
+}

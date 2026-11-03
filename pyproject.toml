@@ -1,0 +1,134 @@
+[project]
+name = "argus"
+version = "0.1.0"
+description = "ARGUS — AI-Guided Investigation & Evidence Orchestration System: a first-line analyst for an Elastic SIEM"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+dependencies = [
+    "alembic>=1.14",
+    "argon2-cffi>=25.1.0",
+    "cryptography>=46",
+    "fastapi>=0.143.0",
+    "httpx>=0.28,<0.29",
+    "jinja2>=3.1.6",
+    "langgraph>=1.0",
+    "langgraph-checkpoint>=3",
+    "langgraph-checkpoint-postgres>=3",
+    "psycopg-pool>=3.2",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.9",
+    "pydantic-settings[yaml]>=2.6",
+    "python-dotenv>=1.0,<2",
+    "python-multipart>=0.0.32",
+    "reportlab>=5.1,<6",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "structlog>=24.4",
+    "typer>=0.15",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+argus = "argus.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/argus"]
+
+[dependency-groups]
+dev = [
+    "axe-playwright-python>=0.1.8",
+    "hypothesis>=6.120",
+    "mypy>=1.13",
+    "playwright>=1.63.0",
+    "pypdf>=6",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+    "ruff>=0.8",
+    "schemathesis>=4.30.1",
+    "types-pyyaml>=6.0.12.20260906",
+]
+
+# --------------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle, pyflakes
+    "I",             # isort
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "S",             # bandit (security)
+    "SIM",           # simplify
+    "C4",            # comprehensions
+    "DTZ",           # timezone-naive datetimes are bugs here
+    "ASYNC",         # async pitfalls
+    "PT",            # pytest style
+    "RUF",
+    "N",             # naming
+    "T20",           # no print() in library code
+]
+ignore = [
+    "S101",          # assert is fine in tests (scoped below for src)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S108", "S311", "T20"]
+"migrations/**" = ["N999"]
+# Operator scripts: console output, fixed https URLs and en dashes in text are intended.
+"scripts/**" = ["T201", "S310", "N818", "RUF001", "RUF002", "SIM115"]
+"deploy/elk/*.py" = ["T201", "S310"]  # a person's terminal helpers, fixed https URLs
+"release/**" = ["T201", "S603", "S607"]  # the private export and sweep: console output, git
+
+# --------------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["reportlab", "reportlab.*"]
+ignore_missing_imports = true  # AR7 (D-190): reportlab ships no type information
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "unit: pure tests, no external services",
+    "integration: needs the local Docker Postgres",
+    "live: read-only checks against the production SIEM (the SIEM); only with --run-live",
+    "kibana: contracts against the local Kibana 8.19.12 tier (tests/kibana); replayed from strict cassettes when it does not answer",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["argus"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

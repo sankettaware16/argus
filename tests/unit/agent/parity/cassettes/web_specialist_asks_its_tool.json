@@ -1,0 +1,33 @@
+{
+ "entries": {
+  "1bbc27884f3b6d8afe6cc0b4fea1050cca0649a8e5f85b2d0946149800b77f5f": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"notes\\\": \\\"web: follow-ups\\\", \\\"cites\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"web.followups\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "bd5a5ed62839815bb42117b77ef3893a79bb9444807ca4b8e2e0fc1c8a50f627": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"inconclusive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"needs the follow-ups\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "c2854696ecdb3e2f7436bc72de1753316b36675bfca901fdaf50bffbe22f1ef9": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [\\\"web\\\"], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "eef473e83abcef5ca07c7d74eec2c1f06471a379b42fd7299a76b919d2b7a89a": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"the follow-ups say enough\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

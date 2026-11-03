@@ -1,0 +1,31 @@
+[Unit]
+Description=ARGUS web
+# The database is the Docker container (restart: unless-stopped); until it is up a start
+# fails and is retried.
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+# D-104: HTTPS on the campus network; only these clients (and this machine) and host names
+Environment=ARGUS_WEB__HOST=@WEB_HOST@
+Environment=ARGUS_WEB__TLS_CERT=@WEB_TLS_CERT@
+Environment=ARGUS_WEB__TLS_KEY=@WEB_TLS_KEY@
+Environment=ARGUS_WEB__ALLOWED_HOSTS=@WEB_ALLOWED_HOSTS@
+Environment=ARGUS_WEB__ALLOWED_NETWORKS=@WEB_ALLOWED_NETWORKS@
+# AR4 (production step 40): people land on /app; the classic pages stay at /classic. Roll back:
+# remove this line, install, restart argus-web.
+Environment=ARGUS_WEB__CLASSIC=@WEB_CLASSIC@
+# AR8's canary (D-214): links in Kibana cases point here; the approval key signs a person's approval
+Environment=ARGUS_WEB__PUBLIC_URL=@WEB_PUBLIC_URL@
+Environment=ARGUS_WEB__APPROVAL_KEY_FILE=@WEB_APPROVAL_KEY_FILE@
+# Q-A2: the web's own database login (it alone may record an approval); its password as a credential
+Environment=ARGUS_WEB__DATABASE_ROLE=@WEB_DATABASE_ROLE@
+Environment=CREDENTIALS_DIRECTORY=@WEB_CREDENTIALS@
+ExecStart=@UV@ run argus web
+Restart=always
+RestartSec=10
+MemoryMax=1G
+Nice=0
+
+[Install]
+WantedBy=default.target

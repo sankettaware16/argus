@@ -1,0 +1,37 @@
+[Unit]
+Description=ARGUS retention purge (Q-A4, D-028; custody layout, Q-A5)
+# Started by argus-purge.timer, after the nightly dump. Runs as root with the owner's password
+# from its credential: it logs in as the owner and works as argus_purge (SET LOCAL ROLE).
+# Deletes only once the schedule is approved (retention.scheduled, with the periods of the last
+# reviewed purge) and the last restore drill passed within 8 days.
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=owner
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=database.owner_password:/etc/argus/credentials/database.owner_password
+ExecStart=/opt/argus/current/.venv/bin/argus purge run --apply --scheduled
+MemoryMax=1G
+Nice=10
+ReadWritePaths=/var/lib/argus-backups
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

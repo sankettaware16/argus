@@ -1,0 +1,420 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-674850-read-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-674850-read\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-674850-read\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-674850-read",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-674850-read (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run read",
+    "query": "tier.run: \"<run>-674850-read\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-674850-read",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-674850-read"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (read contract).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-674850"
+    ],
+    "title": "read contract",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (read contract).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-674850"
+    ],
+    "title": "read contract"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-674850"
+    ],
+    "title": "read contract",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "comment": "A comment ARGUS wrote.",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-674850"
+    ],
+    "title": "read contract",
+    "totalAlerts": 1,
+    "totalComment": 2,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:3>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "closed_by": null,
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:1>",
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-674850"
+      ],
+      "title": "read contract",
+      "totalAlerts": 1,
+      "totalComment": 1,
+      "updated_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "version": "<version:3>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-674850"
+    ],
+    [
+     "sortField",
+     "title"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "perPage",
+     "100"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-674850"
+    ],
+    "title": "read contract",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:3>"
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "action": "create",
+     "by": "argus",
+     "type": "create_case"
+    },
+    {
+     "action": "create",
+     "by": "argus",
+     "type": "comment"
+    },
+    {
+     "action": "create",
+     "by": "argus",
+     "type": "comment"
+    }
+   ],
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:1>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "total": 1,
+    "types": [
+     "user"
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [],
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/configure",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "id": "<hex:1>",
+     "index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/alerts",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "id": "<uuid:1>",
+     "status": "open",
+     "totals": {
+      "alerts": 1,
+      "userComments": 1
+     }
+    }
+   ],
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/alerts/<hex:1>",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

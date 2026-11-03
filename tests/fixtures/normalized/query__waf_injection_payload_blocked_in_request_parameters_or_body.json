@@ -1,0 +1,77 @@
+{
+  "adapter": "event",
+  "alert_id": "56d66984e5f74b26f2eb1858c58e276f0414334086e42667e765a16e33ae0e81",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "PYATN8jPocpIq31t46Qx",
+      "index": "acme-logs-nginx-2026.10.09",
+      "kind": "concrete",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T12:08:51.156000Z",
+  "detection_lag": "PT4M40.156S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "134.207.128.175"
+    },
+    {
+      "field": "url.domain",
+      "kind": "domain",
+      "value": "sxs3fmkg.rfbf6lwe.univ.example"
+    },
+    {
+      "field": "host.name",
+      "kind": "host",
+      "value": "ayo5cywr.univ.example"
+    }
+  ],
+  "event_time": "2026-10-09T12:04:11Z",
+  "event_time_approximate": false,
+  "evidence_window": {
+    "approximate": false,
+    "basis": "point",
+    "end": "2026-10-09T12:04:11Z",
+    "start": "2026-10-09T12:04:11Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "3204afd7-d1d7-f18e-0799-59c2fd050c22",
+  "field_issues": [],
+  "fingerprint": "00737136bd30c281f5131f1335ef3ce02b7579e47df61a511578993caefc9c38",
+  "group_key": {
+    "canonical": "[[\"source.ip\",\"134.207.128.175\"],[\"url.domain.keyword\",\"sxs3fmkg.rfbf6lwe.univ.example\"]]",
+    "fields": [
+      "source.ip",
+      "url.domain.keyword"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "suppression",
+    "values": [
+      "134.207.128.175",
+      "sxs3fmkg.rfbf6lwe.univ.example"
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-09T12:08:51.156000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": "2026-10-09T12:04:11Z",
+  "risk_score": 60.0,
+  "rule_id": "dae4a8a4-fae0-44bf-95c7-bc3e676799db",
+  "rule_name": "WAF: Injection Payload Blocked in Request Parameters or Body",
+  "rule_revision": 0,
+  "rule_type": "query",
+  "rule_type_raw": "query",
+  "rule_uuid": "8c8e1aeb-015d-46aa-8c4d-9396d5524bdf",
+  "sequence_group_id": null,
+  "severity": "medium",
+  "time_anomalies": [],
+  "time_basis": "original_time",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

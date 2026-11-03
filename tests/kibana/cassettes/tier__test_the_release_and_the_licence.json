@@ -1,0 +1,68 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "flavor": "default",
+    "number": "8.19.12"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "status": "active",
+    "type": "basic"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/_license",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "level": "available",
+    "number": "8.19.12"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "securitySolutionCasesV3": [
+     "Assign users",
+     "Case settings",
+     "Create comments & attachments",
+     "Delete",
+     "Re-open"
+    ],
+    "siemV2": [
+     "Blocklist",
+     "Elastic Defend Policy Management",
+     "Endpoint List",
+     "Event Filters",
+     "Execute Operations",
+     "File Operations",
+     "Host Isolation",
+     "Host Isolation Exceptions",
+     "Process Operations",
+     "Response Actions History",
+     "Scan Operations",
+     "Trusted Applications"
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/features",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

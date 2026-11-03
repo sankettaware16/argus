@@ -1,0 +1,12 @@
+[Unit]
+Description=ARGUS nightly database dump (Q-A2)
+# Started by argus-backup.timer. A consistent dump while every service keeps running: the
+# fingerprints are taken in the snapshot pg_dump reads.
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+Environment=DOCKER_CONTEXT=default
+ExecStart=@UV@ run argus backup dump --kind nightly
+MemoryMax=1G
+Nice=10

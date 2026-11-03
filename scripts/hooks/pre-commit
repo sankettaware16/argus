@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Refuse commits that would put secrets or production-derived files into git.
+
+Installed with `git config core.hooksPath scripts/hooks` (see docs/development.md). Checks the STAGED
+content only:
+1. forbidden paths: reference/* (except the brief), .env*, data/, local/, private keys;
+2. exact secret values read from the local secret files (.env, reference/*.env,
+   reference/assets.txt) — never printed;
+3. well-known credential shapes (provider API keys, PEM private keys, literal URL passwords —
+   an f-string field such as {SECRET} is not one), except on lines explicitly marked
+   `fake-secret` (synthetic test data);
+4. every staged file under tests/fixtures/ (its staged content, any file type) passes the R2
+   leak verification against the local raw sources (scripts/sanitize_fixtures.py verify).
+Bypass is impossible by design except `git commit --no-verify`, which policy forbids.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+FORBIDDEN = re.compile(
+    r"^(reference/(?!project_breif\.md$).+|\.env(\..+)?|data/.+|local/.+)$|\.(pem|key|p12)$"
+)
+ALLOWED_ENV = {".env.example"}
+SHAPES = {
+    "Groq key": re.compile(r"gsk_[A-Za-z0-9]{20,}"),
+    "OpenRouter key": re.compile(r"sk-or-v1-[A-Za-z0-9]{20,}"),
+    "OpenAI-style key": re.compile(r"sk-(?:proj-)?[A-Za-z0-9_\-]{32,}"),
+    "Google API key": re.compile(r"AIza[0-9A-Za-z_\-]{30,}"),
+    "Google AI Studio key": re.compile(r"AQ\.[A-Za-z0-9_\-]{30,}"),
+    "GitHub token": re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
+    "private key block": re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
+}
+URL_PASSWORD = re.compile(r"[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]+:(?P<password>[^\s@/]{6,})@")
+# Not a literal password: only f-string fields or a mask ("{SECRET}", "{MASK}", "***").
+PLACEHOLDER = re.compile(r"(?:\{[A-Za-z_][A-Za-z0-9_.]*\}|\*+)+")
+SECRET_KEY_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|KEY", re.IGNORECASE)
+# A line containing this marker may hold a *synthetic* key-shaped string (tests). Real secret
+# values from the local secret files are refused regardless of any marker.
+FAKE_MARKER = "fake-secret"
+
+
+def local_secret_values() -> set[str]:
+    values: set[str] = set()
+    for name in (".env", "reference/llm_api_keys.env"):
+        path = ROOT / name
+        if not path.is_file():
+            continue
+        for line in path.read_text(errors="replace").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, value = line.split("=", 1)
+                if SECRET_KEY_NAME.search(key):
+                    values.add(value.strip().strip("'\""))
+    assets = ROOT / "reference" / "assets.txt"
+    if assets.is_file():
+        for line in assets.read_text(errors="replace").splitlines():
+            if re.fullmatch(r"[A-Za-z0-9_.-]+:[^\s/]+", line.strip()):
+                values.add(line.strip().split(":", 1)[1])
+    return {v for v in values if len(v) >= 6}
+
+
+def literal_url_password(line: str) -> bool:
+    """A URL with a literal password of 6+ characters. A placeholder is not one, nor is a match
+    with a '"' in it: that runs across the end of a string, e.g. {"url":"http://h:9200","a":"b@c"}.
+    """
+    for match in URL_PASSWORD.finditer(line):
+        password = match["password"]
+        if '"' not in password and not PLACEHOLDER.fullmatch(password):
+            return True
+    return False
+
+
+def line_problems(line: str) -> list[str]:
+    """The credential shapes in one line of staged text (none if it is marked synthetic)."""
+    if FAKE_MARKER in line:  # synthetic test data, explicitly marked
+        return []
+    found = [label for label, pattern in SHAPES.items() if pattern.search(line)]
+    if literal_url_password(line):
+        found.append("password in URL")
+    return found
+
+
+def staged_files() -> list[str]:
+    """Every staged path except deletions (a type change, e.g. symlink to file, included)."""
+    out = subprocess.check_output(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=d", "-z"], cwd=ROOT
+    )
+    return [p for p in out.decode().split("\0") if p]
+
+
+def verify_staged_fixtures(fixtures: list[str]) -> list[str]:
+    """Fixtures derived from production data: prove no original identifier survives (R2).
+
+    The STAGED content is what gets committed, so each staged blob is written under the same
+    relative path into a private temporary directory and verified there (the working tree may
+    differ). ``scripts`` is linked into it so the verifier runs with the repository's code.
+    """
+    with tempfile.TemporaryDirectory(prefix="argus-staged-") as tmp:
+        staged = Path(tmp)
+        (staged / "scripts").symlink_to(ROOT / "scripts", target_is_directory=True)
+        for rel in fixtures:
+            target = staged / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(
+                subprocess.run(["git", "show", f":{rel}"], cwd=ROOT, capture_output=True).stdout
+            )
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "--quiet",
+                "--project",
+                str(ROOT),
+                "python",
+                "scripts/sanitize_fixtures.py",
+                "verify",
+                *fixtures,
+            ],
+            cwd=tmp,
+            capture_output=True,
+            text=True,
+        )
+    if result.returncode != 0:
+        return ["tests/fixtures: leak verification failed — " + result.stdout.strip()]
+    return []
+
+
+def main() -> int:
+    problems: list[str] = []
+    secrets = local_secret_values()
+    for path in staged_files():
+        if path not in ALLOWED_ENV and FORBIDDEN.search(path):
+            problems.append(f"{path}: this path must never be committed")
+            continue
+        blob = subprocess.run(["git", "show", f":{path}"], cwd=ROOT, capture_output=True).stdout
+        text = blob.decode("utf-8", errors="replace")
+        if any(secret in text for secret in secrets):
+            problems.append(f"{path}: contains a value from a local secret file")
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for label in line_problems(line):
+                problems.append(f"{path}:{lineno}: looks like it contains a {label}")
+    fixtures = [p for p in staged_files() if p.startswith("tests/fixtures/")]
+    if fixtures:
+        problems.extend(verify_staged_fixtures(fixtures))
+    if problems:
+        print("pre-commit: refusing to commit:", file=sys.stderr)
+        for problem in problems:
+            print(f"  - {problem}", file=sys.stderr)
+        print("Remove the secret (or unstage the file) and commit again.", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

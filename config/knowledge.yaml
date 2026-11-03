@@ -1,0 +1,10 @@
+# Knowledge seeds (D-057): typed items reviewers' knowledge starts from. Empty in Phase 1;
+# reviewers add items in the Inbox from R15 on. A benign_pattern always needs expires_at.
+# Example:
+#   - key: lab-scanner-10-8-1-5
+#     kind: benign_pattern
+#     scope: {rule_id: "<rule id>"}
+#     matcher: {entity: {kind: ip, value: 10.8.1.5}}
+#     assertion: "The lab's vulnerability scanner; weekly scans are expected."
+#     expires_at: 2026-12-31T00:00:00Z
+items: []

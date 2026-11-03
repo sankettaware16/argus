@@ -1,0 +1,151 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "name": "argus-kibana",
+    "status": {
+     "overall": {
+      "level": "available",
+      "summary": "All services and plugins are available"
+     }
+    },
+    "version": {
+     "build_date": "<time>",
+     "build_flavor": "traditional",
+     "build_hash": "a2a93735478172a315d2ced4aded3024cc029648",
+     "build_number": 87025,
+     "build_snapshot": false,
+     "number": "8.19.12"
+    }
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "application": {
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "alerting:siem.eqlRule/siem/alert/update": false,
+       "alerting:siem.esqlRule/siem/alert/update": false,
+       "alerting:siem.indicatorRule/siem/alert/update": false,
+       "alerting:siem.mlRule/siem/alert/update": false,
+       "alerting:siem.newTermsRule/siem/alert/update": false,
+       "alerting:siem.notifications/siem/alert/update": false,
+       "alerting:siem.queryRule/siem/alert/update": false,
+       "alerting:siem.savedQueryRule/siem/alert/update": false,
+       "alerting:siem.thresholdRule/siem/alert/update": false,
+       "api:rac": false,
+       "api:securitySolution": false,
+       "cases:securitySolution/assignCase": false,
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/createConfiguration": false,
+       "cases:securitySolution/deleteCase": false,
+       "cases:securitySolution/findConfigurations": true,
+       "cases:securitySolution/getCase": true,
+       "cases:securitySolution/getComment": true,
+       "cases:securitySolution/getUserActions": true,
+       "cases:securitySolution/pushCase": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "cases:securitySolution/updateConfiguration": false,
+       "login:": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "all": false,
+      "create_index": false,
+      "delete": false,
+      "delete_index": false,
+      "index": false,
+      "maintenance": false,
+      "manage": false,
+      "write": false
+     }
+    },
+    "username": "argus"
+   },
+   "as": "key:argus-kibana-reader",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "alerting:siem.eqlRule/siem/alert/update",
+       "alerting:siem.esqlRule/siem/alert/update",
+       "alerting:siem.indicatorRule/siem/alert/update",
+       "alerting:siem.mlRule/siem/alert/update",
+       "alerting:siem.newTermsRule/siem/alert/update",
+       "alerting:siem.notifications/siem/alert/update",
+       "alerting:siem.queryRule/siem/alert/update",
+       "alerting:siem.savedQueryRule/siem/alert/update",
+       "alerting:siem.thresholdRule/siem/alert/update",
+       "api:rac",
+       "api:securitySolution",
+       "cases:securitySolution/assignCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/createConfiguration",
+       "cases:securitySolution/deleteCase",
+       "cases:securitySolution/findConfigurations",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/getComment",
+       "cases:securitySolution/getUserActions",
+       "cases:securitySolution/pushCase",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/updateConfiguration",
+       "login:"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "all",
+       "create_index",
+       "delete",
+       "delete_index",
+       "index",
+       "maintenance",
+       "manage",
+       "write"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

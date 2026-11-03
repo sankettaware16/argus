@@ -1,0 +1,51 @@
+[Unit]
+Description=ARGUS case team (AR8, D-214: person-confirmed cases to Kibana; custody layout, Q-A5)
+# Started by argus-case-team.timer. Posts only with case_team.post true and class WC switched on
+# in /etc/argus/argus.env (docs/runbooks/kibana-case-team.md); the six keys are this unit's alone.
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=argus-writer
+Group=argus-writer
+SupplementaryGroups=argus
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=writer
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=database.writer_password:/etc/argus/credentials/database.writer_password
+LoadCredential=approval-signing.key:/etc/argus/credentials/approval-signing.key
+LoadCredential=siem.api_key:/etc/argus/credentials/siem.api_key
+LoadCredential=kibana.reader_api_key:/etc/argus/credentials/kibana.reader_api_key
+LoadCredential=case_team.lead_api_key:/etc/argus/credentials/case_team.lead_api_key
+LoadCredential=case_team.evidence_api_key:/etc/argus/credentials/case_team.evidence_api_key
+LoadCredential=case_team.intel_api_key:/etc/argus/credentials/case_team.intel_api_key
+LoadCredential=case_team.responder_api_key:/etc/argus/credentials/case_team.responder_api_key
+LoadCredential=case_team.hunter_api_key:/etc/argus/credentials/case_team.hunter_api_key
+LoadCredential=case_team.reporter_api_key:/etc/argus/credentials/case_team.reporter_api_key
+ExecStart=/opt/argus/current/.venv/bin/argus case team run --unattended
+TimeoutStartSec=3h
+MemoryMax=512M
+Nice=10
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+

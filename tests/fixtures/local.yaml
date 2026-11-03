@@ -1,0 +1,12 @@
+# The suite's installation values (D-294): the made-up SIEM and Kibana of tests/fixtures/site.yaml,
+# which the network guard refuses (tests/conftest.py, SUITE_SIEM_HOSTS). Laid out beside a copy of
+# the shipped config by tests/conftest.py (suite_checkout) for the tests of a whole checkout.
+siem:
+  url: https://10.20.60.11:9200
+kibana:
+  url: https://10.20.60.11:5601
+# A made-up checkout: the suite renders its units for it, so doctor never takes this machine's
+# installed units for the suite's own (they belong to whatever checkout installed them).
+units:
+  root: /home/dev/argus
+  uv: /home/dev/.local/bin/uv

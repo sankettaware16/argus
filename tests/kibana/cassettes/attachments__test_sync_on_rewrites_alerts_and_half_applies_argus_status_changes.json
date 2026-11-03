@@ -1,0 +1,1045 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-fc7a47-sync-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-fc7a47-sync\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-fc7a47-sync\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-fc7a47-sync",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-fc7a47-sync (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run sync",
+    "query": "tier.run: \"<run>-fc7a47-sync\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-fc7a47-sync",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-fc7a47-sync"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "title": "sync",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (sync).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "title": "sync"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:2>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case (sync).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "in-progress",
+     "tags": [
+      "run:<run>",
+      "t:<run>-fc7a47"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "sync",
+     "totalAlerts": 1,
+     "totalComment": 0,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:4>"
+    }
+   ],
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "status": "in-progress",
+      "version": "<version:2>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "open"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:2>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "in-progress",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": null,
+    "time_to_resolve": null,
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:4>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case (sync).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": true
+     },
+     "severity": "low",
+     "status": "in-progress",
+     "tags": [
+      "run:<run>",
+      "t:<run>-fc7a47"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "sync",
+     "totalAlerts": 1,
+     "totalComment": 0,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:5>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "settings": {
+       "syncAlerts": true
+      },
+      "version": "<version:4>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "acknowledged"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:2>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": true
+    },
+    "severity": "low",
+    "status": "in-progress",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": null,
+    "time_to_resolve": null,
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:5>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Internal Server Error",
+    "message": "security_exception\n\tRoot causes:\n\t\tsecurity_exception: action [indices:data/write/update/byquery] is unauthorized for API key id [<id:1>] of user [argus] on indices [.internal.alerts-security.alerts-acme-soc-000001], this action is granted by the index privileges [index,write,all]",
+    "statusCode": 500
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "status": "closed",
+      "version": "<version:5>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 500,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "comments": [
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:2>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:1>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": true
+    },
+    "severity": "low",
+    "status": "closed",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:6>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "acknowledged"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": [
+    [
+     "create_case",
+     "create",
+     "argus"
+    ],
+    [
+     "comment",
+     "create",
+     "argus"
+    ],
+    [
+     "status",
+     "update",
+     "argus"
+    ],
+    [
+     "settings",
+     "update",
+     "tier-analyst"
+    ]
+   ],
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:1>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-fc7a47-sync-late-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-fc7a47-sync-late\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-fc7a47-sync-late\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-fc7a47-sync-late",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-fc7a47-sync-late (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run sync-late",
+    "query": "tier.run: \"<run>-fc7a47-sync-late\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-fc7a47-sync-late",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:2>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-fc7a47-sync-late"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": "Bad Request",
+    "message": "Alert cannot be attached to a closed case",
+    "statusCode": 400
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "alertId": "<hex:2>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 400,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "comments": [
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:2>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (sync).",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:1>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": true
+    },
+    "severity": "low",
+    "status": "closed",
+    "tags": [
+     "run:<run>",
+     "t:<run>-fc7a47"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "sync",
+    "totalAlerts": 1,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:6>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case (sync).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": true
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-fc7a47"
+     ],
+     "time_to_acknowledge": null,
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "sync",
+     "totalAlerts": 1,
+     "totalComment": 0,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:7>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "status": "open",
+      "version": "<version:6>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "open"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

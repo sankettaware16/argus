@@ -1,0 +1,72 @@
+{
+  "adapter": "event",
+  "alert_id": "9054241ac7b561b9e5a7c7d0b51299475fc29dab61c0be8c0fec29911d06000e",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "qQvSXZJe81SnZ2icsItj",
+      "index": "acme-logs-squid-2026.10.09",
+      "kind": "concrete",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T11:04:52.664000Z",
+  "detection_lag": "PT2M21.041S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "10.218.128.246"
+    },
+    {
+      "field": "destination.ip",
+      "kind": "ip",
+      "value": "71.72.47.85"
+    }
+  ],
+  "event_time": "2026-10-09T11:02:31.623000Z",
+  "event_time_approximate": false,
+  "evidence_window": {
+    "approximate": false,
+    "basis": "point",
+    "end": "2026-10-09T11:02:31.623000Z",
+    "start": "2026-10-09T11:02:31.623000Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "bdc6b9f3-ce50-898b-ca16-c0e5d3246d75",
+  "field_issues": [],
+  "fingerprint": "335ae6ccd18b49a0b539df4563e82fbe9e0513b4dcdbf529c93f99ba3dc8702a",
+  "group_key": {
+    "canonical": "[[\"destination.ip\",\"71.72.47.85\"],[\"source.ip\",\"10.218.128.246\"]]",
+    "fields": [
+      "source.ip",
+      "destination.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "suppression",
+    "values": [
+      "10.218.128.246",
+      "71.72.47.85"
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-09T11:04:52.664000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": "2026-10-09T11:02:31.623000Z",
+  "risk_score": 47.0,
+  "rule_id": "d0cb148b-00e9-4fd5-a3b1-c0f48d48526a",
+  "rule_name": "Proxy: Executable or Script Download over Plain HTTP",
+  "rule_revision": 0,
+  "rule_type": "query",
+  "rule_type_raw": "query",
+  "rule_uuid": "ae1185ca-332d-4f21-ba38-4186a099cb24",
+  "sequence_group_id": null,
+  "severity": "medium",
+  "time_anomalies": [],
+  "time_basis": "original_time",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

@@ -1,0 +1,300 @@
+{
+ "dossiers": {
+  "c2": "f53a2195ef03b3d8976ae7da709ccf2f9c256162f472596aeb32c64633bc41bd",
+  "c2b": "63160d41db4024068e0b8011af47404b40e03976d7f96385061c6b9ab004efdb",
+  "mail": "1f638290200b51cd2aec7249fcfab0943fb8a0c936adca9b2fe3e3c81c18029e",
+  "web": "6b928d062c4f5fc78c5708d37fb371b066c0c2b51d9fef50e6bd3348acbea81e"
+ },
+ "model_calls": 11,
+ "siem": [
+  "proxy.destination {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"185.220.101.5\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "proxy.destination {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"45.9.9.9\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "proxy.destination {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"77.221.155.150\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "proxy.host {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"10.20.3.4\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "proxy.host {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"10.20.9.9\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "proxy.host {\"end\": \"2026-10-09T13:00:00Z\", \"ip\": \"10.20.9.9\", \"start\": \"2026-10-09T10:00:00Z\"}",
+  "ti.lookup {\"size\": 500, \"values\": [\"10.20.3.4\", \"45.9.9.9\", \"::ffff:10.20.3.4\", \"::ffff:45.9.9.9\", \"UPDATE-CHECK.EXAMPLE\", \"update-check.example\"]}",
+  "ti.lookup {\"size\": 500, \"values\": [\"10.20.9.9\", \"77.221.155.150\", \"::ffff:10.20.9.9\", \"::ffff:77.221.155.150\"]}",
+  "ti.lookup {\"size\": 500, \"values\": [\"10.30.1.8\", \"133.186.7.75\", \"::ffff:10.30.1.8\", \"::ffff:133.186.7.75\"]}",
+  "ti.lookup {\"size\": 500, \"values\": [\"133.186.7.75\", \"185.220.101.5\", \"::ffff:133.186.7.75\", \"::ffff:185.220.101.5\", \"LIBRARY.EXAMPLE\", \"library.example\"]}",
+  "web.followups {\"end\": \"2026-10-09T17:11:00Z\", \"ip\": \"10.20.3.4\", \"size\": 20, \"start\": \"2026-10-09T11:11:00Z\"}",
+  "web.followups {\"end\": \"2026-10-09T17:21:00Z\", \"ip\": \"185.220.101.5\", \"size\": 20, \"start\": \"2026-10-09T11:21:00Z\"}",
+  "web.followups {\"end\": \"2026-10-09T17:31:00Z\", \"ip\": \"10.20.9.9\", \"size\": 20, \"start\": \"2026-10-09T11:31:00Z\"}"
+ ],
+ "verdicts": {
+  "c2": {
+   "confidence": 0.75,
+   "decided_by": "agent@1#cassette/m-medium,cassette/m-small",
+   "outcome": "true_positive",
+   "reasons": [
+    "The host keeps reaching the address the threat list names.",
+    "2 rounds, 4 model calls (medium, small, medium, medium), $0.0000; tools: web.followups: empty",
+    {
+     "answer": {
+      "cites": [
+       "Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+      ],
+      "confidence": 0.75,
+      "explanation": "The host keeps reaching the address the threat list names.",
+      "hypotheses": [
+       {
+        "against": [],
+        "for": [
+         "Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+        ],
+        "name": "a beacon"
+       },
+       {
+        "against": [
+         "Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+        ],
+        "for": [],
+        "name": "an update check"
+       }
+      ],
+      "outcome": "true_positive"
+     },
+     "calls": 4,
+     "checks": [
+      {
+       "agent": "investigator",
+       "result": "empty",
+       "tool": "web.followups",
+       "value": "10.20.3.4"
+      },
+      {
+       "agent": "investigator",
+       "result": "already in the item",
+       "tool": "proxy.host",
+       "value": "10.20.3.4"
+      },
+      {
+       "agent": "investigator",
+       "result": "already in the item",
+       "tool": "proxy.destination",
+       "value": "45.9.9.9"
+      }
+     ],
+     "cost_usd": 0.0,
+     "kind": "agent@1",
+     "models": [
+      "cassette/m-medium",
+      "cassette/m-small"
+     ],
+     "rounds": 2,
+     "seconds": 0.0,
+     "specialists": [
+      {
+       "domain": "proxy",
+       "notes": "The proxy traffic is steady and small."
+      }
+     ],
+     "tiers": [
+      "medium",
+      "small",
+      "medium",
+      "medium"
+     ]
+    }
+   ]
+  },
+  "c2b": {
+   "confidence": 0.75,
+   "decided_by": "agent@1#cassette/m-medium,cassette/m-small",
+   "outcome": "true_positive",
+   "reasons": [
+    "The host keeps reaching the address the threat list names.",
+    "2 rounds, 4 model calls (medium, small, medium, medium), $0.0000; tools: web.followups: empty, proxy.host: ok",
+    {
+     "answer": {
+      "cites": [
+       "Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+      ],
+      "confidence": 0.75,
+      "explanation": "The host keeps reaching the address the threat list names.",
+      "hypotheses": [
+       {
+        "against": [],
+        "for": [
+         "Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+        ],
+        "name": "a beacon"
+       },
+       {
+        "against": [
+         "Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+        ],
+        "for": [],
+        "name": "an update check"
+       }
+      ],
+      "outcome": "true_positive"
+     },
+     "calls": 4,
+     "checks": [
+      {
+       "agent": "investigator",
+       "result": "empty",
+       "tool": "web.followups",
+       "value": "10.20.9.9"
+      },
+      {
+       "agent": "investigator",
+       "result": "ok",
+       "tool": "proxy.host",
+       "value": "10.20.9.9"
+      },
+      {
+       "agent": "investigator",
+       "result": "already in the item",
+       "tool": "proxy.destination",
+       "value": "77.221.155.150"
+      }
+     ],
+     "cost_usd": 0.0,
+     "kind": "agent@1",
+     "models": [
+      "cassette/m-medium",
+      "cassette/m-small"
+     ],
+     "rounds": 2,
+     "seconds": 0.0,
+     "specialists": [
+      {
+       "domain": "proxy",
+       "notes": "The proxy traffic is steady and small."
+      }
+     ],
+     "tiers": [
+      "medium",
+      "small",
+      "medium",
+      "medium"
+     ]
+    }
+   ]
+  },
+  "mail": {
+   "confidence": null,
+   "decided_by": "agent@1#cassette/m-medium",
+   "outcome": null,
+   "reasons": [
+    "The host keeps reaching the address the threat list names.",
+    "floor: ti.listed not known; an entity seen for the first time; volume baseline not known",
+    "1 rounds, 1 model calls (medium), $0.0000; tools: none",
+    {
+     "answer": {
+      "cites": [
+       "Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+      ],
+      "confidence": 0.75,
+      "explanation": "The host keeps reaching the address the threat list names.",
+      "hypotheses": [
+       {
+        "against": [],
+        "for": [
+         "Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+        ],
+        "name": "a beacon"
+       },
+       {
+        "against": [
+         "Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0"
+        ],
+        "for": [],
+        "name": "an update check"
+       }
+      ],
+      "outcome": "benign_expected"
+     },
+     "calls": 1,
+     "checks": [],
+     "cost_usd": 0.0,
+     "kind": "agent@1",
+     "models": [
+      "cassette/m-medium"
+     ],
+     "reading": {
+      "blocked": [
+       "ti.listed not known",
+       "an entity seen for the first time",
+       "volume baseline not known"
+      ],
+      "checked": [
+       true
+      ],
+      "kind": "floor"
+     },
+     "rounds": 1,
+     "seconds": 0.0,
+     "specialists": [],
+     "tiers": [
+      "medium"
+     ]
+    }
+   ]
+  },
+  "web": {
+   "confidence": 0.75,
+   "decided_by": "agent@1#cassette/m-medium",
+   "outcome": "true_positive",
+   "reasons": [
+    "The host keeps reaching the address the threat list names.",
+    "2 rounds, 2 model calls (medium, medium), $0.0000; tools: proxy.destination: ok",
+    {
+     "answer": {
+      "cites": [
+       "Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+      ],
+      "confidence": 0.75,
+      "explanation": "The host keeps reaching the address the threat list names.",
+      "hypotheses": [
+       {
+        "against": [],
+        "for": [
+         "Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+        ],
+        "name": "a beacon"
+       },
+       {
+        "against": [
+         "Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0"
+        ],
+        "for": [],
+        "name": "an update check"
+       }
+      ],
+      "outcome": "true_positive"
+     },
+     "calls": 2,
+     "checks": [
+      {
+       "agent": "investigator",
+       "result": "ok",
+       "tool": "proxy.destination",
+       "value": "185.220.101.5"
+      }
+     ],
+     "cost_usd": 0.0,
+     "kind": "agent@1",
+     "models": [
+      "cassette/m-medium"
+     ],
+     "rounds": 2,
+     "seconds": 0.0,
+     "specialists": [],
+     "tiers": [
+      "medium",
+      "medium"
+     ]
+    }
+   ]
+  }
+ },
+ "views": {
+  "c2": "e201b8095993b23cf0c803f3b050f3ca1a66338d9177d1dec978356b78d52ccf",
+  "c2b": "a7f95d8e3ba4f557ce7de356f9c00367fa8374e0f2d51d3f0fc23f0e987fe8c6",
+  "mail": "428965b2a6064a17060e6543aba64676df17e00f8f05a46ff289ab7bd8173ecc",
+  "web": "2d2d2c3627253978287af92ebf2e867c4f118d2116fd6142f298d2f39f9da055"
+ }
+}

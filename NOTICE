@@ -1,0 +1,16 @@
+ARGUS — AI-Guided Investigation & Evidence Orchestration System
+Copyright 2026 Sanket Taware and the ARGUS contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+ARGUS is part of the TLSOC open-source security operations ecosystem
+(https://github.com/sankettaware16).
+
+This product includes a copy of the Public Suffix List
+(src/argus/outside/data/public_suffix_list.dat), published by the Mozilla
+Foundation under the Mozilla Public License, Version 2.0
+(https://publicsuffix.org/).
+
+Third-party Python and JavaScript dependencies are installed from their
+own distributions (pyproject.toml / uv.lock, frontend/package.json /
+package-lock.json) under their own licences.

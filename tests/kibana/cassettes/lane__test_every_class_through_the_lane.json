@@ -1,0 +1,967 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-bc650e-lane-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-bc650e-lane\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-bc650e-lane\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-bc650e-lane",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-bc650e-lane (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run lane",
+    "query": "tier.run: \"<run>-bc650e-lane\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-bc650e-lane",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-bc650e-lane"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "name": "argus-kibana",
+    "status": {
+     "overall": {
+      "level": "available",
+      "summary": "All services and plugins are available"
+     }
+    },
+    "version": {
+     "build_date": "<time>",
+     "build_flavor": "traditional",
+     "build_hash": "a2a93735478172a315d2ced4aded3024cc029648",
+     "build_number": 87025,
+     "build_snapshot": false,
+     "number": "8.19.12"
+    }
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "license": {
+     "status": "active",
+     "type": "basic"
+    }
+   },
+   "as": "key:argus-reader",
+   "method": "GET",
+   "params": [
+    [
+     "filter_path",
+     "license.type,license.status"
+    ]
+   ],
+   "path": "/_license",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": [],
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/configure",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "medium",
+    "status": "open",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 9] C2 beacon from 1 campus host",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "medium",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 9] C2 beacon from 1 campus host"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Opened by ARGUS: decisions are made in ARGUS.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "medium",
+    "status": "open",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 9] C2 beacon from 1 campus host",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "comment": "Opened by ARGUS: decisions are made in ARGUS.",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Opened by ARGUS: decisions are made in ARGUS.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     },
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:4>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:5>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "medium",
+    "status": "open",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 9] C2 beacon from 1 campus host",
+    "totalAlerts": 1,
+    "totalComment": 2,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:4>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "alertId": [
+     "<hex:1>"
+    ],
+    "index": [
+     ".internal.alerts-security.alerts-acme-soc-000001"
+    ],
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "ARGUS opened this case; decisions are made in ARGUS.",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "high",
+     "status": "open",
+     "tags": [
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:owner:argus",
+      "argus:state:open",
+      "argus:owner:tier-analyst"
+     ],
+     "title": "[ARGUS 9] C2 beacon from 1 campus host",
+     "totalAlerts": 1,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:6>"
+    }
+   ],
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "severity": "high",
+      "tags": [
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open",
+       "argus:owner:tier-analyst"
+      ],
+      "version": "<version:4>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "ARGUS opened this case; decisions are made in ARGUS.",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "high",
+     "status": "in-progress",
+     "tags": [
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:owner:argus",
+      "argus:state:open",
+      "argus:owner:tier-analyst"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "[ARGUS 9] C2 beacon from 1 campus host",
+     "totalAlerts": 1,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:7>"
+    }
+   ],
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "status": "in-progress",
+      "version": "<version:6>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": "<time>",
+     "closed_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "ARGUS opened this case; decisions are made in ARGUS.",
+     "duration": "<duration>",
+     "external_service": null,
+     "id": "<uuid:2>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "high",
+     "status": "closed",
+     "tags": [
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:closed",
+      "argus:closed",
+      "argus:reason:rule_false_positive"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": "<seconds>",
+     "time_to_resolve": "<seconds>",
+     "title": "[ARGUS 9] C2 beacon from 1 campus host",
+     "totalAlerts": 1,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:8>"
+    }
+   ],
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "status": "closed",
+      "tags": [
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:closed",
+       "argus:closed",
+       "argus:reason:rule_false_positive"
+      ],
+      "version": "<version:7>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "comments": [
+     {
+      "comment": "Opened by ARGUS: decisions are made in ARGUS.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     },
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:4>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:5>"
+     },
+     {
+      "comment": "Closed by ARGUS on the approval of Tier Approver.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:10>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:2>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "high",
+    "status": "closed",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:closed",
+     "argus:closed",
+     "argus:reason:rule_false_positive"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "[ARGUS 9] C2 beacon from 1 campus host",
+    "totalAlerts": 1,
+    "totalComment": 3,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:9>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "comment": "Closed by ARGUS on the approval of Tier Approver.",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "comments": [
+     {
+      "comment": "Opened by ARGUS: decisions are made in ARGUS.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:3>"
+     },
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:4>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:5>"
+     },
+     {
+      "comment": "Closed by ARGUS on the approval of Tier Approver.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:10>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "ARGUS opened this case; decisions are made in ARGUS.",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:2>",
+    "in_progress_at": "<time>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "high",
+    "status": "closed",
+    "tags": [
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:closed",
+     "argus:closed",
+     "argus:reason:rule_false_positive"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "[ARGUS 9] C2 beacon from 1 campus host",
+    "totalAlerts": 1,
+    "totalComment": 2,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:9>"
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "ARGUS opened this case; decisions are made in ARGUS.",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "in_progress_at": "<time>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "high",
+     "status": "open",
+     "tags": [
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:closed",
+      "argus:closed",
+      "argus:reason:rule_false_positive"
+     ],
+     "time_to_acknowledge": null,
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "[ARGUS 9] C2 beacon from 1 campus host",
+     "totalAlerts": 1,
+     "totalComment": 2,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:11>"
+    }
+   ],
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "status": "open",
+      "version": "<version:9>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.case_ids": [
+     "<uuid:2>"
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.case_ids"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

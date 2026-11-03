@@ -1,0 +1,19 @@
+[Unit]
+Description=ARGUS writer (Phase 3, Q-D4/Q-D5: Kibana case and alert writes from the outbox)
+# Disabled: writes need the user's approval of each class at its canary (plan §7.1, D-109).
+# Q-A5 moves the writer to its own system user with its key from a root-owned credential
+# (LoadCredential=); a writer key never goes into the shared .env (plan §3 rule 11). Until its
+# command exists the condition below skips a start instead of failing it again and again.
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecCondition=@UV@ run argus writer --help
+ExecStart=@UV@ run argus writer run
+Restart=on-failure
+RestartSec=60
+MemoryMax=512M
+Nice=10
+
+[Install]
+WantedBy=default.target

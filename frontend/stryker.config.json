@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Q-B1: plan §4 wants 100 % on UntrustedText and the confirm dialog's payload view (these five modules; npm run mutation, through scripts/heavy.sh); the rest of the frontend, 85 %, is stryker.rest.config.json (npm run mutation:rest). tests/unit/web/test_spa.py checks that every module is in one of the two.",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/lib/untrusted.ts",
+    "src/components/UntrustedText.tsx",
+    "src/lib/payload.ts",
+    "src/components/PayloadView.tsx",
+    "src/components/ConfirmDialog.tsx"
+  ],
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "concurrency": 2,
+  "timeoutMS": 20000,
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": "always"
+}

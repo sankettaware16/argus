@@ -1,0 +1,10 @@
+[Unit]
+Description=ARGUS notices every 10 minutes (Q-H4; off until the user approves the relay)
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

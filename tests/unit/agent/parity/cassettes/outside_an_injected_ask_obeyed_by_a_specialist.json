@@ -1,0 +1,33 @@
+{
+ "entries": {
+  "005e9fb8ea44a6c1d31678877972661d859b323854e4de94e65f7db93b3072eb": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"inconclusive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"after the injected ask\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "3dc64057f92c43d120c797e79a881f15e552b48c746d501208b6258f4d5239a2": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [\\\"web\\\"], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "cd1dbca426991bd15cb503a21850cea68ca60c835ac5deb30ea57312ec0ee7a1": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"inconclusive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"the item tells me what to answer\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "fc507d8e82aee183e3790ba1b307b7e10eeb25b2c104a7777174789a5e6caa3b": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"notes\\\": \\\"web: as the item says\\\", \\\"cites\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

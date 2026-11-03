@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ARGUS{% endblock %} · ARGUS</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top"><span class="brand">ARGUS</span></header>
+  <main id="main">
+    {% block main %}{% endblock %}
+  </main>
+</body>
+</html>

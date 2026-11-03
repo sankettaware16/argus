@@ -1,0 +1,202 @@
+{
+  "_id": "4CtSuXXut2l-0MU8X04M",
+  "_index": ".internal.alerts-security.alerts-campus-000001",
+  "_source": {
+    "@timestamp": "2026-10-08T12:00:00.000Z",
+    "destination": {
+      "domain": "nj4xtrco.c2.univ.example",
+      "ip": "198.18.0.189"
+    },
+    "dns": {
+      "question": {
+        "name": "254.161.55.10.in-addr.arpa"
+      }
+    },
+    "event": {
+      "action": "allowed",
+      "original": "7k75la5f squid: 010.055.161.254 ip-10-55-161-254 dump_10_55_161_254.pcap [IPv6:2001:db8:f0fe:2091:e528:85a2:4e1:795c] CN=u-u7lk66pv,OU=Labs,DC=univ,DC=example Digest username=\"u-rblk6f6m\", response=\"REDACTED\" basic authentication"
+    },
+    "fields": {
+      "env": "prod"
+    },
+    "file": {
+      "path": "C:\\Users\\u-5ok7dbog\\AppData\\a.exe"
+    },
+    "host": {
+      "hostname": "7k75la5f",
+      "ip": [
+        "10.55.161.254",
+        "fc06:eb31:6a00:e62a:aa32:4a8b:d2c6:6cfa"
+      ],
+      "name": "7k75la5f.univ.example"
+    },
+    "http": {
+      "request": {
+        "headers": {
+          "authorization": "Basic REDACTED"
+        }
+      }
+    },
+    "kibana.alert.ancestors": [
+      {
+        "id": "mv6mA4sC_DUCLyzZLdxc",
+        "index": "logs-proxy-2026.10.08"
+      }
+    ],
+    "kibana.alert.reason": "source 10.55.161.254:52159 to 55.105.252.97 on 7k75la5f (Example University)",
+    "kibana.alert.rule.name": "Proxy: beacon from 7k75la5f to rare domain",
+    "kibana.alert.rule.parameters": {
+      "esql": "FROM logs-* | WHERE host.name IN (\"r3nghfwi\", \"buafnbgh\") | SORT host.name DESC | LIMIT 5",
+      "filters": [
+        {
+          "meta": {
+            "key": "host.name",
+            "params": {
+              "query": "a2v23jiv"
+            },
+            "type": "phrase"
+          },
+          "query": {
+            "match_phrase": {
+              "host.name": "a2v23jiv"
+            }
+          }
+        },
+        {
+          "meta": {
+            "key": "user.name",
+            "type": "exists",
+            "value": "exists"
+          }
+        }
+      ],
+      "query": "not host.name : (\"to3wsaqf\" or 4xxn2sgm) and user.name != u-zzrnrd2l* and destination.domain : *.univ.example"
+    },
+    "kibana.alert.threshold_result": {
+      "count": 31,
+      "terms": [
+        {
+          "field": "user.name",
+          "value": "u-rblk6f6m"
+        }
+      ]
+    },
+    "kibana.alert.uuid": "4CtSuXXut2l-0MU8X04M",
+    "labels": {
+      "10.55.161.254": "seen",
+      "7k75la5f": "quarantined"
+    },
+    "related": {
+      "hosts": [
+        "capitqv4"
+      ],
+      "user": [
+        "u-u7lk66pv",
+        "u-x4qh5bqa+yeh3pq@univ.example"
+      ]
+    },
+    "source": {
+      "ip": "10.55.161.254",
+      "port": 52159,
+      "site": {
+        "department": "pl-zkpgksh6",
+        "zone": "hostel"
+      }
+    },
+    "url": {
+      "domain": "nj4xtrco.univ.example",
+      "original": "http://u-x4qh5bqa:REDACTED@nj4xtrco.univ.example/login?next=http%3A%2F%2F10.57.130.94%2Fp&hint=u-gfpj3ta6+7k5nwk%40univ.example&note=fake-secret"
+    },
+    "user": {
+      "email": "u-uxz3my42 <u-z3zi6kys@univ.example>",
+      "id": "u-tpa5bjmp",
+      "name": "xuiv3kv3\\u-u7lk66pv"
+    },
+    "user_agent": {
+      "original": "Mozilla/5.0 Chrome/154.0.0.0 Safari/537.36"
+    }
+  },
+  "request": {
+    "aggs": {
+      "by_host": {
+        "terms": {
+          "exclude": [
+            "4eukpinc"
+          ],
+          "field": "host.name"
+        }
+      },
+      "mt": {
+        "multi_terms": {
+          "terms": [
+            {
+              "field": "host.name"
+            },
+            {
+              "field": "user.name"
+            }
+          ]
+        }
+      },
+      "pairs": {
+        "composite": {
+          "sources": [
+            {
+              "h": {
+                "terms": {
+                  "field": "host.name"
+                }
+              }
+            },
+            {
+              "u": {
+                "terms": {
+                  "field": "user.name"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "response": {
+    "aggregations": {
+      "by_host": {
+        "buckets": [
+          {
+            "doc_count": 3,
+            "key": "k7app7uv"
+          }
+        ]
+      },
+      "mt": {
+        "buckets": [
+          {
+            "doc_count": 2,
+            "key": [
+              "xd6brmhm",
+              "u-ammpcl72"
+            ],
+            "key_as_string": "xd6brmhm|u-ammpcl72"
+          }
+        ]
+      },
+      "pairs": {
+        "after_key": {
+          "h": "rvfuo6zj",
+          "u": "u-rblk6f6m"
+        },
+        "buckets": [
+          {
+            "doc_count": 1,
+            "key": {
+              "h": "rvfuo6zj",
+              "u": "u-rblk6f6m"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

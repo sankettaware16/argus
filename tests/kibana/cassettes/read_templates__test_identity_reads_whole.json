@@ -1,0 +1,168 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "tier-approver@tier.argus.invalid",
+    "enabled": true,
+    "full_name": "Tier Approver",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "da1d2770-d00d-5de6-ab4a-a80763d61946"
+    },
+    "roles": [
+     "acme_analyst",
+     "argus_approver"
+    ],
+    "username": "tier-approver"
+   },
+   "as": "user:tier-approver",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "admin": false,
+       "approver": true
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "api:rac": true,
+       "cases:securitySolution/createCase": true,
+       "cases:securitySolution/createComment": true,
+       "cases:securitySolution/deleteCase": true,
+       "cases:securitySolution/getCase": true,
+       "cases:securitySolution/reopenCase": true,
+       "cases:securitySolution/updateCase": true,
+       "login:": true,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false,
+     "monitor": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     }
+    },
+    "username": "tier-approver"
+   },
+   "as": "user:tier-approver",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [tier-approver] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [tier-approver] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "wrong:tier-approver",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

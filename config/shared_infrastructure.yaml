@@ -1,0 +1,140 @@
+# Addresses and names many unrelated customers share: content-delivery networks and clouds
+# (Q-C2, plan §5 "stricter for CDNs and clouds"). An investigation that matches a case only
+# through one of these is never joined to it: it is suggested, and a person decides. A real
+# match needs more than the shared address (the same campus host, the same account).
+#
+# This is a seed list, not a complete one. ARGUS also treats any value that appears in 50 or
+# more investigations within history.window as shared, whatever it is. Add the ranges your
+# providers publish (AWS ip-ranges.json, Google cloud.json, Azure service tags) here as they
+# become needed; unknown keys are errors.
+#
+# `autonomous_systems` (AR2c, D-174) are the big hosting and cloud providers: two rare domains in
+# the same autonomous system are one operator only when that system is NOT listed here (an
+# address in the same /24 or an identical set of name servers still ties them).
+version: 1
+networks:
+  # Cloudflare (https://www.cloudflare.com/ips/)
+  - 173.245.48.0/20
+  - 103.21.244.0/22
+  - 103.22.200.0/22
+  - 103.31.4.0/22
+  - 141.101.64.0/18
+  - 108.162.192.0/18
+  - 190.93.240.0/20
+  - 188.114.96.0/20
+  - 197.234.240.0/22
+  - 198.41.128.0/17
+  - 162.158.0.0/15
+  - 104.16.0.0/13
+  - 104.24.0.0/14
+  - 172.64.0.0/13
+  - 131.0.72.0/22
+  - 2400:cb00::/32
+  - 2606:4700::/32
+  - 2803:f800::/32
+  - 2405:b500::/32
+  - 2405:8100::/32
+  - 2a06:98c0::/29
+  - 2c0f:f248::/32
+  # Fastly
+  - 151.101.0.0/16
+domains:
+  # a name equal to one of these, or under one, is shared
+  - cloudfront.net
+  - amazonaws.com
+  - awsglobalaccelerator.com
+  - azureedge.net
+  - azurefd.net
+  - azurewebsites.net
+  - cloudapp.azure.com
+  - trafficmanager.net
+  - windows.net
+  - googleusercontent.com
+  - googleapis.com
+  - appspot.com
+  - run.app
+  - web.app
+  - firebaseapp.com
+  - herokuapp.com
+  - vercel.app
+  - netlify.app
+  - pages.dev
+  - workers.dev
+  - github.io
+  - githubusercontent.com
+  - cloudflare.com
+  - cloudflare.net
+  - akamaihd.net
+  - akamaiedge.net
+  - akamai.net
+  - edgekey.net
+  - edgesuite.net
+  - fastly.net
+  - fastlylb.net
+  - b-cdn.net
+  - ngrok.io
+  - ngrok-free.app
+  - trycloudflare.com
+  - usercontent.goog
+  # DNS hosting: the name servers of thousands of unrelated domains. A name under one of these
+  # says nothing about who is behind a case's name (it is a weak link for case membership).
+  - registrar-servers.com
+  - domaincontrol.com
+  - googledomains.com
+  - nsone.net
+  - dynect.net
+  - ultradns.com
+  - ultradns.net
+  - ultradns.org
+  - azure-dns.com
+  - azure-dns.net
+  - azure-dns.org
+  - azure-dns.info
+  - dnsmadeeasy.com
+  - he.net
+autonomous_systems:
+  # Amazon (AWS)
+  - 16509
+  - 14618
+  # Google (including Google Cloud)
+  - 15169
+  - 396982
+  - 19527
+  # Microsoft (Azure)
+  - 8075
+  - 8068
+  - 8069
+  # DigitalOcean
+  - 14061
+  # OVHcloud
+  - 16276
+  # Hetzner
+  - 24940
+  # Akamai and Linode
+  - 63949
+  - 20940
+  - 16625
+  # Cloudflare
+  - 13335
+  # Fastly
+  - 54113
+  # Alibaba Cloud
+  - 37963
+  - 45102
+  # Oracle Cloud
+  - 31898
+  # Vultr (Choopa)
+  - 20473
+  # Contabo
+  - 51167
+  # Tencent Cloud
+  - 132203
+  # Kingsoft Cloud
+  - 59019
+  # Other large hosters and registrars with web hosting (many unrelated customers)
+  - 60781   # Leaseweb
+  - 12876   # Scaleway
+  - 26496   # GoDaddy
+  - 22612   # Namecheap
+  - 8560    # IONOS
+  - 47583   # Hostinger

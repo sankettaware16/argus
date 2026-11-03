@@ -1,0 +1,217 @@
+{
+  "_id": "bde285bdb173fa5c15b3ffc8df69a16239673b6f3930f204bae53e9eb8e9687e",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-09T12:22:47.697Z",
+    "event.kind": "signal",
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "da92aed7-ae2a-3c43-9e11-5f7f66105f89",
+        "index": "acme-logs-squid*",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-09T12:22:47.697Z",
+    "kibana.alert.last_detected": "2026-10-09T12:22:47.825Z",
+    "kibana.alert.original_time": "2026-10-09T12:19:19.564Z",
+    "kibana.alert.reason": "event with source 10.43.119.92 created low alert Proxy: Excessive Blocked Requests from Single Host.",
+    "kibana.alert.risk_score": 21,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [
+      "ACME"
+    ],
+    "kibana.alert.rule.category": "Threshold Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-10-05T09:25:46.600Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Threshold rule: a single internal host generated 300 or more TCP_DENIED (HTTP 403 policy block) responses from the Squid proxy within a 5 minute window. Sustained high denial volume indicates malware or an unauthorised application repeatedly trying to reach blocked ports/destinations, or a misconfigured client. Baseline on 2026-10-05: ~200 hosts/5min receive any denial, but only 3-4 exceed 300; one of them (10.187.8.173, ~8000 denials/5min to ~3800 destinations) looks like a NAT gateway and should be reviewed and exception-listed if legitimate.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-09T12:22:47.825Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "748b6ae3-8562-cbaa-2648-c391cbfe140c",
+    "kibana.alert.rule.false_positives": [],
+    "kibana.alert.rule.from": "now-6m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-squid*"
+    ],
+    "kibana.alert.rule.interval": "5m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.created_from": "CC_Report_Writer proxy baseline 2026-10-05",
+    "kibana.alert.rule.name": "Proxy: Excessive Blocked Requests from Single Host",
+    "kibana.alert.rule.note": "### Investigation Steps\n1. Look at the alert's `source.ip` and threshold count. Pivot to Discover filtered on `event.action: TCP_DENIED and source.ip: <ip>` for the last hour.\n2. What is being denied? Check `destination.port` and `destination.ip` spread. One destination/port repeated = stuck application or beacon; many destinations = scanning/P2P.\n3. If `destination.as.organization.name` shows gaming/CDN providers and ports 27000-27050 or 6881, it is most likely a game or torrent client (policy issue, not intrusion).\n4. Escalate if the destination is unknown hosting/VPS space or matches threat intel.\n\n### False positives\nNAT gateways or shared lab machines aggregate many users. Add them to the rule's exception list.",
+    "kibana.alert.rule.parameters": {
+      "alert_suppression": {
+        "duration": {
+          "unit": "h",
+          "value": 1
+        }
+      },
+      "author": [
+        "ACME"
+      ],
+      "description": "Threshold rule: a single internal host generated 300 or more TCP_DENIED (HTTP 403 policy block) responses from the Squid proxy within a 5 minute window. Sustained high denial volume indicates malware or an unauthorised application repeatedly trying to reach blocked ports/destinations, or a misconfigured client. Baseline on 2026-10-05: ~200 hosts/5min receive any denial, but only 3-4 exceed 300; one of them (10.187.8.173, ~8000 denials/5min to ~3800 destinations) looks like a NAT gateway and should be reviewed and exception-listed if legitimate.",
+      "exceptions_list": [],
+      "false_positives": [],
+      "filters": [],
+      "from": "now-6m",
+      "immutable": false,
+      "index": [
+        "acme-logs-squid*"
+      ],
+      "investigation_fields": {
+        "field_names": [
+          "source.ip",
+          "destination.ip",
+          "destination.port",
+          "destination.as.organization.name"
+        ]
+      },
+      "language": "kuery",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "created_from": "CC_Report_Writer proxy baseline 2026-10-05"
+      },
+      "note": "### Investigation Steps\n1. Look at the alert's `source.ip` and threshold count. Pivot to Discover filtered on `event.action: TCP_DENIED and source.ip: <ip>` for the last hour.\n2. What is being denied? Check `destination.port` and `destination.ip` spread. One destination/port repeated = stuck application or beacon; many destinations = scanning/P2P.\n3. If `destination.as.organization.name` shows gaming/CDN providers and ports 27000-27050 or 6881, it is most likely a game or torrent client (policy issue, not intrusion).\n4. Escalate if the destination is unknown hosting/VPS space or matches threat intel.\n\n### False positives\nNAT gateways or shared lab machines aggregate many users. Add them to the rule's exception list.",
+      "query": "event.action:\"TCP_DENIED\"",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 21,
+      "risk_score_mapping": [],
+      "rule_id": "e5aa998d-b149-4bbe-bdc9-454a99851e4d",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "low",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1071",
+              "name": "Application Layer Protocol",
+              "reference": "https://attack.mitre.org/techniques/T1071/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0007",
+            "name": "Discovery",
+            "reference": "https://attack.mitre.org/tactics/TA0007/"
+          },
+          "technique": [
+            {
+              "id": "T1046",
+              "name": "Network Service Discovery",
+              "reference": "https://attack.mitre.org/techniques/T1046/",
+              "subtechnique": []
+            }
+          ]
+        }
+      ],
+      "threshold": {
+        "cardinality": [],
+        "field": [
+          "source.ip"
+        ],
+        "value": 300
+      },
+      "to": "now",
+      "type": "threshold",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 0,
+    "kibana.alert.rule.risk_score": 21,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "e5aa998d-b149-4bbe-bdc9-454a99851e4d",
+    "kibana.alert.rule.rule_type_id": "siem.thresholdRule",
+    "kibana.alert.rule.severity": "low",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [
+      "Proxy",
+      "Squid",
+      "ACME",
+      "Policy-Violation"
+    ],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1071",
+            "name": "Application Layer Protocol",
+            "reference": "https://attack.mitre.org/techniques/T1071/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0007",
+          "name": "Discovery",
+          "reference": "https://attack.mitre.org/tactics/TA0007/"
+        },
+        "technique": [
+          {
+            "id": "T1046",
+            "name": "Network Service Discovery",
+            "reference": "https://attack.mitre.org/techniques/T1046/",
+            "subtechnique": []
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "threshold",
+    "kibana.alert.rule.updated_at": "2026-10-05T09:25:52.040Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "a4ef644b-b3c4-4fd7-a4db-a74e2bbd4935",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "low",
+    "kibana.alert.start": "2026-10-09T12:22:47.825Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.threshold_result": {
+      "count": 343,
+      "from": "2026-10-09T12:16:48.559Z",
+      "terms": [
+        {
+          "field": "source.ip",
+          "value": "10.43.119.92"
+        }
+      ]
+    },
+    "kibana.alert.uuid": "bde285bdb173fa5c15b3ffc8df69a16239673b6f3930f204bae53e9eb8e9687e",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "source.ip": "10.43.119.92"
+  }
+}

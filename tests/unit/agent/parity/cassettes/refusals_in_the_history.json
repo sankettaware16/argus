@@ -1,0 +1,19 @@
+{
+ "entries": {
+  "c2854696ecdb3e2f7436bc72de1753316b36675bfca901fdaf50bffbe22f1ef9": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"r\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": [{\\\"tool\\\": \\\"proxy.destination\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}, {\\\"tool\\\": \\\"drop.index\\\", \\\"entity\\\": \\\"I1.IP_1\\\"}, {\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I1.IP_1 OR x\\\"}, {\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"10.20.3.5\\\"}, {\\\"tool\\\": \\\"proxy.host\\\", \\\"entity\\\": \\\"I9.IP_1\\\"}, {\\\"tool\\\": \\\"ti.lookup\\\", \\\"entity\\\": \\\"8.8.8.8\\\"}]}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  },
+  "ef404e8d04d9e147ae710eb1da2c00e216d7cf454d7ace325370a0fb3c527dc3": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"true_positive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"with the refusals\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

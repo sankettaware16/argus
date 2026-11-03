@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a defect in ARGUS (intake, investigation, assessment, web, installer, docs)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Sanitize everything you paste** — replace real IPs,
+        hostnames, usernames, organisation names and alert content with placeholders
+        (`192.0.2.10`, `example.org`). Never paste API keys or `.env` contents.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Installer (argus init / discover)
+        - Alert intake (collector)
+        - Investigation / evidence packs (worker)
+        - Assessment / LLM agent
+        - Web Inbox
+        - SIEM gateway (budget, health states, quiet hours)
+        - Kibana integration
+        - Backups / doctor / operations
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Steps, the command you ran, and sanitized output.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Docker version, ARGUS commit, Elasticsearch and Kibana versions and licence.
+      placeholder: Ubuntu 24.04, Docker 27, ARGUS abc1234, Elastic 8.19 Basic
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: argus doctor output
+      description: "`uv run argus doctor` (sanitized)."
+      render: text
+    validations:
+      required: false

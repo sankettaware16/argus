@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block main %}
+{% set f = d.filters %}
+{% set k = d.kpis %}
+<div class="dash-head">
+  <h1>Dashboard</h1>
+  <p class="hint">{{ ranges[f.range] if not f.start else "From " ~ f.start.isoformat() ~ " to " ~ f.end.isoformat() ~ " (" ~ zone_label() ~ ")" }}:
+    <time title="{{ d.start | utc }}">{{ d.start | ist }}</time> to <time title="{{ d.end | utc }}">{{ d.end | ist }}</time>.
+    From ARGUS's own records; opening or filtering this page sends nothing to the SIEM.</p>
+</div>
+
+<form class="filters" method="get" action="/dashboard" aria-label="Filters">
+  <div class="filter-row">
+    <label>Time
+      <select name="range">{% for key, title in ranges.items() %}<option value="{{ key }}"{% if key == f.range and not f.start %} selected{% endif %}>{{ title }}</option>{% endfor %}</select>
+    </label>
+    <fieldset class="checks"><legend>Severity</legend>
+      {% for s in ["critical", "high", "medium", "low"] %}<label><input type="checkbox" name="severity" value="{{ s }}"{% if s in f.severity %} checked{% endif %}> {{ s }}</label>{% endfor %}
+    </fieldset>
+    <fieldset class="checks"><legend>State</legend>
+      {% for s, title in state_titles.items() %}<label><input type="checkbox" name="state" value="{{ s }}"{% if s in f.state %} checked{% endif %}> {{ title }}</label>{% endfor %}
+    </fieldset>
+    <label class="grow">Rule
+      <select name="rule"><option value="">All rules</option>{% for rid, name in d.rule_choices %}<option value="{{ rid }}"{% if rid == f.rule %} selected{% endif %}>{{ name | u(90) }}</option>{% endfor %}</select>
+    </label>
+  </div>
+  <details class="more"{% if f.verdict or f.ai or f.kind or f.start %} open{% endif %}>
+    <summary>More filters: verdict, AI, host or IP, dates</summary>
+    <div class="filter-row">
+      <fieldset class="checks"><legend>Person's verdict</legend>
+        {% for v in ["true_positive", "benign_expected", "benign_policy", "rule_false_positive", "inconclusive"] %}<label><input type="checkbox" name="verdict" value="{{ v }}"{% if v in f.verdict %} checked{% endif %}> {{ outcomes[v] }}</label>{% endfor %}
+        <label><input type="checkbox" name="verdict" value="none"{% if "none" in f.verdict %} checked{% endif %}> No verdict yet</label>
+      </fieldset>
+      <fieldset class="checks"><legend>ARGUS's assessment</legend>
+        {% for a, title in ai_titles.items() %}<label><input type="checkbox" name="ai" value="{{ a }}"{% if a in f.ai %} checked{% endif %}> {{ title }}</label>{% endfor %}
+      </fieldset>
+      <label>Kind
+        <select name="kind"><option value="">—</option>{% for kd, title in [("ip", "IP address"), ("host", "host"), ("domain", "domain"), ("user", "user")] %}<option value="{{ kd }}"{% if kd == f.kind %} selected{% endif %}>{{ title }}</option>{% endfor %}</select>
+      </label>
+      <label class="grow">Value <input name="value" maxlength="300" value="{{ f.value or '' }}" placeholder="e.g. 10.8.235.157"></label>
+      <label>From <input type="date" name="start" value="{{ f.start.isoformat() if f.start else '' }}"></label>
+      <label>To <input type="date" name="end" value="{{ f.end.isoformat() if f.end else '' }}"></label>
+    </div>
+    <p class="hint">Both dates set a custom span ({{ zone_label() }} days) instead of the time menu.</p>
+  </details>
+  <div class="buttons"><button type="submit">Apply</button> <a class="button-link" href="/dashboard">Reset</a></div>
+</form>
+
+{% set chips = f.chips() %}
+{% if chips %}
+<ul class="active-filters" aria-label="Active filters">
+  {% for label, href in chips %}<li><span>{{ label | u(120) }}</span> <a href="{{ href }}" aria-label="Remove {{ label | u(120) }}">×</a></li>{% endfor %}
+  <li class="clear"><a href="{{ f.url(severity=(), state=(), verdict=(), ai=(), rule=None, kind=None, value=None) }}">Clear all</a></li>
+</ul>
+{% endif %}
+
+{% set delta = k.alerts - k.alerts_before %}
+<ul class="kpis" aria-label="Key numbers">
+  <li><span class="kpi-label">Alerts</span><strong>{{ "{:,}".format(k.alerts) }}</strong>
+    <span class="kpi-sub">{% if k.alerts_before %}{{ "+" if delta >= 0 else "−" }}{{ (100 * (delta | abs) / k.alerts_before) | round | int }}% vs the span before ({{ "{:,}".format(k.alerts_before) }}){% else %}none in the span before{% endif %}</span></li>
+  <li><span class="kpi-label">Investigations</span><strong>{{ "{:,}".format(k.cases) }}</strong><span class="kpi-sub">active in the span</span></li>
+  <li><a href="{{ f.url(state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Open investigations</span><strong>{{ "{:,}".format(k.open) }}</strong><span class="kpi-sub">not reviewed, follow-up or changed</span></a></li>
+  <li class="kpi-attention"><a href="/"><span class="kpi-label">Needs attention</span><strong>{{ "{:,}".format(k.attention) }}</strong><span class="kpi-sub">new work: severe, follow-up or changed</span></a></li>
+  <li><a href="/?view=known"><span class="kpi-label">Notified, still active</span><strong>{{ "{:,}".format(k.known) }}</strong><span class="kpi-sub">known, counted and not raised ({{ d.notified | length }} case{{ "" if d.notified | length == 1 else "s" }})</span></a></li>
+  <li class="kpi-critical"><a href="{{ f.url(severity=('critical',), state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Open critical</span><strong>{{ k.open_critical }}</strong><span class="kpi-sub">critical investigations not yet reviewed</span></a></li>
+  <li class="kpi-incident"><a href="{{ f.url(verdict=('true_positive',)) }}"><span class="kpi-label">Incidents</span><strong>{{ k.incidents }}</strong><span class="kpi-sub">a person said true positive</span></a></li>
+  <li class="kpi-suspected"><a href="{{ f.url(ai=('proposed_tp',), state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Suspected incidents</span><strong>{{ k.suspected }}</strong><span class="kpi-sub">ARGUS proposes true positive; to confirm</span></a></li>
+  <li><span class="kpi-label">Reviewed</span><strong>{{ "{:,}".format(k.reviewed) }}</strong><span class="kpi-sub">{% if k.cases %}{{ (100 * k.reviewed / k.cases) | round(1) }}% of the investigations{% else %}—{% endif %}</span></li>
+  <li><span class="kpi-label">Time to first review</span><strong>{{ k.median_review_s | duration }}</strong><span class="kpi-sub">median, from the first alert</span></li>
+  <li><span class="kpi-label">Assessed by ARGUS</span><strong>{% if k.cases %}{{ (100 * k.assessed / k.cases) | round | int }}%{% else %}—{% endif %}</strong><span class="kpi-sub">{{ "{:,}".format(k.assessed) }} of {{ "{:,}".format(k.cases) }} investigations</span></li>
+</ul>
+
+<section class="panel-card">
+  <div class="card-head"><h2>Alerts over time</h2>
+    <ul class="legend" aria-hidden="true">{% for s in ["critical", "high", "medium", "low"] %}<li><span class="swatch bar-{{ s }}"></span>{{ s }}</li>{% endfor %}</ul></div>
+  <div class="chart-box">{{ charts.stacked(d.series, ["low", "medium", "high", "critical", "unknown"], "Alerts per " ~ d.bucket ~ " by severity", d.bucket == "hour") }}</div>
+  <details class="as-table"><summary>As a table</summary>
+    <div class="table-scroll"><table class="list compact"><thead><tr><th scope="col">{{ d.bucket | capitalize }} ({{ zone_label() }})</th>{% for s in ["critical", "high", "medium", "low"] %}<th scope="col" class="num">{{ s }}</th>{% endfor %}<th scope="col" class="num">All</th></tr></thead>
+    <tbody>{% for at, v in d.series %}<tr><td>{{ (at.strftime("%d %b") ~ " " ~ (at | hour12)) if d.bucket == "hour" else at.strftime("%a %d %b") }}</td>{% for s in ["critical", "high", "medium", "low"] %}<td class="num">{{ v.get(s, 0) }}</td>{% endfor %}<td class="num">{{ v.values() | sum }}</td></tr>{% endfor %}</tbody></table></div>
+  </details>
+</section>
+
+<div class="dash-grid four">
+  {% macro breakdown(title, counts, name, titles, css) %}
+  <section class="panel-card">
+    <h2>{{ title }}</h2>
+    {% set total = counts.values() | sum %}
+    {{ charts.split(charts.parts(counts, titles, css), title) }}
+    <ul class="bars">
+      {% for key, n in counts | dictsort(by="value", reverse=true) %}
+      <li><a href="{{ f.adding(name, key) }}">{{ titles.get(key, key | replace("_", " ")) }}</a>
+        <meter min="0" max="{{ total or 1 }}" value="{{ n }}" aria-label="{{ titles.get(key, key) }}"></meter>
+        <span class="num">{{ "{:,}".format(n) }}</span></li>
+      {% else %}<li class="empty">None.</li>{% endfor %}
+    </ul>
+  </section>
+  {% endmacro %}
+  {{ breakdown("Investigations by state", d.states, "state", state_titles, "st") }}
+  {{ breakdown("Investigations by severity", d.severities, "severity", {}, "bar") }}
+  {{ breakdown("Person's verdict", d.verdicts, "verdict", dict(outcomes, none="No verdict yet"), "vd") }}
+  {{ breakdown("ARGUS's assessment", d.ais, "ai", ai_titles, "sa") }}
+</div>
+
+<section class="panel-card">
+  <h2>Top rules by alerts</h2>
+  {% if d.rules %}
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col" class="num">Alerts</th><th scope="col" class="num">Investigations</th><th scope="col" class="num">Open</th><th scope="col" class="num">Incidents</th><th scope="col" class="num">Suspected</th><th scope="col"><span class="sr">Inbox</span></th></tr></thead>
+    <tbody>{% for r in d.rules %}<tr>
+      <td><a href="{{ f.url(rule=r.rule_id) }}" title="Filter the dashboard on this rule">{{ r.rule | u(120) }}</a></td>
+      <td>{% if r.severity %}<span class="sev sev-{{ r.severity }}">{{ r.severity }}</span>{% endif %}</td>
+      <td class="num">{{ "{:,}".format(r.alerts) }}</td><td class="num">{{ "{:,}".format(r.cases) }}</td><td class="num">{{ "{:,}".format(r.open) }}</td>
+      <td class="num">{{ r.incidents }}</td><td class="num">{{ r.suspected }}</td>
+      <td><a href="/?view=open&amp;rule={{ r.rule_id | urlencode }}">open investigations</a></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="empty">No rule in this span.</p>{% endif %}
+</section>
+
+<div class="dash-grid two">
+  {% for kind, title in [("ip", "Top IP addresses"), ("host", "Top hosts"), ("domain", "Top domains"), ("user", "Top users")] %}
+  <section class="panel-card">
+    <h2>{{ title }}</h2>
+    {% set items = d.entities[kind] %}
+    {% if items %}
+    <div class="table-scroll"><table class="list compact wide">
+      <thead><tr><th scope="col">{{ kind | capitalize }}</th><th scope="col" class="num">Investigations</th><th scope="col" class="num">Open</th><th scope="col" class="num">Alerts</th></tr></thead>
+      <tbody>{% for e in items %}<tr><td class="mono"><a href="{{ f.url(kind=kind, value=e.value) }}" title="Filter the dashboard on this {{ kind }}">{{ e.value | u(80) }}</a></td><td class="num">{{ e.cases }}</td><td class="num">{{ e.open }}</td><td class="num">{{ "{:,}".format(e.alerts) }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty">None in this span.</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+
+{% macro cases_table(items, caption) %}
+<div class="table-scroll"><table class="list cards">
+  <caption class="sr">{{ caption }}</caption>
+  <thead><tr><th scope="col">Investigation</th><th scope="col">Severity</th><th scope="col">Last alert</th><th scope="col" class="num">Alerts</th><th scope="col">State</th><th scope="col">Incident</th></tr></thead>
+  <tbody>{% for c in items %}<tr>
+    <td><a href="/investigations/{{ c.id }}">{{ c.rule | u(120) }}</a><div class="sub">{% for fk, fv in c.key_fields %}<span class="mono">{{ fk | u(40) }} {{ fv | u(80) }}</span>{% if not loop.last %} · {% endif %}{% else %}single alert{% endfor %}</div></td>
+    <td>{% if c.severity %}<span class="sev sev-{{ c.severity | u(10) }}">{{ c.severity | u(10) }}</span>{% endif %}</td>
+    <td>{% if c.last_event_at %}<time title="{{ c.last_event_at | utc }}">{{ c.last_event_at | ist }}</time>{% endif %}</td>
+    <td class="num">{{ c.alert_count }}</td>
+    <td><span class="state state-{{ c.state }}">{{ state_titles[c.state] }}</span></td>
+    <td>{% if c.verdict == "true_positive" %}<span class="ai ai-true_positive">confirmed</span>{% elif c.ai == "proposed_tp" %}<span class="chip">suspected</span>{% else %}<span class="sub">—</span>{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% endmacro %}
+
+<section class="panel-card">
+  <h2>Incidents: confirmed and suspected</h2>
+  <p class="hint">Confirmed: a person's verdict is true positive. Suspected: ARGUS proposes true positive and nobody has decided yet; confirm or correct it on the investigation.</p>
+  {% if d.incidents %}{{ cases_table(d.incidents, "Incidents") }}{% else %}<p class="empty">No incident in this span.</p>{% endif %}
+</section>
+
+{% if d.notified %}
+<section class="panel-card">
+  <h2>Notified, still active</h2>
+  <p class="hint">Devices whose owner was told. They stay infected until the owner acts, so their alerts keep coming; ARGUS counts them here and raises one again only if something changes.</p>
+  <div class="table-scroll"><table class="list cards">
+    <caption class="sr">Notified cases</caption>
+    <thead><tr><th scope="col">Case</th><th scope="col">Owner told</th><th scope="col" class="num">Days</th><th scope="col" class="num">Alerts since</th><th scope="col">Alerts a day</th><th scope="col">Network block</th><th scope="col">Suggestions</th></tr></thead>
+    <tbody>{% for c in d.notified %}<tr>
+      <td>Case {{ c.number }}<div class="sub">{{ c.title | u(120) }}</div></td>
+      <td><time title="{{ c.notified_at | utc }}">{{ c.notified_at | ist }}</time></td>
+      <td class="num">{{ c.days }}</td><td class="num">{{ "{:,}".format(c.alerts) }}</td>
+      <td>{{ c.trend }}</td>
+      <td>{% if c.blocked_at %}recorded{% else %}<span class="sub">none yet</span>{% endif %}</td>
+      <td>{% for r in c.reminders %}<div>{{ r.why | u(200) }}</div>{% else %}<span class="sub">none due</span>{% endfor %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+<section class="panel-card">
+  <h2>Open investigations, most urgent first</h2>
+  {% if d.open_cases %}{{ cases_table(d.open_cases, "Open investigations") }}
+  <p><a href="/?view=open&amp;sort=urgent">All open investigations in the Inbox</a></p>
+  {% else %}<p class="empty">No open investigation in this span.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,452 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "rk@run.argus.invalid",
+    "full_name": "Run rk",
+    "password": "<secret>",
+    "roles": [
+     "argus_es_reader"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-rk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "api_key": "<secret>",
+    "encoded": "<secret>",
+    "expiration": "<millis>",
+    "id": "<id:1>",
+    "name": "t-<run>-rk-key"
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "api_key": {
+     "expiration": "1h",
+     "name": "t-<run>-rk-key",
+     "role_descriptors": {
+      "m": {
+       "cluster": [
+        "monitor"
+       ]
+      }
+     }
+    },
+    "grant_type": "password",
+    "password": "<secret>",
+    "username": "t-<run>-rk"
+   },
+   "method": "POST",
+   "path": "/_security/api_key/grant",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "errors": 0
+   },
+   "as": "elastic",
+   "body": {
+    "ids": [
+     "<id:1>"
+    ]
+   },
+   "method": "DELETE",
+   "path": "/_security/api_key",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [tier-viewer] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [tier-viewer] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "wrong:tier-viewer",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "additional_unsuccessful_credentials": "API key: api key [<id:1>] has been invalidated",
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate with provided credentials and anonymous access is not allowed for this request",
+     "root_cause": [
+      {
+       "additional_unsuccessful_credentials": "API key: api key [<id:1>] has been invalidated",
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate with provided credentials and anonymous access is not allowed for this request",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "run-key:rk-key",
+   "method": "GET",
+   "params": [
+    [
+     "filter_path",
+     "status,active_primary_shards,unassigned_primary_shards"
+    ]
+   ],
+   "path": "/_cluster/health/.security",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "tier-viewer@tier.argus.invalid",
+    "enabled": true,
+    "full_name": "Tier Viewer",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "9694dc05-934c-549d-8a06-865300c8187a"
+    },
+    "roles": [
+     "acme_viewer"
+    ],
+    "username": "tier-viewer"
+   },
+   "as": "user:tier-viewer",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "tier-viewer"
+   },
+   "as": "user:tier-viewer",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "tier-reviewer@tier.argus.invalid",
+    "enabled": true,
+    "full_name": "Tier Reviewer",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "ea3722c6-59ec-5851-923d-8d0798e8ecdb"
+    },
+    "roles": [
+     "acme_reviewer"
+    ],
+    "username": "tier-reviewer"
+   },
+   "as": "user:tier-reviewer",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "tier-reviewer"
+   },
+   "as": "user:tier-reviewer",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

@@ -1,0 +1,162 @@
+# The responder's catalogue (Q-H2, plan §7.7): what ARGUS may advise about a confirmed case.
+# Advice only: nothing here is executed (Phase 6 is the first that may act). The wording is for
+# RAs and TAs: plain words, no commands, no links. DRAFT until the owners and the wording are
+# reviewed (the Q-H2 gate); the responder agent that may rank and phrase these stays off until
+# then and may only name actions listed here.
+#
+# families:   a kind of true-positive incident. `when` lists facts (argus.responder.facts.FACTS)
+#             that must all hold for a case; a `scope: rule` family belongs to no case.
+# actions:    `rank` orders the advice; `owner` is a role below (never a person's name).
+# verify:     how a person's "done" is checked, exactly one of
+#               template: a read template whose stored answers ARGUS reads (proxy.contact,
+#                         web.path_outcomes); nothing is asked of the SIEM to verify;
+#               local:    alerts (ARGUS's own stored alerts, through the still-active watch);
+#               not_verifiable: why no check can tell in Phase 3.
+# Unknown keys, an unknown owner, fact or template, and a write are errors.
+version: 1
+
+owners:
+  network_team:
+    name: Network team
+    does: Changes to the campus network, the firewall and the proxy, and taking a computer off the network.
+  site_owner:
+    name: Website owner
+    does: The person or group that runs the affected website or application.
+  system_admin:
+    name: System administrator
+    does: Accounts, logins and servers of the affected department.
+  mail_admin:
+    name: Mail administrator
+    does: The campus mail and sign-in accounts.
+  siem_team:
+    name: SIEM team
+    does: The detection rules and their tuning.
+
+families:
+  c2_beacon:
+    title: A campus computer is contacting an attacker's server
+    when: [c2_indicator]
+    actions:
+      isolate_host:
+        rank: 1
+        owner: network_team
+        title: Take the computers off the network
+        say: >-
+          Take each campus computer in this case off the network (unplug it or disable its port)
+          so it cannot reach the attacker, then have it cleaned or rebuilt.
+        verify:
+          template: proxy.contact
+      block_destination:
+        rank: 2
+        owner: network_team
+        title: Block the attacker's address
+        say: >-
+          Block the attacker's address and name on the proxy and the firewall, so that any
+          other computer that tries to reach it is stopped and seen.
+        verify:
+          template: proxy.contact
+
+  exposed_file:
+    title: A file that should be private was served to an outside visitor
+    when: [sensitive_file_served]
+    actions:
+      remove_file:
+        rank: 1
+        owner: site_owner
+        title: Remove the exposed file
+        say: >-
+          Remove the exposed file from the website (or block the path in the web server), and
+          check that the website no longer serves it.
+        verify:
+          template: web.path_outcomes
+      rotate_secrets:
+        rank: 2
+        owner: site_owner
+        title: Change every secret the file held
+        say: >-
+          Treat every password, key and token in the file as known to the attacker: change them
+          all, and check the accounts they open for use that nobody expects.
+        verify:
+          not_verifiable: ARGUS cannot see whether a secret was changed.
+
+  web_attack:
+    title: An attack on a website got a real answer
+    when: [attack_path_served]
+    actions:
+      fix_or_restrict:
+        rank: 1
+        owner: site_owner
+        title: Fix or restrict the page that answered
+        say: >-
+          Fix the weakness on the page or path that answered the attacker, or restrict it to the
+          people who need it, and apply the vendor's updates.
+        verify:
+          template: web.path_outcomes
+      check_site:
+        rank: 2
+        owner: site_owner
+        title: Check the website for changes
+        say: >-
+          Check the website and its server for files, accounts or settings that nobody on the team
+          made.
+        verify:
+          not_verifiable: ARGUS cannot see what is on the server.
+
+  brute_force:
+    title: Someone is guessing passwords
+    when: [auth_failures]
+    actions:
+      block_source:
+        rank: 1
+        owner: network_team
+        title: Block the address that is guessing
+        say: >-
+          Block the address (or addresses) the guesses come from, on the firewall in front of the
+          service they are aimed at.
+        verify:
+          local: alerts
+      check_accounts:
+        rank: 2
+        owner: system_admin
+        title: Check the accounts that were targeted
+        say: >-
+          Look at the accounts that were targeted for a sign-in that worked after the failures.
+          Reset the password of any that did, and ask the owner to confirm.
+        verify:
+          not_verifiable: ARGUS cannot see sign-ins that worked, only the failures.
+
+  account_compromise:
+    title: A mail or sign-in account may be in someone else's hands
+    when: [mail_user, auth_failures]  # a mail-shaped name alone is not an incident
+    actions:
+      reset_account:
+        rank: 1
+        owner: mail_admin
+        title: Reset the account
+        say: >-
+          Reset the account's password, sign it out everywhere and ask its owner to confirm they
+          are the one using it.
+        verify:
+          not_verifiable: Mail templates come in Phase 4.
+      review_mail_rules:
+        rank: 2
+        owner: mail_admin
+        title: Check the account's mail rules
+        say: >-
+          Look for forwarding or filing rules that the owner did not make, and remove them.
+        verify:
+          not_verifiable: Mail templates come in Phase 4.
+
+  noisy_rule:
+    title: A detection rule raises alerts that are not a problem
+    scope: rule
+    actions:
+      tune_rule:
+        rank: 1
+        owner: siem_team
+        title: Tune the rule
+        say: >-
+          Tune the rule as ARGUS's tuning report suggests, so that it stops raising alerts for
+          activity that is expected.
+        verify:
+          not_verifiable: The next tuning report shows whether it quietened, and a person reads it.

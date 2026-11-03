@@ -1,0 +1,738 @@
+{
+ "exchanges": [
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [
+      {
+       "names": [
+        ".alerts-security.alerts-acme-soc",
+        ".internal.alerts-security.alerts-acme-soc-*"
+       ],
+       "privileges": [
+        "read",
+        "view_index_metadata"
+       ]
+      }
+     ],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "read"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-act-v",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "role": {
+     "created": true
+    }
+   },
+   "as": "elastic",
+   "body": {
+    "indices": [
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read",
+       "view_index_metadata"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/role/t-<run>-act-logs",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "role": {
+     "created": true
+    }
+   },
+   "as": "elastic",
+   "body": {
+    "cluster": []
+   },
+   "method": "PUT",
+   "path": "/_security/role/t-<run>-acme_reviewer",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "role": {
+     "created": true
+    }
+   },
+   "as": "elastic",
+   "body": {
+    "applications": [
+     {
+      "application": "argus",
+      "privileges": [
+       "approver"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/role/t-<run>-act-ap",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "act-logs@run.argus.invalid",
+    "full_name": "Run act-logs",
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-act-logs"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-act-logs",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "act-fake@run.argus.invalid",
+    "full_name": "Run act-fake",
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-acme_reviewer"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-act-fake",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "act-ap@run.argus.invalid",
+    "full_name": "Run act-ap",
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-act-ap"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-act-ap",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "act-nouid@run.argus.invalid",
+    "full_name": "Run act-nouid",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-act-v"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-act-nouid",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "act-svc@run.argus.invalid",
+    "full_name": "Run act-svc",
+    "metadata": {
+     "argus_service": true,
+     "argus_uid": "<uuid:1>"
+    },
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-act-v"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-act-svc",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "act-logs@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run act-logs",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-act-logs"
+    ],
+    "username": "t-<run>-act-logs"
+   },
+   "as": "run-user:act-logs",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": true
+     }
+    },
+    "username": "t-<run>-act-logs"
+   },
+   "as": "run-user:act-logs",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "act-fake@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run act-fake",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-acme_reviewer"
+    ],
+    "username": "t-<run>-act-fake"
+   },
+   "as": "run-user:act-fake",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "t-<run>-act-fake"
+   },
+   "as": "run-user:act-fake",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "act-ap@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run act-ap",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-act-v",
+     "t-<run>-act-ap"
+    ],
+    "username": "t-<run>-act-ap"
+   },
+   "as": "run-user:act-ap",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": true
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": false,
+     "manage": false,
+     "manage_api_key": false,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "t-<run>-act-ap"
+   },
+   "as": "run-user:act-ap",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "act-nouid@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run act-nouid",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {},
+    "roles": [
+     "t-<run>-act-v"
+    ],
+    "username": "t-<run>-act-nouid"
+   },
+   "as": "run-user:act-nouid",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "act-svc@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run act-svc",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_service": true,
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-act-v"
+    ],
+    "username": "t-<run>-act-svc"
+   },
+   "as": "run-user:act-svc",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

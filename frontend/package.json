@@ -1,0 +1,61 @@
+{
+  "name": "argus-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "client": "openapi-ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . && node scripts/check-client.mjs",
+    "test": "vitest run",
+    "build": "vite build && node scripts/initial-js.mjs",
+    "mutation": "stryker run",
+    "mutation:rest": "stryker run stryker.rest.config.json"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "@tanstack/react-query": "5.104.1",
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-virtual": "3.14.15",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwind-merge": "3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@hey-api/openapi-ts": "0.99.0",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "fast-check": "4.10.2",
+    "globals": "17.13.0",
+    "jsdom": "30.1.2",
+    "msw": "2.15.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.4",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "js-yaml": "4.3.2",
+    "qs": "6.16.0",
+    "zod": "4.6.6"
+  }
+}

@@ -1,0 +1,918 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "7039ec26-e74a-5c0a-8e70-25a9de397eb0"
+    },
+    "realm": "native",
+    "roles": [
+     "superuser"
+    ],
+    "type": "realm",
+    "username": "tier-superuser"
+   },
+   "as": "user:tier-superuser",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": true,
+    "argus": [
+     "admin",
+     "approver"
+    ],
+    "cluster": [
+     "all",
+     "grant_api_key",
+     "manage",
+     "manage_api_key",
+     "manage_security",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     "index",
+     "maintenance",
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/createCase",
+     "cases:securitySolution/createComment",
+     "cases:securitySolution/deleteCase",
+     "cases:securitySolution/getCase",
+     "cases:securitySolution/reopenCase",
+     "cases:securitySolution/updateCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-superuser",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "f80419a4-cf1b-505f-8c99-2319b9333e55"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_elk_admin"
+    ],
+    "type": "realm",
+    "username": "tier-elkadmin"
+   },
+   "as": "user:tier-elkadmin",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [
+     "grant_api_key",
+     "manage_api_key",
+     "manage_security",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     "index",
+     "maintenance",
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/createCase",
+     "cases:securitySolution/createComment",
+     "cases:securitySolution/deleteCase",
+     "cases:securitySolution/getCase",
+     "cases:securitySolution/reopenCase",
+     "cases:securitySolution/updateCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "83b32d77-2815-50ab-a4c6-a4ae077e6ee0"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_viewer",
+     "argus_admin"
+    ],
+    "type": "realm",
+    "username": "tier-argusadmin"
+   },
+   "as": "user:tier-argusadmin",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [
+     "admin"
+    ],
+    "cluster": [],
+    "index": [
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/getCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-argusadmin",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "da1d2770-d00d-5de6-ab4a-a80763d61946"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_analyst",
+     "argus_approver"
+    ],
+    "type": "realm",
+    "username": "tier-approver"
+   },
+   "as": "user:tier-approver",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [
+     "approver"
+    ],
+    "cluster": [],
+    "index": [
+     "index",
+     "maintenance",
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/createCase",
+     "cases:securitySolution/createComment",
+     "cases:securitySolution/deleteCase",
+     "cases:securitySolution/getCase",
+     "cases:securitySolution/reopenCase",
+     "cases:securitySolution/updateCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-approver",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "45f1fa76-a3fe-5287-a212-60021a7d0e8d"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_analyst"
+    ],
+    "type": "realm",
+    "username": "tier-analyst"
+   },
+   "as": "user:tier-analyst",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [
+     "index",
+     "maintenance",
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/createCase",
+     "cases:securitySolution/createComment",
+     "cases:securitySolution/deleteCase",
+     "cases:securitySolution/getCase",
+     "cases:securitySolution/reopenCase",
+     "cases:securitySolution/updateCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-analyst",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "198db03d-f90b-50e4-bf44-9e0db1183ddc"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_case_manager"
+    ],
+    "type": "realm",
+    "username": "tier-manager"
+   },
+   "as": "user:tier-manager",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/createCase",
+     "cases:securitySolution/createComment",
+     "cases:securitySolution/deleteCase",
+     "cases:securitySolution/getCase",
+     "cases:securitySolution/reopenCase",
+     "cases:securitySolution/updateCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-manager",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "ea3722c6-59ec-5851-923d-8d0798e8ecdb"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_reviewer"
+    ],
+    "type": "realm",
+    "username": "tier-reviewer"
+   },
+   "as": "user:tier-reviewer",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [
+     "index",
+     "maintenance",
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/getCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-reviewer",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "9694dc05-934c-549d-8a06-865300c8187a"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_viewer"
+    ],
+    "type": "realm",
+    "username": "tier-viewer"
+   },
+   "as": "user:tier-viewer",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [
+     "read"
+    ],
+    "kibana": [
+     "api:rac",
+     "cases:securitySolution/getCase",
+     "login:",
+     "ui:siemV2/show"
+    ]
+   },
+   "as": "user:tier-viewer",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "header": {
+      "WWW-Authenticate": [
+       "Basic realm=\"security\", charset=\"UTF-8\"",
+       "Bearer realm=\"security\"",
+       "ApiKey"
+      ]
+     },
+     "reason": "unable to authenticate user [tier-disabled] for REST request [/_security/_authenticate]",
+     "root_cause": [
+      {
+       "header": {
+        "WWW-Authenticate": [
+         "Basic realm=\"security\", charset=\"UTF-8\"",
+         "Bearer realm=\"security\"",
+         "ApiKey"
+        ]
+       },
+       "reason": "unable to authenticate user [tier-disabled] for REST request [/_security/_authenticate]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 401
+   },
+   "as": "user:tier-disabled",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 401,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "metadata": {
+     "argus_uid": "ae285c8b-c504-5d29-b48a-7afd3918280a"
+    },
+    "realm": "native",
+    "roles": [
+     "acme_other_space"
+    ],
+    "type": "realm",
+    "username": "tier-otherspace"
+   },
+   "as": "user:tier-otherspace",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "all": false,
+    "argus": [],
+    "cluster": [],
+    "index": [],
+    "kibana": []
+   },
+   "as": "user:tier-otherspace",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "login:",
+       "ui:siemV2/show",
+       "api:rac",
+       "cases:securitySolution/getCase",
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/updateCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/deleteCase"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "approver",
+       "admin"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account",
+     "monitor"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "read",
+       "index",
+       "maintenance"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

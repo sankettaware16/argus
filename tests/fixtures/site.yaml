@@ -1,0 +1,58 @@
+# The suite's site (D-292, D-294): a made-up, complete organisation the tests run on, in both
+# repositories. It has the shapes of a real one (five log families with their roles and fields, a
+# mirror and a lookup threat-intel source, a Kibana space, an incident prefix, quiet hours, a zone
+# with a +5:30 offset, so hand-written times keep their meaning) and names no one's: the domains
+# are example ones and the public range is a made-up stand-in. tests/conftest.py activates it for
+# every test; tests/site_acme/ (private) pins a real site.
+site:
+  space: acme-soc
+  elastic_versions: ">=8.19,<8.20"
+  kibana_versions: "==8.19.12"
+  log_patterns: [acme-logs-*]
+  ti_sources:
+    - {index: abuse-ioc, schema: ecs, mode: mirror}
+    - {index: acme-threat-intel, schema: ioc, mode: lookup}
+  incident_id_prefix: ACME-IR
+  timezone: Asia/Kolkata
+  timezone_label: IST
+  quiet_hours: {start: "00:00", end: "01:30"}
+  own_networks: [131.21.124.0/22]
+  own_domains: [example.edu, example-univ.org]
+  own_network_noun: campus
+  organisation:
+    name: Example University
+    short_name: ACME
+    kind: university
+    units: department, hostel or lab
+    reviewers: research and teaching assistants
+  families:
+    - name: squid
+      role: proxy
+      pattern: acme-logs-squid-*
+      fields:
+        action: event.action.keyword
+        url: url.original.keyword
+    - name: dns
+      role: dns
+      pattern: acme-logs-dns-*
+      fields:
+        query_name: dns.question.name.keyword
+        query_type: dns.question.type.keyword
+        response_code: dns.response_code.keyword
+    - name: nginx
+      role: web
+      pattern: acme-logs-nginx-*
+      fields:
+        domain: url.domain.keyword
+    - name: postfix
+      role: mail
+      pattern: acme-logs-postfix-*
+    - name: sso
+      role: auth
+      pattern: acme-logs-sso-*
+      watch: false  # read once a day, not watched by the health probe or the freshness lane
+      fields:
+        user_name: user.name.keyword
+        action: event.action.keyword
+        outcome: event.outcome.keyword
+        user_agent: user_agent.original.keyword

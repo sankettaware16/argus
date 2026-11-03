@@ -1,0 +1,265 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (a by argus).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-34016c"
+    ],
+    "title": "a by argus",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (a by argus).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-34016c"
+    ],
+    "title": "a by argus"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "customFields": [],
+    "description": "Contract test case (b by a person).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-34016c"
+    ],
+    "title": "b by a person",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:2>"
+   },
+   "as": "user:tier-analyst",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (b by a person).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-34016c"
+    ],
+    "title": "b by a person"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "closed_by": null,
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:1>",
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-34016c"
+      ],
+      "title": "a by argus",
+      "totalAlerts": 0,
+      "totalComment": 0,
+      "updated_by": null,
+      "version": "<version:1>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-34016c"
+    ],
+    [
+     "sortField",
+     "title"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "reporters",
+     "argus"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "closed_by": null,
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:2>",
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-34016c"
+      ],
+      "title": "b by a person",
+      "totalAlerts": 0,
+      "totalComment": 0,
+      "updated_by": null,
+      "version": "<version:2>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-34016c"
+    ],
+    [
+     "sortField",
+     "title"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "reporters",
+     "tier-analyst"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

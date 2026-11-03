@@ -1,0 +1,65 @@
+{
+  "adapter": "threshold",
+  "alert_id": "bde285bdb173fa5c15b3ffc8df69a16239673b6f3930f204bae53e9eb8e9687e",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "da92aed7-ae2a-3c43-9e11-5f7f66105f89",
+      "index": "acme-logs-squid*",
+      "kind": "pattern",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T12:22:47.697000Z",
+  "detection_lag": "PT3M28.133S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "10.43.119.92"
+    }
+  ],
+  "event_time": "2026-10-09T12:19:19.564000Z",
+  "event_time_approximate": false,
+  "evidence_window": {
+    "approximate": false,
+    "basis": "threshold",
+    "end": "2026-10-09T12:19:19.564000Z",
+    "start": "2026-10-09T12:16:48.559000Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "748b6ae3-8562-cbaa-2648-c391cbfe140c",
+  "field_issues": [],
+  "fingerprint": "b9134ab9627b799e3e90f11c2597dc317a216a3299b6bc61f5477b0c4427e48e",
+  "group_key": {
+    "canonical": "[[\"source.ip\",\"10.43.119.92\"]]",
+    "fields": [
+      "source.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "threshold",
+    "values": [
+      "10.43.119.92"
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-09T12:22:47.697000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": "2026-10-09T12:19:19.564000Z",
+  "risk_score": 21.0,
+  "rule_id": "e5aa998d-b149-4bbe-bdc9-454a99851e4d",
+  "rule_name": "Proxy: Excessive Blocked Requests from Single Host",
+  "rule_revision": 0,
+  "rule_type": "threshold",
+  "rule_type_raw": "threshold",
+  "rule_uuid": "a4ef644b-b3c4-4fd7-a4db-a74e2bbd4935",
+  "sequence_group_id": null,
+  "severity": "low",
+  "time_anomalies": [],
+  "time_basis": "original_time",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

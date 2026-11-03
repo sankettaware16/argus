@@ -1,0 +1,17 @@
+[Unit]
+Description=ARGUS case team (AR8, D-214): posts person-confirmed cases to Kibana
+# Started by argus-case-team.timer. Stop it: case_team.post false in its file, or
+# `argus siem stop --component cases` (docs/runbooks/kibana-case-team.md).
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+# The switches: this unit's own file (never the shared .env). The six keys, the reader key, the
+# writer's database login and the approval key: credential files (0600; plan §3 rule 11, Q-A5).
+EnvironmentFile=@ROOT@/local/argus-writer.env
+Environment=CREDENTIALS_DIRECTORY=@ROOT@/local/creds-writer
+ExecStart=@UV@ run argus case team run --unattended
+TimeoutStartSec=3h
+MemoryMax=512M
+Nice=10

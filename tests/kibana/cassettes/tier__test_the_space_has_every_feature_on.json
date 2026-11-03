@@ -1,0 +1,18 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "description": "ARGUS's local Kibana tier: the site's space name, every feature on.",
+    "disabledFeatures": [],
+    "id": "acme-soc",
+    "name": "acme-soc"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/api/spaces/space/acme-soc",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

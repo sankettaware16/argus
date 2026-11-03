@@ -1,0 +1,264 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 2
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-186649-status-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-186649-status\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-186649-status\", \"n\": 1}}\n{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-186649-status-02\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 2 of <run>-186649-status\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.12\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-2\"}, \"url\": {\"path\": \"/index.html\"}, \"tier\": {\"run\": \"<run>-186649-status\", \"n\": 2}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-186649-status",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-186649-status (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run status",
+    "query": "tier.run: \"<run>-186649-status\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-186649-status",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    },
+    {
+     "_id": "<hex:2>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-186649-status"
+     }
+    },
+    "size": 2,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "batches": 1,
+    "deleted": 0,
+    "failures": [],
+    "noops": 0,
+    "requests_per_second": -1,
+    "retries": {
+     "bulk": 0,
+     "search": 0
+    },
+    "throttled_millis": 0,
+    "throttled_until_millis": 0,
+    "timed_out": false,
+    "took": "<took>",
+    "total": 1,
+    "updated": 1,
+    "version_conflicts": 0
+   },
+   "as": "key:argus-alert-writer",
+   "body": {
+    "signal_ids": [
+     "<hex:1>"
+    ],
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "closed",
+    "kibana.alert.workflow_status_updated_at": "<time>",
+    "kibana.alert.workflow_user": null
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status,kibana.alert.case_ids,kibana.alert.workflow_user,kibana.alert.workflow_status_updated_at"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "batches": 1,
+    "deleted": 0,
+    "failures": [],
+    "noops": 0,
+    "requests_per_second": -1,
+    "retries": {
+     "bulk": 0,
+     "search": 0
+    },
+    "throttled_millis": 0,
+    "throttled_until_millis": 0,
+    "timed_out": false,
+    "took": "<took>",
+    "total": 1,
+    "updated": 1,
+    "version_conflicts": 0
+   },
+   "as": "key:argus-alert-writer",
+   "body": {
+    "signal_ids": [
+     "<hex:1>"
+    ],
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "batches": 0,
+    "deleted": 0,
+    "failures": [],
+    "noops": 0,
+    "requests_per_second": -1,
+    "retries": {
+     "bulk": 0,
+     "search": 0
+    },
+    "throttled_millis": 0,
+    "throttled_until_millis": 0,
+    "timed_out": false,
+    "took": "<took>",
+    "total": 0,
+    "updated": 0,
+    "version_conflicts": 0
+   },
+   "as": "key:argus-alert-writer",
+   "body": {
+    "signal_ids": [
+     "<hex:3>"
+    ],
+    "status": "closed"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "batches": 1,
+    "deleted": 0,
+    "failures": [],
+    "noops": 0,
+    "requests_per_second": -1,
+    "retries": {
+     "bulk": 0,
+     "search": 0
+    },
+    "throttled_millis": 0,
+    "throttled_until_millis": 0,
+    "timed_out": false,
+    "took": "<took>",
+    "total": 2,
+    "updated": 2,
+    "version_conflicts": 0
+   },
+   "as": "key:argus-alert-writer",
+   "body": {
+    "signal_ids": [
+     "<hex:1>",
+     "<hex:2>"
+    ],
+    "status": "acknowledged"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/signals/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "acknowledged"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "kibana.alert.workflow_status": "acknowledged"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.workflow_status"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:2>",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

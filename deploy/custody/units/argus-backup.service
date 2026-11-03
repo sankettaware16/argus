@@ -1,0 +1,36 @@
+[Unit]
+Description=ARGUS nightly database dump (Q-A2; custody layout, Q-A5)
+# Started by argus-backup.timer. Runs as root: pg_dump runs in a container (docker is
+# root's), with the owner's password from its credential. Dumps go to /var/lib/argus-backups.
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=owner
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=database.owner_password:/etc/argus/credentials/database.owner_password
+ExecStart=/opt/argus/current/.venv/bin/argus backup dump --kind nightly
+MemoryMax=1G
+Nice=10
+ReadWritePaths=/var/lib/argus-backups
+Environment=DOCKER_CONTEXT=default
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

@@ -1,0 +1,324 @@
+{
+  "_id": "957af9217a550403733e443101eb4286c6277ba24c9c9f371741d620d3987adf",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-09T12:22:47.617Z",
+    "destination": {
+      "as": {
+        "number": 47583,
+        "organization": {
+          "name": "Hostinger International Limited"
+        }
+      },
+      "geo": {
+        "country_iso_code": "US",
+        "country_name": "United States",
+        "location": {
+          "lat": 37.751,
+          "lon": -97.822
+        }
+      },
+      "ip": "133.186.7.75",
+      "port": 22
+    },
+    "ecs": {
+      "version": "8.11.0"
+    },
+    "event": {
+      "action": "TCP_TUNNEL",
+      "category": "network",
+      "duration": 70,
+      "ingested": "2026-10-09T12:19:52.941208+00:00",
+      "module": "squid",
+      "original": "2026-10-09T17:49:53+00:00 l7mrlrv5 (squid-12)[2002]: 1791548393.636     70 10.139.146.231:52159 198.18.0.71:38063 TCP_TUNNEL/200 2695 CONNECT 133.186.7.75:22 - ORIGINAL_DST/133.186.7.75 -",
+      "outcome": "success",
+      "timestamp_source": "log",
+      "type": "connection"
+    },
+    "event.kind": "signal",
+    "host": {
+      "name": "l7mrlrv5"
+    },
+    "http": {
+      "request": {
+        "method": "CONNECT"
+      },
+      "response": {
+        "status_code": 200
+      }
+    },
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "ZMYFSt7Ta443xj6IuDlI",
+        "index": "acme-logs-squid-2026.10.09",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-09T12:22:47.617Z",
+    "kibana.alert.last_detected": "2026-10-09T12:22:47.772Z",
+    "kibana.alert.original_event.action": "TCP_TUNNEL",
+    "kibana.alert.original_event.category": "network",
+    "kibana.alert.original_event.duration": 70,
+    "kibana.alert.original_event.ingested": "2026-10-09T12:19:52.941208+00:00",
+    "kibana.alert.original_event.kind": "event",
+    "kibana.alert.original_event.module": "squid",
+    "kibana.alert.original_event.original": "2026-10-09T17:49:53+00:00 l7mrlrv5 (squid-12)[2002]: 1791548393.636     70 10.139.146.231:52159 198.18.0.71:38063 TCP_TUNNEL/200 2695 CONNECT 133.186.7.75:22 - ORIGINAL_DST/133.186.7.75 -",
+    "kibana.alert.original_event.outcome": "success",
+    "kibana.alert.original_event.timestamp_source": "log",
+    "kibana.alert.original_event.type": "connection",
+    "kibana.alert.original_time": "2026-10-09T12:19:53.636Z",
+    "kibana.alert.reason": "network event with process squid-12, source 10.139.146.231:52159, destination 133.186.7.75:22, on l7mrlrv5 created medium alert Proxy: Allowed Tunnel to Remote-Admin or Anonymizer Port.",
+    "kibana.alert.risk_score": 47,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [
+      "ACME"
+    ],
+    "kibana.alert.rule.category": "Custom Query Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-10-05T09:26:15.998Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Detects a successful CONNECT tunnel through the Squid proxy to a destination port used for remote administration (SSH 22, Telnet 23, RDP 3389, VNC 5900/5901, WinRM 5985/5986, SMB 445/135/139), common backdoor/anonymiser ports (4444, 1080 SOCKS, Tor 9001/9050) or IRC (6667/6697). The web proxy should normally only tunnel HTTPS (443); tunnelling other protocols over CONNECT is a classic way to bypass egress controls. Baseline on 2026-10-05: ~90 internal hosts/day use SSH over the proxy, nothing on the other ports.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-09T12:22:47.772Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "0b1b1ce4-2de1-0a2b-9ec0-bb65fbea630c",
+    "kibana.alert.rule.false_positives": [],
+    "kibana.alert.rule.from": "now-6m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-squid*"
+    ],
+    "kibana.alert.rule.interval": "5m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.created_from": "CC_Report_Writer proxy baseline 2026-10-05",
+    "kibana.alert.rule.name": "Proxy: Allowed Tunnel to Remote-Admin or Anonymizer Port",
+    "kibana.alert.rule.note": "### Investigation Steps\n1. Identify the internal host (`source.ip`) and owner. Is SSH/RDP egress via proxy expected for this user (sysadmin, researcher with external compute)?\n2. Check `destination.ip`, `destination.geo.country_name` and `destination.as.organization.name`. Cloud/VPS providers in unexpected countries deserve a closer look.\n3. Pivot on `source.ip` for the last 24h: how many distinct destinations on this port, total `source.bytes` (long-lived large tunnels suggest reverse shells or data transfer).\n4. Repeated connections at a fixed interval = possible beacon.\n\n### False positives\nAdministrators and research groups legitimately SSH to external servers. Add known admin hosts/destinations to an exception list rather than disabling the rule. Alerts are suppressed per source/destination/port for 12h.",
+    "kibana.alert.rule.parameters": {
+      "alert_suppression": {
+        "duration": {
+          "unit": "h",
+          "value": 12
+        },
+        "group_by": [
+          "source.ip",
+          "destination.ip",
+          "destination.port"
+        ],
+        "missing_fields_strategy": "suppress"
+      },
+      "author": [
+        "ACME"
+      ],
+      "description": "Detects a successful CONNECT tunnel through the Squid proxy to a destination port used for remote administration (SSH 22, Telnet 23, RDP 3389, VNC 5900/5901, WinRM 5985/5986, SMB 445/135/139), common backdoor/anonymiser ports (4444, 1080 SOCKS, Tor 9001/9050) or IRC (6667/6697). The web proxy should normally only tunnel HTTPS (443); tunnelling other protocols over CONNECT is a classic way to bypass egress controls. Baseline on 2026-10-05: ~90 internal hosts/day use SSH over the proxy, nothing on the other ports.",
+      "exceptions_list": [],
+      "false_positives": [],
+      "filters": [],
+      "from": "now-6m",
+      "immutable": false,
+      "index": [
+        "acme-logs-squid*"
+      ],
+      "investigation_fields": {
+        "field_names": [
+          "source.ip",
+          "destination.ip",
+          "destination.port",
+          "destination.geo.country_name",
+          "destination.as.organization.name",
+          "source.bytes",
+          "event.duration"
+        ]
+      },
+      "language": "kuery",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "created_from": "CC_Report_Writer proxy baseline 2026-10-05"
+      },
+      "note": "### Investigation Steps\n1. Identify the internal host (`source.ip`) and owner. Is SSH/RDP egress via proxy expected for this user (sysadmin, researcher with external compute)?\n2. Check `destination.ip`, `destination.geo.country_name` and `destination.as.organization.name`. Cloud/VPS providers in unexpected countries deserve a closer look.\n3. Pivot on `source.ip` for the last 24h: how many distinct destinations on this port, total `source.bytes` (long-lived large tunnels suggest reverse shells or data transfer).\n4. Repeated connections at a fixed interval = possible beacon.\n\n### False positives\nAdministrators and research groups legitimately SSH to external servers. Add known admin hosts/destinations to an exception list rather than disabling the rule. Alerts are suppressed per source/destination/port for 12h.",
+      "query": "http.request.method:\"CONNECT\" and event.outcome:\"success\" and destination.port:(22 or 23 or 3389 or 5900 or 5901 or 5985 or 5986 or 4444 or 1080 or 9001 or 9050 or 6667 or 6697 or 445 or 135 or 139)",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 47,
+      "risk_score_mapping": [],
+      "rule_id": "66a2bfe7-7bef-44e4-8c5f-b0cd16f45b34",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "medium",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1572",
+              "name": "Protocol Tunneling",
+              "reference": "https://attack.mitre.org/techniques/T1572/",
+              "subtechnique": []
+            },
+            {
+              "id": "T1571",
+              "name": "Non-Standard Port",
+              "reference": "https://attack.mitre.org/techniques/T1571/",
+              "subtechnique": []
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0008",
+            "name": "Lateral Movement",
+            "reference": "https://attack.mitre.org/tactics/TA0008/"
+          },
+          "technique": [
+            {
+              "id": "T1021",
+              "name": "Remote Services",
+              "reference": "https://attack.mitre.org/techniques/T1021/",
+              "subtechnique": [
+                {
+                  "id": "T1021.004",
+                  "name": "SSH",
+                  "reference": "https://attack.mitre.org/techniques/T1021/004/"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "to": "now",
+      "type": "query",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 0,
+    "kibana.alert.rule.risk_score": 47,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "66a2bfe7-7bef-44e4-8c5f-b0cd16f45b34",
+    "kibana.alert.rule.rule_type_id": "siem.queryRule",
+    "kibana.alert.rule.severity": "medium",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [
+      "Proxy",
+      "Squid",
+      "ACME",
+      "Egress",
+      "Tunneling"
+    ],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1572",
+            "name": "Protocol Tunneling",
+            "reference": "https://attack.mitre.org/techniques/T1572/",
+            "subtechnique": []
+          },
+          {
+            "id": "T1571",
+            "name": "Non-Standard Port",
+            "reference": "https://attack.mitre.org/techniques/T1571/",
+            "subtechnique": []
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0008",
+          "name": "Lateral Movement",
+          "reference": "https://attack.mitre.org/tactics/TA0008/"
+        },
+        "technique": [
+          {
+            "id": "T1021",
+            "name": "Remote Services",
+            "reference": "https://attack.mitre.org/techniques/T1021/",
+            "subtechnique": [
+              {
+                "id": "T1021.004",
+                "name": "SSH",
+                "reference": "https://attack.mitre.org/techniques/T1021/004/"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "query",
+    "kibana.alert.rule.updated_at": "2026-10-05T09:26:21.199Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "d3da51eb-e22b-410b-8d98-cc02186f04ed",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "medium",
+    "kibana.alert.start": "2026-10-09T12:22:47.772Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.uuid": "957af9217a550403733e443101eb4286c6277ba24c9c9f371741d620d3987adf",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "network": {
+      "protocol": "tls",
+      "transport": "tcp"
+    },
+    "observer": {
+      "dept": "org-7zadsgjk",
+      "env": "production",
+      "hostname": "l7mrlrv5",
+      "ingress": {
+        "interface": {
+          "id": "38063"
+        }
+      },
+      "ip": "198.18.0.71",
+      "org": "univ",
+      "product": "Squid Proxy",
+      "server": "emlnapoe",
+      "source_host": "emlnapoe",
+      "source_program": "squid",
+      "type": "proxy",
+      "vendor": "Squid"
+    },
+    "process": {
+      "name": "squid-12",
+      "pid": 2002
+    },
+    "service": {
+      "type": "proxy"
+    },
+    "service_name": "squid",
+    "source": {
+      "bytes": 2695,
+      "ip": "10.139.146.231",
+      "port": 52159
+    },
+    "squid": {
+      "original_destination": "133.186.7.75"
+    }
+  }
+}

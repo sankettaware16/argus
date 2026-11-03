@@ -1,0 +1,14 @@
+[Unit]
+Description=ARGUS notices (Q-H4): a link, a severity and a count by e-mail
+# Started by argus-notices.timer every 10 minutes (a flagged case should reach a person within
+# the hour). Each pass computes what is worth a notice from ARGUS's own database and stores it;
+# it e-mails only when notices.enabled is true, a recipient is named and the campus relay is
+# set (docs/runbooks/notices.md). Until then it prints "not switched on, by your choice".
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus notices run
+MemoryMax=512M
+TimeoutStartSec=10min
+Nice=10

@@ -1,0 +1,117 @@
+# The LLM gateway (P5, D-086). Non-secret: the keys are read from keys_file by name and never
+# shown. Providers are tried in this order: the free ones first, the paid one last (D-101; it
+# was paid first under D-074). A provider without the asked-for tier is skipped. Limits are the
+# providers' published or observed limits; ARGUS uses `margin` of them. Prices are USD per
+# million tokens, from third-party trackers on 2026-10-16 (to be confirmed on the providers'
+# pages); gpt-5.5's is an assumption set high on purpose, so the monthly cap errs on the safe
+# side.
+#
+# Gateway v2 (Q-G1): each provider may also set trust (cloud | campus), ca_file (trust that
+# certificate only), timeout_s (one call's deadline), concurrency (calls in flight across every
+# ARGUS process), tasks (the allowlist of Call.purpose; default every task), probe (GET
+# /v1/models before calls), schema_output and slow_s (a model whose median latency is above it
+# cools down for 30 minutes); each model context_tokens, thinking_tokens (room for the
+# reasoning a model writes before its answer) and max_output.
+
+# none: every model feature is off and ARGUS investigates deterministically (D-298);
+# `argus init` writes this installation's keys file into llm.local.yaml
+keys_file: null
+monthly_cap_usd: 40.0  # D-152 (the user, 2026-10-27); free providers stay first (D-101)
+daily_cap_usd: 1.50  # D-152; D-098: a backlog cannot spend the month in a day (normal work: 80% of it)
+margin: 0.8
+shares: {high: 1.0, normal: 0.8, low: 0.5}  # of each day limit and of the monthly cap
+# The evaluation budget (Q-G1): purpose "evaluate" goes at low priority, only overnight
+# (17:30-24:00 UTC, 23:00-05:30 IST), and at most calls_per_day a night per provider (fewer
+# where a provider's own day limit at low priority is smaller), so a gold run spreads over
+# separate nights and stops and resumes rather than using up a provider's day. The window lies
+# in one UTC day (the cap counts per UTC day) and never in the SIEM's nightly pause (00:00-01:30
+# UTC): `gold agent --tools` reads the SIEM between its model calls.
+evaluation:
+  window_utc: ["17:30", "00:00"]  # "00:00" as the end: midnight
+  calls_per_day: 150
+
+providers:
+  - name: groq  # one organisation: both keys share one quota
+    base_url: https://api.groq.com/openai/v1
+    keys: [GROQ_API_KEY, GROQ_API_KEY_2]
+    timeout_s: 120  # the agent's fixed 120 s before Q-G1
+    max_tokens_field: max_completion_tokens
+    models:
+      small: {name: openai/gpt-oss-20b, limits: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000}}
+      medium: {name: openai/gpt-oss-120b, limits: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000}}
+
+  - name: openrouter  # free models: 20 a minute and 50 a day for the whole account
+    base_url: https://openrouter.ai/api/v1
+    keys: [OPENROUTER_API_KEY]
+    timeout_s: 120
+    max_tokens_field: max_tokens
+    models:
+      small: {name: "minimax/minimax-m3.1-flash:free"}  # 2026-10-21: answered a JSON test
+      medium: {name: "nvidia/nemotron-3-ultra-550b-a55b:free"}  # (the super one's upstream 404s)
+    limits: {rpm: 20, rpd: 50}
+
+  - name: gemini  # last of the free: its free prompts may improve Google's products (D-074)
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    keys: [GEMINI_API_KEY]
+    timeout_s: 120
+    max_tokens_field: max_tokens
+    models:
+      small: {name: gemini-3.5-flash-lite, limits: {rpm: 10, rpd: 500, tpm: 250000}}
+      # flash answered 503 "overloaded" at every trial on 10-21, and the breaker is per
+      # provider, so it kept flash-lite closed too; the floor guards medium's items (D-100)
+      medium: {name: gemini-3.5-flash-lite, limits: {rpm: 10, rpd: 500, tpm: 250000}}
+
+  - name: openai  # last (D-101): paid, used when no free provider can answer
+    base_url: https://api.openai.com/v1
+    keys: [OPENAI_API_KEY]
+    timeout_s: 120
+    max_tokens_field: max_completion_tokens
+    models:
+      small: {name: gpt-5.4-nano, input_per_m: 0.20, output_per_m: 1.25,
+              extra: {reasoning_effort: low}}
+      medium: {name: gpt-5.4-mini, input_per_m: 0.75, output_per_m: 4.50,
+               extra: {reasoning_effort: low}}
+      large: {name: gpt-5.5, input_per_m: 5.00, output_per_m: 30.00,
+              extra: {reasoning_effort: low}}  # reasoning counts against the answer's cap
+    limits: {rpm: 500, tpm: 200000}
+
+  # The security team's own model machine (D-108): Cyber-Prime 1.2 (LFM2-2.6B, Q8_0) under
+  # llama-server b11476, behind Caddy, through the reverse tunnel to this machine's
+  # 127.0.0.1:18443. On campus and free, CPU only (30 s to 2 minutes a call, more with its thinking), sometimes off. DISABLED
+  # until Q-G2's evaluation and a decision per task (DQ22 (a); the LFM licence confirmed first).
+  # The import (setup-argus-side.sh --import) stores the certificate and the key named here.
+  - name: local
+    enabled: false
+    trust: campus
+    base_url: https://127.0.0.1:18443/v1
+    keys: [LOCAL_LLM_API_KEY]
+    ca_file: data/tls/local-llm.crt  # its self-signed certificate (CA:FALSE), and no other
+    # D-112: each call's deadline comes from its size (read_tps, write_tps below, with a
+    # margin); a call that would need longer than this is refused before it is sent
+    timeout_s: 900
+    concurrency: 1  # llama-server runs one slot (--parallel 1)
+    tasks: [evaluate, ping]  # Q-G2 adds a task only by a decision after its thresholds
+    # Q-G2: the decision recording the institute's confirmation that ARGUS's use is
+    # non-commercial (LFM Open License v1.0); evaluation calls with campus data wait for it.
+    # licence: D-NNN
+    # A helper task (notes, extract, triage, summary) is served only with its decision:
+    # promoted: {triage: D-NNN}; never assess or tune (verdicts, tuning) in Phase 3
+    probe: true  # GET /v1/models before calls: up, down, loading, key, certificate, model
+    # plan §7.4: slow when the median of its last calls took more than this beyond what its
+    # measured speed says (D-112: 152 s for a 6,624-token prompt is its normal speed)
+    slow_s: 120
+    schema_output: true  # D-112: response_format json_schema (strict) ...
+    schema_required: true  # ... and never plain JSON mode (it does not keep the asked shape)
+    max_tokens_field: max_tokens
+    models:
+      # it always thinks before it answers (its chat template opens <think>; llama-server
+      # keeps the reasoning apart and applies the schema after it): thinking_tokens of room.
+      # D-112 (i5-13420H, CPU): reads about 45-52 tokens/s, writes about 11-12; the context is
+      # 16,384 tokens, prompts above about 12,000 are refused before sending
+      small: {name: cyber-prime-1.2, context_tokens: 16384, thinking_tokens: 2048,
+              max_output: 6144, max_prompt_tokens: 12000, read_tps: 45, write_tps: 11}
+      medium: {name: cyber-prime-1.2, context_tokens: 16384, thinking_tokens: 2048,
+               max_output: 6144, max_prompt_tokens: 12000, read_tps: 45, write_tps: 11}
+    # the daily cap on local calls: 300 at high priority (375 x margin 0.8), 240 at normal,
+    # 150 at low (x 0.5), which is evaluation's 150 a night
+    limits: {rpm: 2, rpd: 375}

@@ -1,0 +1,97 @@
+{
+ "exchanges": [
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-g-r",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "g-o@run.argus.invalid",
+    "full_name": "Run g-o",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-g-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-g-o",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "error": {
+     "reason": "action [cluster:admin/xpack/security/api_key/grant] is unauthorized for user [tier-analyst] with effective roles [acme_analyst], this action is granted by the cluster privileges [grant_api_key,manage_api_key,manage_security,all]",
+     "root_cause": [
+      {
+       "reason": "action [cluster:admin/xpack/security/api_key/grant] is unauthorized for user [tier-analyst] with effective roles [acme_analyst], this action is granted by the cluster privileges [grant_api_key,manage_api_key,manage_security,all]",
+       "type": "security_exception"
+      }
+     ],
+     "type": "security_exception"
+    },
+    "status": 403
+   },
+   "as": "user:tier-analyst",
+   "body": {
+    "api_key": {
+     "expiration": "1h",
+     "name": "t-<run>-g-k",
+     "role_descriptors": {
+      "reader": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "feature_securitySolutionCasesV3.read"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "indices": []
+      }
+     }
+    },
+    "grant_type": "password",
+    "password": "<secret>",
+    "username": "t-<run>-g-o"
+   },
+   "method": "POST",
+   "path": "/_security/api_key/grant",
+   "status": 403,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

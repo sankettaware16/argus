@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Incident report{% endblock %}
+{% macro sentences(list) %}{% if list %}<ul>{% for s in list %}<li>{{ s.text | u(700) }}</li>{% endfor %}</ul>{% endif %}{% endmacro %}
+{% macro query(q) %}
+  <p class="hint">{{ "KQL" if q.language == "kql" else "ES|QL" }} on <span class="mono">{{ q.index | u(120) }}</span>, <time title="{{ q.time_from | utc }}">{{ q.time_from | ist }}</time> to <time title="{{ q.time_to | utc }}">{{ q.time_to | ist }}</time></p>
+  <pre class="mono">{{ q.text | u(2000) }}</pre>
+  {% if q.url.startswith("https://") or q.url.startswith("http://") %}<p><a href="{{ q.url }}" target="_blank" rel="noopener noreferrer">Open this query in Kibana Discover (read-only, a new tab)</a></p>{% endif %}
+{% endmacro %}
+{% block main %}
+<article class="inv report" id="incident-report">
+  {% if not data.report %}
+  <header class="inv-head">
+    <h1>Incident report: case {{ data.case_number }}</h1>
+    <p class="hint">{{ data.note }}</p>
+  </header>
+  {% else %}
+  {% set r = data.report %}
+  <header class="inv-head">
+    <h1>Incident report {{ r.header.incident_id }}</h1>
+    <p class="hint">Case {{ data.case_number }} ({{ data.case_state }}). Version {{ data.version }} of {{ data.newest }}, written <time title="{{ data.generated_at | utc }}">{{ data.generated_at | ist }}</time>.{% if data.stale %} The case changed since: ARGUS writes a new version in its next pass.{% endif %} This page only shows the report; to confirm or reject it, open the case in the new app.</p>
+    <p class="hint">Files:
+      {% for f in data.files %}{% if f.available %}<a href="{{ f.url }}" download>{{ f.name }}</a>{% else %}{{ f.name }} (needs log access){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <p><strong>{{ r.summary.headline | u(400) }}</strong></p>
+    <p>{{ r.summary.standing_words }}</p>
+    {{ sentences(r.summary.prose or r.summary.sentences) }}
+    {% if r.summary.notice %}<p class="hint">{{ r.summary.notice.line | u(500) }}</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>ARGUS's verdict</h2>
+    <p><strong>{{ r.verdict.words | capitalize }}</strong>{% if r.verdict.confidence is not none %}, confidence {{ (r.verdict.confidence * 100) | round | int }}% ({{ r.verdict.confidence_words }}){% endif %}. From {{ r.verdict.source }}{% if r.verdict.kind == "reading" %} (a reading, not a proposal){% endif %}.</p>
+    {{ sentences(r.verdict.sentences[1:]) }}
+    {% if data.decision %}<p>A person {{ data.decision.decision }} it ({{ data.decision.by | u(80) }}, <time title="{{ data.decision.decided_at | utc }}">{{ data.decision.decided_at | ist }}</time>){% if data.decision.reason %}: {{ data.decision.reason | u(600) }}{% endif %}.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Timeline ({{ zone_label() }})</h2>
+    {% if r.timeline.first_seen %}<p>First seen <time title="{{ r.timeline.first_seen | utc }}">{{ r.timeline.first_seen | ist }}</time>, last seen <time title="{{ r.timeline.last_seen | utc }}">{{ r.timeline.last_seen | ist }}</time>{% if r.timeline.dwell_words %}; dwell time {{ r.timeline.dwell_words }}{% endif %}.</p>{% endif %}
+    {% if r.timeline.days %}
+    <table>
+      <caption class="sr">Alerts a day by rule ({{ zone_label() }})</caption>
+      <thead><tr><th scope="col">Date</th>{% for c in r.timeline.columns %}<th scope="col" class="num">{{ c | u(80) }}</th>{% endfor %}<th scope="col" class="num">Total</th></tr></thead>
+      <tbody>{% for d in r.timeline.days %}<tr><td>{{ d.day }}</td>{% for n in d.counts %}<td class="num">{{ n or "–" }}</td>{% endfor %}<td class="num">{{ d.total }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% endif %}
+    {{ sentences(r.timeline.notes) }}
+  </section>
+
+  <section>
+    <h2>Actors and roles</h2>
+    {% if r.actors %}
+    <table>
+      <caption class="sr">Actors and their roles</caption>
+      <thead><tr><th scope="col">Actor</th><th scope="col">Role</th><th scope="col">Network / country</th><th scope="col">User agents</th><th scope="col" class="num">Alerts</th></tr></thead>
+      <tbody>{% for a in r.actors %}<tr><td class="mono">{{ a.value | u(120) }}</td><td>{{ a.role }}</td><td>{{ ([a.network, a.country] | select | join(" / ")) | u(160) }}</td><td>{% for u in a.user_agents %}<div>{{ u | u(200) }}</div>{% endfor %}</td><td class="num">{{ a.alerts }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p class="empty">The case names no actor.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Affected assets</h2>
+    {% if r.assets %}
+    <table>
+      <caption class="sr">Affected assets</caption>
+      <thead><tr><th scope="col">Kind</th><th scope="col">Asset</th><th scope="col">Reached / where</th><th scope="col" class="num">Alerts</th><th scope="col" class="num">Days</th></tr></thead>
+      <tbody>{% for a in r.assets %}<tr><td>{{ a.kind }}</td><td class="mono">{{ a.value | u(160) }}</td><td>{{ (a.label or "") | u(160) }}</td><td class="num">{{ a.alerts }}</td><td class="num">{{ a.days or "–" }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p class="empty">The case names no affected asset.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Evidence</h2>
+    <p class="hint">Each line is something ARGUS checked, with the exact query behind it.</p>
+    {% set facts = {} %}{% for f in r.facts %}{% set _ = facts.update({f.id: f}) %}{% endfor %}
+    <ol>{% for e in r.evidence %}
+      <li><strong>{{ e.id }}</strong> · {{ e.title }}: {{ facts[e.fact].text | u(700) }}
+        <p class="hint">Source: {{ e.source }}. Check {{ e.query.template }}. Status: {{ e.status }}.</p>
+        {{ query(e.query) }}
+      </li>{% endfor %}
+    </ol>
+  </section>
+
+  <section>
+    <h2>Hypotheses</h2>
+    <ul>{% for h in r.hypotheses %}<li><strong>{{ {"kept": "Kept", "ruled_out": "Ruled out", "open": "Open"}[h.status] }}:</strong> {{ h.name | u(300) }}{{ sentences(h.why) }}</li>{% endfor %}</ul>
+  </section>
+
+  <section>
+    <h2>Indicators</h2>
+    {% if r.indicators %}
+    <table>
+      <caption class="sr">Indicators</caption>
+      <thead><tr><th scope="col">Indicator</th><th scope="col">Type</th><th scope="col">Role</th><th scope="col">Evidence</th></tr></thead>
+      <tbody>{% for i in r.indicators %}<tr><td class="mono">{{ i.value | u(200) }}</td><td>{{ i.kind }}</td><td>{{ i.role_words }}</td><td>{{ i.evidence | u(500) }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p class="empty">The case holds no indicator.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Recommended actions</h2>
+    {% if r.actions.lines %}
+    <table>
+      <caption class="sr">Recommended actions</caption>
+      <thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Status</th></tr></thead>
+      <tbody>{% for l in r.actions.lines %}<tr><td><strong>{{ l.title }}.</strong> {{ l.say | u(400) }}</td><td>{{ l.owner }}</td><td>{{ l.state | replace("_", " ") }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% elif r.actions.note %}<p class="empty">{{ r.actions.note }}</p>{% endif %}
+    {% if r.actions.close_when %}<p>{{ r.actions.close_when.text | u(500) }}</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Queries to verify</h2>
+    <ul>{% for q in r.queries %}<li><strong>{{ q.template }}</strong>{{ query(q) }}</li>{% endfor %}</ul>
+  </section>
+
+  <section>
+    <h2>Scope and limits</h2>
+    {{ sentences(r.out_of_scope) }}
+    {% if r.meta.limits %}<ul>{% for l in r.meta.limits %}<li class="hint">Limit: {{ l | u(300) }}.</li>{% endfor %}</ul>{% endif %}
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

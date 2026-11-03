@@ -1,0 +1,82 @@
+{
+ "entries": {
+  "123c2df9d6f80d699ea9b1ed2ce09fe7b2a711cf427a86ca5766486c1494fd21": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [{\\\"entity\\\": \\\"185.220.101.5\\\", \\\"tool\\\": \\\"proxy.destination\\\"}], \\\"cites\\\": [], \\\"confidence\\\": 0.3, \\\"consult\\\": [], \\\"hypotheses\\\": [], \\\"outcome\\\": \\\"inconclusive\\\", \\\"reason\\\": \\\"More evidence is needed.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "1948844d607d223a33e56d981320f4f4bead13d248752ff1dd86b2c0dd4b177d": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [\\\"Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"confidence\\\": 0.75, \\\"consult\\\": [], \\\"hypotheses\\\": [{\\\"against\\\": [], \\\"for\\\": [\\\"Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"name\\\": \\\"a beacon\\\"}, {\\\"against\\\": [\\\"Alerts: 3 over 2 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"for\\\": [], \\\"name\\\": \\\"an update check\\\"}], \\\"outcome\\\": \\\"true_positive\\\", \\\"reason\\\": \\\"The host keeps reaching the address the threat list names.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "3f5815850ddc5c60a60c9412fa95c33837a8c1454e61298aac4e02a73f70d5df": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [{\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"web.followups\\\"}, {\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"proxy.host\\\"}, {\\\"entity\\\": \\\"45.9.9.9\\\", \\\"tool\\\": \\\"proxy.destination\\\"}], \\\"cites\\\": [], \\\"confidence\\\": 0.3, \\\"consult\\\": [\\\"proxy\\\"], \\\"hypotheses\\\": [], \\\"outcome\\\": \\\"inconclusive\\\", \\\"reason\\\": \\\"More evidence is needed.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "4e7e42e404672f08e69571de5476c56784292e0ad929bf5ebc5c81e05e6810ed": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [{\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"web.followups\\\"}, {\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"proxy.host\\\"}, {\\\"entity\\\": \\\"45.9.9.9\\\", \\\"tool\\\": \\\"proxy.destination\\\"}], \\\"cites\\\": [], \\\"confidence\\\": 0.3, \\\"consult\\\": [\\\"proxy\\\"], \\\"hypotheses\\\": [], \\\"outcome\\\": \\\"inconclusive\\\", \\\"reason\\\": \\\"More evidence is needed.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "4eb9aa9eb95ed56c8d6f6b201f53008899626f77a6b767a673bad2cb2853bdf4": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [\\\"Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"confidence\\\": 0.75, \\\"consult\\\": [], \\\"hypotheses\\\": [{\\\"against\\\": [], \\\"for\\\": [\\\"Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"name\\\": \\\"a beacon\\\"}, {\\\"against\\\": [\\\"Alerts: 4 over 3 min, the first at 16 h IST; duplicates 0, late arrivals 0\\\"], \\\"for\\\": [], \\\"name\\\": \\\"an update check\\\"}], \\\"outcome\\\": \\\"true_positive\\\", \\\"reason\\\": \\\"The host keeps reaching the address the threat list names.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "58d443f3453fce9c06e424806c6b525a7d517eddac7421cfd35a272d854d92f8": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [], \\\"notes\\\": \\\"The proxy traffic is steady and small.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "5c6e24111082fe423cb619142aacfb230a966e6e406bff1094aac039ad77ffd0": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [], \\\"notes\\\": \\\"The proxy traffic is steady and small.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "8cd84b4d084f7ef54ad5c63acf5b36345b9e3d40cc4dfa24fdc7e98bd8ec2e62": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [{\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"web.followups\\\"}, {\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"proxy.host\\\"}, {\\\"entity\\\": \\\"77.221.155.150\\\", \\\"tool\\\": \\\"proxy.destination\\\"}], \\\"cites\\\": [], \\\"confidence\\\": 0.3, \\\"consult\\\": [\\\"proxy\\\"], \\\"hypotheses\\\": [], \\\"outcome\\\": \\\"inconclusive\\\", \\\"reason\\\": \\\"More evidence is needed.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "8df277627e660fbea0b1049245982129dce95daab22a30689fe16b9149aca35d": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [\\\"Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"confidence\\\": 0.75, \\\"consult\\\": [], \\\"hypotheses\\\": [{\\\"against\\\": [], \\\"for\\\": [\\\"Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"name\\\": \\\"a beacon\\\"}, {\\\"against\\\": [\\\"Alerts: 1 over 0 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"for\\\": [], \\\"name\\\": \\\"an update check\\\"}], \\\"outcome\\\": \\\"benign_expected\\\", \\\"reason\\\": \\\"The host keeps reaching the address the threat list names.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "9506f21641b07bb647bc8c900f1e19434088427c3293291f6eeaf0fdca2c66be": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [{\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"web.followups\\\"}, {\\\"entity\\\": \\\"I1.IP_1\\\", \\\"tool\\\": \\\"proxy.host\\\"}, {\\\"entity\\\": \\\"77.221.155.150\\\", \\\"tool\\\": \\\"proxy.destination\\\"}], \\\"cites\\\": [], \\\"confidence\\\": 0.3, \\\"consult\\\": [\\\"proxy\\\"], \\\"hypotheses\\\": [], \\\"outcome\\\": \\\"inconclusive\\\", \\\"reason\\\": \\\"More evidence is needed.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  },
+  "ed455f2307b1433ff83e9f40baef4a3974218ba39b8de28e0a7b42aed32cb023": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"ask\\\": [], \\\"cites\\\": [\\\"Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"confidence\\\": 0.75, \\\"consult\\\": [], \\\"hypotheses\\\": [{\\\"against\\\": [], \\\"for\\\": [\\\"Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"name\\\": \\\"a beacon\\\"}, {\\\"against\\\": [\\\"Alerts: 2 over 1 min, the first at 17 h IST; duplicates 0, late arrivals 0\\\"], \\\"for\\\": [], \\\"name\\\": \\\"an update check\\\"}], \\\"outcome\\\": \\\"true_positive\\\", \\\"reason\\\": \\\"The host keeps reaching the address the threat list names.\\\"}\"}}], \"usage\": {\"completion_tokens\": 120, \"prompt_tokens\": 900}}",
+   "elapsed_ms": 7.0,
+   "provider": "cassette",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

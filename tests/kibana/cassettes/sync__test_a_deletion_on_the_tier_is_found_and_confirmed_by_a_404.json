@@ -1,0 +1,662 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-e75067",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-e75067",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "name": "argus-kibana",
+    "status": {
+     "overall": {
+      "level": "available",
+      "summary": "All services and plugins are available"
+     }
+    },
+    "version": {
+     "build_date": "<time>",
+     "build_flavor": "traditional",
+     "build_hash": "a2a93735478172a315d2ced4aded3024cc029648",
+     "build_number": 87025,
+     "build_snapshot": false,
+     "number": "8.19.12"
+    }
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-e75067",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open"
+      ],
+      "title": "[ARGUS 7] read-back",
+      "totalAlerts": 0,
+      "totalComment": 0,
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:1>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 1,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-e75067",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "_shards": {
+     "failed": 0,
+     "skipped": 0,
+     "successful": 1,
+     "total": 1
+    },
+    "hits": {
+     "hits": [],
+     "max_score": null
+    },
+    "timed_out": false,
+    "took": "<took>"
+   },
+   "as": "key:argus-reader",
+   "body": {
+    "_source": [
+     "kibana.alert.case_ids",
+     "kibana.alert.workflow_status",
+     "kibana.alert.workflow_status_updated_at",
+     "kibana.alert.workflow_user"
+    ],
+    "query": {
+     "bool": {
+      "filter": [
+       {
+        "terms": {
+         "kibana.alert.case_ids": [
+          "<uuid:2>"
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "size": 100,
+    "sort": [
+     {
+      "@timestamp": {
+       "order": "asc"
+      }
+     },
+     {
+      "kibana.alert.uuid": {
+       "order": "asc"
+      }
+     }
+    ],
+    "timeout": "10s",
+    "track_total_hits": false
+   },
+   "method": "POST",
+   "params": [
+    [
+     "allow_partial_search_results",
+     "false"
+    ],
+    [
+     "ignore_unavailable",
+     "false"
+    ],
+    [
+     "max_concurrent_shard_requests",
+     "1"
+    ]
+   ],
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": null,
+   "as": "elastic",
+   "method": "DELETE",
+   "params": [
+    [
+     "ids",
+     "[\"<uuid:2>\"]"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "sortField",
+     "updatedAt"
+    ],
+    [
+     "sortOrder",
+     "desc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Not Found",
+    "message": "Saved object [cases/<uuid:2>] not found",
+    "statusCode": 404
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 404,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 1,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "1"
+    ],
+    [
+     "tags",
+     "t:<run>-e75067"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

@@ -1,0 +1,53 @@
+[Unit]
+Description=ARGUS web (custody layout, Q-A5)
+# D-104: HTTPS on the campus network; only these clients (and this machine) and host names.
+# Its TLS key is a credential (systemd puts this unit's in /run/credentials/argus-web.service);
+# it logs in as argus_api.
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User=argus-web
+Group=argus-web
+SupplementaryGroups=argus
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=web
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=ARGUS_WEB__HOST=0.0.0.0
+Environment=ARGUS_WEB__TLS_CERT=/etc/argus/tls/argus.crt
+Environment=ARGUS_WEB__TLS_KEY=/run/credentials/argus-web.service/web-tls.key
+# the allowed hosts and networks are the installation's: web.allowed_hosts and
+# web.allowed_networks in config/local.yaml (D-104)
+Environment=ARGUS_WEB__DATABASE_ROLE=api
+LoadCredential=database.api_password:/etc/argus/credentials/database.api_password
+LoadCredential=web-tls.key:/etc/argus/credentials/web-tls.key
+ExecStart=/opt/argus/current/.venv/bin/argus web
+Restart=always
+RestartSec=10
+MemoryMax=1G
+Nice=0
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

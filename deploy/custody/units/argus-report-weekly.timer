@@ -1,0 +1,9 @@
+[Unit]
+Description=ARGUS weekly report every Monday at 7:50 AM IST (Q-H3; off until the user has read two reports; custody layout, Q-A5)
+
+[Timer]
+OnCalendar=Mon *-*-* 02:20:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

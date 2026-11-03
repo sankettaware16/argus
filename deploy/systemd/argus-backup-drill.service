@@ -1,0 +1,12 @@
+[Unit]
+Description=ARGUS weekly restore drill of the newest nightly dump (Q-A2)
+# Started by argus-backup-drill.timer. Restores into a scratch database, compares every
+# table's fingerprint with the dump's own, drops the scratch database. Heavy: it waits for a
+# slot of scripts/heavy.sh, like every heavy job on this machine.
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+Environment=DOCKER_CONTEXT=default
+ExecStart=@ROOT@/scripts/heavy.sh --mem 2G --label "weekly restore drill" @UV@ run argus backup drill --latest
+Nice=10

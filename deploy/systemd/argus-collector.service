@@ -1,0 +1,16 @@
+[Unit]
+Description=ARGUS collector
+# The database is the Docker container (restart: unless-stopped); until it is up a start
+# fails and is retried.
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus collect run
+Restart=always
+RestartSec=30
+MemoryMax=2G
+Nice=0
+
+[Install]
+WantedBy=default.target

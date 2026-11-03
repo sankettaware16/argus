@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# The owner's ARGUS commands in the custody layout (Q-A5), and commands run inside a service's
+# account. deploy/custody/install.sh installs it as /usr/local/sbin/argus-owner (root's, 0755).
+#
+#   sudo argus-owner db upgrade                      # as the owner (root): migrations, bootstrap,
+#   sudo argus-owner siem resume --reason "..."     #   backups, resumes, doctor
+#   sudo argus-owner --as svc siem status           # inside argus-svc's account, with its
+#   sudo argus-owner --as writer writer selftest     #   credentials (the writer's selftest runs
+#                                                    #   in the writer's account, plan §7.9)
+#   argus-owner --dry-run [--as ROLE] ARGS...        # print the command only (no root needed)
+#
+# Each run is a transient unit (systemd-run) of the system manager: the read-only deploy copy,
+# /etc/argus/argus.env, that account's credentials by LoadCredential= and the units' sandbox.
+# Nothing of the caller's environment or home reaches it, and the caller never sees a secret.
+# The accounts and their credentials are argus.ops.custody.ACCOUNTS (a test keeps them equal).
+set -euo pipefail
+
+CURRENT=/opt/argus/current
+ETC=/etc/argus
+CREDENTIALS=$ETC/credentials
+declare -A USERS=([svc]=argus-svc [web]=argus-web [writer]=argus-writer [owner]=root)
+declare -A CREDS=(
+  [svc]="database.password siem.api_key llm-api-keys.env notices.password outside.virustotal_api_key outside.shodan_api_key outside.censys_api_key"
+  [web]="database.api_password web-tls.key"
+  [writer]="database.writer_password approval-signing.key siem.api_key siem.writer_api_key kibana.reader_api_key kibana.cases_writer_api_key kibana.alert_writer_api_key case_team.lead_api_key case_team.evidence_api_key case_team.intel_api_key case_team.responder_api_key case_team.hunter_api_key case_team.reporter_api_key case_team.visualiser_api_key"
+  [owner]="database.owner_password database.password database.api_password database.writer_password siem.api_key kibana.reader_api_key"
+)
+# Loaded when present, per account: the owner's (one command may need only some of them) and the
+# writer's keys that are minted at later canaries (R17's write-back, Q-D5's alert writer), so the
+# cases canary and the cases schedule do not wait for them.
+declare -A OPTIONAL=(
+  [svc]="notices.password outside.virustotal_api_key outside.shodan_api_key outside.censys_api_key"
+  [owner]="database.api_password database.writer_password siem.api_key kibana.reader_api_key"
+  [writer]="siem.writer_api_key kibana.alert_writer_api_key case_team.lead_api_key case_team.evidence_api_key case_team.intel_api_key case_team.responder_api_key case_team.hunter_api_key case_team.reporter_api_key case_team.visualiser_api_key"
+)
+
+die() { echo "argus-owner: $*" >&2; exit 2; }
+usage() { die "usage: sudo argus-owner [--as svc|web|writer|owner] [--dry-run] <argus arguments>"; }
+
+role=owner dry=0
+while (( $# )); do
+  case $1 in
+    --as) [[ -n ${2:-} ]] || usage; role=$2; shift 2 ;;
+    --dry-run) dry=1; shift ;;
+    --) shift; break ;;
+    -*) [[ $1 == -h || $1 == --help ]] && usage; break ;;
+    *) break ;;
+  esac
+done
+(( $# )) || usage
+[[ -n ${USERS[$role]:-} ]] || die "--as is one of svc, web, writer, owner (not $role)"
+(( dry )) || [[ $EUID -eq 0 ]] || die "run it with sudo: the credentials are root's"
+(( dry )) || [[ -x $CURRENT/.venv/bin/argus ]] || die "no deploy copy at $CURRENT (deploy/custody/install.sh)"
+
+user=${USERS[$role]}
+props=(
+  --quiet --collect --wait --service-type=exec
+  --unit="argus-owner-$role-$(date -u +%Y%m%dT%H%M%S)-$$"
+  --working-directory="$CURRENT"
+  -p EnvironmentFile="$ETC/argus.env"
+  -E ARGUS_CUSTODY__ROLE="$role" -E PYTHONDONTWRITEBYTECODE=1
+)
+[[ -t 0 && -t 1 ]] && props+=(--pty) || props+=(--pipe)
+if [[ $user != root ]]; then
+  # the units' sandbox for a service account (deploy/custody/units)
+  props+=(-p User="$user" -p Group="$user" -p SupplementaryGroups=argus -p ProtectHome=yes
+    -p CapabilityBoundingSet= -p AmbientCapabilities= -p PrivateDevices=yes
+    -p ProtectKernelTunables=yes -p ProtectKernelModules=yes -p ProtectKernelLogs=yes
+    -p ProtectControlGroups=yes -p ProtectClock=yes -p RestrictNamespaces=yes
+    -p RestrictRealtime=yes -p SystemCallArchitectures=native)
+else
+  props+=(-p ProtectHome=tmpfs -p ReadWritePaths=/var/lib/argus-backups -E DOCKER_CONTEXT=default)
+fi
+[[ $role == web ]] && props+=(-E ARGUS_WEB__DATABASE_ROLE=api)
+# Who is at the terminal: the process runs in a service account, so the records a command makes
+# (a canary run, a ramp step, a skip, break-glass) would name that account without this.
+if [[ ${SUDO_USER:-} =~ ^[A-Za-z_][A-Za-z0-9_.@-]{0,63}$ ]]; then
+  props+=(-E ARGUS_CUSTODY__OPERATOR="$SUDO_USER")
+fi
+for name in ${CREDS[$role]}; do
+  if [[ ! -f $CREDENTIALS/$name ]]; then
+    if [[ " ${OPTIONAL[$role]:-} " == *" $name "* ]]; then continue; fi
+    (( dry )) || die "the credential $name is missing in $CREDENTIALS (deploy/custody/install.sh)"
+  fi
+  props+=(-p LoadCredential="$name:$CREDENTIALS/$name")
+done
+props+=(
+  -p UMask=0077 -p NoNewPrivileges=yes -p ProtectSystem=strict -p PrivateTmp=yes
+  -p RestrictSUIDSGID=yes -p LockPersonality=yes
+)
+command=(systemd-run "${props[@]}" -- "$CURRENT/.venv/bin/argus" "$@")
+if (( dry )); then
+  printf '%q ' "${command[@]}"; echo
+  exit 0
+fi
+exec "${command[@]}"

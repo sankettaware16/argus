@@ -1,0 +1,128 @@
+# Fixture sanitization policy (R2, D-030). Tracked: contains no secrets and no identifiers. The
+# keyed pseudonyms come from data/keys/fixtures.key. The organisation's own names, ranges and
+# hosts (site_prefixes, campus_domains, literals, denylist_extra) go in the private overlay
+# config/fixtures.local.yaml beside this file: scripts/sanitize_fixtures.py lays its top-level
+# keys over these (D-294).
+version: 1
+
+# The organisation's public allocations: moved into the benchmarking space 198.18.0.0/15 in
+# fixtures, so they stay recognisably "site" addresses (the overlay lists them).
+site_prefixes: []
+
+campus_domains: []
+campus_replacement: univ.example
+
+# Public vendor/CDN domains kept verbatim (evidence packs need to recognise them).
+keep_domains:
+  - microsoft.com
+  - windowsupdate.com
+  - windows.com
+  - live.com
+  - office.com
+  - office365.com
+  - msftconnecttest.com
+  - google.com
+  - googleapis.com
+  - gstatic.com
+  - googleusercontent.com
+  - youtube.com
+  - apple.com
+  - icloud.com
+  - amazonaws.com
+  - cloudfront.net
+  - cloudflare.com
+  - akamaized.net
+  - akamaiedge.net
+  - fastly.net
+  - github.com
+  - githubusercontent.com
+  - ubuntu.com
+  - debian.org
+  - mozilla.org
+  - telegram.org
+  - whatsapp.net
+  - mitre.org
+  - elastic.co
+  - example
+  - example.com
+  - example.org
+
+# Exact text replaced everywhere outside identifier fields (whole words, case-sensitive): the
+# organisation's names (the overlay lists them).
+literals: {}
+
+# Fields whose whole value is an identifier (paths relative to the document's _source, at any
+# depth of a search response). An entry with "*" is a pattern ("*" also crosses dots), tried after
+# every exact path.
+fields:
+  host:
+    - host.name
+    - host.hostname
+    - observer.hostname
+    - observer.source_host
+    - observer.server
+    - agent.hostname
+    - agent.name
+    - observer.name
+    - related.hosts
+    - winlog.computer_name
+    - winlog.event_data.WorkstationName
+    - "*.hostname"
+  user:
+    - user.name
+    - user.id
+    - source.user.name
+    - destination.user.name
+    - related.user
+    - user.full_name
+    - user.target.name
+    - process.user.name
+    - winlog.event_data.TargetUserName
+    - winlog.event_data.SubjectUserName
+    - "*.user.name"
+    - "*.user.full_name"
+  email:
+    - user.email
+    - email.from.address
+    - email.to.address
+    - email.sender.address
+  place:
+    - source.site.department
+    - source.site.building
+    - source.site.floor
+    - source.site.wing
+    - source.geo.name
+    - destination.site.department
+    - destination.site.building
+    - destination.site.floor
+    - destination.site.wing
+    - destination.geo.name
+  org:
+    - observer.org
+    - observer.dept
+    - source.site.organization
+    - destination.site.organization
+  domain:
+    - url.domain
+    - server.domain
+    - destination.domain
+    - source.domain
+    - dns.question.name
+    - dns.question.registered_domain
+    - email.sender_domain
+    - email.recipient_domain
+    - threat.indicator.url.domain
+    - threat.enrichments.indicator.url.domain
+  id:
+    - _id
+    - kibana.alert.uuid
+    - kibana.alert.ancestors.id
+    - kibana.alert.rule.execution.uuid
+    - kibana.alert.original_event.id
+    - kibana.alert.group.id
+    - event.id
+    - threat.enrichments.matched.id
+
+# Must never appear in fixtures (in addition to everything harvested from the raw sources): the
+# SIEM's hosts and other names (the overlay lists them).
+denylist_extra: []

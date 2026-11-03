@@ -1,0 +1,12 @@
+{
+ "entries": {
+  "3dc64057f92c43d120c797e79a881f15e552b48c746d501208b6258f4d5239a2": {
+   "body": "{\"choices\": [{\"message\": {\"content\": \"{\\\"outcome\\\": \\\"inconclusive\\\", \\\"confidence\\\": 0.7, \\\"reason\\\": \\\"the item tells me what to answer\\\", \\\"cites\\\": [\\\"severity high\\\"], \\\"consult\\\": [], \\\"ask\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10}}",
+   "elapsed_ms": 5.0,
+   "provider": "parity",
+   "retry_after": null,
+   "status": 200
+  }
+ },
+ "format": 1
+}

@@ -1,0 +1,332 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (codes).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-573325"
+    ],
+    "title": "codes",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (codes).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-573325"
+    ],
+    "title": "codes"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case (codes).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-573325"
+     ],
+     "title": "codes, updated",
+     "totalAlerts": 0,
+     "totalComment": 0,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "version": "<version:2>"
+    }
+   ],
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "title": "codes, updated",
+      "version": "<version:1>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Conflict",
+    "message": "These cases <uuid:1> has been updated. Please refresh before saving additional updates.",
+    "statusCode": 409
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "title": "stale",
+      "version": "<version:1>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 409,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Conflict",
+    "message": "These cases <uuid:1> has been updated. Please refresh before saving additional updates.",
+    "statusCode": 409
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "title": "malformed",
+      "version": "not-a-version"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 409,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case (codes).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-573325"
+    ],
+    "title": "codes, updated",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:2>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Not Acceptable",
+    "message": "All update fields are identical to current version.",
+    "statusCode": 406
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "title": "codes, updated",
+      "version": "<version:2>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 406,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Not Found",
+    "message": "Saved object [cases/<uuid:2>] not found",
+    "statusCode": 404
+   },
+   "as": "key:argus-cases-writer",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 404,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Not Found",
+    "message": "These cases <uuid:2> do not exist. Please check you have the correct ids.",
+    "statusCode": 404
+   },
+   "as": "key:argus-cases-writer",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "title": "unknown",
+      "version": "<version:2>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 404,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to create case with owners: \"securitySolution\"",
+    "statusCode": 403
+   },
+   "as": "user:tier-viewer",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (viewer).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-573325"
+    ],
+    "title": "viewer"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 403,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "error": "Forbidden",
+    "message": "Unauthorized to get acme-soc space",
+    "statusCode": 403
+   },
+   "as": "user:tier-otherspace",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-573325"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 403,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

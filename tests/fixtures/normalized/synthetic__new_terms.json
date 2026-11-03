@@ -1,0 +1,72 @@
+{
+  "adapter": "event",
+  "alert_id": "3333333333333333333333333333333333333333333333333333333333333333",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "ZMYFSt7Ta443xj6IuDlI",
+      "index": "acme-logs-squid-2026.10.09",
+      "kind": "concrete",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-09T12:22:47.617000Z",
+  "detection_lag": "PT2M53.981S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "10.139.146.231"
+    },
+    {
+      "field": "destination.ip",
+      "kind": "ip",
+      "value": "133.186.7.75"
+    }
+  ],
+  "event_time": "2026-10-09T12:19:53.636000Z",
+  "event_time_approximate": false,
+  "evidence_window": {
+    "approximate": false,
+    "basis": "point",
+    "end": "2026-10-09T12:19:53.636000Z",
+    "start": "2026-10-09T12:19:53.636000Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "0b1b1ce4-2de1-0a2b-9ec0-bb65fbea630c",
+  "field_issues": [],
+  "fingerprint": "6e27d10f1b84ff87bb2150118199da52f929daf718f08ea2e57f4d01256ea98e",
+  "group_key": {
+    "canonical": "[[\"destination.ip\",\"133.186.7.75\"],[\"source.ip\",\"10.139.146.231\"]]",
+    "fields": [
+      "source.ip",
+      "destination.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "generic",
+    "values": [
+      "10.139.146.231",
+      "133.186.7.75"
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-09T12:22:47.617000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": "2026-10-09T12:19:53.636000Z",
+  "risk_score": 47.0,
+  "rule_id": "66a2bfe7-7bef-44e4-8c5f-b0cd16f45b34",
+  "rule_name": "Proxy: Allowed Tunnel to Remote-Admin or Anonymizer Port",
+  "rule_revision": 0,
+  "rule_type": "new_terms",
+  "rule_type_raw": "new_terms",
+  "rule_uuid": "d3da51eb-e22b-410b-8d98-cc02186f04ed",
+  "sequence_group_id": null,
+  "severity": "medium",
+  "time_anomalies": [],
+  "time_basis": "original_time",
+  "time_fallback": false,
+  "workflow_status": "open"
+}

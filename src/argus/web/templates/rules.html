@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}By rule{% endblock %}
+{% block main %}
+<h1>By rule</h1>
+<div class="table-scroll"><table class="list">
+  <caption class="sr">Rules</caption>
+  <thead><tr><th scope="col">Rule</th><th scope="col">Not reviewed</th><th scope="col">Investigations</th><th scope="col">Alerts</th><th scope="col">Last alert</th><th scope="col">Runs at the limit</th><th scope="col">Kind</th></tr></thead>
+  <tbody>
+  {% for r in rules %}
+    <tr>
+      <td><a href="/?view=open&rule={{ r.rule_id | urlencode }}">{{ (r.rule_name or r.rule_id) | u(120) }}</a></td>
+      <td class="num">{{ r.open }}</td><td class="num">{{ r.investigations }}</td><td class="num">{{ r.alerts }}</td>
+      <td><time title="{{ r.last_event_at | utc }}">{{ r.last_event_at | ist }}</time></td>
+      <td class="num">{% if r.truncated %}<span title="Runs that produced the rule's maximum of {{ r.max_signals }} alerts: more matches may have been dropped">{{ r.truncated }}</span>{% else %}0{% endif %}</td>
+      <td>{{ r.type | u(20) }}{% if r.interval %}, every {{ r.interval | u(10) }}{% endif %}</td>
+    </tr>
+  {% else %}<tr><td colspan="7" class="empty">No investigations yet.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+<p class="hint">Whether a rule is still running needs Kibana's rule status, which ARGUS cannot read with its key yet.</p>
+{% endblock %}

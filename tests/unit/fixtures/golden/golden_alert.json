@@ -1,0 +1,57 @@
+{
+  "_index": ".internal.alerts-security.alerts-campus-000001",
+  "_id": "SyntheticAlertId0001",
+  "_score": 1.0,
+  "_source": {
+    "@timestamp": "2026-10-08T12:00:00.000Z",
+    "kibana.alert.uuid": "SyntheticAlertId0001",
+    "kibana.alert.ancestors": [{"id": "Zz9AncestorIdAbCdEfG", "index": "logs-proxy-2026.10.08"}],
+    "kibana.alert.reason": "source 10.1.2.3:52159 to 8.8.4.4 on lab-pc-07 (Campus University)",
+    "kibana.alert.rule.name": "Proxy: beacon from LAB-PC-07 to rare domain",
+    "kibana.alert.rule.parameters": {
+      "query": "not host.name : (\"backup-srv-9\" or kiosk7) and user.name != svc-backup-07* and destination.domain : *.campus.ac.in",
+      "filters": [
+        {
+          "meta": {"key": "host.name", "type": "phrase", "params": {"query": "vuln-scan-01"}},
+          "query": {"match_phrase": {"host.name": "vuln-scan-01"}}
+        },
+        {"meta": {"key": "user.name", "type": "exists", "value": "exists"}}
+      ],
+      "esql": "FROM logs-* | WHERE host.name IN (\"lab-pc-08\", \"lab-pc-09\") | SORT host.name DESC | LIMIT 5"
+    },
+    "kibana.alert.threshold_result": {"terms": [{"field": "user.name", "value": "ravi-k9"}], "count": 31},
+    "host": {"name": "lab-pc-07.campus.ac.in", "hostname": "lab-pc-07", "ip": ["10.1.2.3", "fd12:3456::7"]},
+    "user": {"name": "CAMPUSNB\\carol", "email": "Ivy Synthetic <ivy.s@campus.ac.in>", "id": "1000"},
+    "related": {"user": ["carol", "alice+lists@campus.ac.in"], "hosts": ["WS-ROOM-12$"]},
+    "source": {"ip": "10.1.2.3", "port": 52159, "site": {"department": "Dept-Q7", "zone": "hostel"}},
+    "destination": {"ip": "192.0.2.79", "domain": "www.campus-alt.org"},
+    "url": {
+      "original": "http://alice:hunter2@www.campus.ac.in/login?next=http%3A%2F%2F10.9.9.9%2Fp&hint=bob.k%2Bnews%40campus.ac.in&note=fake-secret",
+      "domain": "www.campus.ac.in"
+    },
+    "http": {"request": {"headers": {"authorization": "Basic YWxpY2U6c2VjcmV0LXgx"}}},
+    "file": {"path": "C:\\Users\\syn-judy\\AppData\\a.exe"},
+    "dns": {"question": {"name": "3.2.1.10.in-addr.arpa"}},
+    "event": {
+      "original": "lab-pc-07 squid: 010.001.002.003 ip-10-1-2-3 dump_10_1_2_3.pcap [IPv6:2001:db8::5] CN=carol,OU=Labs,DC=campus,DC=ac,DC=in Digest username=\"ravi-k9\", response=\"abc123\" basic authentication",
+      "action": "allowed"
+    },
+    "labels": {"lab-pc-07": "quarantined", "10.1.2.3": "seen"},
+    "user_agent": {"original": "Mozilla/5.0 Chrome/154.0.0.0 Safari/537.36"},
+    "fields": {"env": "prod"}
+  },
+  "request": {
+    "aggs": {
+      "by_host": {"terms": {"field": "host.name", "exclude": ["lab-pc-10"]}},
+      "pairs": {"composite": {"sources": [{"h": {"terms": {"field": "host.name"}}}, {"u": {"terms": {"field": "user.name"}}}]}},
+      "mt": {"multi_terms": {"terms": [{"field": "host.name"}, {"field": "user.name"}]}}
+    }
+  },
+  "response": {
+    "aggregations": {
+      "by_host": {"buckets": [{"key": "lab-pc-11", "doc_count": 3}]},
+      "pairs": {"after_key": {"h": "lab-pc-12", "u": "ravi-k9"}, "buckets": [{"key": {"h": "lab-pc-12", "u": "ravi-k9"}, "doc_count": 1}]},
+      "mt": {"buckets": [{"key": ["lab-pc-13", "dana-x"], "key_as_string": "lab-pc-13|dana-x", "doc_count": 2}]}
+    }
+  }
+}

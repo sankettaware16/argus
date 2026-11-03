@@ -1,0 +1,9 @@
+[Unit]
+Description=ARGUS retention purge at 04:30 IST, after the nightly dump and the weekly drill (Q-A4; custody layout, Q-A5)
+
+[Timer]
+OnCalendar=*-*-* 23:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

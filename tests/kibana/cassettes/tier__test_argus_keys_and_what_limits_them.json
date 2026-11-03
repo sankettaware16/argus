@@ -1,0 +1,245 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "argus-alert-writer": {
+     "descriptors": {
+      "argus_alert_writer": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "feature_siemV2.read"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "description": null,
+       "global": {},
+       "indices": [
+        {
+         "allow_restricted_indices": false,
+         "field_security": null,
+         "names": [
+          ".alerts-security.alerts-acme-soc",
+          ".internal.alerts-security.alerts-acme-soc-*"
+         ],
+         "other": {},
+         "privileges": [
+          "index",
+          "maintenance",
+          "read",
+          "view_index_metadata"
+         ],
+         "query": null
+        }
+       ],
+       "metadata": {},
+       "other": {},
+       "remote_cluster": [],
+       "remote_indices": [],
+       "restriction": null,
+       "run_as": []
+      }
+     },
+     "expires": true,
+     "limited_by": [
+      "argus_alert_writer",
+      "argus_cases_writer",
+      "argus_es_reader",
+      "argus_kibana_reader"
+     ]
+    },
+    "argus-cases-writer": {
+     "descriptors": {
+      "argus_cases_writer": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "feature_securitySolutionCasesV3.all",
+          "feature_siemV2.read"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "description": null,
+       "global": {},
+       "indices": [],
+       "metadata": {},
+       "other": {},
+       "remote_cluster": [],
+       "remote_indices": [],
+       "restriction": null,
+       "run_as": []
+      }
+     },
+     "expires": true,
+     "limited_by": [
+      "argus_alert_writer",
+      "argus_cases_writer",
+      "argus_es_reader",
+      "argus_kibana_reader"
+     ]
+    },
+    "argus-cases-writer-actions": {
+     "descriptors": {
+      "argus_cases_writer_actions": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "alerting:siem.eqlRule/siem/alert/get",
+          "alerting:siem.esqlRule/siem/alert/get",
+          "alerting:siem.indicatorRule/siem/alert/get",
+          "alerting:siem.mlRule/siem/alert/get",
+          "alerting:siem.newTermsRule/siem/alert/get",
+          "alerting:siem.notifications/siem/alert/get",
+          "alerting:siem.queryRule/siem/alert/get",
+          "alerting:siem.savedQueryRule/siem/alert/get",
+          "alerting:siem.thresholdRule/siem/alert/get",
+          "cases:securitySolution/createCase",
+          "cases:securitySolution/createComment",
+          "cases:securitySolution/findConfigurations",
+          "cases:securitySolution/getCase",
+          "cases:securitySolution/getComment",
+          "cases:securitySolution/getReporters",
+          "cases:securitySolution/getTags",
+          "cases:securitySolution/getUserActions",
+          "cases:securitySolution/reopenCase",
+          "cases:securitySolution/updateCase",
+          "login:"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "description": null,
+       "global": {},
+       "indices": [],
+       "metadata": {},
+       "other": {},
+       "remote_cluster": [],
+       "remote_indices": [],
+       "restriction": null,
+       "run_as": []
+      }
+     },
+     "expires": true,
+     "limited_by": [
+      "argus_alert_writer",
+      "argus_cases_writer",
+      "argus_es_reader",
+      "argus_kibana_reader"
+     ]
+    },
+    "argus-kibana-reader": {
+     "descriptors": {
+      "argus_kibana_reader": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "feature_securitySolutionCasesV3.read"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "description": null,
+       "global": {},
+       "indices": [],
+       "metadata": {},
+       "other": {},
+       "remote_cluster": [],
+       "remote_indices": [],
+       "restriction": null,
+       "run_as": []
+      }
+     },
+     "expires": true,
+     "limited_by": [
+      "argus_alert_writer",
+      "argus_cases_writer",
+      "argus_es_reader",
+      "argus_kibana_reader"
+     ]
+    },
+    "argus-reader": {
+     "descriptors": {
+      "argus_reader": {
+       "applications": [],
+       "cluster": [
+        "monitor"
+       ],
+       "description": null,
+       "global": {},
+       "indices": [
+        {
+         "allow_restricted_indices": false,
+         "field_security": null,
+         "names": [
+          ".alerts-security.alerts-acme-soc",
+          ".internal.alerts-security.alerts-acme-soc-*",
+          "abuse-ioc",
+          "acme-logs-*",
+          "acme-threat-intel"
+         ],
+         "other": {},
+         "privileges": [
+          "read",
+          "view_index_metadata"
+         ],
+         "query": null
+        }
+       ],
+       "metadata": {},
+       "other": {},
+       "remote_cluster": [],
+       "remote_indices": [],
+       "restriction": null,
+       "run_as": []
+      }
+     },
+     "expires": true,
+     "limited_by": [
+      "argus_alert_writer",
+      "argus_cases_writer",
+      "argus_es_reader",
+      "argus_kibana_reader"
+     ]
+    }
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "username",
+     "argus"
+    ],
+    [
+     "active_only",
+     "true"
+    ],
+    [
+     "with_limited_by",
+     "true"
+    ]
+   ],
+   "path": "/_security/api_key",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

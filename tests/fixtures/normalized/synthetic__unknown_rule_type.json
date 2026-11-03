@@ -1,0 +1,77 @@
+{
+  "adapter": "generic",
+  "alert_id": "9999999999999999999999999999999999999999999999999999999999999999",
+  "ancestors": [
+    {
+      "depth": 0,
+      "id": "vVF1nEwwZiRYhs__5e0w",
+      "index": "acme-logs-squid-2026.10.08",
+      "kind": "concrete",
+      "type": "event"
+    }
+  ],
+  "building_block": false,
+  "detected_at": "2026-10-08T22:48:38.612000Z",
+  "detection_lag": "PT0S",
+  "entities": [
+    {
+      "field": "source.ip",
+      "kind": "ip",
+      "value": "10.148.212.157"
+    },
+    {
+      "field": "destination.ip",
+      "kind": "ip",
+      "value": "33.178.85.107"
+    }
+  ],
+  "event_time": "2026-10-08T22:48:38.612000Z",
+  "event_time_approximate": true,
+  "evidence_window": {
+    "approximate": true,
+    "basis": "point",
+    "end": "2026-10-08T22:48:38.612000Z",
+    "start": "2026-10-08T22:48:38.612000Z"
+  },
+  "execution_type": "scheduled",
+  "execution_uuid": "86be99d9-c7f2-708e-17b4-183208e61782",
+  "field_issues": [
+    {
+      "field": "kibana.alert.original_time",
+      "issue": "missing_time"
+    }
+  ],
+  "fingerprint": "e4bd51877a72083b76f2c6f791743f765cd1bb3b3c56ff2d8a561a1f0a50f9d1",
+  "group_key": {
+    "canonical": "[[\"destination.ip\",\"33.178.85.107\"],[\"source.ip\",\"10.148.212.157\"]]",
+    "fields": [
+      "source.ip",
+      "destination.ip"
+    ],
+    "missing_fields_strategy": "suppress",
+    "singleton": null,
+    "source": "generic",
+    "values": [
+      "10.148.212.157",
+      "33.178.85.107"
+    ]
+  },
+  "index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "intended_timestamp": "2026-10-08T22:48:38.612000Z",
+  "max_signals": 100,
+  "normalizer_version": "1.1.0",
+  "original_time": null,
+  "risk_score": 99.0,
+  "rule_id": "72fc3179-acbe-4f20-b063-dbefd3b661bb",
+  "rule_name": "CERT-X D-UNIV PS1Bot IOC match",
+  "rule_revision": 1,
+  "rule_type": "unknown",
+  "rule_type_raw": "future_rule_type",
+  "rule_uuid": "106242ec-d69e-4ff8-ad5a-507f728c1d8f",
+  "sequence_group_id": null,
+  "severity": "critical",
+  "time_anomalies": [],
+  "time_basis": "intended_timestamp",
+  "time_fallback": true,
+  "workflow_status": "open"
+}

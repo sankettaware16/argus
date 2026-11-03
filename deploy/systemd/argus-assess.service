@@ -1,0 +1,14 @@
+[Unit]
+Description=ARGUS assess (Phase 2: proposed outcomes)
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus assess run --every 120 --agent --agent-per-day 400 --agent-batch 3 --tuning
+Restart=always
+RestartSec=30
+MemoryMax=1G
+Nice=10
+
+[Install]
+WantedBy=default.target

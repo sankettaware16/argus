@@ -1,0 +1,704 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "tier-elkadmin@tier.argus.invalid",
+    "enabled": true,
+    "full_name": "Tier Elkadmin",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "f80419a4-cf1b-505f-8c99-2319b9333e55"
+    },
+    "roles": [
+     "acme_elk_admin"
+    ],
+    "username": "tier-elkadmin"
+   },
+   "as": "user:tier-elkadmin",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": true,
+       "cases:securitySolution/createComment": true,
+       "cases:securitySolution/reopenCase": true,
+       "cases:securitySolution/updateCase": true,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": true,
+       "ui:securitySolutionCasesV3/create_cases": true,
+       "ui:securitySolutionCasesV3/create_comment": true,
+       "ui:securitySolutionCasesV3/update_cases": true,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": true,
+     "manage": false,
+     "manage_api_key": true,
+     "manage_security": true,
+     "manage_service_account": true
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": true
+     }
+    },
+    "username": "tier-elkadmin"
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "tier-superuser@tier.argus.invalid",
+    "enabled": true,
+    "full_name": "Tier Superuser",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "7039ec26-e74a-5c0a-8e70-25a9de397eb0"
+    },
+    "roles": [
+     "superuser"
+    ],
+    "username": "tier-superuser"
+   },
+   "as": "user:tier-superuser",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": true,
+       "argus:approve": true
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": true,
+       "cases:securitySolution/createComment": true,
+       "cases:securitySolution/reopenCase": true,
+       "cases:securitySolution/updateCase": true,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": true,
+       "ui:securitySolutionCasesV3/create_cases": true,
+       "ui:securitySolutionCasesV3/create_comment": true,
+       "ui:securitySolutionCasesV3/update_cases": true,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": true,
+     "grant_api_key": true,
+     "manage": true,
+     "manage_api_key": true,
+     "manage_security": true,
+     "manage_service_account": true
+    },
+    "has_all_requested": true,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": true,
+      "maintenance": true,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": true
+     }
+    },
+    "username": "tier-superuser"
+   },
+   "as": "user:tier-superuser",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "role": {
+     "created": true
+    }
+   },
+   "as": "elastic",
+   "body": {
+    "cluster": [
+     "manage_api_key"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/role/t-<run>-kadm",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [
+      {
+       "names": [
+        ".alerts-security.alerts-acme-soc",
+        ".internal.alerts-security.alerts-acme-soc-*"
+       ],
+       "privileges": [
+        "read",
+        "view_index_metadata"
+       ]
+      }
+     ],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "read"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-kadm-v",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "kadm@run.argus.invalid",
+    "full_name": "Run kadm",
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-kadm-v",
+     "t-<run>-kadm"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-kadm",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "kadm@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run kadm",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-kadm-v",
+     "t-<run>-kadm"
+    ],
+    "username": "t-<run>-kadm"
+   },
+   "as": "run-user:kadm",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": true,
+     "manage": false,
+     "manage_api_key": true,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "t-<run>-kadm"
+   },
+   "as": "run-user:kadm",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "authentication_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "authentication_type": "realm",
+    "email": "kadm@run.argus.invalid",
+    "enabled": true,
+    "full_name": "Run kadm",
+    "lookup_realm": {
+     "name": "default_native",
+     "type": "native"
+    },
+    "metadata": {
+     "argus_uid": "<uuid:1>"
+    },
+    "roles": [
+     "t-<run>-kadm-v",
+     "t-<run>-kadm"
+    ],
+    "username": "t-<run>-kadm"
+   },
+   "as": "run-user:kadm",
+   "method": "GET",
+   "path": "/_security/_authenticate",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "application": {
+     "argus": {
+      "*": {
+       "argus:admin": false,
+       "argus:approve": false
+      }
+     },
+     "kibana-.kibana": {
+      "space:acme-soc": {
+       "cases:securitySolution/createCase": false,
+       "cases:securitySolution/createComment": false,
+       "cases:securitySolution/reopenCase": false,
+       "cases:securitySolution/updateCase": false,
+       "login:": true,
+       "ui:securitySolutionCasesV3/case_reopen": false,
+       "ui:securitySolutionCasesV3/create_cases": false,
+       "ui:securitySolutionCasesV3/create_comment": false,
+       "ui:securitySolutionCasesV3/update_cases": false,
+       "ui:siemV2/show": true
+      }
+     }
+    },
+    "cluster": {
+     "all": false,
+     "grant_api_key": true,
+     "manage": false,
+     "manage_api_key": true,
+     "manage_security": false,
+     "manage_service_account": false
+    },
+    "has_all_requested": false,
+    "index": {
+     ".alerts-security.alerts-acme-soc": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     ".internal.alerts-security.alerts-acme-soc-*": {
+      "index": false,
+      "maintenance": false,
+      "read": true
+     },
+     "acme-logs-*": {
+      "read": false
+     }
+    },
+    "username": "t-<run>-kadm"
+   },
+   "as": "run-user:kadm",
+   "body": {
+    "application": [
+     {
+      "application": "kibana-.kibana",
+      "privileges": [
+       "cases:securitySolution/createCase",
+       "cases:securitySolution/createComment",
+       "cases:securitySolution/reopenCase",
+       "cases:securitySolution/updateCase",
+       "login:",
+       "ui:securitySolutionCasesV3/case_reopen",
+       "ui:securitySolutionCasesV3/create_cases",
+       "ui:securitySolutionCasesV3/create_comment",
+       "ui:securitySolutionCasesV3/update_cases",
+       "ui:siemV2/show"
+      ],
+      "resources": [
+       "space:acme-soc"
+      ]
+     },
+     {
+      "application": "argus",
+      "privileges": [
+       "argus:admin",
+       "argus:approve"
+      ],
+      "resources": [
+       "*"
+      ]
+     }
+    ],
+    "cluster": [
+     "all",
+     "manage",
+     "manage_security",
+     "manage_api_key",
+     "grant_api_key",
+     "manage_service_account"
+    ],
+    "index": [
+     {
+      "names": [
+       ".alerts-security.alerts-acme-soc"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       ".internal.alerts-security.alerts-acme-soc-*"
+      ],
+      "privileges": [
+       "index",
+       "maintenance",
+       "read"
+      ]
+     },
+     {
+      "names": [
+       "acme-logs-*"
+      ],
+      "privileges": [
+       "read"
+      ]
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/_security/user/_has_privileges",
+   "status": 200,
+   "target": "es"
+  }
+ ],
+ "format": 1
+}

@@ -1,0 +1,310 @@
+{
+  "_id": "45bf2c0b9159d3c8322ef0d520220ab969bbf1ae25f36b3f0519437c7a7a5e53",
+  "_index": ".internal.alerts-security.alerts-acme-univcc-000009",
+  "_source": {
+    "@timestamp": "2026-10-09T12:23:38.306Z",
+    "destination": {
+      "as": {
+        "number": 9498,
+        "organization": {
+          "name": "BHARTI Airtel Ltd."
+        }
+      },
+      "bytes": 658,
+      "geo": {
+        "country_iso_code": "IN",
+        "country_name": "India",
+        "location": {
+          "lat": 21.9974,
+          "lon": 79.0011
+        }
+      },
+      "ip": "65.197.113.233"
+    },
+    "ecs": {
+      "version": "8.11.0"
+    },
+    "event": {
+      "action": "TCP_MISS",
+      "category": "web",
+      "duration": 21,
+      "ingested": "2026-10-09T12:19:30.453261+00:00",
+      "module": "squid",
+      "original": "2026-10-09T17:49:30+00:00 klgcvcso (squid-2)[1855]: 1791548370.596     21 10.114.228.193:58686 198.18.1.136:29273 TCP_MISS/200 658 POST http://65.197.113.233/app2/gateway_instance/inactive_count - ORIGINAL_DST/65.197.113.233 application/json",
+      "outcome": "success",
+      "timestamp_source": "log",
+      "type": "access"
+    },
+    "event.kind": "signal",
+    "host": {
+      "name": "klgcvcso"
+    },
+    "http": {
+      "request": {
+        "method": "POST"
+      },
+      "response": {
+        "mime_type": "application/json",
+        "status_code": 200
+      }
+    },
+    "kibana.alert.ancestors": [
+      {
+        "depth": 0,
+        "id": "LM3ekFBgDsiQqJJLKRpE",
+        "index": "acme-logs-squid-2026.10.09",
+        "type": "event"
+      }
+    ],
+    "kibana.alert.depth": 1,
+    "kibana.alert.intended_timestamp": "2026-10-09T12:23:38.306Z",
+    "kibana.alert.last_detected": "2026-10-09T12:23:38.504Z",
+    "kibana.alert.original_event.action": "TCP_MISS",
+    "kibana.alert.original_event.category": "web",
+    "kibana.alert.original_event.duration": 21,
+    "kibana.alert.original_event.ingested": "2026-10-09T12:19:30.453261+00:00",
+    "kibana.alert.original_event.kind": "event",
+    "kibana.alert.original_event.module": "squid",
+    "kibana.alert.original_event.original": "2026-10-09T17:49:30+00:00 klgcvcso (squid-2)[1855]: 1791548370.596     21 10.114.228.193:58686 198.18.1.136:29273 TCP_MISS/200 658 POST http://65.197.113.233/app2/gateway_instance/inactive_count - ORIGINAL_DST/65.197.113.233 application/json",
+    "kibana.alert.original_event.outcome": "success",
+    "kibana.alert.original_event.timestamp_source": "log",
+    "kibana.alert.original_event.type": "access",
+    "kibana.alert.original_time": "2026-10-09T12:19:30.596Z",
+    "kibana.alert.reason": "web event with process squid-2, source 10.114.228.193:58686, destination 65.197.113.233 on klgcvcso created low alert Proxy: Plain-HTTP POST to Raw IP Address (Possible C2 Beacon).",
+    "kibana.alert.risk_score": 35,
+    "kibana.alert.rule.actions": [],
+    "kibana.alert.rule.author": [
+      "ACME"
+    ],
+    "kibana.alert.rule.category": "Custom Query Rule",
+    "kibana.alert.rule.consumer": "siem",
+    "kibana.alert.rule.created_at": "2026-10-05T09:22:51.235Z",
+    "kibana.alert.rule.created_by": "elastic",
+    "kibana.alert.rule.description": "Detects an HTTP POST sent through the proxy directly to an IP address (no hostname in the URL, so destination.domain is absent) over unencrypted HTTP. Malware command-and-control and data-exfiltration channels frequently POST to hard-coded IPs; legitimate software mostly uses hostnames and TLS. Private/CGNAT ranges and Telegram Messenger (which POSTs to raw IPs by design and dominates the baseline) are excluded. Baseline on 2026-10-05: ~540 events/hour from ~70 hosts after exclusions, mostly vendor telemetry (pollmessage, fdsupdate) plus a few one-host beacons worth investigating.",
+    "kibana.alert.rule.enabled": true,
+    "kibana.alert.rule.exceptions_list": [],
+    "kibana.alert.rule.execution.timestamp": "2026-10-09T12:23:38.504Z",
+    "kibana.alert.rule.execution.type": "scheduled",
+    "kibana.alert.rule.execution.uuid": "7cdf34ac-9a94-7dfd-a2f8-fde674132470",
+    "kibana.alert.rule.false_positives": [],
+    "kibana.alert.rule.from": "now-11m",
+    "kibana.alert.rule.immutable": false,
+    "kibana.alert.rule.indices": [
+      "acme-logs-squid*"
+    ],
+    "kibana.alert.rule.interval": "10m",
+    "kibana.alert.rule.license": "",
+    "kibana.alert.rule.max_signals": 100,
+    "kibana.alert.rule.meta.created_from": "CC_Report_Writer proxy baseline 2026-10-05",
+    "kibana.alert.rule.name": "Proxy: Plain-HTTP POST to Raw IP Address (Possible C2 Beacon)",
+    "kibana.alert.rule.note": "### Investigation Steps\n1. Review `url.original` path and `destination.ip`. Reputation-check the IP (AbuseIPDB, VirusTotal, GreyNoise) and note `destination.as.organization.name` / country.\n2. How many internal hosts POST to this IP? Many hosts + vendor-looking path (pollmessage, fdsupdate, heartbeat) = device telemetry. One host + odd path (e.g. /index.php, /gate.php, random string) = treat as suspected C2.\n3. Check periodicity: regular intervals with similar `source.bytes` strongly suggests a beacon.\n4. Pivot the host in nginx/DNS logs and request an endpoint check.\n\n### False positives\nIoT/printer telemetry, Chinese phone vendor push services, internal services on public IPs. Add confirmed-benign destination IPs to the exception list; alerts are suppressed per source/destination pair for 24h.",
+    "kibana.alert.rule.parameters": {
+      "alert_suppression": {
+        "duration": {
+          "unit": "h",
+          "value": 24
+        },
+        "group_by": [
+          "source.ip",
+          "destination.ip"
+        ],
+        "missing_fields_strategy": "suppress"
+      },
+      "author": [
+        "ACME"
+      ],
+      "description": "Detects an HTTP POST sent through the proxy directly to an IP address (no hostname in the URL, so destination.domain is absent) over unencrypted HTTP. Malware command-and-control and data-exfiltration channels frequently POST to hard-coded IPs; legitimate software mostly uses hostnames and TLS. Private/CGNAT ranges and Telegram Messenger (which POSTs to raw IPs by design and dominates the baseline) are excluded. Baseline on 2026-10-05: ~540 events/hour from ~70 hosts after exclusions, mostly vendor telemetry (pollmessage, fdsupdate) plus a few one-host beacons worth investigating.",
+      "exceptions_list": [],
+      "false_positives": [],
+      "filters": [],
+      "from": "now-11m",
+      "immutable": false,
+      "index": [
+        "acme-logs-squid*"
+      ],
+      "investigation_fields": {
+        "field_names": [
+          "source.ip",
+          "destination.ip",
+          "url.original",
+          "destination.as.organization.name",
+          "destination.geo.country_name",
+          "source.bytes"
+        ]
+      },
+      "language": "kuery",
+      "license": "",
+      "max_signals": 100,
+      "meta": {
+        "created_from": "CC_Report_Writer proxy baseline 2026-10-05"
+      },
+      "note": "### Investigation Steps\n1. Review `url.original` path and `destination.ip`. Reputation-check the IP (AbuseIPDB, VirusTotal, GreyNoise) and note `destination.as.organization.name` / country.\n2. How many internal hosts POST to this IP? Many hosts + vendor-looking path (pollmessage, fdsupdate, heartbeat) = device telemetry. One host + odd path (e.g. /index.php, /gate.php, random string) = treat as suspected C2.\n3. Check periodicity: regular intervals with similar `source.bytes` strongly suggests a beacon.\n4. Pivot the host in nginx/DNS logs and request an endpoint check.\n\n### False positives\nIoT/printer telemetry, Chinese phone vendor push services, internal services on public IPs. Add confirmed-benign destination IPs to the exception list; alerts are suppressed per source/destination pair for 24h.",
+      "query": "network.protocol:\"http\" and http.request.method:\"POST\" and destination.ip:* and not destination.domain:* and not destination.ip:(10.0.0.0/8 or 172.16.0.0/12 or 192.168.0.0/16 or 100.64.0.0/10) and not destination.as.organization.name.keyword:\"Telegram Messenger Inc\"",
+      "references": [],
+      "related_integrations": [],
+      "required_fields": [],
+      "risk_score": 35,
+      "risk_score_mapping": [],
+      "rule_id": "37364405-84e0-4e3d-bb90-f56e21218e64",
+      "rule_source": {
+        "type": "internal"
+      },
+      "setup": "",
+      "severity": "low",
+      "severity_mapping": [],
+      "threat": [
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0011",
+            "name": "Command and Control",
+            "reference": "https://attack.mitre.org/tactics/TA0011/"
+          },
+          "technique": [
+            {
+              "id": "T1071",
+              "name": "Application Layer Protocol",
+              "reference": "https://attack.mitre.org/techniques/T1071/",
+              "subtechnique": [
+                {
+                  "id": "T1071.001",
+                  "name": "Web Protocols",
+                  "reference": "https://attack.mitre.org/techniques/T1071/001/"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "framework": "MITRE ATT&CK",
+          "tactic": {
+            "id": "TA0010",
+            "name": "Exfiltration",
+            "reference": "https://attack.mitre.org/tactics/TA0010/"
+          },
+          "technique": [
+            {
+              "id": "T1041",
+              "name": "Exfiltration Over C2 Channel",
+              "reference": "https://attack.mitre.org/techniques/T1041/",
+              "subtechnique": []
+            }
+          ]
+        }
+      ],
+      "to": "now",
+      "type": "query",
+      "version": 1
+    },
+    "kibana.alert.rule.producer": "siem",
+    "kibana.alert.rule.references": [],
+    "kibana.alert.rule.revision": 0,
+    "kibana.alert.rule.risk_score": 35,
+    "kibana.alert.rule.risk_score_mapping": [],
+    "kibana.alert.rule.rule_id": "37364405-84e0-4e3d-bb90-f56e21218e64",
+    "kibana.alert.rule.rule_type_id": "siem.queryRule",
+    "kibana.alert.rule.severity": "low",
+    "kibana.alert.rule.severity_mapping": [],
+    "kibana.alert.rule.tags": [
+      "Proxy",
+      "Squid",
+      "ACME",
+      "Command-and-Control",
+      "Beaconing"
+    ],
+    "kibana.alert.rule.threat": [
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0011",
+          "name": "Command and Control",
+          "reference": "https://attack.mitre.org/tactics/TA0011/"
+        },
+        "technique": [
+          {
+            "id": "T1071",
+            "name": "Application Layer Protocol",
+            "reference": "https://attack.mitre.org/techniques/T1071/",
+            "subtechnique": [
+              {
+                "id": "T1071.001",
+                "name": "Web Protocols",
+                "reference": "https://attack.mitre.org/techniques/T1071/001/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "tactic": {
+          "id": "TA0010",
+          "name": "Exfiltration",
+          "reference": "https://attack.mitre.org/tactics/TA0010/"
+        },
+        "technique": [
+          {
+            "id": "T1041",
+            "name": "Exfiltration Over C2 Channel",
+            "reference": "https://attack.mitre.org/techniques/T1041/",
+            "subtechnique": []
+          }
+        ]
+      }
+    ],
+    "kibana.alert.rule.to": "now",
+    "kibana.alert.rule.type": "query",
+    "kibana.alert.rule.updated_at": "2026-10-05T09:23:03.136Z",
+    "kibana.alert.rule.updated_by": "elastic",
+    "kibana.alert.rule.uuid": "8cdb386a-e998-412e-bf57-db0ecbefefb7",
+    "kibana.alert.rule.version": 1,
+    "kibana.alert.severity": "low",
+    "kibana.alert.start": "2026-10-09T12:23:38.504Z",
+    "kibana.alert.status": "active",
+    "kibana.alert.uuid": "45bf2c0b9159d3c8322ef0d520220ab969bbf1ae25f36b3f0519437c7a7a5e53",
+    "kibana.alert.workflow_assignee_ids": [],
+    "kibana.alert.workflow_status": "open",
+    "kibana.alert.workflow_tags": [],
+    "kibana.space_ids": [
+      "acme-univcc"
+    ],
+    "kibana.version": "8.19.12",
+    "network": {
+      "protocol": "http",
+      "transport": "tcp"
+    },
+    "observer": {
+      "dept": "org-7zadsgjk",
+      "env": "production",
+      "hostname": "klgcvcso",
+      "ingress": {
+        "interface": {
+          "id": "29273"
+        }
+      },
+      "ip": "198.18.1.136",
+      "org": "univ",
+      "product": "Squid Proxy",
+      "server": "emlnapoe",
+      "source_host": "emlnapoe",
+      "source_program": "squid",
+      "type": "proxy",
+      "vendor": "Squid"
+    },
+    "process": {
+      "name": "squid-2",
+      "pid": 1855
+    },
+    "service": {
+      "type": "proxy"
+    },
+    "service_name": "squid",
+    "source": {
+      "ip": "10.114.228.193",
+      "port": 58686
+    },
+    "url": {
+      "original": "http://65.197.113.233/app2/gateway_instance/inactive_count"
+    }
+  }
+}

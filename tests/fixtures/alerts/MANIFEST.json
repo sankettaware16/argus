@@ -1,0 +1,57 @@
+{
+  "ambiguous_identifiers": 0,
+  "denylist_size": 39501,
+  "denylist_sources": [
+    "harvested identifiers",
+    "data/assets/asset_map.yaml",
+    "config/fixtures.yaml denylist_extra + literals"
+  ],
+  "files": {
+    "esql__automated_vulnerability_scanning.json": {
+      "rule_type": "esql",
+      "sha256": "4d91c3b25ad10fd4c436c80be687352c24a1e8f648dc558952d73c8b45291955",
+      "source_sha256": "962a3467a756183c955670c585ebe71bc82d94d6c32949c78b3f4a9974c71082"
+    },
+    "esql__sensitive_path_enumeration.json": {
+      "rule_type": "esql",
+      "sha256": "0fe55bb1c4aa5c68ac1a647480a8ad85b26444be7c2d1591e08b9011b5bbc9c4",
+      "source_sha256": "8b6c903e619ebf0a8fdf39de0821f53be280d9c91436836b94a322a3d0933ef8"
+    },
+    "query__proxy_allowed_tunnel_to_remote_admin_or_anonymizer_port.json": {
+      "rule_type": "query",
+      "sha256": "aba27746a80688c341d22f10bff3727d04fc00746bc60a7bd6341521b9a04068",
+      "source_sha256": "ece3940cb7827e4af0049dd2ded398e0f4a4fd9f0a10cdc198e02d780e867f31"
+    },
+    "query__proxy_executable_or_script_download_over_plain_http.json": {
+      "rule_type": "query",
+      "sha256": "321810ac554c0f052d44a810a770c38537ff9198b558065d06ca3b302ad9a79c",
+      "source_sha256": "13f26353fdbcccf1d6e0f5b0ba5b0fdb772ccda1f2e7c25b668ba31e10671d66"
+    },
+    "query__proxy_plain_http_post_to_raw_ip_address_possible_c2_beacon.json": {
+      "rule_type": "query",
+      "sha256": "02b03f892d0b66ce7052fcb58f680a8dfa506c13420dcf094a38faa55e04e43c",
+      "source_sha256": "2f42abeb5bfb68ec18e5cacf1a5b9d0471ae55d6523c737ae6e47683fc328ccb"
+    },
+    "query__waf_injection_payload_blocked_in_request_parameters_or_body.json": {
+      "rule_type": "query",
+      "sha256": "ddbc4c52ea7be0dc43edeac3de3bfc661ed0b30094f11f876e80cba8239dbbc5",
+      "source_sha256": "519bd782b189290c2f01dd713234e64b0daef0525cddf26415fd2957b575290d"
+    },
+    "threat_match__cert_x_d_univ_ps1bot_ioc_match.json": {
+      "rule_type": "threat_match",
+      "sha256": "f247c4f34b9ea3ba9e4300453ec891aefd46e13e9b3b12b926a5ba7ea4c71ad8",
+      "source_sha256": "b3e74797bf4f84c52907334274ae59e1cc62b1f1f7064355a1ad1f66c8cb3646"
+    },
+    "threshold__proxy_excessive_blocked_requests_from_single_host.json": {
+      "rule_type": "threshold",
+      "sha256": "aeefaf5a52a7ef40992b62affc3a67fd32f7491e868c5d2a35977ac862e7bbd2",
+      "source_sha256": "633f425f218189b7a35fb081b2aaa00f5713ae9a9593f5b13193a7dfb5d2c178"
+    }
+  },
+  "harvest_sources": [
+    "reference/alert*.json (8 files)"
+  ],
+  "key_fingerprint": "11bdc9bc987fbd16",
+  "policy_sha256": "8795b5773bc834a5f1d5ef48db07d623065ee186002f8a02f26baf4c640593d1",
+  "sanitizer_version": "2.3.0"
+}

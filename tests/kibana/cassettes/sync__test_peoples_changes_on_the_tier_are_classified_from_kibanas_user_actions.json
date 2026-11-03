@@ -1,0 +1,3397 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "name": "argus-kibana",
+    "status": {
+     "overall": {
+      "level": "available",
+      "summary": "All services and plugins are available"
+     }
+    },
+    "version": {
+     "build_date": "<time>",
+     "build_flavor": "traditional",
+     "build_hash": "a2a93735478172a315d2ced4aded3024cc029648",
+     "build_number": 87025,
+     "build_snapshot": false,
+     "number": "8.19.12"
+    }
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "path": "/s/acme-soc/api/status",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open"
+      ],
+      "title": "[ARGUS 7] read-back",
+      "totalAlerts": 0,
+      "totalComment": 0,
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:1>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 1,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-70ade2",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "_shards": {
+     "failed": 0,
+     "skipped": 0,
+     "successful": 1,
+     "total": 1
+    },
+    "hits": {
+     "hits": [],
+     "max_score": null
+    },
+    "timed_out": false,
+    "took": "<took>"
+   },
+   "as": "key:argus-reader",
+   "body": {
+    "_source": [
+     "kibana.alert.case_ids",
+     "kibana.alert.workflow_status",
+     "kibana.alert.workflow_status_updated_at",
+     "kibana.alert.workflow_user"
+    ],
+    "query": {
+     "bool": {
+      "filter": [
+       {
+        "terms": {
+         "kibana.alert.case_ids": [
+          "<uuid:2>"
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "size": 100,
+    "sort": [
+     {
+      "@timestamp": {
+       "order": "asc"
+      }
+     },
+     {
+      "kibana.alert.uuid": {
+       "order": "asc"
+      }
+     }
+    ],
+    "timeout": "10s",
+    "track_total_hits": false
+   },
+   "method": "POST",
+   "params": [
+    [
+     "allow_partial_search_results",
+     "false"
+    ],
+    [
+     "ignore_unavailable",
+     "false"
+    ],
+    [
+     "max_concurrent_shard_requests",
+     "1"
+    ]
+   ],
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:2>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:3>"
+   },
+   "as": "user:tier-analyst",
+   "body": {
+    "comment": "Called the host's owner.",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:3>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:3>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case ([ARGUS 7] read-back).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-70ade2",
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:owner:argus",
+      "argus:state:open",
+      "phishing"
+     ],
+     "title": "[ARGUS 7] read-back",
+     "totalAlerts": 0,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:5>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open",
+       "phishing"
+      ],
+      "version": "<version:3>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open",
+       "phishing"
+      ],
+      "title": "[ARGUS 7] read-back",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:5>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "sortField",
+     "updatedAt"
+    ],
+    [
+     "sortOrder",
+     "desc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:owner:argus",
+       "argus:state:open",
+       "phishing"
+      ],
+      "title": "[ARGUS 7] read-back",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:5>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 3,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-70ade2",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     },
+     {
+      "action": "create",
+      "comment_id": "<uuid:4>",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "payload": {
+       "comment": {
+        "comment": "Called the host's owner.",
+        "owner": "securitySolution",
+        "type": "user"
+       }
+      },
+      "type": "comment",
+      "version": "<version:6>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:6>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "phishing"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:7>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 1,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "1"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open",
+     "phishing"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:5>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:owner:argus",
+     "argus:state:open",
+     "phishing"
+    ],
+    "title": "[ARGUS 7] read-back",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:5>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case ([ARGUS 7] read-back).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-70ade2",
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:open",
+      "phishing",
+      "argus:owner:tier-analyst"
+     ],
+     "title": "Anita's title",
+     "totalAlerts": 0,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:8>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "title": "Anita's title",
+      "version": "<version:5>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:open",
+     "phishing",
+     "argus:owner:tier-analyst"
+    ],
+    "title": "Anita's title",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:8>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": "<time>",
+     "closed_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case ([ARGUS 7] read-back).",
+     "duration": "<duration>",
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "closed",
+     "tags": [
+      "run:<run>",
+      "t:<run>-70ade2",
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:open",
+      "phishing",
+      "argus:owner:tier-analyst"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": "<seconds>",
+     "time_to_resolve": "<seconds>",
+     "title": "Anita's title",
+     "totalAlerts": 0,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:9>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "status": "closed",
+      "version": "<version:8>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": "<time>",
+      "closed_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": "<duration>",
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "closed",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": "<seconds>",
+      "time_to_investigate": "<seconds>",
+      "time_to_resolve": "<seconds>",
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:9>"
+     }
+    ],
+    "count_closed_cases": 1,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "sortField",
+     "updatedAt"
+    ],
+    [
+     "sortOrder",
+     "desc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 1,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 1,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 7,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-70ade2",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     },
+     {
+      "action": "create",
+      "comment_id": "<uuid:4>",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "payload": {
+       "comment": {
+        "comment": "Called the host's owner.",
+        "owner": "securitySolution",
+        "type": "user"
+       }
+      },
+      "type": "comment",
+      "version": "<version:6>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:6>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "phishing"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:7>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:7>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:tier-analyst"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:10>"
+     },
+     {
+      "action": "delete",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:8>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:argus"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:11>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:9>",
+      "owner": "securitySolution",
+      "payload": {
+       "title": "Anita's title"
+      },
+      "type": "title",
+      "version": "<version:12>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:10>",
+      "owner": "securitySolution",
+      "payload": {
+       "status": "closed"
+      },
+      "type": "status",
+      "version": "<version:13>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": "<time>",
+      "closed_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": "<duration>",
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "closed",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": "<seconds>",
+      "time_to_investigate": "<seconds>",
+      "time_to_resolve": "<seconds>",
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:9>"
+     }
+    ],
+    "count_closed_cases": 1,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 0,
+    "page": 1,
+    "per_page": 1,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "1"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "closed",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:open",
+     "phishing",
+     "argus:owner:tier-analyst"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "Anita's title",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:9>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case ([ARGUS 7] read-back).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-70ade2",
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:open",
+      "phishing",
+      "argus:owner:tier-analyst"
+     ],
+     "time_to_acknowledge": null,
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "Anita's title",
+     "totalAlerts": 0,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:14>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "status": "open",
+      "version": "<version:9>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "Called the host's owner.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:4>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:4>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "customFields": [],
+    "description": "Contract test case ([ARGUS 7] read-back).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:2>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:open",
+     "phishing",
+     "argus:owner:tier-analyst"
+    ],
+    "time_to_acknowledge": null,
+    "time_to_investigate": null,
+    "time_to_resolve": null,
+    "title": "Anita's title",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "tier-analyst@tier.argus.invalid",
+     "full_name": "Tier Analyst",
+     "username": "tier-analyst"
+    },
+    "version": "<version:14>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:2>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "argus@tier.argus.invalid",
+      "full_name": "ARGUS",
+      "username": "argus"
+     },
+     "customFields": [],
+     "description": "Contract test case ([ARGUS 7] read-back).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:2>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": true
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-70ade2",
+      "argus",
+      "argus:case:<uuid:1>",
+      "argus:state:open",
+      "phishing",
+      "argus:owner:tier-analyst"
+     ],
+     "time_to_acknowledge": null,
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "Anita's title",
+     "totalAlerts": 0,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "tier-analyst@tier.argus.invalid",
+      "full_name": "Tier Analyst",
+      "username": "tier-analyst"
+     },
+     "version": "<version:15>"
+    }
+   ],
+   "as": "user:tier-analyst",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:2>",
+      "settings": {
+       "syncAlerts": true
+      },
+      "version": "<version:14>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": true
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": null,
+      "time_to_investigate": null,
+      "time_to_resolve": null,
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:15>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "sortField",
+     "updatedAt"
+    ],
+    [
+     "sortOrder",
+     "desc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": true
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": null,
+      "time_to_investigate": null,
+      "time_to_resolve": null,
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 1,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "version": "<version:15>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 9,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-70ade2",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     },
+     {
+      "action": "create",
+      "comment_id": "<uuid:4>",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "payload": {
+       "comment": {
+        "comment": "Called the host's owner.",
+        "owner": "securitySolution",
+        "type": "user"
+       }
+      },
+      "type": "comment",
+      "version": "<version:6>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:6>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "phishing"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:7>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:7>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:tier-analyst"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:10>"
+     },
+     {
+      "action": "delete",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:8>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:argus"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:11>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:9>",
+      "owner": "securitySolution",
+      "payload": {
+       "title": "Anita's title"
+      },
+      "type": "title",
+      "version": "<version:12>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:10>",
+      "owner": "securitySolution",
+      "payload": {
+       "status": "closed"
+      },
+      "type": "status",
+      "version": "<version:13>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:11>",
+      "owner": "securitySolution",
+      "payload": {
+       "status": "open"
+      },
+      "type": "status",
+      "version": "<version:16>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:12>",
+      "owner": "securitySolution",
+      "payload": {
+       "settings": {
+        "syncAlerts": true
+       }
+      },
+      "type": "settings",
+      "version": "<version:17>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 1,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "1"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "id": "<uuid:2>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": true
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-70ade2",
+     "argus",
+     "argus:case:<uuid:1>",
+     "argus:state:open",
+     "phishing",
+     "argus:owner:tier-analyst"
+    ],
+    "title": "Anita's title",
+    "totalAlerts": 0,
+    "totalComment": 2,
+    "updated_by": {
+     "email": "argus@tier.argus.invalid",
+     "full_name": "ARGUS",
+     "username": "argus"
+    },
+    "version": "<version:18>"
+   },
+   "as": "key:argus-cases-writer-actions",
+   "body": {
+    "comment": "unplanned",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:2>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": true
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": null,
+      "time_to_investigate": null,
+      "time_to_resolve": null,
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 2,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "version": "<version:18>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "sortField",
+     "updatedAt"
+    ],
+    [
+     "sortOrder",
+     "desc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "assignees": [],
+      "category": null,
+      "closed_at": null,
+      "closed_by": null,
+      "comments": [],
+      "connector": {
+       "fields": null,
+       "id": "none",
+       "name": "none",
+       "type": ".none"
+      },
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "customFields": [],
+      "description": "Contract test case ([ARGUS 7] read-back).",
+      "duration": null,
+      "external_service": null,
+      "id": "<uuid:2>",
+      "observables": [],
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": true
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-70ade2",
+       "argus",
+       "argus:case:<uuid:1>",
+       "argus:state:open",
+       "phishing",
+       "argus:owner:tier-analyst"
+      ],
+      "time_to_acknowledge": null,
+      "time_to_investigate": null,
+      "time_to_resolve": null,
+      "title": "Anita's title",
+      "totalAlerts": 0,
+      "totalComment": 2,
+      "updated_at": "<time>",
+      "updated_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "version": "<version:18>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "open"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "in-progress"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "page": 1,
+    "perPage": 100,
+    "total": 10,
+    "userActions": [
+     {
+      "action": "create",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:3>",
+      "owner": "securitySolution",
+      "payload": {
+       "assignees": [],
+       "category": null,
+       "connector": {
+        "fields": null,
+        "id": "none",
+        "name": "none",
+        "type": ".none"
+       },
+       "customFields": [],
+       "description": "Contract test case ([ARGUS 7] read-back).",
+       "owner": "securitySolution",
+       "settings": {
+        "syncAlerts": false
+       },
+       "severity": "low",
+       "status": "open",
+       "tags": [
+        "run:<run>",
+        "t:<run>-70ade2",
+        "argus",
+        "argus:case:<uuid:1>",
+        "argus:owner:argus",
+        "argus:state:open"
+       ],
+       "title": "[ARGUS 7] read-back"
+      },
+      "type": "create_case",
+      "version": "<version:2>"
+     },
+     {
+      "action": "create",
+      "comment_id": "<uuid:4>",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:5>",
+      "owner": "securitySolution",
+      "payload": {
+       "comment": {
+        "comment": "Called the host's owner.",
+        "owner": "securitySolution",
+        "type": "user"
+       }
+      },
+      "type": "comment",
+      "version": "<version:6>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:6>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "phishing"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:7>"
+     },
+     {
+      "action": "add",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:7>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:tier-analyst"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:10>"
+     },
+     {
+      "action": "delete",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:8>",
+      "owner": "securitySolution",
+      "payload": {
+       "tags": [
+        "argus:owner:argus"
+       ]
+      },
+      "type": "tags",
+      "version": "<version:11>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:9>",
+      "owner": "securitySolution",
+      "payload": {
+       "title": "Anita's title"
+      },
+      "type": "title",
+      "version": "<version:12>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:10>",
+      "owner": "securitySolution",
+      "payload": {
+       "status": "closed"
+      },
+      "type": "status",
+      "version": "<version:13>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:11>",
+      "owner": "securitySolution",
+      "payload": {
+       "status": "open"
+      },
+      "type": "status",
+      "version": "<version:16>"
+     },
+     {
+      "action": "update",
+      "comment_id": null,
+      "created_at": "<time>",
+      "created_by": {
+       "email": "tier-analyst@tier.argus.invalid",
+       "full_name": "Tier Analyst",
+       "username": "tier-analyst"
+      },
+      "id": "<uuid:12>",
+      "owner": "securitySolution",
+      "payload": {
+       "settings": {
+        "syncAlerts": true
+       }
+      },
+      "type": "settings",
+      "version": "<version:17>"
+     },
+     {
+      "action": "create",
+      "comment_id": "<uuid:13>",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "argus@tier.argus.invalid",
+       "full_name": "ARGUS",
+       "username": "argus"
+      },
+      "id": "<uuid:14>",
+      "owner": "securitySolution",
+      "payload": {
+       "comment": {
+        "comment": "unplanned",
+        "owner": "securitySolution",
+        "type": "user"
+       }
+      },
+      "type": "comment",
+      "version": "<version:19>"
+     }
+    ]
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:2>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 1,
+    "total": 0
+   },
+   "as": "key:argus-kibana-reader",
+   "method": "GET",
+   "params": [
+    [
+     "owner",
+     "securitySolution"
+    ],
+    [
+     "reporters",
+     "argus"
+    ],
+    [
+     "status",
+     "closed"
+    ],
+    [
+     "sortField",
+     "createdAt"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "page",
+     "1"
+    ],
+    [
+     "perPage",
+     "1"
+    ],
+    [
+     "tags",
+     "t:<run>-70ade2"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

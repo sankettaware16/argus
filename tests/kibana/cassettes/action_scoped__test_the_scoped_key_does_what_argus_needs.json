@@ -1,0 +1,874 @@
+{
+ "exchanges": [
+  {
+   "answer": {
+    "errors": false,
+    "n": 1
+   },
+   "as": "elastic",
+   "body": "{\"create\": {\"_index\": \"argus-tier-events\", \"_id\": \"<run>-0b287c-scoped-01\"}}\n{\"@timestamp\": \"<time>\", \"message\": \"tier event 1 of <run>-0b287c-scoped\", \"event\": {\"kind\": \"event\", \"category\": \"network\", \"outcome\": \"success\"}, \"source\": {\"ip\": \"192.0.2.11\"}, \"destination\": {\"ip\": \"198.51.100.7\", \"port\": 443}, \"host\": {\"name\": \"tier-host-1\"}, \"url\": {\"path\": \"/.env\"}, \"tier\": {\"run\": \"<run>-0b287c-scoped\", \"n\": 1}}\n",
+   "method": "POST",
+   "params": [
+    [
+     "refresh",
+     "true"
+    ]
+   ],
+   "path": "/_bulk",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "enabled": true,
+    "rule_id": "argus-tier-run-<run>-0b287c-scoped",
+    "type": "query"
+   },
+   "as": "elastic",
+   "body": {
+    "description": "Alerts on the tier's synthetic events of <run>-0b287c-scoped (ARGUS's Kibana tier).",
+    "enabled": true,
+    "from": "now-1h",
+    "index": [
+     "argus-tier-events"
+    ],
+    "interval": "1h",
+    "language": "kuery",
+    "max_signals": 100,
+    "name": "ARGUS tier run scoped",
+    "query": "tier.run: \"<run>-0b287c-scoped\"",
+    "risk_score": 47,
+    "rule_id": "argus-tier-run-<run>-0b287c-scoped",
+    "severity": "medium",
+    "tags": [
+     "argus-tier"
+    ],
+    "to": "now",
+    "type": "query"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/detection_engine/rules",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "_id": "<hex:1>",
+     "_index": ".internal.alerts-security.alerts-acme-soc-000001"
+    }
+   ],
+   "as": "elastic",
+   "body": {
+    "_source": [
+     "kibana.alert.workflow_status"
+    ],
+    "query": {
+     "term": {
+      "kibana.alert.rule.rule_id": "argus-tier-run-<run>-0b287c-scoped"
+     }
+    },
+    "size": 1,
+    "sort": [
+     {
+      "kibana.alert.original_time": "asc"
+     }
+    ]
+   },
+   "method": "POST",
+   "path": "/.alerts-security.alerts-acme-soc/_search",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": null,
+   "as": "elastic",
+   "body": {
+    "elasticsearch": {
+     "cluster": [],
+     "indices": [],
+     "run_as": []
+    },
+    "kibana": [
+     {
+      "base": [],
+      "feature": {
+       "securitySolutionCasesV3": [
+        "all"
+       ],
+       "siemV2": [
+        "read"
+       ]
+      },
+      "spaces": [
+       "acme-soc"
+      ]
+     }
+    ]
+   },
+   "method": "PUT",
+   "path": "/api/security/role/t-<run>-scoped-r",
+   "status": 204,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "created": true
+   },
+   "as": "elastic",
+   "body": {
+    "email": "scoped-o@run.argus.invalid",
+    "full_name": "Run scoped-o",
+    "password": "<secret>",
+    "roles": [
+     "t-<run>-scoped-r"
+    ]
+   },
+   "method": "PUT",
+   "path": "/_security/user/t-<run>-scoped-o",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "api_key": "<secret>",
+    "encoded": "<secret>",
+    "expiration": "<millis>",
+    "id": "<id:1>",
+    "name": "t-<run>-scoped"
+   },
+   "as": "user:tier-elkadmin",
+   "body": {
+    "api_key": {
+     "expiration": "1h",
+     "name": "t-<run>-scoped",
+     "role_descriptors": {
+      "scoped": {
+       "applications": [
+        {
+         "application": "kibana-.kibana",
+         "privileges": [
+          "login:",
+          "cases:securitySolution/createCase",
+          "cases:securitySolution/getCase",
+          "cases:securitySolution/getComment",
+          "cases:securitySolution/getTags",
+          "cases:securitySolution/getReporters",
+          "cases:securitySolution/getUserActions",
+          "cases:securitySolution/findConfigurations",
+          "cases:securitySolution/updateCase",
+          "cases:securitySolution/createComment",
+          "cases:securitySolution/reopenCase",
+          "alerting:siem.eqlRule/siem/alert/get",
+          "alerting:siem.esqlRule/siem/alert/get",
+          "alerting:siem.indicatorRule/siem/alert/get",
+          "alerting:siem.mlRule/siem/alert/get",
+          "alerting:siem.newTermsRule/siem/alert/get",
+          "alerting:siem.notifications/siem/alert/get",
+          "alerting:siem.queryRule/siem/alert/get",
+          "alerting:siem.savedQueryRule/siem/alert/get",
+          "alerting:siem.thresholdRule/siem/alert/get"
+         ],
+         "resources": [
+          "space:acme-soc"
+         ]
+        }
+       ],
+       "cluster": [],
+       "indices": []
+      }
+     }
+    },
+    "grant_type": "password",
+    "password": "<secret>",
+    "username": "t-<run>-scoped-o"
+   },
+   "method": "POST",
+   "path": "/_security/api_key/grant",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "customFields": [],
+    "description": "Contract test case (scoped writer).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c"
+    ],
+    "title": "scoped writer",
+    "totalAlerts": 0,
+    "totalComment": 0,
+    "updated_at": null,
+    "updated_by": null,
+    "version": "<version:1>"
+   },
+   "as": "run-key:scoped",
+   "body": {
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "description": "Contract test case (scoped writer).",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c"
+    ],
+    "title": "scoped writer"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "cases": [
+     {
+      "closed_by": null,
+      "created_by": {
+       "email": "scoped-o@run.argus.invalid",
+       "full_name": "Run scoped-o",
+       "username": "t-<run>-scoped-o"
+      },
+      "id": "<uuid:1>",
+      "owner": "securitySolution",
+      "settings": {
+       "syncAlerts": false
+      },
+      "severity": "low",
+      "status": "open",
+      "tags": [
+       "run:<run>",
+       "t:<run>-0b287c"
+      ],
+      "title": "scoped writer",
+      "totalAlerts": 0,
+      "totalComment": 0,
+      "updated_by": null,
+      "version": "<version:1>"
+     }
+    ],
+    "count_closed_cases": 0,
+    "count_in_progress_cases": 0,
+    "count_open_cases": 1,
+    "page": 1,
+    "per_page": 100,
+    "total": 1
+   },
+   "as": "run-key:scoped",
+   "method": "GET",
+   "params": [
+    [
+     "tags",
+     "t:<run>-0b287c"
+    ],
+    [
+     "sortField",
+     "title"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ],
+    [
+     "perPage",
+     "100"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/_find",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "customFields": [],
+     "description": "Contract test case (scoped writer).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-0b287c",
+      "argus"
+     ],
+     "title": "scoped writer",
+     "totalAlerts": 0,
+     "totalComment": 0,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "version": "<version:2>"
+    }
+   ],
+   "as": "run-key:scoped",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "tags": [
+       "run:<run>",
+       "t:<run>-0b287c",
+       "argus"
+      ],
+      "version": "<version:1>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c",
+     "argus"
+    ],
+    "title": "scoped writer",
+    "totalAlerts": 0,
+    "totalComment": 1,
+    "updated_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "version": "<version:3>"
+   },
+   "as": "run-key:scoped",
+   "body": {
+    "comment": "ARGUS's comment.",
+    "owner": "securitySolution",
+    "type": "user"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "closed_by": null,
+    "created_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "id": "<uuid:1>",
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c",
+     "argus"
+    ],
+    "title": "scoped writer",
+    "totalAlerts": 1,
+    "totalComment": 2,
+    "updated_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "version": "<version:4>"
+   },
+   "as": "run-key:scoped",
+   "body": {
+    "alertId": "<hex:1>",
+    "index": ".internal.alerts-security.alerts-acme-soc-000001",
+    "owner": "securitySolution",
+    "rule": {
+     "id": null,
+     "name": null
+    },
+    "type": "alert"
+   },
+   "method": "POST",
+   "path": "/s/acme-soc/api/cases/<uuid:1>/comments",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "kibana.alert.case_ids": [
+     "<uuid:1>"
+    ]
+   },
+   "as": "elastic",
+   "method": "GET",
+   "params": [
+    [
+     "_source_includes",
+     "kibana.alert.case_ids"
+    ]
+   ],
+   "path": "/.internal.alerts-security.alerts-acme-soc-000001/_doc/<hex:1>",
+   "status": 200,
+   "target": "es"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": null,
+    "closed_by": null,
+    "comments": [
+     {
+      "comment": "ARGUS's comment.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "scoped-o@run.argus.invalid",
+       "full_name": "Run scoped-o",
+       "username": "t-<run>-scoped-o"
+      },
+      "id": "<uuid:2>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:5>"
+     },
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "scoped-o@run.argus.invalid",
+       "full_name": "Run scoped-o",
+       "username": "t-<run>-scoped-o"
+      },
+      "id": "<uuid:3>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:6>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "customFields": [],
+    "description": "Contract test case (scoped writer).",
+    "duration": null,
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "open",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c",
+     "argus"
+    ],
+    "title": "scoped writer",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "version": "<version:4>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": "<time>",
+     "closed_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "customFields": [],
+     "description": "Contract test case (scoped writer).",
+     "duration": "<duration>",
+     "external_service": null,
+     "id": "<uuid:1>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "closed",
+     "tags": [
+      "run:<run>",
+      "t:<run>-0b287c",
+      "argus"
+     ],
+     "time_to_acknowledge": "<seconds>",
+     "time_to_investigate": "<seconds>",
+     "time_to_resolve": "<seconds>",
+     "title": "scoped writer",
+     "totalAlerts": 1,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "version": "<version:7>"
+    }
+   ],
+   "as": "run-key:scoped",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "status": "closed",
+      "version": "<version:4>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": {
+    "assignees": [],
+    "category": null,
+    "closed_at": "<time>",
+    "closed_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "comments": [
+     {
+      "comment": "ARGUS's comment.",
+      "created_at": "<time>",
+      "created_by": {
+       "email": "scoped-o@run.argus.invalid",
+       "full_name": "Run scoped-o",
+       "username": "t-<run>-scoped-o"
+      },
+      "id": "<uuid:2>",
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "type": "user",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:5>"
+     },
+     {
+      "alertId": [
+       "<hex:1>"
+      ],
+      "created_at": "<time>",
+      "created_by": {
+       "email": "scoped-o@run.argus.invalid",
+       "full_name": "Run scoped-o",
+       "username": "t-<run>-scoped-o"
+      },
+      "id": "<uuid:3>",
+      "index": [
+       ".internal.alerts-security.alerts-acme-soc-000001"
+      ],
+      "owner": "securitySolution",
+      "pushed_at": null,
+      "pushed_by": null,
+      "rule": {
+       "id": null,
+       "name": null
+      },
+      "type": "alert",
+      "updated_at": null,
+      "updated_by": null,
+      "version": "<version:6>"
+     }
+    ],
+    "connector": {
+     "fields": null,
+     "id": "none",
+     "name": "none",
+     "type": ".none"
+    },
+    "created_at": "<time>",
+    "created_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "customFields": [],
+    "description": "Contract test case (scoped writer).",
+    "duration": "<duration>",
+    "external_service": null,
+    "id": "<uuid:1>",
+    "observables": [],
+    "owner": "securitySolution",
+    "settings": {
+     "syncAlerts": false
+    },
+    "severity": "low",
+    "status": "closed",
+    "tags": [
+     "run:<run>",
+     "t:<run>-0b287c",
+     "argus"
+    ],
+    "time_to_acknowledge": "<seconds>",
+    "time_to_investigate": "<seconds>",
+    "time_to_resolve": "<seconds>",
+    "title": "scoped writer",
+    "totalAlerts": 1,
+    "totalComment": 1,
+    "updated_at": "<time>",
+    "updated_by": {
+     "email": "scoped-o@run.argus.invalid",
+     "full_name": "Run scoped-o",
+     "username": "t-<run>-scoped-o"
+    },
+    "version": "<version:7>"
+   },
+   "as": "elastic",
+   "method": "GET",
+   "path": "/s/acme-soc/api/cases/<uuid:1>",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    {
+     "assignees": [],
+     "category": null,
+     "closed_at": null,
+     "closed_by": null,
+     "comments": [],
+     "connector": {
+      "fields": null,
+      "id": "none",
+      "name": "none",
+      "type": ".none"
+     },
+     "created_at": "<time>",
+     "created_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "customFields": [],
+     "description": "Contract test case (scoped writer).",
+     "duration": null,
+     "external_service": null,
+     "id": "<uuid:1>",
+     "observables": [],
+     "owner": "securitySolution",
+     "settings": {
+      "syncAlerts": false
+     },
+     "severity": "low",
+     "status": "open",
+     "tags": [
+      "run:<run>",
+      "t:<run>-0b287c",
+      "argus"
+     ],
+     "time_to_acknowledge": null,
+     "time_to_investigate": null,
+     "time_to_resolve": null,
+     "title": "scoped writer",
+     "totalAlerts": 1,
+     "totalComment": 1,
+     "updated_at": "<time>",
+     "updated_by": {
+      "email": "scoped-o@run.argus.invalid",
+      "full_name": "Run scoped-o",
+      "username": "t-<run>-scoped-o"
+     },
+     "version": "<version:8>"
+    }
+   ],
+   "as": "run-key:scoped",
+   "body": {
+    "cases": [
+     {
+      "id": "<uuid:1>",
+      "status": "open",
+      "version": "<version:7>"
+     }
+    ]
+   },
+   "method": "PATCH",
+   "path": "/s/acme-soc/api/cases",
+   "status": 200,
+   "target": "kibana"
+  },
+  {
+   "answer": [
+    [
+     "create_case",
+     "create"
+    ],
+    [
+     "tags",
+     "add"
+    ],
+    [
+     "comment",
+     "create"
+    ],
+    [
+     "comment",
+     "create"
+    ],
+    [
+     "status",
+     "update"
+    ],
+    [
+     "status",
+     "update"
+    ]
+   ],
+   "as": "run-key:scoped",
+   "method": "GET",
+   "params": [
+    [
+     "perPage",
+     "100"
+    ],
+    [
+     "sortOrder",
+     "asc"
+    ]
+   ],
+   "path": "/s/acme-soc/api/cases/<uuid:1>/user_actions/_find",
+   "status": 200,
+   "target": "kibana"
+  }
+ ],
+ "format": 1
+}

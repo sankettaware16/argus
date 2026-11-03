@@ -1,0 +1,45 @@
+[Unit]
+Description=ARGUS assess (Phase 2: proposed outcomes; custody layout, Q-A5)
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User=argus-svc
+Group=argus-svc
+SupplementaryGroups=argus
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=svc
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=database.password:/etc/argus/credentials/database.password
+LoadCredential=siem.api_key:/etc/argus/credentials/siem.api_key
+LoadCredential=llm-api-keys.env:/etc/argus/credentials/llm-api-keys.env
+ExecStart=/opt/argus/current/.venv/bin/argus assess run --every 120 --agent --agent-per-day 400 --agent-batch 3 --tuning
+Restart=always
+RestartSec=30
+MemoryMax=1G
+Nice=10
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
