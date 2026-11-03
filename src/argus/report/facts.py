@@ -1,22 +1,12 @@
-"""Provenance, facts, checks and observations (Q-F2, plan §7.3 points 5 and 6). Pure.
+"""Provenance, facts, checks and observations of report@2. Pure.
 
-- **Provenance** of an evidence request: its opaque id, the query (template, window, indices,
-  server time, rows, truncation, hash, watermark) and one line a person reads, e.g.
-  ``E3 · proxy.host@1 · squid, 09 Oct 10:00-13:00 UTC · aggregation · complete · 0.6 s``
-  (an en dash in the window).
-- **Facts**: each signal, note step and alert fact in ARGUS's own words, with the E-ids of the
-  evidence it comes from (none: ARGUS's store of alerts), how it leans and whether log content
-  reaches it.
-- **Checks**: what each request came to. "Nothing found" needs a known signal that says so
-  (D-023): a failed, skipped or lagging check, or a zero from logs whose ingest is not
-  measured, is never negative.
-- **Observations**: what stored answers hold that no signal shows (top destinations, hosts,
-  URLs, successful requests, listed indicators), for people only: no model reads them.
-
-Untrusted strings read from evidence (paths, URLs, host names, descriptions) never enter a
-sentence of this module: they are ``Value``s beside it, capped. (A pack's step sentence may
-quote a listed indicator; pages show every text as untrusted.)
-"""
+**Provenance** of an evidence request: its opaque id, the query and one line a person reads, e.g.
+``E3 · proxy.host@1 · squid, 09 Oct 10:00-13:00 UTC · aggregation · complete · 0.6 s``. **Facts**:
+each signal, note step and alert fact in ARGUS's own words, with the E-ids it comes from, how it
+leans and whether log content reaches it. **Checks**: what each request came to; "nothing found"
+needs a known signal that says so (a failed, skipped or lagging check is never negative).
+**Observations**: what stored answers hold that no signal shows, for people only. Untrusted strings
+from evidence never enter a sentence of this module: they are ``Value``s beside it, capped."""
 
 from __future__ import annotations
 
@@ -41,7 +31,7 @@ SUBJECT_CHARS = 120  # what a request asked about, as its provenance shows it
 WINDOW = frozenset({"start", "end"})  # parameters that are the window, not the subject
 DASH = "\u2013"  # between the two ends of a window
 TOP = 10  # values per observation
-# The floor's signals (P4, assess.engine.floor): unknown, each blocks a benign proposal.
+# The floor's signals (assess.engine.floor): unknown, each blocks a benign proposal.
 FLOOR = (
     "ti.listed",
     "ti.listed_remote",
@@ -61,10 +51,10 @@ READS = {
     "alerts.cadence_cv": frozenset[str](),
 }
 BEACON = 0.3  # proxy.regularity below this is regular, like a beacon (assess.engine.BEACON)
-RARE = 1  # a destination at most this many campus hosts reach (assess.engine.RARE)
+RARE = 1  # a destination at most this many internal hosts reach (assess.engine.RARE)
 
-# Why something could not be told, in plain words: signals' unknown reasons (D-023) and
-# evidence statuses. No code ever reaches a reviewer (D-095).
+# Why something could not be told, in plain words: signals' unknown reasons and evidence
+# statuses. No code ever reaches a reviewer.
 REASONS = {
     "ingest_not_verified": "a zero from the logs is not trusted until ARGUS measures how far"
     " their ingest has got",
@@ -117,7 +107,6 @@ CHECKS = Words(
         "proxy.host": "the host's proxy traffic",
         "proxy.destination": "which {own:hosts} reached the destination through the proxy",
         "web.followups": "the client's successful web answers after the first alert",
-        # Q-F4's batch 1
         "proxy.pair": "how regularly the host reached the destination through the proxy",
         "proxy.contact": "which {own:hosts} reached the destination through the proxy that day",
         "dns.host_domains": "which names the client looked up in DNS",
@@ -139,7 +128,7 @@ CHECKS_OTHER = Words(
         "logs.source_events": "the log events behind another alert",
     }
 )
-# Who asked a check that gives a reason for it (evidence_requests.reason, Q-F3).
+# Who asked a check that gives a reason for it (evidence_requests.reason).
 ASKED_BY = {"wave": "by ARGUS's wave", "person": "at a person's request"}
 # Where a fact without an E-id comes from, when it is not the stored alerts.
 SOURCES = {"same_ioc.investigations": "ARGUS's other investigations"}
@@ -169,7 +158,7 @@ class EvidenceRow:
     reused_from_version: int | None = None
     error: str | None = None
     collected_at: datetime | None = None
-    purged: bool = False  # the retention purge removed its snapshot (Q-A4)
+    purged: bool = False  # the retention purge removed its snapshot
 
     def ref(self) -> dict[str, Any]:
         """The graph's reference to it (``context.store.ref_of``, without ``reused``)."""
@@ -182,7 +171,7 @@ class EvidenceRow:
             "truncated": bool(self.truncated),
             "result_hash": self.result_hash,
         }
-        if batch1.is_batch1(ref):  # the five templates' readings need their parameters (Q-F3)
+        if batch1.is_batch1(ref):  # the five templates' readings need their parameters
             ref["params"] = dict(self.params or {})
         return ref
 
@@ -310,9 +299,6 @@ def who(code: str | None) -> str:
     return RESOLVERS.get(code or "", PERSON)
 
 
-# ----------------------------------------------------------------------------- the query
-
-
 @dataclass(frozen=True)
 class Query:
     family: str
@@ -402,7 +388,7 @@ def provenance(
     else:
         word = "not run" if status in ("skipped_budget", "deferred", "missing") else "failed"
         parts.append(f"{word}: {why_not(row)}")
-    if request.reason and request.origin in ASKED_BY:  # the wave's and a person's reasons (Q-F3)
+    if request.reason and request.origin in ASKED_BY:  # the wave's and a person's reasons
         parts.append(f"asked {ASKED_BY[request.origin]}: {cap(request.reason, 200)}")
     return Provenance(
         eid=request.label,
@@ -446,9 +432,8 @@ def lookups_fresh(body: Mapping[str, Any]) -> bool | None:
 
 
 def ti_where(row: EvidenceRow | None) -> str:
-    """The threat-intel source(s) a stored ``ti.lookup`` asked, by index (the plan's names; a
-    request from before sources were settings names none and means the site's first ``ioc``
-    one), else "the threat lists"."""
+    """The threat-intel source(s) a stored ``ti.lookup`` asked, by index; a request that names
+    none means the site's first ``ioc`` one; else "the threat lists"."""
     version = row.template_version if row is not None else 1
     found = query_of("ti.lookup", version, row.params if row is not None else None).source
     return found or "the threat lists"
@@ -464,9 +449,6 @@ def why_not(row: EvidenceRow | None) -> str:
     if (row.coverage or {}).get("unstorable"):
         return "the answer could not be stored"
     return plain(row.status, "the check did not complete")
-
-
-# ----------------------------------------------------------------------------- checks
 
 
 # For an empty answer, the signal whose known value says "none" (a count of what the template
@@ -496,7 +478,7 @@ def outcome_of(
 ) -> tuple[Outcome, str | None]:
     """What a request came to. ``citing``: the signals that read it; ``fresh``: whether the
     threat list it looked in is fresh (a lookup). "Nothing found" only when the template's own
-    count is known to be 0 (D-023): a failed, skipped or lagging check, or a zero ARGUS cannot
+    count is known to be 0: a failed, skipped or lagging check, or a zero ARGUS cannot
     trust, is never negative."""
     if row is None or row.status in ("skipped_budget", "deferred"):
         return "not_run", why_not(row)
@@ -559,9 +541,6 @@ def check(
     )
 
 
-# ----------------------------------------------------------------------------- facts
-
-
 def label(name: str) -> str:
     """A signal's label (the display registry's, ``config/signals.yaml``)."""
     entry = display.entry(name)
@@ -570,7 +549,7 @@ def label(name: str) -> str:
 
 
 def leaning(signal: Mapping[str, Any]) -> Leaning:
-    """How a known signal bears on "a real threat" (the floor's reading, P4): a reason to
+    """How a known signal bears on "a real threat" (the floor's reading): a reason to
     look is suspicious, its known absence reassuring; everything else is neutral."""
     if signal.get("status") != "known":
         return "neutral"
@@ -752,9 +731,6 @@ def alert_facts(facts: Mapping[str, Any]) -> list[Fact]:
             )
         )
     return out
-
-
-# ----------------------------------------------------------------------------- observations
 
 
 def _value(label_: str, value: Any, count: Any = None) -> Value:

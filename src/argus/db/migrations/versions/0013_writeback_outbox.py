@@ -1,4 +1,4 @@
-"""The write-back outbox (R17, D-061): planned alert status changes, sent at most once
+"""The write-back outbox: planned alert status changes, sent at most once
 
 Revision ID: 0013
 Revises: 0012

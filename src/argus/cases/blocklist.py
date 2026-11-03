@@ -1,19 +1,8 @@
-"""A case's ready block list (AR4b, D-169 point 5): the domains, their registered parents and the
-addresses of a case that the university can block at the network (DNS, the firewall, the web
-proxy) for everyone, with the outside evidence for each. It protects every device without touching
-a personal laptop, and it is the shape of the e-mail to the head of cybersecurity of 27 October.
-
-What goes in: the case's own indicators that are public addresses and valid names (its servers
-and domains; a campus, private or loopback address is a device or nothing, never a block, and a
-file hash or a value that is no name is no destination) and the registered parent of each name,
-once. What never goes in: anything in shared infrastructure (a content-delivery or cloud network,
-a name on such a service, a value in very many investigations), since blocking it would cut off
-everybody. The evidence is what the outside cache holds about each (VirusTotal's engines, the
-network's owner, when the name was registered) and when ARGUS first saw it on campus; nothing is
-asked of an outside source here.
-
-Exports are plain: CSV for a spreadsheet and plain text for an e-mail (:func:`to_text`).
-"""
+"""A case's ready block list: the domains, their registered parents and the addresses of a case
+that the organisation can block at the network for everyone, with the outside evidence for each
+(VirusTotal engines, network owner, registration day). Only the case's own public addresses and
+valid names go in, never an internal address, a hash or anything in shared infrastructure (blocking
+it would cut off everybody). Nothing is asked of an outside source. Exports: CSV and plain text."""
 
 from __future__ import annotations
 
@@ -53,7 +42,7 @@ class Entry:
     owner: str | None = None  # the network's owner, for an address
     registered: str | None = None  # the day a domain was registered
     first_seen: datetime | None = None  # first alert of the case's investigations that hold it
-    devices: int = 0  # campus devices of the case that reached it
+    devices: int = 0  # internal devices of the case that reached it
     checked: datetime | None = None  # when the outside answer was fetched
 
     @property
@@ -135,8 +124,8 @@ class Chosen:
 def choose(
     marks: Iterable[tuple[str, str]], shared: Shared, classifier: IpClassifier | None = None
 ) -> Chosen:
-    """The indicators a block list may hold (D-181): a public address (the classifier says so, not
-    a campus, private, loopback or special address) or a valid domain name, not in shared
+    """The indicators a block list may hold: a public address (the classifier says so, not
+    an internal, private, loopback or special address) or a valid domain name, not in shared
     infrastructure. A hash, a URL and anything that is not an address or a name are no block."""
     classes = classifier or IpClassifier(None, ())
     kept: list[tuple[str, str]] = []
@@ -239,7 +228,7 @@ def _safe(value: str) -> str:
     return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
 
 
-safe_cell = _safe  # the incident report's CSVs neutralise a cell the same way (AR7)
+safe_cell = _safe  # the incident report's CSVs neutralise a cell the same way
 
 
 def to_text(blocklist: Blocklist, stamp: Any = None) -> str:

@@ -1,37 +1,9 @@
-"""The alert status sender (Q-D5, R17 v2, D-061 to D-063, plan §5 and §7.10, DQ8, DQ11).
-
-It drains ``writeback_outbox`` (planned by :mod:`argus.writeback`) through Q-D2's Kibana lane:
-the template ``alerts.status`` of class WA (a Kibana-lane write, ``KibanaGateway.write``), and the
-Elasticsearch gateway's ``alerts.mget`` (``Gateway.run``) for the reads. For each batch of one
-row, in this order:
-
-1. check the row (below), wait out the gap since the last alert call (≥ 60 s, shared with W1's
-   attaches), check the kill switch, NORMAL health (disk under 85 %, no block) and the write
-   window;
-2. read the alerts (``alerts.mget``): one already at the status, or gone, is counted without a
-   request; the others' **previous statuses are kept** on the row before the request leaves;
-   the reading, and every check of the row, is made **again at the last step before the request
-   leaves** (the gateway's ``before_send``, in the transaction that keeps the previous statuses):
-   a newer review, a reopened case, an operator check that has grown old or an alert a person
-   changed in the meantime sends nothing and the row is skipped, left waiting or planned anew;
-3. send one status call of at most ``status_per_call`` alerts, once. The gateway checks the
-   update_by_query body Kibana answers with (no failures, no conflicts, every alert named updated:
-   ``models.check_alert_status``) and **pauses the class on any mismatch**;
-4. read the alerts back; only alerts the read-back shows at the status count as written. After a
-   timeout, a 5xx or a refusal that may have landed, the read-back decides what happened;
-5. move ``sent_count`` (the row's position) and ``written_count`` in one transaction, with an
-   audit row. A batch that did not fully land leaves the row where it was, paused: the next run
-   reads the alerts first, so what landed late is counted and nothing is written twice.
-
-The check of a row reads its sources, not the row: its newest decision (``review_events``), the
-author's kind (``users``), the ELK check behind the review (``kibana_ok``) and Q-F1's verdict
-(:func:`argus.writeback.standing`); the stored flags are only a cache that this module fills in.
-An error from Kibana ends the run (a 429 never retried); alerts that cannot be read skip their
-row for this run only. One run at a time, and never beside a case
-writer's run: it holds the writer's advisory lock, so a W1 attach and a status call never go at
-once. A row made without an alert-write check (``needs_operator``) is sent only when the run has
-an operator whose own ELK account was checked live, at most ``OPERATOR_FRESH`` ago.
-"""
+"""Sends the status changes planned in ``writeback_outbox`` (:mod:`argus.writeback`) to Kibana.
+Per batch the alerts are read and their previous statuses kept on the row, every check of the row
+is repeated at the last step before the request leaves (a newer review, a reopened case or a stale
+operator check sends nothing), and the alerts are read back: only those shown at the status count
+as written, and the gateway pauses class WA on any mismatch. One run at a time, never beside a case
+writer's run. A row made without an alert-write check needs an operator checked live."""
 
 from __future__ import annotations
 
@@ -583,9 +555,9 @@ class AlertSender:
             """The last step before the request leaves: the alerts and the row's standing are
             looked at again (the lane's place and the lease wait came after the first look), and
             only then the statuses to restore are kept, in the same transaction."""
-            # D-022's pool lets one non-collector lane hold a lease at a time and the write
-            # lane's is held already, so this look is the collector's (a light mget, the same
-            # read as the reconciler's)
+            # the lease pool lets one non-collector lane hold a lease at a time and the write lane's
+            # is held already, so this look is the collector's (a light mget, the same read as the
+            # reconciler's)
             try:
                 now = await self._statuses(todo, indexes, Purpose.RECONCILE)
             except (GatewayError, KibanaResponseError) as exc:
@@ -635,8 +607,8 @@ class AlertSender:
         return self._run
 
     async def _wait_gap(self) -> None:
-        """Wait until the lane's last alert call (ours, or a W1 attach by another process) is
-        more than 60 s ago."""
+        """Wait until the lane's last alert call (ours, or a case writer's attach by another
+        process) is more than 60 s ago."""
         last = (await self.gateway.state.kibana_lane()).counters.last_alert_call
         if last is not None:
             wait = (last + GAP_WAIT - self.clock()).total_seconds()
@@ -719,7 +691,7 @@ class AlertSender:
         """Why the row may not go out now, or None. Read from the sources every time (the row's
         stored flags are never trusted): still ours to move, still the newest decision (a case
         still closed by its approval), written by a person, an operator whose own check is fresh
-        for a review made without an alert-write check, the audit of Q-F1 for a verdict that
+        for a review made without an alert-write check, the freshness audit for a verdict that
         rests on it."""
         state = (
             await conn.execute(

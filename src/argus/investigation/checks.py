@@ -1,4 +1,4 @@
-"""A person's "Check more" (Q-F3): one approved template on one entity.
+"""A person's "Check more": one approved template on one entity.
 
 A request names a template of the catalogue and an address or a domain; nothing else comes
 from the person. ``validate`` refuses at once what could never be asked (an unapproved template,
@@ -27,9 +27,10 @@ from argus.reference.templates import LOOKUP_SIZE, TiLookup, lookup_params
 from argus.reference.ti import variants
 from argus.site import Role
 
-# The checks a person may ask for, and what each takes: a campus host, a destination outside
-# the campus, any address, an address or a domain (a threat-list lookup). The rows behind an
-# alert (logs.source_events) are asked about an alert, not an entity, so only a wave asks them.
+# The checks a person may ask for, and what each takes: an internal host, a destination outside
+# the organisation's network, any address, an address or a domain (a threat-list lookup). The
+# rows behind an alert (logs.source_events) are asked about an alert, not an entity, so only a
+# wave asks them.
 TAKES = {
     "proxy.host": "internal",
     "proxy.destination": "public",
@@ -41,9 +42,9 @@ TAKES = {
     "ti.lookup": "indicator",
 }
 APPROVED = tuple(TAKES)
-# The limits on checks are the table's (migration 0040: a trigger, under a lock, so that
-# requests at once cannot pass one count together); the numbers are written there too, and a test
-# keeps them equal. They are read here first only to say so in the person's words.
+# The limits on checks are the table's (a trigger, under a lock, so that requests at once
+# cannot pass one count together); the numbers are written there too, and a test keeps them
+# equal. They are read here first only to say so in the person's words.
 OPEN_PER_PERSON = 5  # checks one person may have queued or running at once
 OPEN_IN_ALL = 100  # checks anyone may have queued or running at once
 PER_PERSON_PER_DAY = 30  # checks one person may ask for in a UTC day

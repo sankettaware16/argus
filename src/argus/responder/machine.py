@@ -1,21 +1,9 @@
-"""The states of an action and the verdict on a person's "done" (Q-H2, plan §7.7): pure rules.
-
-``recommended`` -> ``requested`` -> ``reported_done`` -> ``verified``, or ``not_verified`` with the
-reason and the last sign of activity ("not verified: still beaconing, last beat 1:52 PM IST").
-Two people's states and two ARGUS's:
-
-* a person's *requested* (the owner was asked) and *reported done* are **attestations**: ARGUS
-  cannot see the action, so it records who said it, when and what they said, and nothing is
-  executed before Phase 6;
-* *verified* is ARGUS's own, and only from evidence it already holds. It is never reached while
-  coverage is unknown: :func:`verify_watch` asks :func:`argus.cases.watch.quiet_window` (the
-  watch's own rule for "contained": three whole UTC days, every check answered and quiet, Q-F1's
-  verified zeros on, no activity since) over the days that follow the action, and
-  :func:`verify_paths` accepts only a positive answer (a logged request the site refused), never
-  a zero. Anything else is *waiting*, with the reason in plain words.
-
-The rules read no clock, database or network.
-"""
+"""The states of an action and the verdict on a person's "done": pure rules. ``recommended`` ->
+``requested`` -> ``reported_done`` -> ``verified``, or ``not_verified`` with the reason and the
+last sign of activity. A person's *requested* and *reported done* are attestations (ARGUS cannot
+see the action); *verified* is ARGUS's own, only from evidence it holds and never while coverage
+is unknown (:func:`verify_watch`; :func:`verify_paths` accepts a positive answer, never a zero).
+The rules read no clock, database or network."""
 
 from __future__ import annotations
 
@@ -122,7 +110,7 @@ def ist_day(moment: datetime) -> str:
 class Verdict:
     """``verified``; ``not_verified`` (activity after the action: ``last`` is the newest sign);
     ``waiting`` (not enough evidence yet); ``not_verifiable`` (the catalogue says no check can
-    tell, in Phase 3)."""
+    tell)."""
 
     kind: Literal["verified", "not_verified", "waiting", "not_verifiable"]
     reason: str
@@ -242,14 +230,11 @@ def verify_watch(
     blocked: str | None = None,
 ) -> Verdict:
     """Whether the case went quiet after ``done_at``, from the watch's answers (pure).
-
-    ``wanted``: the case's checkable addresses, as the watch lists them
-    (:func:`argus.cases.watch.subjects`); None when the caller cannot list them, which makes
-    "verified" impossible for the proxy logs (activity is still told). ``activity``: ARGUS's own
-    alerts per UTC day in the database now. The store does not call this: it asks the watch's
-    own finder (:class:`argus.cases.watchrun.Finder`: a key too common to search, an
-    investigation not yet joined) and turns its window into a verdict with :func:`gate_watch` and
-    :func:`window_verdict`."""
+    ``wanted``: the case's checkable addresses (:func:`argus.cases.watch.subjects`), or None when
+    the caller cannot list them, which makes "verified" impossible for the proxy logs.
+    ``activity``: ARGUS's own alerts per UTC day now. The store does not call this: it asks the
+    watch's finder (:class:`argus.cases.watchrun.Finder`) and turns its window into a verdict with
+    :func:`gate_watch` and :func:`window_verdict`."""
     gate = gate_watch(kind, rows, activity, wanted is not None, done_at, now)
     if gate is not None:
         return gate
@@ -280,7 +265,7 @@ def verify_paths(
     """Whether every path that was served is now refused. Only a reading whose window starts
     after the action counts, and only for the newest such reading of each path: a request the
     site answered but never with a 2xx (``refused``) is positive evidence; no logged request
-    is not (a zero from the logs alone is never "removed", D-023)."""
+    is not (a zero from the logs alone is never "removed")."""
     if not required:
         return Verdict("waiting", "waiting: no served path is known for this case")
     newest: dict[str, tuple[datetime, str]] = {}

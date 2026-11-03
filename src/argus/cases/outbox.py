@@ -1,16 +1,11 @@
-"""The Kibana outbox's states (plan §7.1, §3 rules 1 and 4): pure, mirrored by the database's
-``argus_outbox_guard`` trigger (migration 0026), which a test keeps equal to :data:`MOVES`.
+"""The Kibana outbox's states: pure, mirrored by the ``argus_outbox_guard`` trigger (a test keeps
+it equal to :data:`MOVES`).
 
-planned → approved → sending → sent → verified, or ambiguous, conflict, paused, skipped:
-
-* ``sending`` is committed before the request; a crash leaves it there, and it becomes
-  ``ambiguous`` (the outcome is unknown: Kibana keeps working after its socket closes).
-* Nothing is retried or resent automatically. Entering ``sending`` counts a send, and a row
-  is sent again only after ``ambiguous → planned``, which needs a person's complete approval
-  of a resend (and raises ``resends``), one approval for each resend (the database counts
-  them): ``sent_count <= 1 + resends`` always.
-* ``verified`` and ``skipped`` are final; a conflicting row is re-planned as a new row.
-"""
+planned → approved → sending → sent → verified, or ambiguous, conflict, paused, skipped. ``sending``
+is committed before the request, so a crash leaves it there and it becomes ``ambiguous``. Nothing
+is resent automatically: a row is sent again only after ``ambiguous → planned``, which needs a
+person's approval of the resend (``sent_count <= 1 + resends``). ``verified`` and ``skipped`` are
+final."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Reading and replacing the imported asset map file (D-032: the operator imports it)."""
+"""Reading and replacing the imported asset map file."""
 
 from __future__ import annotations
 

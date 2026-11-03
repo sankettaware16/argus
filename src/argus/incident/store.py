@@ -1,11 +1,9 @@
-"""The incident report's history in the database (AR7, D-190, migration 0052).
+"""The incident report's history in the database.
 
-Versions are appended and never changed; the newest version is the current one. A version is
-written only when what the report says changed (``content_hash``), so a case that did not change
-keeps its report, and the same evidence gives the same version. Decisions are appended beside a
-version (:mod:`argus.incident.review`). The runtime login writes reports and checks; the web's
-login reads them and writes a person's decision.
-"""
+Versions are appended and never changed; the newest is the current one. A version is written only
+when what the report says changed (``content_hash``). Decisions are appended beside a version
+(:mod:`argus.incident.review`). The runtime login writes reports and checks; the web's login reads
+them and writes a person's decision."""
 
 from __future__ import annotations
 
@@ -238,9 +236,6 @@ async def save(
         assert row is not None
         return _stored(row, None), True
     return await latest(conn, case_id), False
-
-
-# ----------------------------------------------------------------------------- the checks
 
 
 async def check_of(conn: AsyncConnection, case_id: uuid.UUID) -> Check | None:

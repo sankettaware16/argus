@@ -1,21 +1,10 @@
-"""The identity seam (plan §4, §7.2): who a person is and what they may do, checked live.
+"""The identity seam: who a person is and what they may do, checked live.
 
-ARGUS never trusts a capability snapshot it holds for a change: an approval waits for a live
-check (at most 30 seconds old) of the approver, and every check is recorded
-(``identity_checks``, through ``argus_identity_record()``), because the send-time check reads
-them back: an approver whose check was denied since they approved, or who has no good check
-within 12 hours, does not count (:mod:`argus.cases.sendcheck`).
-
-:class:`IdentityProvider` is the seam. Q-E1 and Q-E2 plug in the real one (the person's ELK
-credential checked against Elasticsearch: ``_has_privileges`` on the space, Kibana's case
-privileges, the ``argus`` application privileges). Until then:
-
-* :class:`LocalIdentityProvider` reads the local account (``users.capabilities``); it has no
-  Kibana privileges to show, so a local approver can close a case in ARGUS but never approve a
-  write to Kibana (plan §3 rule 6: a person makes ARGUS do only what their own ELK account
-  may);
-* :class:`FakeIdentityProvider` answers whatever a test or the local Kibana tier sets up.
-"""
+An approval waits for a live check (at most 30 seconds old) of the approver, and every check is
+recorded because the send-time check reads them back (:mod:`argus.cases.sendcheck`).
+:class:`IdentityProvider` is the seam: the real one checks the person's ELK credential against
+Elasticsearch; :class:`LocalIdentityProvider` reads the local account and has no Kibana privileges,
+so a local approver never approves a write to Kibana; :class:`FakeIdentityProvider` is for tests."""
 
 from __future__ import annotations
 
@@ -34,7 +23,7 @@ from argus.web.capabilities import effective
 Outcome = Literal["ok", "denied", "unavailable"]
 Kind = Literal["person", "break_glass", "service"]
 Purpose = Literal["signin", "recheck", "stepup", "request", "approval", "send"]
-# Kibana privileges ARGUS acts on for a person (plan §7.1): a closure needs updateCase; opening
+# Kibana privileges ARGUS acts on for a person: a closure needs updateCase; opening
 # a case createCase and createComment; alert status changes the alert-status privileges.
 UPDATE_CASE = "updateCase"
 SERVICE_ACCOUNTS = frozenset({"argus-assistant"})
@@ -51,7 +40,7 @@ class LiveCheck:
     kind: Kind = "person"
     capabilities: frozenset[str] = frozenset()
     kibana: frozenset[str] = frozenset()
-    argus_uid: str | None = None  # Q-E2: metadata.argus_uid, the person behind the ELK name
+    argus_uid: str | None = None  # metadata.argus_uid, the person behind the ELK name
     email: str | None = None
 
     @property
@@ -192,7 +181,7 @@ async def record_if_allowed(conn: AsyncConnection, check: LiveCheck, purpose: Pu
 
 
 def same_person(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
-    """Whether two checks' snapshots may be one real person (plan §7.1: two people are two
+    """Whether two checks' snapshots may be one real person (two people are two
     ``argus_uid``s with different e-mail addresses). Different accounts with the same
     ``argus_uid`` or the same e-mail address count as one."""
     if a.get("user_id") == b.get("user_id"):

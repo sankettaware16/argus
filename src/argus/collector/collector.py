@@ -1,18 +1,10 @@
-"""The collector (plan §6 R5, §7.2, §7.3; D-050): every alert the SIEM writes ends up in
-``alert_records`` exactly once, and stays there.
+"""The collector: every alert the SIEM writes ends up in ``alert_records`` exactly once, and stays.
 
-- ``poll``: ids only from ``cursor - OVERLAP`` to now, mget of the ids not stored yet; one
-  transaction per page of ids moves the cursor with the alerts it stored.
-- ``check``: counts per (hour, rule) in the SIEM and in the store over at most 6 hours; every hour
-  that differs gets ``sync_hour``, which diffs the ids (missing here → mget; gone there →
-  ``source_missing_at``). Backfill (newest first, resumable) and reconciliation both use it.
-- ``sync_states``: the workflow status of every alert that is not ``open``.
-
-Every transaction that stores alerts also groups them into investigations (R6, D-051).
-
-Only the gateway talks to the SIEM; refusals and failures propagate, and nothing half-done is
-committed (a crash at any await leaves the store and the cursors consistent: the next run
-repeats the overlap, and the primary key keeps it free of duplicates).
+``poll`` reads ids from ``cursor - OVERLAP`` to now and fetches the ones not stored, one
+transaction per page; ``check`` compares counts per (hour, rule) with the SIEM and ``sync_hour``
+diffs the ids of any hour that differs (backfill and reconciliation both use it); ``sync_states``
+reads the workflow status of alerts that are not ``open``. Every transaction that stores alerts
+also groups them. Only the gateway talks to the SIEM; nothing half-done is committed.
 """
 
 from __future__ import annotations
@@ -250,7 +242,7 @@ class Collector:
         return CheckResult(hours, tuple(mismatched), recovered, missing)
 
     async def reconcile(self, start: datetime, end: datetime) -> CheckResult:
-        """Reconcile the whole hours in [start, end) and record the run (plan §7.3)."""
+        """Reconcile the whole hours in [start, end) and record the run."""
         started = self.clock()
         first, last = floor_hour(start), floor_hour(end)
         total = CheckResult(0, (), 0, 0)

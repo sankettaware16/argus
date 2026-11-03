@@ -1,6 +1,6 @@
 """Inbox: reviewer accounts, sessions and the append-only review events
 
-R7 (D-052). Review events are append-only for the runtime role (no UPDATE, no DELETE); a
+Review events are append-only for the runtime role (no UPDATE, no DELETE); a
 session is stored as the hash of its token.
 
 Revision ID: 0007

@@ -1,26 +1,13 @@
-"""The pass (``argus notices run``) and what a person asks about it (Q-H4, plan §5 and §7.7).
+"""The pass (``argus notices run``) and what a person asks about it.
 
-One pass, in this order:
-
-1. read the conditions from ARGUS's database (:mod:`argus.notices.triggers`) and the table's rows;
-2. :func:`argus.notices.model.reconcile`: what to store and which notices are due;
-3. store (insert, update, resolve): always, even when notices are off, so the table is the same
-   whatever the switch says and nothing waits for it;
-4. when switched on (``enabled``, a recipient, a relay): give the hour's room to the due notices
-   (at most 10 e-mails an hour in all, counted from the audit trail, so a restart or a second
-   machine cannot forget it), send them through the relay in one connection, and mark each one
-   sent and write its ``notice.sent`` (or the one ``notice.folded``) as ``system`` **as soon as
-   the relay has taken it**, before the next is sent, so a pass that is killed halfway has
-   recorded everything the relay took;
-5. one ``notice.run`` audit row, whatever came of it.
-
-A notice that could not be sent is not marked: it is due again at the next pass (nothing is lost;
-a crash between one message's send and its mark, or a relay that takes a message and drops before
-it says so, can send that one twice, never none; each failed message counts in the hour's 10, so
-a relay that does this cannot be asked more than 10 times an hour). Passes do not overlap (a
-session lock on a connection of its own). Without a switch, a recipient or a relay the pass
-prints what it would send and sends nothing: "not switched on, by your choice".
-"""
+One pass: (1) read the conditions (:mod:`argus.notices.triggers`) and the table's rows; (2)
+:func:`argus.notices.model.reconcile` what to store and which notices are due; (3) store, always,
+even when notices are off; (4) when switched on (``enabled``, a recipient, a relay), give the hour's
+room (10 e-mails, counted from the audit trail) to the due notices, send them in one connection and
+mark and audit each one **as soon as the relay has taken it**, so a pass killed halfway has recorded
+everything it took; (5) one ``notice.run`` audit row. A notice not sent is due again at the next
+pass; a crash between send and mark can send one twice, never none. Passes do not overlap (a session
+lock); without a switch, recipient or relay the pass prints what it would send and sends nothing."""
 
 from __future__ import annotations
 
@@ -77,9 +64,6 @@ class Refused(Exception):  # noqa: N818 - a refusal, said in words (as CaseRefus
     """A command that cannot go on, with the words a person reads."""
 
 
-# --------------------------------------------------------------------------- the settings
-
-
 @dataclass(frozen=True)
 class Config:
     """What the pass needs of the settings. ``why_not`` says in words why nothing is sent."""
@@ -129,9 +113,6 @@ def config_of(settings: Settings) -> Config:
     )
 
 
-# --------------------------------------------------------------------------- the report
-
-
 @dataclass
 class Report:
     """What a pass found and did, in numbers and plain lines."""
@@ -152,8 +133,6 @@ class Report:
     lines: list[str] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
 
-
-# --------------------------------------------------------------------------- the table
 
 # When an audit row of the notices happened: the pass's own clock (``details.at``, which is the
 # database's clock in production and the test's in a test), else the row's time.
@@ -283,9 +262,6 @@ async def _store(
                 {"now": now, "id": step.row.id},
             )
     return ids
-
-
-# --------------------------------------------------------------------------- the pass
 
 
 def _count(rec: Reconciled, report: Report, found: Found) -> None:
@@ -549,9 +525,6 @@ async def _audit(
         await session.close()
 
 
-# --------------------------------------------------------------------------- the test message
-
-
 async def send_test(
     engine: AsyncEngine,
     cfg: Config,
@@ -586,9 +559,6 @@ async def send_test(
         )
     if not result.ok:
         raise Refused(f"the relay did not take the message ({result.error})")
-
-
-# --------------------------------------------------------------------------- status
 
 
 async def status(conn: AsyncConnection, cfg: Config, now: datetime) -> list[str]:

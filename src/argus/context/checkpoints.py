@@ -1,5 +1,5 @@
-"""LangGraph's checkpoints (plan §8, D-054): the official Postgres saver in schema
-``langgraph`` (tables from migration 0008, never ``setup()``), on its own small psycopg pool
+"""LangGraph's checkpoints: the official Postgres saver in schema
+``langgraph`` (tables from the migrations, never ``setup()``), on its own small psycopg pool
 logged in as the runtime role, with a strict serializer: no pickle, no JSON constructors,
 msgpack only for safe built-in types. The graph state holds plain JSON-like values only.
 
@@ -63,7 +63,7 @@ def state_bytes(values: dict[str, Any]) -> int:
 async def open_saver(
     settings: DatabaseSettings, *, database: str | None = None, max_size: int = 4
 ) -> AsyncIterator[AsyncPostgresSaver]:
-    url = settings.url(database=database)  # the runtime role (D-029)
+    url = settings.url(database=database)  # the runtime role
     statement_ms = int(settings.statement_timeout.total_seconds() * 1000)
     pool = AsyncConnectionPool(
         conninfo="",

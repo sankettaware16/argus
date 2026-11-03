@@ -1,11 +1,7 @@
-"""What the soak gate reads (P4-A1): each line's facts, from ARGUS's own database and the local
-files the gate names, never from the SIEM.
-
-Every function takes a connection that ``run`` opened read-only as the runtime login (D-029) and
-asks for the window's rows, aggregated where it can. Nothing is written. The queries touch only
-tables ``argus_runtime`` may select; ``run`` reports a table it cannot read rather than widening a
-grant. Account names (``signin_sightings.user_name``) are never selected.
-"""
+"""What the soak gate reads: each line's facts, from ARGUS's own database and the local files the
+gate names, never from the SIEM. Every function takes a connection that ``run`` opened read-only as
+the runtime login and asks for the window's rows, aggregated where it can; ``run`` reports a table
+it cannot read rather than widening a grant. Account names are never selected."""
 
 from __future__ import annotations
 
@@ -73,8 +69,8 @@ CLOSE_TEMPLATES = frozenset(
 NOTIFIED_PASS = timedelta(minutes=15)  # "one pass": the assessment loop's period with margin
 SAMPLE_GAP = timedelta(minutes=45)  # soak samples are 15 minutes apart (argus.soak2.GAP)
 SAMPLE_STALE = timedelta(minutes=45)
-# D-216's arithmetic: about 3 requests a day for finished days and at most about 24 for the current
-# day's refresh (once an hour); the backfill is about 14 requests once.
+# about 3 requests a day for finished days and at most about 24 for the current day's refresh
+# (once an hour); the backfill is about 14 requests once
 SIGNIN_STEADY_PER_DAY = 27
 SIGNIN_BACKFILL_EXTRA = 14
 SIGNIN_TEMPLATE = "signins.day"
@@ -97,9 +93,6 @@ async def _scalar(conn: AsyncConnection, query: str, **params: Any) -> Any:
 
 def _label(number: Any) -> str:
     return f"case {number}"
-
-
-# --------------------------------------------------------------------------- line 1
 
 
 async def lifecycle(conn: AsyncConnection, w: Window, now: datetime) -> LifecycleFacts:
@@ -178,8 +171,6 @@ async def lifecycle(conn: AsyncConnection, w: Window, now: datetime) -> Lifecycl
     )
 
 
-# --------------------------------------------------------------------------- line 2
-
 _OPENED = """
 SELECT c.number, p.opened_at, d.decision, d.outcome, d.kind, d.username
 FROM case_team_posts p JOIN cases c ON c.id = p.case_id
@@ -212,9 +203,6 @@ async def opened_cases(conn: AsyncConnection, w: Window) -> list[OpenedCase]:
             )
         )
     return out
-
-
-# --------------------------------------------------------------------------- line 3
 
 
 def _step_of(outbox_id: str | None) -> int | None:
@@ -358,8 +346,6 @@ async def writes(conn: AsyncConnection, w: Window, settings: Settings) -> WriteF
     )
 
 
-# --------------------------------------------------------------------------- line 4
-
 _DECISIONS = """
 SELECT c.id AS case_id, c.number, c.state, d.decision, d.decided_at,
   coalesce(d.outcome, r.verdict_outcome) AS outcome, u.kind, u.username,
@@ -449,9 +435,6 @@ async def confirmed(conn: AsyncConnection, w: Window, settings: Settings) -> lis
     return sorted(out, key=lambda c: c.number)
 
 
-# --------------------------------------------------------------------------- line 5
-
-
 async def closures(conn: AsyncConnection, w: Window) -> ClosureFacts:
     span = _span(w)
     events = await _scalar(
@@ -489,9 +472,6 @@ async def closures(conn: AsyncConnection, w: Window) -> ClosureFacts:
             f"{r.template} x{r.n}" for r in kibana if r.template in CLOSE_TEMPLATES
         ),
     )
-
-
-# --------------------------------------------------------------------------- line 6
 
 
 async def reconcile(conn: AsyncConnection, w: Window) -> ReconcileFacts:
@@ -573,8 +553,6 @@ async def reconcile(conn: AsyncConnection, w: Window) -> ReconcileFacts:
     )
 
 
-# --------------------------------------------------------------------------- line 7
-
 _NOTIFIED_CASES = """
 SELECT id, notified_at FROM cases WHERE notified_at IS NOT NULL
 UNION
@@ -637,9 +615,6 @@ async def notified(conn: AsyncConnection, w: Window, now: datetime) -> NotifiedF
         change_lags_s=lags,
         pass_s=NOTIFIED_PASS.total_seconds(),
     )
-
-
-# --------------------------------------------------------------------------- line 8
 
 
 def _lane_of(lane: str | None, purpose: str) -> str | None:
@@ -779,9 +754,6 @@ async def load(conn: AsyncConnection, w: Window, settings: Settings) -> LoadFact
     )
 
 
-# --------------------------------------------------------------------------- line 9
-
-
 async def signins(conn: AsyncConnection, w: Window, settings: Settings) -> SigninFacts:
     rows = (
         await conn.execute(
@@ -811,8 +783,8 @@ async def signins(conn: AsyncConnection, w: Window, settings: Settings) -> Signi
 
 
 def sweep(settings: Settings) -> SweepFacts:
-    """The newest stored result of ``scripts/privacy_sweep.py``: ``data/gate/p1/<UTC>/sweep.json``,
-    beside the soak folder (``soak.dir``)."""
+    """The newest stored result of ``scripts/privacy_sweep.py``, found beside the soak folder
+    (``soak.dir``)."""
     base = Path(settings.soak.dir).parent / "p1"
     found = sorted(base.glob("*/sweep.json")) if base.is_dir() else []
     if not found:
@@ -832,9 +804,6 @@ def sweep(settings: Settings) -> SweepFacts:
         )
     except (OSError, ValueError, KeyError, TypeError):
         return SweepFacts(str(path), None, None, None, None, None)
-
-
-# --------------------------------------------------------------------------- line 10
 
 
 async def analysis(conn: AsyncConnection, w: Window) -> AnalysisFacts:
@@ -896,9 +865,6 @@ async def analysis(conn: AsyncConnection, w: Window) -> AnalysisFacts:
         finished=int(finished),
         inconclusive=int(inconclusive),
     )
-
-
-# --------------------------------------------------------------------------- line 11
 
 
 async def health(conn: AsyncConnection, w: Window) -> HealthFacts:

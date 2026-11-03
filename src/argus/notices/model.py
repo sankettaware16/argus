@@ -1,24 +1,12 @@
-"""What a notice is and when one is sent (Q-H4, plan §5 and §7.7): pure rules, no database and no
-mail.
+"""What a notice is and when one is sent: pure rules, no database and no mail.
 
-A **condition** is something true now that a person should hear about, found by
-:mod:`argus.notices.triggers`: a *kind*, an opaque *subject* (a case's id, an investigation's id,
-a fixed word; stored, never put in a message), a *severity* and a *count*. A **row** is what the
-``notices`` table remembers about one subject. :func:`decide` compares the two and says what to
-store and whether a notice is due:
-
-* one notice per (kind, subject) **until it is resolved or its severity rises** (a new notice
-  when the severity is higher than the last one that went out; never when it falls);
-* a **"still waiting" reminder** at most once a day, for what waits for a person (an active
-  case, activity after closure, a closure waiting): never for an event or an outage;
-* an **outage** (:data:`OUTAGE_AFTER`, an hour) is noticed once when it has lasted that long,
-  never again while it goes on, and once more when it ends;
-* a resolved subject that comes back is a new occurrence and a new notice.
-
-:func:`allocate` applies the rate limit: at most :data:`MAX_PER_HOUR` e-mails an hour in all; when
-more are due the rest are folded into one "N more" notice, and nothing is lost: what the hour
-cannot take stays due for the next pass.
-"""
+A **condition** is something true now that a person should hear about (a *kind*, an opaque
+*subject*, a *severity*, a *count*); a **row** is what the ``notices`` table remembers about one
+subject. :func:`decide` compares them: one notice per (kind, subject) until it is resolved or its
+severity rises; a "still waiting" reminder at most once a day, for what waits for a person; an
+outage noticed once when it has lasted :data:`OUTAGE_AFTER`, and once more when it ends; a resolved
+subject that comes back is a new notice. :func:`allocate` applies the rate limit
+(:data:`MAX_PER_HOUR`): the rest fold into one "N more" notice and stay due for the next pass."""
 
 from __future__ import annotations
 
@@ -225,9 +213,6 @@ def hours_between(start: datetime, end: datetime) -> int:
     return max(1, int((end - start).total_seconds() // 3600))
 
 
-# --------------------------------------------------------------------------- the rate limit
-
-
 @dataclass(frozen=True)
 class Allocation:
     """``send``: the notices that go out one by one; ``folded``: those told in one "N more"
@@ -266,9 +251,6 @@ def allocate(intents: Iterable[Intent], room: int) -> Allocation:
 
 def worst(intents: Sequence[Intent]) -> Severity:
     return max((i.severity for i in intents), key=rank)
-
-
-# --------------------------------------------------------------------------- a whole pass
 
 
 @dataclass(frozen=True)

@@ -1,14 +1,10 @@
-"""The worker (plan §8 driver, D-054): claims jobs from the queue (R6) and runs each one as a
-context-graph thread ``ctx:{investigation}:v{version}``.
+"""The worker: claims jobs from the queue and runs each as a context-graph thread
+``ctx:{investigation}:v{version}``.
 
-* no checkpoint: start the graph with the job's input; a checkpoint with pending nodes:
-  resume it (``ainvoke(None)``); a finished thread: check its dossier and complete the job.
-* the lease is renewed while the run goes on; if it is lost the run is cancelled (its effects
-  roll back: completion is fenced).
-* the SIEM or Postgres unavailable: the job is deferred (no failure counted); a defect (a refused
-  template, too large a state, a recursion error, a non-deterministic dossier): dead letter;
-  anything else: retried with backoff by the queue, then given up.
-* a persisted thread is deleted; others are pruned after 48 h.
+No checkpoint: start with the job's input; a checkpoint with pending nodes: resume it; a finished
+thread: check its dossier and complete the job. The lease is renewed while the run goes on (lost:
+the run is cancelled and its effects roll back). SIEM or Postgres unavailable: the job is deferred;
+a defect: dead letter; anything else: retried with backoff, then given up.
 """
 
 from __future__ import annotations
@@ -71,7 +67,7 @@ class WorkerConfig:
     defer_cap: timedelta = timedelta(hours=24)
     recursion_limit: int = 25
     history: timedelta = timedelta(days=5)
-    freshness: Policy | None = None  # verified zeros (Q-F1): None or "off" reads nothing
+    freshness: Policy | None = None  # verified zeros: None or "off" reads nothing
 
 
 @dataclass(frozen=True)
@@ -246,7 +242,7 @@ class Worker:
         )
 
     async def _purged(self, job: queue.Claim) -> bool:
-        """Whether the retention purge (Q-A4) removed raw alerts or evidence snapshots of this
+        """Whether the retention purge removed raw alerts or evidence snapshots of this
         investigation: a dossier derived now would read ``{}`` and empty snapshots as if the
         logs had shown nothing."""
         async with self.engine.connect() as conn:
@@ -270,7 +266,7 @@ class Worker:
         return RunResult(job.job_id, "skipped", reason)
 
     async def _run_kind(self, job: queue.Claim) -> str:
-        """``rederive`` (no SIEM request, D-055) only for a re-derivation of a version that
+        """``rederive`` (no SIEM request) only for a re-derivation of a version that
         was investigated already: new alerts that joined a queued re-derivation job made a new
         version, which is collected like any other."""
         if job.trigger != "rederive":

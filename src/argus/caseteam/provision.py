@@ -1,19 +1,13 @@
 """The case team's Kibana users, made by ARGUS from one administrator login (``argus case team
-provision``, D-303).
+provision``).
 
-The case team posts an incident case as seven Kibana users (``model.Author``). This makes what they
-need on the SIEM, the way D-159 made them by hand: two roles in the site's space only
-(``argus_case_lead``: Cases all, Security read, and write on the space's alerts so it attaches and
-tags them; ``argus_case_commenter``: the same with the alerts read-only), one user per teammate
-with a random password nobody sees, and one API key per user, granted with that password and
-written to the writer's credential folder (``case_team.<agent>_api_key``, mode 600).
-
-The administrator's login is asked once and held in memory for the run: never stored, printed or
-logged. Every call is paced, and what is printed is the method, the path and the status. A
-teammate whose key file exists is kept; one whose user exists without a key file gets a new
-password and a new key; delete a key file to re-key that teammate. Nothing is posted: posting
-stays off until the operator switches it on (``case_team.post``, write class WC).
-"""
+Two roles in the site's space only (``argus_case_lead``: Cases all, Security read, write on the
+space's alerts; ``argus_case_commenter``: the same with the alerts read-only), one user per
+teammate (``model.Author``) with a random password nobody sees, and one API key per user, written
+to the writer's credential folder (``case_team.<agent>_api_key``, mode 600). The administrator's
+login is asked once, held in memory and never stored, printed or logged; calls are paced. A
+teammate whose key file exists is kept; delete a key file to re-key that teammate. Posting stays
+off until switched on."""
 
 from __future__ import annotations
 
@@ -32,7 +26,7 @@ from argus.site import SiteSettings
 LEAD_ROLE = "argus_case_lead"
 COMMENTER_ROLE = "argus_case_commenter"
 KIBANA_APP = "kibana-.kibana"
-OPTIONAL = frozenset({Author.VISUALISER})  # its step is skipped without a key (D-250)
+OPTIONAL = frozenset({Author.VISUALISER})  # its step is skipped without a key
 PACE_S = 1.0  # the least between two calls to the SIEM
 
 

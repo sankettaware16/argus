@@ -1,21 +1,10 @@
-"""The robustness drill and the hardening check (Q-G2, plan §7.4), from ARGUS's side.
+"""The robustness drill and the hardening check, from ARGUS's side.
 
-``hardening`` asks the machine, through the tunnel, what D-108's setup must refuse: the model
-list and the chat endpoint with a wrong key, llama-server's own pages (``/slots``, ``/props``,
-``/health``, ``/metrics``) even with the right key; and the model list with the key (the
-pinned certificate and the configured model).
-
-``drill`` sends one synthetic call (no campus data, P1 checked as always) per case, each with
-ARGUS's side changed to make that fault: the tunnel's port closed (off), the context check
-lifted for an over-long prompt (overflow: llama-server's 400), a one-second deadline (slow),
-a model the machine does not serve (wrong model), another certificate pinned (changed
-certificate), another key (wrong key), a slot held by a holder that crashed (the lease). Each
-must defer within an hour (overflow: no proposal), never answer, never benign. "loading" is
-the machine's own state, which ARGUS cannot cause: the stand-in's tests cover it. A control
-call first, unchanged, must answer, or the cases prove nothing.
-
-Every case runs on a gateway of its own with an in-memory store, so the drill raises no alarm,
-cools nothing down and holds no slot in ARGUS's shared state; its ledger comes back with it.
+``hardening`` asks the machine, through the tunnel, what its setup must refuse (a wrong key,
+llama-server's own pages). ``drill`` sends one synthetic call per case, each with ARGUS's side
+changed to make a fault: port closed, over-long prompt, short deadline, wrong model, changed
+certificate, wrong key, crashed lease holder. Each must defer within an hour, never answer, never
+be benign; a control call first must answer. Every case runs on its own in-memory gateway.
 """
 
 from __future__ import annotations
@@ -48,10 +37,10 @@ DRILL_TEXT = (
     "Robustness drill from ARGUS: a synthetic item with no {noun} data. A documentation host"
     " asked example.org for three pages and every answer was 404. Nothing else happened."
 )
-# An over-long prompt in any tokenizer: single digits apart, about one token each (D-112: the
+# An over-long prompt in any tokenizer: single digits apart, about one token each (the
 # context is 16,384 tokens; this is about 40,000).
 OVERFLOW_TEXT = " ".join(str(i % 10) for i in range(40_000))
-SLOW_DEADLINE_S = 1.0  # the machine reads a prompt at about 45 tokens/s: this one takes 10 s
+SLOW_DEADLINE_S = 1.0  # short enough that any model times out on the drill's prompt
 WRONG_KEY = SecretStr("argus-drill-not-the-key")
 ABSENT_MODEL = "argus-drill-absent-model"
 CASES = tuple(ladder.CASES)
@@ -68,7 +57,7 @@ async def _nothing(case: str) -> AsyncIterator[None]:
 
 def drill_call(campus: Campus, text: str | None = None, **over: Any) -> Call:
     """The drill's call: a synthetic item, ``assess@1``'s prompt and strict schema, as a
-    connection test (``ping``: no evaluation window, no campus data)."""
+    connection test (``ping``: no evaluation window, no real data)."""
     request = Request(site.say(DRILL_TEXT) if text is None else text, (), (), (), (), campus)
     instructions = llm_prompts.PROMPTS[llm_prompts.ASSESS_V1]
     return Call(request, instructions, "ping", Tier.SMALL, budget.Priority.HIGH,
@@ -95,8 +84,8 @@ def other_certificate(folder: Path) -> Path:
 
 
 def setup_of(provider: ProviderConfig) -> dict[str, str | None]:
-    """Which setup of the machine a drill checked (F7): its address and the SHA-256 of the
-    certificate ARGUS pins (D-108: every setup run makes a new certificate), so a drill of an
+    """Which setup of the machine a drill checked: its address and the SHA-256 of the
+    certificate ARGUS pins (every setup run makes a new certificate), so a drill of an
     earlier setup is not taken for this one. Nothing secret: the key is never in it."""
     path = provider.ca_path()
     digest = None
@@ -141,7 +130,7 @@ async def _status(transport: LlmTransport, method: str, wire: LlmWire, key: Secr
 async def hardening(
     provider: ProviderConfig, key: SecretStr, transport: LlmTransport, timeout_s: float = 15.0
 ) -> dict[str, bool]:
-    """D-108's protections, as ARGUS sees them. No prompt is sent; no answer means "cannot
+    """The machine's protections, as ARGUS sees them. No prompt is sent; no answer means "cannot
     tell", which fails the check."""
     base = provider.base_url
     root = base.removesuffix("/v1")

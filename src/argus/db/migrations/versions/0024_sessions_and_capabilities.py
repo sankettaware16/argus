@@ -1,12 +1,10 @@
-"""Sessions: an absolute expiry and step-up; local accounts' capabilities (Q-A1)
+"""Sessions: an absolute expiry and step-up; local accounts' capabilities
 
-The session contract of Phase 3 (plan §7.2): a session ends 8 hours after sign-in at most
-(``expires_at``; sessions open at upgrade get their sign-in time plus 8 hours), records when
-its person last confirmed their password (``stepped_up_at``) and how many step-ups failed
-since (``stepup_failures``: three end it). A local account's capabilities are stored on it;
-every existing account gets what any reviewer could do before (view, see_logs, review,
-answer_gold), so nobody loses anything. The web's login (argus_web, 0021) gets the session
-columns it writes.
+A session ends 8 hours after sign-in at most (``expires_at``), records when its person last
+confirmed their password (``stepped_up_at``) and how many step-ups failed since
+(``stepup_failures``: three end it). A local account's capabilities are stored on it; every
+existing account gets what any reviewer could do before, so nobody loses anything. The web's login
+gets the session columns it writes.
 
 Revision ID: 0024
 Revises: 0023
@@ -28,7 +26,7 @@ CAPABILITIES = (
     "view", "see_logs", "review", "answer_gold", "manage_cases", "reopen", "approve", "admin"
 )  # fmt: skip
 LOCAL_DEFAULT = "'{view,see_logs,review,answer_gold}'::text[]"
-# The web's own group role (0021, Q-A2) signs people in and confirms step-ups too; it reads
+# The web's own group role (0021) signs people in and confirms step-ups too; it reads
 # users (capabilities included) already and never writes them (argus.db.roles.API_GRANTS).
 WEB_GRANTS = (
     "GRANT INSERT (expires_at), UPDATE (stepped_up_at, stepup_failures) ON user_sessions"

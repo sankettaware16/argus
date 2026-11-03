@@ -1,21 +1,13 @@
-"""The gateway template that reads the SSO sign-ins of some addresses on one day (AR6, D-216).
+"""The gateway template that reads the SSO sign-ins of some addresses on one day.
 
-One request is **one daily index** (``acme-logs-sso-<day>``, never across days), the
-sign-in events of the allowlisted actions from at most 200 internal IPv4 addresses, between the
-start of the UTC day and an end that is never past the ingest margin. It returns no document
-(``size`` 0, ``track_total_hits`` false) and aggregates by address and then by account:
-
-* ``ips``: a bucket for each address asked about;
-* ``accounts``: how many accounts signed in from it (a cardinality), so a shared address is seen
-  even when its accounts are not all listed;
-* ``users``: the commonest ten accounts, each with its first and last event, the outcome mix, the
-  commonest three browser strings and the UTC hours with an event.
-
-The answer holds personal data (account names): it is parsed by :mod:`argus.signins.parse` into
-sightings and never logged. Heavy by the gateway's rule (an aggregation on a log index), sent in the
-investigation lane. Three deep and up to 64,200 buckets in the worst case, so the template names its
-own bounds (``max_agg_depth``, ``max_buckets`` below Elasticsearch's own 65,536 limit).
-"""
+One request is **one daily index** (never across days): the allowlisted sign-in events of at most
+200 internal IPv4 addresses, from the start of the UTC day to an end never past the ingest margin.
+It returns no document and aggregates by address (``ips``), then the number of accounts that signed
+in (``accounts``, a cardinality, so a shared address is seen even when not all are listed), and the
+commonest ten accounts (``users``) with their first and last event, outcome mix, commonest three
+browser strings and UTC hours. The answer holds personal data: :mod:`argus.signins.parse` turns it
+into sightings and it is never logged. Heavy by the gateway's rule, sent in the investigation lane,
+with its own bounds (``max_agg_depth``, ``max_buckets``)."""
 
 from __future__ import annotations
 
@@ -123,8 +115,8 @@ class SigninsDay(Template):
         assert isinstance(params, DayParams)
         f = fields_for(Role.AUTH)
         start = m.day_start(params.day)
-        # hard_bounds drops an hour whose end passes max (23:59:59.999 lost the 23:00 hour on
-        # The SIEM, 2026-10-30): the bound is the next midnight
+        # hard_bounds drops an hour whose end passes max (23:59:59.999 loses the 23:00 hour): the
+        # bound is the next midnight
         last = start + m.DAY
         body: dict[str, Any] = {
             "size": 0,

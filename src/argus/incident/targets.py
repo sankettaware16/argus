@@ -1,13 +1,9 @@
-"""Where a case's outside actors went and what they got (AR7, D-190; the Kibana case, D-240).
+"""Where a case's outside actors went and what they got.
 
-A case of outside addresses probing campus web servers has no affected *device*: the hand-made
-case listed devices, and this one needs the campus targets (the sites and hosts the alerts say
-were aimed at) and, for each outside actor, what ARGUS holds about it. Everything here is read
-from what ARGUS already stores for the case: the alerts' own fields, the investigations' entities
-and the stored answers of the web checks (``web.followups``: the client's successful answers after
-the alert; ``web.path_outcomes``). Nothing asks the SIEM, and nothing is estimated: a count that no
-stored record shows is ``None`` ("not checked"), never zero.
-"""
+A case of outside addresses probing internal web servers has no affected *device*, so it needs the
+internal targets (the sites and hosts the alerts say were aimed at) and, for each outside actor,
+what ARGUS holds about it. Everything is read from what ARGUS already stores for the case; nothing
+asks the SIEM, and a count no stored record shows is ``None`` ("not checked"), never zero."""
 
 from __future__ import annotations
 
@@ -207,8 +203,8 @@ def is_campus_domain(name: str, domains: Iterable[str]) -> bool:
 
 
 def targets(scene: Scene) -> tuple[tuple[m.ReportTarget, ...], int]:
-    """The campus sites and hosts the case's outside actors went against: the campus domains the
-    investigations name, the sites and campus destination addresses of the alerts whose source is
+    """The internal sites and hosts the case's outside actors went against: the internal domains the
+    investigations name, the sites and internal destination addresses of the alerts whose source is
     an outside address. None for a case that has no outside actor."""
     if not scene.outsiders:
         return (), 0
@@ -221,7 +217,7 @@ def targets(scene: Scene) -> tuple[tuple[m.ReportTarget, ...], int]:
     for doc in scene.f.docs:
         sources = doc.fields.get("source.ip", ())
         if not sources or any(campus(s, classifier) for s in sources):
-            continue  # only an outside address aiming at the campus makes a target
+            continue  # only an outside address aiming at the internal network makes a target
         for site in doc.fields.get("url.domain", ()):
             if not is_ip(site):
                 found[("site", site.lower())].add(doc.investigation_id)

@@ -1,25 +1,10 @@
-"""The case writer (Q-D4, plan §5 and §7.1): what ``argus-writer`` keeps and may do.
+"""The case writer: what ``argus-writer`` keeps and may do.
 
-* ``kibana_steps``: the writes the writer derives from an outbox row and sends itself: a
-  created case's opening comment and alert attachments, and an approved compensating write's
-  change and comment. A step has the outbox's states and the same rule (``sending`` is
-  committed before the request, nothing is retried), except that it is sent at most once and
-  never resent: no approval covers a resend of a step. The trigger ``argus_step_guard`` holds
-  the moves, the counts and the fixed fields, and a compensating step needs its complete,
-  unexpired approval.
-* ``kibana_lookups``: the looks at 2, 5, 15 and 30 minutes for a write in doubt, with outcomes.
-* ``kibana_writer_runs`` and ``kibana_writer_ramp``: every run of a class that did something (a
-  canary or ramp step at the terminal, or the service's schedule), written once when it ends,
-  with what it sent and read back (the writer may insert, never change), and the class's ramp
-  step (1, then 5, then 10), which the ramp rule reads.
-* The group role ``argus_writer`` (made by ``argus db bootstrap``, like ``argus_web``) holds
-  what only the writer may do: move outbox rows to ``sending``, ``sent``, ``verified``,
-  ``ambiguous`` and the rest (the runtime keeps SELECT and INSERT only, and Q-C3's closure
-  moves), and write the four tables above. The writer's login (``database.writer_user``) was
-  made a member of ``argus_runtime`` too, for the gateway's state and the audit trail it writes
-  through: **superseded by 0038** (review R8), which gives ``argus_writer`` exactly what it needs
-  and takes the login out of ``argus_runtime``. ``argus_runtime`` gets SELECT on the four tables,
-  nothing more.
+``kibana_steps`` (the writes the writer derives from an outbox row and sends itself, with the
+outbox's states and rule, sent at most once and never resent), ``kibana_lookups`` (looks at 2, 5,
+15 and 30 minutes for a write in doubt), ``kibana_writer_runs`` and ``kibana_writer_ramp`` (every
+run of a class, and the class's ramp step). The group role ``argus_writer`` holds what only the
+writer may do; its first grants, by membership of ``argus_runtime``, were superseded by 0038.
 
 Revision ID: 0037
 Revises: 0036

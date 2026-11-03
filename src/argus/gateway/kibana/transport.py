@@ -1,16 +1,10 @@
 """Sending a validated Kibana lane request: the only code that opens a connection to Kibana
-(and, for Kibana keys' self-test, to Elasticsearch with a Kibana key).
+(and, for the keys' self-test, to Elasticsearch with a Kibana key).
 
-``HttpxKibanaTransport``: HTTPS only, the pinned CA (DQ2 (a)), never through a proxy, never
-following a redirect, Kibana's ``server.basePath`` (if the admin set one) put before every
-checked path, one deadline for the exchange (15 s by default), a cap on the answer's
-size, ``kbn-xsrf`` on every Kibana request (a write needs it; a read ignores it). Before
-sending it holds the request to an allowlist (``wire_refusal``): a Kibana route must be one
-``paths.wire_path`` builds (and pass ``paths.refusal``), an Elasticsearch route one of the key
-self-checks, so even a request that bypassed the validator never deletes, pushes, reaches
-``/internal/`` or any other route of the space; and a request whose key is not installed is
-refused (``refusal``, which the gateway asks before a write takes its place in the caps). It
-never retries: the gateway decides, and a write is never sent twice (plan §3 rule 4).
+HTTPS only with the pinned CA, never through a proxy, no redirects, one deadline, a cap on the
+answer's size, ``kbn-xsrf`` on every request. Before sending it holds the request to an allowlist
+(``wire_refusal``: a route ``paths.wire_path`` builds, or one of the key self-checks) and refuses a
+request whose key is not installed. It never retries: the gateway decides.
 """
 
 from __future__ import annotations
@@ -65,7 +59,7 @@ class KResponse:
     status: int
     body: bytes
     elapsed_ms: float
-    date: str | None = None  # Kibana's Date header (Q-D3 measures the clock offset)
+    date: str | None = None  # Kibana's Date header (used to measure the clock offset)
 
 
 class KibanaTransport(Protocol):
@@ -110,10 +104,10 @@ class HttpxKibanaTransport:
         if not BASE_PATH.fullmatch(base_path):
             raise ValueError("Kibana's base path is empty or /name, at most three parts")
         self.space = space
-        self.base_path = base_path  # Kibana's server.basePath (the admin's Q1 answer)
+        self.base_path = base_path  # Kibana's server.basePath
         self.max_bytes = max_bytes
         self._auth = {role: f"ApiKey {key.get_secret_value()}" for role, key in keys.items()}
-        # the case team's six users: one key each, picked by the request's author (AR8)
+        # the case team's users: one key each, picked by the request's author
         self._team = {
             user: f"ApiKey {key.get_secret_value()}" for user, key in (team_keys or {}).items()
         }

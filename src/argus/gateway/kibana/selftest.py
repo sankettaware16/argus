@@ -1,23 +1,12 @@
-"""``argus kibana selftest`` (Q-D2): each of ARGUS's Kibana keys holds what it must and none of
-what it must not (plan §2: Security Read is not read-only; §5 Q-D2's canaries).
+"""``argus kibana selftest``: each Kibana key holds what it must and nothing it must not.
 
 The check is Elasticsearch's ``_has_privileges`` with the key under test, asking Kibana's
-application privileges in the space (``kibana-.kibana``, ``space:<space>``), the alerts
-index and the cluster canaries in one request:
-
-- the **reader** (Cases Read only) must hold the case reads, and none of the case writes;
-- the **cases writer** (W1-W3) must hold the case reads and writes it uses and the "get" of
-  Security's alerts (an attach reads the alert first);
-- the **alert writer** (WA) must hold read, index and maintenance on the alerts;
-- none may hold ``deleteCase``, ``pushCase``, ``createConfiguration``, ``updateConfiguration``,
-  ``assignCase``, cluster ``all``/``manage``/``manage_security``/``manage_api_key``; the reader
-  and the cases writer must not hold ``api:rac`` or the alert "update" actions (the RAC routes
-  write alert status as Kibana's internal user, plan §2), nor write the alerts index; no key
-  may hold ``all``, ``manage``, ``delete_index`` or ``create_index`` on the alerts.
-
-DQ3's fallback cases writer (Cases All + Security Read, if a key limited to named actions is not
-possible) holds ``api:rac``, the alert updates and ``deleteCase``: that residual is reported as
-a problem unless ``kibana.accepted_residual`` names each privilege (a decision, recorded).
+application privileges in the space, the alerts index and the cluster canaries in one request.
+The reader holds the case reads only; the cases writer the reads and writes it uses; the alert
+writer read, index and maintenance on the alerts. None may hold delete or configuration
+privileges, cluster ``all``/``manage``, or destructive rights on the alerts index (each role's
+``Profile`` lists them). A fallback key with residual rights must be named in
+``kibana.accepted_residual``.
 """
 
 from __future__ import annotations
@@ -41,7 +30,7 @@ SIEM_RULE_TYPES = (
     "siem.queryRule",
     "siem.savedQueryRule",
     "siem.thresholdRule",
-)  # Kibana 8.19.12's Security rule types (GET /api/security/privileges?includeActions)
+)  # Kibana's Security rule types (GET /api/security/privileges?includeActions)
 ALERT_GETS = tuple(f"alerting:{t}/siem/alert/get" for t in SIEM_RULE_TYPES)
 ALERT_UPDATES = tuple(f"alerting:{t}/siem/alert/update" for t in SIEM_RULE_TYPES)
 CASE_READS = (
@@ -65,7 +54,7 @@ NEVER = (
     f"{CASES}assignCase",
 )
 # The RAC routes (api:rac) and the alert updates write alert status as Kibana's internal user;
-# the alert status route needs only api:securitySolution (kibana-identities.md).
+# the alert status route needs only api:securitySolution.
 RAC = ("api:rac", "api:securitySolution", *ALERT_UPDATES)
 CLUSTER_CANARIES = ("all", "manage", "manage_security", "manage_api_key", "grant_api_key")
 ALERT_WRITE = ("index", "write", "delete", "maintenance")
@@ -97,8 +86,8 @@ PROFILES: Mapping[KeyRole, Profile] = {
     KeyRole.ALERTS: Profile(
         (), (*CASE_WRITES, *NEVER), ALERT_WRITER_NEEDS, ("delete", *ALERT_DESTRUCTIVE)
     ),
-    # The case team's users (AR8, D-159): on Basic a key that comments also holds deleteCase
-    # (cases: all), accepted by D-159 and kept off by the lane's routes; so the profile asks for
+    # The case team's users: on Basic a key that comments also holds deleteCase
+    # (cases: all), accepted and kept off by the lane's routes; so the profile asks for
     # the reads and writes it uses and for nothing that destroys the alerts index.
     KeyRole.TEAM: Profile((*CASE_READS, *CASE_WRITES), (), (), (*ALERT_DESTRUCTIVE,)),
 }

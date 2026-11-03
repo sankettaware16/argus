@@ -1,18 +1,10 @@
-"""The gold set (Phase 2, P2; plan §3, D-080): an answer key of real investigations whose
-outcome a person confirms, used to score ARGUS's and the models' answers.
+"""The gold set: an answer key of real investigations whose outcome a person confirms, used to
+score ARGUS's and the models' answers.
 
-``select(candidates)`` picks it deterministically:
-- every investigation a person has labelled, and every one labelled a true positive;
-- per rule (by name: a rule recreated in Kibana gets a new ID), up to ``PER_RULE``
-  investigations of different kinds (pattern signatures, ``display.signature``), threat-list
-  hits and successes after an attack first, spread over the days (all of them when a rule
-  has fewer);
-- each in the ``dev`` or the ``test`` split by its day (``SPLIT_DAY``), so prompts and keys
-  are tuned on one part and scored on the other.
-``suggest(body, label)`` pre-fills an answer for the person to confirm or correct: the
-assistant's earlier label with its note where there is one (D-071), else one from generic
-signals, always with its reasons. A suggestion is never an answer: only the person's is.
-Pure functions: the caller reads the dossiers (read-only) and stores the result.
+``select(candidates)`` picks it deterministically: every labelled investigation and true positive,
+then per rule up to ``PER_RULE`` investigations of different kinds, spread over the days, each in
+the ``dev`` or ``test`` split by its day. ``suggest`` pre-fills an answer from generic signals for
+the person to confirm or correct; a suggestion is never an answer. Pure functions.
 """
 
 from __future__ import annotations
@@ -31,7 +23,7 @@ from argus.evaluation.harness import BENIGN
 from argus.outside import facts as outside
 
 PER_RULE = 5
-SPLIT_DAY = date(2026, 10, 12)  # dev before, test from this day (Phase 1's soak began 10-13)
+SPLIT_DAY = date(2026, 10, 12)  # dev before, test from this day
 SEED = "gold-v1"
 ASSISTANT = "argus-assistant"
 POSITIVE = "true_positive"
@@ -97,7 +89,7 @@ def flags(body: Mapping[str, Any]) -> tuple[str, ...]:
         out.append("regular traffic, like a beacon")
     if _positive(_known(body, "ports.risky")):
         out.append("remote-admin, P2P or anonymizer ports")
-    return outside.with_flag(out, body.get("outside"))  # AR3: an outside detection (D-165)
+    return outside.with_flag(out, body.get("outside"))  # an outside detection
 
 
 def _order(candidate: Candidate) -> str:
@@ -169,10 +161,10 @@ def extend(
     rule: str | None = None,
     rule_count: int = 0,
 ) -> list[Item]:
-    """A further set beside a frozen one (labelling round 1, plan §13 item 6): ``benign``
+    """A further set beside a frozen one: ``benign``
     investigations whose pre-filled suggestion is benign, one rule after another so every rule
-    takes its turn (Phase 2's criterion 3 needs benign answers), then up to ``rule_count`` more
-    of ``rule`` whatever their suggestion (a rule short of labels, D-080). Nothing in
+    takes its turn (the first evaluation needs benign answers), then up to ``rule_count`` more
+    of ``rule`` whatever their suggestion (a rule short of labels). Nothing in
     ``exclude`` (the items of the sets that exist); deterministic for the same candidates."""
     skip = set(exclude)
     pool = sorted((c for c in candidates if c.investigation_id not in skip), key=_order)

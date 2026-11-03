@@ -1,17 +1,9 @@
-"""Watermarks and verified zeros (Q-F1, plan §7.3 point 1): readings, watermarks, the shadow
+"""Watermarks and verified zeros: readings, watermarks, the shadow
 
-- ``freshness_readings``: every freshness-lane reading of a log source (the newest document
-  by ingest time, or why there was none). The runtime role reads and adds rows; it may not
-  change or delete them.
-- ``freshness_watermarks``: each source's newest ingest time seen. The runtime role adds and
-  updates rows; a trigger refuses any update that moves a watermark back (ENABLE ALWAYS, and
-  ``argus doctor`` checks it like the other guards).
-- ``freshness_shadow``: the verdict a log zero gets, one row per investigation version, pack
-  and signal (replaced when the signal is derived again); ``freshness_proposals``: what an
-  assessor would propose with the shadow's verified zeros. The web's role gets nothing on
-  either, so no page and no API can show them (plan §3 rule 12).
-- ``evidence.asked_at``: when the gateway was asked for the evidence; a copy for a later
-  version keeps the original's (a verified zero needs a reading from before the search).
+``freshness_readings`` (append-only), ``freshness_watermarks`` (a trigger refuses an update that
+moves one back), ``freshness_shadow`` (the verdict a log zero gets) and ``freshness_proposals``
+(what an assessor would propose with the verified zeros). The web's role gets nothing on the last
+two, so no page or API can show them. ``evidence.asked_at`` records when the gateway was asked.
 
 Revision ID: 0033
 Revises: 0032
@@ -156,7 +148,7 @@ def upgrade() -> None:
             ["investigation_id"],
             ["investigations.id"],
             name=op.f("fk_freshness_shadow_investigation_id_investigations"),
-            ondelete="CASCADE",  # the retention purge removes the investigation (review F1)
+            ondelete="CASCADE",  # the retention purge removes the investigation
         ),
         sa.PrimaryKeyConstraint(
             "investigation_id", "version", "pack", "signal", name=op.f("pk_freshness_shadow")
@@ -191,7 +183,7 @@ def upgrade() -> None:
             ["investigation_id"],
             ["investigations.id"],
             name=op.f("fk_freshness_proposals_investigation_id_investigations"),
-            ondelete="CASCADE",  # the retention purge removes the investigation (review F1)
+            ondelete="CASCADE",  # the retention purge removes the investigation
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_freshness_proposals")),
     )

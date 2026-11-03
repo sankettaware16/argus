@@ -1,32 +1,14 @@
-"""The guardian of an outgoing comment (AR8, D-158): the last check before a word reaches Kibana.
+"""The guardian of an outgoing comment: the last check before a word reaches Kibana.
 
-The renderers (:mod:`argus.caseteam.render`) already make every value safe: a value from a log, a
-report or a person is cleaned, defanged and fenced in a code span, and a sentence is escaped
-(every ASCII punctuation character backslash-escaped). This check does not trust that: it reads
-the finished text the way a Markdown reader would and **refuses** it (nothing is sent, the step is
-held for a person) if anything outside a code span could act:
-
-* a control, bidirectional or zero-width character (tab and newline are text);
-* a length over Kibana's limit (counted in UTF-16 units, as Kibana counts);
-* an HTML tag or entity-opening ``<``, a block quote, a raw ``[`` or ``]``;
-* a link or an image whose target is not one of the addresses ARGUS builds (its own link, Kibana's
-  Discover), a URL scheme, ``www.`` or a ``javascript:`` target in plain text;
-* an ``@mention``;
-* a code span or a fence that is not closed (it would swallow what follows);
-* a code span inside ``**bold**``, ``__bold__`` or ``~~strike~~``: Kibana's parser (remark-parse 8,
-  not CommonMark) finds the end of those by scanning raw characters, code spans included, so a
-  value in a span could end the bold early and leave the rest of the span live (D-244);
-* a table row whose cells are not as many as the table's header: Kibana ends a cell at every pipe
-  that no backslash protects, one inside a code span included (D-244);
-* a line of ``=`` or ``-`` signs alone (the underline of a heading, or a rule).
-
-One thing is let through whole: a line that is exactly one embedded chart (AR10, ``!{lens{...}}``)
-that :func:`argus.caseteam.lens.problems` accepts (plain strings only, one ad hoc data view over a
-space's alerts index, a filter on the incident's tag). A ``!{lens`` anywhere else is refused.
-
-Counts, times and lists are filled in by code (the renderers' inputs are the stored report's
-fields), so the guardian has no number to check: what it holds is the text's safety.
-"""
+The renderers (:mod:`argus.caseteam.render`) already make every value safe. This check does not
+trust that: it reads the finished text the way a Markdown reader would and **refuses** it (nothing
+is sent, the step is held for a person) if anything outside a code span could act: a control,
+bidirectional or zero-width character; a length over Kibana's limit (in UTF-16 units); an HTML tag,
+block quote or raw bracket; a link whose target is not one ARGUS builds, a URL scheme, ``www.`` or
+a ``@mention``; an unclosed code span or fence; a code span inside bold or strike-through or a
+table row of the wrong width (Kibana's parser, remark-parse 8, scans raw characters, code spans
+included); a line of ``=`` or ``-`` alone. One thing is let through whole: a line that is exactly
+one embedded chart that :func:`argus.caseteam.lens.problems` accepts."""
 
 from __future__ import annotations
 
@@ -106,7 +88,7 @@ def _unfenced(text: str, problems: list[str]) -> list[str]:
             if found is not None:
                 fence = found.group(1)
                 continue
-            if line.startswith(lens.PREFIX):  # AR10: an embedded chart is checked whole, or refused
+            if line.startswith(lens.PREFIX):  # an embedded chart is checked whole, or refused
                 problems.extend(lens.problems(line))
                 continue
             kept.append(line)

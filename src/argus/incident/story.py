@@ -1,12 +1,9 @@
-"""The report's reading of the case (AR7, D-190): hypotheses with why each was kept or ruled out,
-the recommended actions from the responder's catalogue, and the summary with the notice state.
+"""The report's reading of the case: hypotheses with why each was kept or ruled out, the
+recommended actions from the responder's catalogue, and the summary with the notice state.
 
-A hypothesis is judged from counts and flags alone: which facts support the threat reading, which a
-harmless one cannot account for, how many devices are named, whether an attacker was served what it
-asked for. The AI investigator's own hypotheses are listed beside, as it wrote them, never judged.
-The actions are the catalogue's (``config/actions.yaml``) for the families the case's facts
-match; ARGUS invents none. Every sentence cites facts of the report's book.
-"""
+A hypothesis is judged from counts and flags alone; the AI investigator's own hypotheses are listed
+beside, as it wrote them, never judged. The actions are the catalogue's (``config/actions.yaml``)
+for the families the case's facts match; ARGUS invents none."""
 
 from __future__ import annotations
 
@@ -24,9 +21,6 @@ from argus.responder import facts as responder_facts
 
 WATCH_QUIET_DAYS = 3  # argus.cases.watch.QUIET_DAYS: whole UTC days of no activity
 KIND = ("threat", "benign", "rule")
-
-
-# ----------------------------------------------------------------------------- hypotheses
 
 
 @dataclass(frozen=True)
@@ -278,9 +272,6 @@ def _investigator(scene: Scene, book: Book) -> list[m.ReportHypothesis]:
     return out
 
 
-# ----------------------------------------------------------------------------- actions
-
-
 def actions(scene: Scene, book: Book) -> m.ReportActions:
     """The catalogue's actions for the families the case's facts match, then ARGUS's open
     reminders (notify the owner again, ask for network-side action), then when to close."""
@@ -348,11 +339,8 @@ def actions(scene: Scene, book: Book) -> m.ReportActions:
     return m.ReportActions(lines=tuple(lines), close_when=close, note=note)
 
 
-# ----------------------------------------------------------------------------- summary
-
-
 def notice(scene: Scene) -> m.ReportNotice | None:
-    """AR4b's notice state (D-169): the owner was told, the alerts since, still active or not."""
+    """The notice state: the owner was told, the alerts since, still active or not."""
     case = scene.f.case
     if case.notified_at is None:
         return None

@@ -1,16 +1,16 @@
-# Addresses and names many unrelated customers share: content-delivery networks and clouds
-# (Q-C2, plan §5 "stricter for CDNs and clouds"). An investigation that matches a case only
-# through one of these is never joined to it: it is suggested, and a person decides. A real
-# match needs more than the shared address (the same campus host, the same account).
+# Addresses and names many unrelated customers share: content-delivery networks and clouds. An
+# investigation that matches a case only through one of these is never joined to it: it is
+# suggested, and a person decides. A real match needs more than the shared address (the same
+# host, the same account).
 #
 # This is a seed list, not a complete one. ARGUS also treats any value that appears in 50 or
 # more investigations within history.window as shared, whatever it is. Add the ranges your
-# providers publish (AWS ip-ranges.json, Google cloud.json, Azure service tags) here as they
-# become needed; unknown keys are errors.
+# providers publish (AWS ip-ranges.json, Google cloud.json, Azure service tags) as needed;
+# unknown keys are errors.
 #
-# `autonomous_systems` (AR2c, D-174) are the big hosting and cloud providers: two rare domains in
-# the same autonomous system are one operator only when that system is NOT listed here (an
-# address in the same /24 or an identical set of name servers still ties them).
+# `autonomous_systems` are the big hosting and cloud providers: two rare domains in the same
+# autonomous system are one operator only when that system is NOT listed here (an address in the
+# same /24 or an identical set of name servers still ties them).
 version: 1
 networks:
   # Cloudflare (https://www.cloudflare.com/ips/)

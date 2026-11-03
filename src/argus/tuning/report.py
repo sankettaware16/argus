@@ -1,11 +1,8 @@
-"""The weekly per-rule tuning report (P7, D-090): every number recomputed from the store.
-
-For each rule (by name: a rule recreated in Kibana keeps its name, D-081), over the week
-before ``now``: alerts per day, investigations, rule runs and runs that hit the rule's
-``max_signals``; the people's labels (their newest outcome per investigation, and the gold
-set's answers, over the last ``LABEL_DAYS``); current proposals; and the dominant values (the
-grouping key's and the entities') with the labels of the investigations that carry them.
-"""
+"""The weekly per-rule tuning report, every number recomputed from the store: per rule (by name),
+over the week before ``now``, alerts per day, investigations, rule runs and runs at the rule's
+``max_signals``; people's labels (newest outcome per investigation, plus the gold set's, over the
+last ``LABEL_DAYS``); current proposals; and the dominant values with the labels of the
+investigations that carry them."""
 
 from __future__ import annotations
 

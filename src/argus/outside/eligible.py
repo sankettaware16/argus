@@ -1,18 +1,9 @@
-"""Which indicators may be asked of an outside source (AR3, D-165): external ones only.
-
-Nothing about the campus leaves ARGUS through a lookup. An address is eligible when it is public
-by the same classifier the rest of ARGUS uses (the asset map, ``assets.campus_prefixes``, private
-and special-purpose space all say no) and the privacy layer's campus view does not hold it; a name
-is eligible when it is a public domain that holds no campus domain, asset name, host or user name
-(the privacy layer's own detector, ``argus.llm.detect.find``); a URL needs an eligible host and
-no campus identifier anywhere in it; a file hash names no campus thing and passes. Anything the
-check cannot read is refused: a lookup is never the fallback.
-
-The campus view is per item: the host and user names an investigation mentions are campus names
-for that investigation (``jsmith.c2.com`` names the user ``jsmith``), exactly as the privacy
-layer scrubs them from the model's view (``Privacy.campus_for``). :meth:`Eligibility.for_item`
-gives the check with that view; the base check alone does not know the names.
-"""
+"""Which indicators may be asked of an outside source: external ones only. An address is eligible
+when the classifier calls it public and the privacy layer's internal view does not hold it; a name
+when it is a public domain holding no internal domain, asset, host or user name; a URL needs an
+eligible host and no internal identifier; a file hash always passes. Anything the check cannot
+read is refused. The internal view is per item (:meth:`Eligibility.for_item`): the host and user
+names a dossier mentions count as internal names for it."""
 
 from __future__ import annotations
 

@@ -179,8 +179,6 @@ def install(
             raise refuse(409, "conflict", "What this would write changed while you asked: nothing"
                          " was saved. Read the preview again.")  # fmt: skip
 
-    # ------------------------------------------------------------------ reading cases
-
     @router.get("/cases", tags=["cases"], operation_id="listCases", responses=read)
     async def list_cases(
         me: Viewer,
@@ -287,8 +285,6 @@ def install(
                    " not there)."),
             approvers=1,
         )  # fmt: skip
-
-    # ------------------------------------------------------------------ commands
 
     async def command(
         request: Request,
@@ -596,8 +592,6 @@ def install(
                                   "via": "web"})  # fmt: skip
         return m.SuggestionDismissed(case_id=case_id, suggestion_id=suggestion_id)
 
-    # ------------------------------------------------------------------ notes
-
     async def one_at_a_time(conn: AsyncConnection, what: str) -> None:
         """Two submits of the same note at once meet here: the second waits for the first's
         transaction, then finds its note (a double click is one note)."""
@@ -721,8 +715,6 @@ def install(
                            created_at=made),
             duplicate=False,
         )  # fmt: skip
-
-    # ------------------------------------------------------------------ approvals
 
     async def db_now(conn: AsyncConnection) -> datetime:
         found: datetime = (await conn.execute(text("SELECT now()"))).scalar_one()
@@ -889,8 +881,6 @@ def install(
         return m.GroupDecisionDone(
             decided=[done(d, rid) for d, rid in zip(made, rest, strict=True)]
         )
-
-    # ------------------------------------------------------------------ Check more
 
     @router.get("/investigations/{investigation_id}/checks", tags=["investigations"],
                 operation_id="listChecks", responses=errors(401, 403, 404, 422))  # fmt: skip

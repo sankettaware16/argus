@@ -1,24 +1,9 @@
-"""Where configuration comes from: the YAML file, the ``.env`` file, the environment and, for a
-service in the custody layout (Q-A5), systemd's credential directory.
-
-Each source is read into a :class:`Layer`: nested data shaped like the settings model, the
-origin of every setting it provides (so an error can point at the file and line, or the
-variable, that holds a bad value) and the problems found while reading it. Problems are
-collected rather than raised, so one report lists every mistake; a file that cannot be read or
-parsed at all raises :class:`ConfigError` straight away.
-
-Rules shared by every source:
-
-* a name that is not a setting is an error, never silently ignored. The exception is variables
-  without the ``ARGUS_`` prefix: the environment and ``.env`` are shared with other tools
-  (``.env`` with docker compose), so ARGUS ignores those and never prints their names;
-* messages contain names, file names and line numbers, never values (they may be secrets);
-* work is bounded by a file's size, whatever the file holds: only a regular file of at most
-  1 MiB is read (parsing that takes seconds at most). The YAML loader limits nesting, keys
-  (counting the ones ``<<`` merges copy) and integer length. A ``.env`` line may hold at most
-  16,384 characters, and at most 256 blanks in a row (python-dotenv's time is quadratic in
-  them), and ``${VAR}`` references are expanded in one pass to at most 4 MiB of values.
-"""
+"""Where configuration comes from: the YAML file, the ``.env`` file, the environment and systemd's
+credential directory. Each is read into a :class:`Layer` (settings-shaped data, the origin of each
+value and the problems found); problems are collected so one report lists every mistake, and an
+unreadable file raises :class:`ConfigError`. Names that are not settings are errors, messages
+never hold values, and work is bounded by limits on file size, nesting, keys and ``${VAR}``
+expansion."""
 
 from __future__ import annotations
 
@@ -153,12 +138,9 @@ def section_model(model: type[BaseModel], name: str) -> type[BaseModel] | None:
 
 def _read_capped(path: Path, kind: str) -> bytes | None:
     """The content of a regular file of at most MAX_FILE_BYTES, or None if there is no file.
-
-    Anything but a regular file is refused before a byte is read: a pipe or a terminal (a FIFO,
-    or /dev/stdin given as the path) would wait for input forever, and a device such as /dev/zero
-    never ends. O_NONBLOCK stops the open itself from waiting for a FIFO's writer, and O_NOCTTY
-    stops a terminal from becoming the controlling terminal of ARGUS.
-    """
+    Anything but a regular file is refused before a byte is read: a FIFO or /dev/stdin would wait
+    forever and /dev/zero never ends. O_NONBLOCK stops the open from waiting for a FIFO's writer,
+    O_NOCTTY stops a terminal from becoming ARGUS's controlling terminal."""
     where = safe(path)
     try:
         descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOCTTY)
@@ -218,18 +200,10 @@ def _kind(value: object) -> str:
 
 
 class _ConfigLoader(yaml.SafeLoader):
-    """``yaml.SafeLoader`` with the strictness a config file needs.
-
-    * A repeated key is an error (YAML 1.2 requires unique keys; PyYAML keeps the last one).
-      ``<<`` merge keys still work, and a key written next to a merge overrides the merged one.
-    * Keys are their literal text, so ``on:``, ``1:`` or ``2026-10-10:`` are names to check,
-      not the bool, int or date YAML 1.1 would turn them into.
-    * A value its tag cannot build (``2026-02-30``, ``0x_``, ``!!int 5d``) is a YAML error with
-      a position instead of a stray ``ValueError``.
-    * Work is bounded before it is done: nesting is capped before the composer's recursion can
-      exhaust the Python stack, keys are counted before a ``<<`` merge copies them (aliases share
-      nodes, but merges copy keys), and integers are capped in length.
-    """
+    """``yaml.SafeLoader`` with the strictness a config file needs: a repeated key is an error
+    (``<<`` merges still work); keys are their literal text (``on:`` and ``1:`` are names, not a
+    bool or an int); a value its tag cannot build is a YAML error with a position; and work is
+    bounded before it is done (nesting, key count including merged copies, integer length)."""
 
     def __init__(self, stream: str) -> None:
         self._depth = 0
@@ -263,13 +237,9 @@ class _ConfigLoader(yaml.SafeLoader):
             raise _StrictYAMLError(problem, node.start_mark) from None
 
     def flatten_mapping(self, node: MappingNode) -> None:
-        """Apply the mapping's ``<<`` merges as PyYAML does, counting keys before copying them.
-
-        The result is PyYAML's: merged keys come first, so the mapping's own keys win, and of
-        the mappings in ``<<: [*a, *b]`` the first listed wins. Unlike PyYAML, each mapping is
-        flattened once rather than again for every alias of it, a merge never copies past
-        MAX_YAML_KEYS, and many merge keys in one mapping cost linear time.
-        """
+        """Apply the mapping's ``<<`` merges as PyYAML does (merged keys first, so the mapping's
+        own keys win; the first listed mapping wins), counting keys before copying them: each
+        mapping is flattened once, a merge never copies past MAX_YAML_KEYS."""
         if id(node) in self._flattened:
             return
         self._flattened.add(id(node))
@@ -324,7 +294,6 @@ _ConfigLoader.add_constructor(_INT_TAG, _ConfigLoader._construct_int)
 
 
 def _merge_sources(value_node: Node) -> list[MappingNode]:
-    """The mappings a ``<<`` key merges: one mapping or a list of them."""
     if isinstance(value_node, MappingNode):
         return [value_node]
     if not isinstance(value_node, SequenceNode):
@@ -451,7 +420,6 @@ def read_yaml_file(path: Path) -> tuple[dict[str, Any], Node | None]:
 
 
 def _key_lines(root: Node | None, model: type[BaseModel]) -> dict[tuple[str, ...], int]:
-    """Line of every top-level key and of every key inside a known section."""
     lines: dict[tuple[str, ...], int] = {}
     if not isinstance(root, MappingNode):
         return lines
@@ -652,14 +620,11 @@ def environment_layer(environ: Mapping[str, str], model: type[BaseModel]) -> Lay
 def dotenv_layer(env_file: Path | None, model: type[BaseModel]) -> Layer | None:
     """``ARGUS_*`` variables from the ``.env`` file, or None when there is no such file.
 
-    Every line must parse: python-dotenv skips a line it cannot read (only logging a warning),
-    and an unterminated quote can swallow the following lines into one value. Variables
-    without the ``ARGUS_`` prefix belong to other tools (docker compose reads the same file),
-    so they are ignored and their names are never printed: a secret pasted onto a line of its
-    own would otherwise be shown as an unknown name. A path that exists but is not a readable
-    regular file is an error, not "no .env", and so is a line that python-dotenv would take long
-    to read (see _check_env_lines).
-    """
+    Every line must parse (python-dotenv skips one it cannot read, and an unterminated quote can
+    swallow the following lines). Variables without the ``ARGUS_`` prefix belong to other tools
+    and are ignored, their names never printed: a secret pasted onto a line of its own would
+    otherwise be shown as an unknown name. A path that is not a readable regular file is an error,
+    and so is a line python-dotenv would take long to read (see _check_env_lines)."""
     if env_file is None:
         return None
     where = safe(env_file)
@@ -708,13 +673,9 @@ def dotenv_layer(env_file: Path | None, model: type[BaseModel]) -> Layer | None:
 
 
 def _check_env_lines(text: str, where: str) -> None:
-    """Refuse a line that python-dotenv would take long to read, naming only its number.
-
-    python-dotenv strips a comment from an unquoted value with the pattern ``\\s+#.*``, which
-    takes time quadratic in the length of a run of blanks (40,000 spaces take over a second), so
-    a run may be at most MAX_ENV_BLANKS long. A line may be at most MAX_ENV_LINE_CHARS long: no
-    setting needs more, and the cap bounds python-dotenv's work on any one line.
-    """
+    """Refuse a line that python-dotenv would take long to read, naming only its number: a run of
+    blanks longer than MAX_ENV_BLANKS (its comment stripping is quadratic in it) or a line longer
+    than MAX_ENV_LINE_CHARS."""
     for pattern, problem in (
         (_LONG_ENV_LINE, f"is longer than {MAX_ENV_LINE_CHARS} characters"),
         (_LONG_ENV_BLANKS, f"has more than {MAX_ENV_BLANKS} spaces or other blanks in a row"),
@@ -726,14 +687,9 @@ def _check_env_lines(text: str, where: str) -> None:
 
 
 def _expand_variables(bindings: list[Binding], *, where: str = ".env") -> list[str | None]:
-    """Each binding's value with ``${VAR}`` expanded as python-dotenv's ``dotenv_values`` does.
-
-    ``${VAR}`` is the value of VAR on an earlier line, else in the environment (``${VAR:-x}``
-    falls back to x). None means no value. This takes time linear in the file's size, where
-    python-dotenv copies the environment for every line and rescans a value from every unclosed
-    "${". The values together may hold at most MAX_ENV_EXPANDED_CHARS characters: a line that
-    repeats a reference to the line before can make a value thousands of times longer.
-    """
+    """Each binding's value with ``${VAR}`` expanded as python-dotenv does: the value of VAR on an
+    earlier line, else in the environment (``${VAR:-x}`` falls back to x). Linear in the file's
+    size, and the values together may hold at most MAX_ENV_EXPANDED_CHARS characters."""
     known: dict[str, str | None] = dict(os.environ)
     values: list[str | None] = []
     room = MAX_ENV_EXPANDED_CHARS
@@ -756,12 +712,9 @@ def _expand_variables(bindings: list[Binding], *, where: str = ".env") -> list[s
 
 def _expand(value: str, known: Mapping[str, str | None], limit: int) -> str | None:
     """``value`` with its references replaced, or None if the result is longer than ``limit``.
-
-    The references are the ones python-dotenv's ``parse_variables`` finds, in one pass (its
-    pattern rescans the rest of the value from every "${" that nothing closes): a name runs from
-    "${" to the first '}' or ':', and after ":-" a default runs to the next '}'. ``${NAME}`` is
-    NAME's value in ``known``, else the default, else empty.
-    """
+    The references are the ones python-dotenv's ``parse_variables`` finds, in one pass: a name
+    runs from "${" to the first '}' or ':', and after ":-" a default runs to the next '}'.
+    ``${NAME}`` is NAME's value in ``known``, else the default, else empty."""
     pieces: list[str] = []
     size = 0
     copied = 0  # value[:copied] is in pieces
@@ -796,15 +749,13 @@ def _expand(value: str, known: Mapping[str, str | None], limit: int) -> str | No
 
 def credentials_layer(directory: Path | None, model: type[BaseModel]) -> Layer | None:
     """Secrets from systemd's credential directory (``$CREDENTIALS_DIRECTORY``, filled from
-    root-owned files by ``LoadCredential=``, Q-A5), or None without one.
+    root-owned files by ``LoadCredential=``), or None without one.
 
-    A credential named ``section.key`` (``database.password``) sets that setting to its whole
-    content, less one final line break (``echo`` adds one). Only secret settings come from here:
-    a credential named like another setting is an error, as an unknown name is everywhere
-    else. Credentials with any other name (``web-tls.key``) are files that a setting names by
-    path; they are not read here. Each file is read as the other sources are: a regular file of
-    at most 1 MiB, UTF-8 text. Messages name credentials, never their content.
-    """
+    A credential named ``section.key`` (``database.password``) sets that secret setting to its
+    whole content, less one final line break. A credential named like another setting is an error;
+    one with any other name (``web-tls.key``) is a file a setting names by path and is not read
+    here. Each file is a regular file of at most 1 MiB, UTF-8. Messages name credentials, never
+    their content."""
     if directory is None:
         return None
     where = safe(directory)

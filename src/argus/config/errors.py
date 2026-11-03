@@ -15,21 +15,14 @@ class ConfigError(Exception):
 
 def safe(fragment: object) -> str:
     """Text the user controls (a path, a key, a library message), ready for an error message.
-
-    Messages combine fixed wording with fragments like these and never include configuration
-    values. As a second safeguard every fragment also goes through log redaction, so a secret
-    that ends up in a file name or a library message is masked as well. Fragments are redacted
-    one at a time: redacting the finished message would mistake a line such as
-    ``database.passwd: unknown setting`` for a ``key: secret`` pair.
-    """
+    Messages combine fixed wording with such fragments and never include configuration values.
+    Each fragment also goes through log redaction on its own (redacting the finished message would
+    mistake ``database.passwd: unknown setting`` for a ``key: secret`` pair)."""
     return redact_text(str(fragment))
 
 
 def show_name(name: str) -> str:
-    """A key or variable name for a message: as written when plain, otherwise quoted and escaped.
-
-    Quoting keeps a key literally named ``history.window`` apart from the real setting
-    ``history.window``, and escaping makes invisible characters (NBSP) and look-alike letters
-    visible.
-    """
+    """A key or variable name for a message: as written when plain, otherwise quoted and escaped,
+    so a key literally named ``history.window`` stays apart from the setting and invisible or
+    look-alike characters show."""
     return safe(name if _PLAIN_NAME.fullmatch(name) else ascii(name))

@@ -1,4 +1,4 @@
-"""The LLM gateway (P5, D-086): its shared state (one row) and its call ledger
+"""The LLM gateway: its shared state (one row) and its call ledger
 
 Revision ID: 0018
 Revises: 0017

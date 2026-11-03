@@ -1,23 +1,9 @@
-"""AR4b after the adversarial review (D-181): a change that lasts, a notice that can be withdrawn,
-and the new destinations a notified case counts.
+"""The owner-notified review fixes: durable changes, withdrawn notices, new destinations
 
-* ``case_known_matches.changed_version``: the version of the investigation at which a change since
-  the notice was decided. A change is durable: the next version of the investigation does not
-  erase it. The row stays ``changed``, with its reason (a later change adds its reason), until a
-  person reviews a version at or after ``changed_version``; only then may a later version be
-  ``known``. ``changed_version`` is set exactly when the outcome is ``changed`` (the rows 0050
-  made are filled with their own version).
-* ``case_events.kind`` gains ``notice_withdrawn``: a person withdraws a notice they recorded by
-  mistake (the case event is append-only; the notice rows stay as the record of what was said).
-* ``case_known_keys.kind`` gains ``new_destination``: an outside address or name that a notified
-  device reached, that nobody flags and the case does not hold. It is counted on the case (and
-  listed on its page), not raised; it is not "held": a later flag on it is still a change.
-
-``argus_runtime`` writes ``changed_version`` as it writes the rest of the row (the web's role only
-reads it). Downgrading is refused while a case event is a withdrawn notice; the new destinations
-(derived data) and ``changed_version`` are dropped.
-
-The role names are written out, not imported (see 0003).
+``case_known_matches.changed_version`` makes a change durable: the row stays ``changed`` until a
+person reviews a version at or after it. ``case_events.kind`` gains ``notice_withdrawn`` and
+``case_known_keys.kind`` gains ``new_destination`` (counted on the case, not raised). Downgrading is
+refused while a case event is a withdrawn notice.
 
 Revision ID: 0051
 Revises: 0050

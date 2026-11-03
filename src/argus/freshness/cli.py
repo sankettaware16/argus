@@ -1,4 +1,4 @@
-"""``argus freshness ...``: the watermarks and the shadow of verified zeros (Q-F1).
+"""``argus freshness ...``: the watermarks and the shadow of verified zeros.
 
 Only ``read`` (without ``--dry-run``) sends anything to the SIEM: one size-1 search per source
 through the freshness lane. The readings themselves run in the collector's process while
@@ -27,7 +27,7 @@ from argus.gateway.service import build_gateway
 
 freshness_app = typer.Typer(
     no_args_is_help=True,
-    help="Watermarks and the shadow of verified zeros (Q-F1): nothing here is shown to people.",
+    help="Watermarks and the shadow of verified zeros: nothing here is shown to people.",
 )
 
 
@@ -87,7 +87,7 @@ def freshness_read(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The first live reads (production step 18): a health probe, then one reading of every
+    """The first live reads: a health probe, then one reading of every
     log source, inside a person's live-test session (its stricter limits apply on top of the
     freshness lane's switches, health, quiet hours and budget), stored like the shadow's.
     ``--dry-run`` prints the exact requests the validator accepted and sends nothing. The
@@ -203,7 +203,7 @@ def freshness_assess(
     """The deterministic engine on every dossier with a would-be verified zero, with and
     without them: the would-be proposals are stored for the audit (never used or shown);
     prints the counts, and the gold set's true positives that would be proposed benign
-    (the gate: 0)."""
+    (must be 0)."""
     settings = load(config)
 
     async def go() -> dict[str, Any]:
@@ -226,7 +226,7 @@ def freshness_audit_sheet(
     bridged: Annotated[bool, typer.Option("--bridged", help="the bridge's zeros")] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The user's audit sheet (production step 25): every would-be benign proposal stored by
+    """The audit sheet: every would-be benign proposal stored by
     ``argus freshness assess``, with ``correct`` and ``true_positive`` to answer yes or no.
     Open each investigation in the Inbox to judge it."""
     import csv
@@ -272,8 +272,8 @@ def freshness_audit_score(
     config: ConfigOption = None,
 ) -> None:
     """Score an answered audit sheet against the switch-on's bar: every item answered, 0 true
-    positives, a Wilson lower bound of at least 90 % at n >= 37 (D-092). The sheet must hold
-    exactly the stored would-be proposals (review F4: a row cannot be left out). Exit 1 below
+    positives, a Wilson lower bound of at least 90 % at n >= 37. The sheet must hold
+    exactly the stored would-be proposals (a row cannot be left out). Exit 1 below
     the bar, 2 when the sheet does not match the store."""
     import csv
 

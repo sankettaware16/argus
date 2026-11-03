@@ -1,43 +1,14 @@
-"""Send-time checks (plan §7.1, §3 rules 4, 6 and 7): before a closure write (W3) leaves ARGUS,
-``argus-writer`` checks again everything its approval was bound to, and sends nothing on a
-doubt.
+"""Send-time checks: before a closure write (W3) leaves ARGUS, ``argus-writer`` checks again
+everything its approval was bound to, and sends nothing on a doubt.
 
-:func:`check` decides one outbox row, reading only the database:
-
-* **versions**: the case is still closed by this approval at the closure's version (a reopen
-  in between skips the write); the Kibana case's version is the one the approval saw (else
-  "re-confirm"); the closing comment waits for the closing change to be verified;
-* **payload**: the row's payload has its hash, the approval's payload has its hash, and the
-  row is exactly the write the approval named at its position;
-* **alert set**: the case's alerts (as of its closure) are the ones the approval covered;
-* **expiry**: the approval has not expired (else "re-confirm", counted as expired unsent);
-* **signatures**: every approving decision carries the web's valid signature over its stored
-  statement (anything else is tampering: refused, paused, never sent);
-* **approvers**: each counts only while not revoked since they approved (account enabled, no
-  denied check), with a good live check within :data:`LIVE_CHECK_BOUND` (DQ12) from the
-  provider that checked them for the approval, whose newest check still shows ``approve`` and
-  Kibana's ``updateCase``; two people are two different persons (accounts, ``argus_uid``s and
-  e-mail addresses), and none is the person who asked for the closure (their bound check or
-  any good check of theirs naming the same ``argus_uid`` or e-mail address);
-* Kibana's "Sync alerts" is off on the case (plan §7.1).
-
-A person who rejects the re-confirmation of a write decides that it is not sent: it is
-skipped (the case stays closed in ARGUS; reopening it is a person's action).
-
-When the closure's own approval no longer holds, a person's **re-confirmation** of this write
-(an approval request ARGUS asks for, bound to the case's alerts and Kibana version then) does.
-
-:func:`release` applies a verdict to the row, through ``argus_closure_write_move()`` (the
-runtime holds no UPDATE on the outbox; each move is audited): ``send`` moves it to
-``approved``; ``reconfirm`` pauses it (``re-confirm: ...``) and asks for a re-confirmation;
-``refuse`` pauses it (``refused: ...``) for a person: it is never let go again, and only a
-change of its case skips it; ``skip`` skips it; ``wait`` leaves it. A closure write paused by
-anything else waits for a person the same way. The writer (Q-D4) calls :func:`admit` in the
-transaction that moves an approved row to ``sending`` and sends only on ``send``, so a
-revocation between the release and the request still stops it. The database's outbox guard
-refuses a closure write leaving for ``approved`` or ``sending`` without a complete, unexpired,
-signed approval whatever code runs (migration 0030).
-"""
+:func:`check` decides one outbox row from the database alone: case and Kibana versions, payload
+hashes, alert set, expiry, the web's signatures, and every approver still counting (not revoked,
+a good live check within :data:`LIVE_CHECK_BOUND`, never the requester, no two the same person);
+Kibana's "Sync alerts" must be off. :func:`release` applies the verdict through
+``argus_closure_write_move()``: ``send``, ``reconfirm`` (pause and ask for a re-confirmation),
+``refuse`` (pause for a person), ``skip`` or ``wait``. The writer calls :func:`admit` in the
+transaction that moves the row to ``sending``, and the database's outbox guard refuses a closure
+write without a complete, unexpired, signed approval whatever code runs."""
 
 from __future__ import annotations
 
@@ -52,7 +23,7 @@ from argus.cases import approvals, closure, identity, kibana
 from argus.cases.approvals import DecisionRecord, RequestRecord
 from argus.cases.signing import Verifier
 
-LIVE_CHECK_BOUND = timedelta(hours=12)  # DQ12 as D-110 answered it
+LIVE_CHECK_BOUND = timedelta(hours=12)  # an approver's live check must be this recent
 PROPOSER = "argus:sendcheck"
 Verdict = Literal["send", "wait", "reconfirm", "refuse", "skip"]
 _HELD = ("planned", "approved", "paused")  # rows a check may still let go or hold back
@@ -306,7 +277,7 @@ async def _approver_doubt(
     any provider), no good live check within the bound, or their newest check no longer shows
     what approving needs. The last two read the checks of the provider that checked them for
     the approval: a local step-up, which shows no Kibana privileges, says nothing about their
-    ELK account (review F5)."""
+    ELK account."""
     who = f"user:{decision.approver_user_id}"
     provider = (decision.identity_check or {}).get("provider")
     row = (

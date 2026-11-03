@@ -1,17 +1,11 @@
-"""Custody of a person's ELK credential, and names in the audit trail (plan §7.2, DQ16 (a)).
+"""Custody of a person's ELK credential, and names in the audit trail.
 
-ARGUS keeps a person's ELK password only to re-check their access (every 5 minutes and before
-every change). It is sealed with AES-256-GCM under a key made from two things that are never
-stored together: the web's secret (``web.secret_file``, readable by ``argus-web`` alone) and the
-session's token (the browser's cookie; the database holds only its SHA-256). A dump of the
-database has the sealed bytes and the token's hash; the secret alone has no token; the token
-alone has no secret. The seal is bound to the session, the person and the ELK name, so it opens
-nowhere else. It is wiped when the session ends; an admin account's is never made (DQ15 (b)).
-
-The same secret keys the HMAC that names a person in the audit trail of a failed sign-in: the
-trail never holds a raw name that was typed (plan §7.2 step 8), and the same name always has
-the same HMAC, so the throttle can count it.
-"""
+ARGUS keeps a person's ELK password only to re-check their access. It is sealed with AES-256-GCM
+under a key made from two things never stored together: the web's secret (``web.secret_file``,
+readable by ``argus-web`` alone) and the session's token (the database holds only its SHA-256). The
+seal is bound to the session, the person and the ELK name, and is wiped when the session ends. The
+same secret keys the HMAC that names a person in the audit trail of a failed sign-in, so the trail
+never holds a raw typed name and the throttle can still count it."""
 
 from __future__ import annotations
 
@@ -51,16 +45,12 @@ class Custody:
         (``argus sessions keygen`` makes one). ``KeyFileError`` names the file, never the key."""
         return cls(signing.load_key(path).secret)
 
-    # ------------------------------------------------------------------ names
-
     def name_hmac(self, name: str) -> str:
         """The audit trail's name for ``name``: HMAC-SHA256 under the web's secret, 32 hex
         digits. The same exact name always gives the same value."""
         mac = hmac.new(self.secret, _NAME_DOMAIN + name.encode("utf-8", "surrogatepass"),
                        hashlib.sha256)  # fmt: skip
         return mac.hexdigest()[:32]
-
-    # ------------------------------------------------------------------ the credential
 
     def _key(self, token: str) -> bytes:
         return HKDF(

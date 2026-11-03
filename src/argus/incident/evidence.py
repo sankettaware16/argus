@@ -1,11 +1,9 @@
-"""One evidence row (an ARGUS check that ran) as a sentence and the query behind it (AR7, D-190).
+"""One evidence row (an ARGUS check that ran) as a sentence and the query behind it.
 
 The sentence says what the stored answer showed, with figures read from the answer and nothing
-else (a stored answer that cannot be read as the template's shape says only that the check ran);
-the query is the template's own, in text (:mod:`argus.incident.discover`). A row whose template has
-no query here, or whose parameters cannot be read, is not an evidence line: it is counted among the
-report's limits, because a line a person cannot check would only look like evidence.
-"""
+else; the query is the template's own, in text (:mod:`argus.incident.discover`). A row whose
+template has no query here, or whose parameters cannot be read, is not an evidence line: it is
+counted among the report's limits."""
 
 from __future__ import annotations
 

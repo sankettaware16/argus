@@ -1,26 +1,9 @@
-"""The audit hash chain (Q-C1, plan §7.9): proof that no audit row or case event was changed,
-removed or reordered after it was written.
-
-An owner's trigger (migration 0026) numbers every new ``audit_events`` and ``case_events`` row
-(``chain_seq``) and stores ``row_hash`` = sha256 of a message holding the previous row's hash
-and the row's own fields. Writers take one lock in turn; the head (``chain_heads``) moves once
-per transaction, at commit. The audit rows written before the chain started are sealed, one by
-one in id order, into the chain's genesis hash. ARGUS's runtime role cannot set these columns or
-the chain heads.
-
-:func:`verify` recomputes everything here, in Python, from the rows' stored values, so a
-replaced or "fixed" database function cannot make a changed row pass. What it cannot catch on
-its own: someone with the owner's rights rewriting the newest rows *and* the head consistently;
-the head printed by ``argus audit head`` (and Q-H3's daily report) is the anchor against that.
-
-Approval requests and decisions are not chained themselves: the functions that insert them
-write an audit row naming the person and the facts in the same transaction, and :func:`verify`
-checks that each request and decision matches its audit row and the other way round, so a
-changed approver, decision or bound payload shows here too.
-
-The message encoding is the SQL one byte for byte: a field is ``N`` for NULL, else ``S``, its
-UTF-8 length, ``:`` and its UTF-8 bytes; times are UTC with microseconds.
-"""
+"""The audit hash chain: proof that no audit row or case event was changed, removed or reordered.
+A database trigger numbers every new ``audit_events`` and ``case_events`` row (``chain_seq``) and
+stores ``row_hash``, the sha256 of the previous row's hash and the row's own fields. :func:`verify`
+recomputes all of it in Python (the message encoding is the SQL one byte for byte), so a replaced
+database function cannot make a changed row pass; the head from ``argus audit head`` anchors it
+against a rewrite by the owner. Approvals are checked against their audit rows."""
 
 from __future__ import annotations
 
@@ -34,7 +17,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-CHAIN_LOCK_KEY = int.from_bytes(b"ARGUSCHN", "big")  # as migration 0026
+CHAIN_LOCK_KEY = int.from_bytes(b"ARGUSCHN", "big")  # the same key as the database functions
 VERSION = "argus-chain-v1"
 CHAINS = ("audit_events", "case_events")
 LEGACY_SEED = hashlib.sha256(f"{VERSION}:audit_events:legacy".encode()).digest()
@@ -250,7 +233,7 @@ async def verify(conn: AsyncConnection, chain: str, *, batch: int = BATCH) -> Ch
 
 
 # What argus_approval_request(), argus_approval_propose() and argus_approval_decide() wrote
-# to the audit trail (0026, 0030): a request names the person or the part of ARGUS that made
+# to the audit trail: a request names the person or the part of ARGUS that made
 # it; a decision its signature too.
 _REQUESTS_UNAUDITED = (
     "SELECT r.id FROM approval_requests r WHERE NOT EXISTS (SELECT 1 FROM audit_events a"

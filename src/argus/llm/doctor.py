@@ -1,4 +1,4 @@
-"""``argus doctor``'s LLM checks (Q-G1): the configuration, the keys file, each provider's key
+"""``argus doctor``'s LLM checks: the configuration, the keys file, each provider's key
 and pinned certificate, and the gateway's alarms. Read-only and offline: no request reaches a
 provider (``argus llm probe`` asks them)."""
 
@@ -87,10 +87,10 @@ def _replaceable(path: Path) -> str | None:
 
 
 def certificate_check(provider: ProviderConfig, now: datetime) -> Finding | None:
-    """The pinned certificate of a provider with a ``ca_file``: present, exactly one
-    certificate (every one in the file would be trusted), that a TLS client can load, that only
-    ARGUS's account can replace, naming the host it is reached at, self-signed for a campus
-    machine (the setup's own), not about to expire."""
+    """The pinned certificate of a provider with a ``ca_file``: present, exactly one certificate
+    (every one in the file would be trusted), that a TLS client can load, that only ARGUS's
+    account can replace, naming the host it is reached at, self-signed for an on-premises machine,
+    not about to expire."""
     path = provider.ca_path()
     if path is None:
         return None
@@ -125,8 +125,8 @@ def certificate_check(provider: ProviderConfig, now: datetime) -> Finding | None
 
 
 def alarms_check(state: budget.State, configured: Collection[str]) -> Finding:
-    """Fails on an alarm of a configured provider; one of a provider no longer in
-    config/llm.yaml is only named (nothing would ever call it, or clear it)."""
+    """Fails on an alarm of a configured provider; one of a provider no longer in config/llm.yaml
+    is only named (nothing would ever call it, or clear it)."""
     current = {p: a for p, a in state.alarms.items() if p in configured}
     stale = sorted(p for p in state.alarms if p not in configured)
     note = f"; ignored, no longer configured: {', '.join(stale)}" if stale else ""

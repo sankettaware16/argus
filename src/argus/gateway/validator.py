@@ -1,4 +1,4 @@
-"""The query contract's validator (plan §5.3). It inspects the **final** request, after index
+"""The query contract's validator. It inspects the **final** request, after index
 resolution and after the gateway added its own parameters, and refuses anything outside the
 contract before a single byte is sent.
 
@@ -305,7 +305,7 @@ class _Check:
     def stream_is_bounded(self, body: Mapping[str, Any]) -> None:
         """A data stream or alias is one name whatever the time asked for, so its search must say
         which time: a range on the family's time field among the filters, which Elasticsearch
-        can use to skip the backing indices outside it (F9). A daily family names its days in
+        can use to skip the backing indices outside it. A daily family names its days in
         its index names, which the gateway bounds (``MAX_LOG_INDICES``)."""
         for name in self.request.indices:
             family = next(

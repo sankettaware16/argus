@@ -1,4 +1,4 @@
-"""E-mail addresses ARGUS will put on a message (Q-H4). One plain address each: ASCII, no
+"""E-mail addresses ARGUS will put on a message. One plain address each: ASCII, no
 display name, no quotes, comments, spaces, commas, semicolons, angle brackets or control
 characters, so that nothing a person or a file supplies can add a header, a recipient or an SMTP
 command. Imports nothing from ARGUS (the settings use it)."""

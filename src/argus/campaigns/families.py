@@ -1,22 +1,9 @@
-"""Domain families (AR2c, D-168, D-170): the names campus devices reach, grouped under the
-registered parent they share.
-
-A DNS or web campaign shows in no single investigation: one hostel device asks for one random
-name under a domain once an hour. Grouped by parent, the same data is plain: ``fast-dns-host.com``
-reached by 39 campus devices over 2,867 different names. A **family** is a parent with, over the
-history window, the distinct names under it, the campus hosts that reached them, the
-investigations that hold them and how many of the names look random.
-
-A family is a **candidate** for an outside look-up when it is large: :data:`MIN_HOSTS` campus
-hosts or :data:`MIN_NAMES` distinct names (a popular site is large too; the outside answer, not
-size, separates the two). A family that is a customer of a hosting service (its parent sits
-directly under a suffix of the list's private section: ``x.workers.dev``) is a candidate by its
-names only: three devices on one customer's page is ordinary, and a platform's thousands of
-customers would each take a look-up. What a candidate may be sent outside is not decided here
-(``Eligibility`` and the shared-infrastructure list are the callers').
-
-Pure: no I/O. The window, the sightings and the rules are given.
-"""
+"""Domain families: the names devices reach, grouped under the registered parent they share. A
+campaign shows in no single investigation, but grouped by parent the data is plain: a **family**
+is a parent with, over the history window, its distinct names, the internal hosts that reached
+them, the investigations that hold them and how many names look random. A family is a candidate
+for an outside look-up when large (:data:`MIN_HOSTS` hosts or :data:`MIN_NAMES` names; a hosted
+customer by names only). What may be sent outside is not decided here. Pure: no I/O."""
 
 from __future__ import annotations
 
@@ -29,11 +16,11 @@ from math import log2
 
 from argus.outside.psl import Rules, registered_parent, under_private_suffix
 
-MIN_HOSTS = 3  # campus hosts that make a family a candidate (AR2c, D-168)
+MIN_HOSTS = 3  # internal hosts that make a family a candidate
 MIN_NAMES = 20  # distinct names that make a family a candidate
 MIN_RANDOM_LABEL = 8  # a shorter label is never called random
 MIN_RELATIVE_ENTROPY = 0.6  # of the most a label of that length could have (log2 of its length)
-MAX_VOWEL_SHARE = 0.2  # a long run of consonants: not a word in any language the campus uses
+MAX_VOWEL_SHARE = 0.2  # a long run of consonants: not a word in any language the site uses
 _PLAIN_LABEL = re.compile(r"[a-z0-9]+")  # a hyphen or an underscore is a word break: not random
 
 Key = tuple[str, str]  # (kind, value): ("ip", "10.1.2.3") or ("host", "pc-12")
@@ -52,7 +39,7 @@ def random_looking(label: str) -> bool:
     """Whether a label looks machine-made: at least :data:`MIN_RANDOM_LABEL` letters and digits
     with enough variety (:data:`MIN_RELATIVE_ENTROPY` of the most a label that long could have)
     that either mixes digits among the letters or has almost no vowels. A hint to show, never a
-    verdict: real-time media services use random labels too (D-168), which is why rarity and the
+    verdict: real-time media services use random labels too, which is why rarity and the
     outside answer decide, not this."""
     text = label.lower()
     if len(text) < MIN_RANDOM_LABEL or not _PLAIN_LABEL.fullmatch(text):
@@ -69,8 +56,8 @@ def random_looking(label: str) -> bool:
 
 @dataclass(frozen=True)
 class Sighting:
-    """What one investigation holds: its campus devices (none when no campus device acted) and the
-    domain names it involves, in the canonical spelling."""
+    """What one investigation holds: its internal devices (none when no internal device acted) and
+    the domain names it involves, in the canonical spelling."""
 
     investigation_id: uuid.UUID
     hosts: frozenset[Key]

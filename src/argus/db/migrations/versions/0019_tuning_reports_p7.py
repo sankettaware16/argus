@@ -1,4 +1,4 @@
-"""Rule tuning (P7, D-090): a weekly report per rule with suggestions for a person
+"""Rule tuning: a weekly report per rule with suggestions for a person
 
 Revision ID: 0019
 Revises: 0018

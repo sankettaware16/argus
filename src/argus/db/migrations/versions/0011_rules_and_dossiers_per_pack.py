@@ -1,4 +1,4 @@
-"""The time of a rule's definition (R9 review, D-059); dossiers per pack version (R10, D-058)
+"""The time of a rule's definition; dossiers per pack version
 
 A dossier is keyed by (investigation, version, pack): a new pack version adds a dossier
 instead of conflicting with the old one, and reviews (keyed by version) are not disturbed.

@@ -1,10 +1,9 @@
 """The alert normalizer: one Elasticsearch hit in, a typed alert or a quarantine record out.
 
 A pure function of the hit and a small context (grouping file, observed rule durations): it
-never raises on any JSON input and never does I/O. Time semantics follow plan §5.5, group-key
-inputs §7.1. A required field that is missing, malformed or ambiguous quarantines the alert
-with a reason from a closed set; anything else that is odd becomes a field issue and the alert
-is still normalized.
+never raises on any JSON input and never does I/O. A required field that is missing, malformed
+or ambiguous quarantines the alert with a reason from a closed set; anything else that is odd
+becomes a field issue and the alert is still normalized.
 """
 
 from __future__ import annotations
@@ -43,7 +42,7 @@ from argus.normalize.model import (
 from argus.normalize.times import MAX_RULE_DURATION, parse_interval, parse_lookback, parse_time
 
 FINGERPRINT_VERSION = 1
-TIME_SLACK = timedelta(minutes=2)  # §5.5 sanity margin for time anomalies
+TIME_SLACK = timedelta(minutes=2)  # sanity margin for time anomalies
 
 # Document limits: an alert is a few hundred nodes; anything near these is not an alert.
 MAX_DEPTH = 64
@@ -72,7 +71,7 @@ ENTITY_FIELDS: tuple[tuple[Literal["ip", "domain", "host", "user"], str], ...] =
 )
 # The device that saw or shipped the event (ECS observer, agent): a proxy or firewall often also
 # writes its own name into host.name. That name is no party to the activity, and as an entity
-# it would link every alert the device saw (D-066).
+# it would link every alert the device saw.
 REPORTER_FIELDS = ("observer.hostname", "observer.name", "agent.hostname", "agent.name")
 
 _ALERT = "kibana.alert."
@@ -83,7 +82,7 @@ _PARAMS = "kibana.alert.rule.parameters."
 @dataclass(frozen=True)
 class NormalizeContext:
     grouping: GroupingConfig = field(default_factory=GroupingConfig)
-    # rule_id -> the longest execution seen for the rule (R9 provides it; slack for ES|QL windows)
+    # rule_id -> the longest execution seen for the rule (slack for ES|QL windows)
     observed_max_execution: Mapping[str, timedelta] = field(default_factory=dict)
 
 
@@ -387,7 +386,7 @@ class _Normalizer:
             return Adapter.EQL_SEQUENCE if group_id and not building_block else Adapter.EVENT
         return Adapter.GENERIC
 
-    # ------------------------------------------------------------------ time (§5.5)
+    # ------------------------------------------------------------------ time
 
     def event_time(
         self,
@@ -465,7 +464,7 @@ class _Normalizer:
     def anomalies(
         self, event_time: datetime, basis: TimeBasis, detected_at: datetime
     ) -> tuple[TimeAnomaly, ...]:
-        """§5.5 sanity flags. The ingest check applies to a source event's own time only: a
+        """Sanity flags. The ingest check applies to a source event's own time only: a
         fallback time is the rule run's, which is after ingest by nature."""
         found: list[TimeAnomaly] = []
         if basis is TimeBasis.ORIGINAL_TIME:
@@ -489,7 +488,7 @@ class _Normalizer:
         ancestors: tuple[Ancestor, ...],
         intended: datetime | None,
     ) -> str:
-        """Detection fingerprint (§7.1): equal for two alerts that report the same detection."""
+        """Detection fingerprint: equal for two alerts that report the same detection."""
         concrete = sorted({(a.index, a.id) for a in ancestors if a.kind is AncestorKind.CONCRETE})
         if adapter in (Adapter.EVENT, Adapter.EQL_SEQUENCE, Adapter.GENERIC) and concrete:
             return digest(FINGERPRINT_VERSION, "event", rule_id, concrete)
@@ -516,7 +515,7 @@ class _Normalizer:
             canonical_json(row),
         )
 
-    # ------------------------------------------------------------------ group key (§7.1)
+    # ------------------------------------------------------------------ group key
 
     def field_names(self, path: str) -> list[str]:
         names: list[str] = []

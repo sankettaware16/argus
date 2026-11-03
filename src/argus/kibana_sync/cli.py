@@ -1,19 +1,12 @@
-"""``argus kibana sync ...``: the read-back and reconciliation (Q-D3). Read-only.
+"""``argus kibana sync ...``: the read-back and reconciliation. Read-only.
 
-- ``run``: the service (``argus-kibana-sync``): a cycle every 10 minutes in NORMAL, 20 in
-  CAUTION, hourly in DEGRADED, none in STOP. Needs ``kibana.enabled`` and
-  ``kibana.sync.enabled`` (it says so and exits 0 while either is false); the unit stays
-  disabled until its production step.
-- ``once``: one cycle now. ``--dry-run`` prints the requests a cycle starts with and sends
-  nothing.
-- ``first-read``: the user's first live read (plan §5 Q-D3): ``kibana.status``, the licence,
-  ``cases.find`` (perPage 10), ``cases.configure`` and ``alerts.case_links`` (≤ 10 known
-  alerts), each checked against the strict answer models, with what each cost. ``--dry-run``
-  prints them and sends nothing.
-- ``report``: the read-only days' figures: cycles complete, staleness, only reads, costs, lag.
-- ``model``: §7.1's read load at projected case counts.
-- ``status``: the state row, the open findings, paused cases.
-- ``resume-case``: lift the pause of ARGUS's writes to one Kibana case, as the owner (0030).
+- ``run``: the service, a cycle every 10 minutes in NORMAL, 20 in CAUTION, hourly in DEGRADED, none
+  in STOP; needs ``kibana.enabled`` and ``kibana.sync.enabled`` (else it says so and exits 0).
+- ``once``: one cycle now (``--dry-run`` prints the first requests and sends nothing).
+- ``first-read``: a first live read of status, licence, cases and alerts, each checked against the
+  strict answer models, with what each cost.
+- ``report`` (the read-only days' figures), ``model`` (the read load at projected case counts),
+  ``status`` (state, open findings, paused cases) and ``resume-case`` (lift the pause on a case).
 """
 
 from __future__ import annotations
@@ -45,7 +38,7 @@ from argus.kibana_sync.classify import Intervals
 from argus.kibana_sync.cycle import COMPONENT, SyncConfig, Syncer
 
 log = logging.getLogger("argus.kibana_sync")
-sync_app = typer.Typer(no_args_is_help=True, help="Kibana read-back and reconciliation (Q-D3).")
+sync_app = typer.Typer(no_args_is_help=True, help="Kibana read-back and reconciliation.")
 FIRST_READ_COMPONENT = "kibana-first-read"
 FIRST_READ_PER_PAGE = 10
 
@@ -78,7 +71,7 @@ def build(settings: Settings, engine: AsyncEngine) -> Syncer:
     kibana = build_kibana_gateway(settings, store, es_gateway=es)
 
     async def team_verdicts(deadline: datetime) -> None:
-        """AR8: after a complete cycle, the case team's cases are read for a person's
+        """After a complete cycle, the case team's cases are read for a person's
         ``Verdict:`` comment (the same lane, the same reader key)."""
         report = await verdicts.read_all(
             engine,
@@ -210,7 +203,7 @@ def sync_first_read(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="print, send nothing")] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The first live read (with the user): status, licence, a find of 10, the case
+    """The first live read: status, licence, a find of 10, the case
     configuration and one small alerts.case_links search; read-only."""
     settings = load(config)
     space = site.active().space
@@ -315,7 +308,7 @@ def sync_report(
     days: Annotated[float, typer.Option(help="how many days back")] = 3.0,
     config: ConfigOption = None,
 ) -> None:
-    """The read-only days' figures (plan §5 Q-D3): cycles complete (≥ 99 %), staleness,
+    """The read-only days' figures: cycles complete (≥ 99 %), staleness,
     only reads, production costs, the lag with its n."""
     settings = load(config)
 
@@ -413,9 +406,9 @@ def sync_model(
     in_progress: Annotated[int, typer.Option(help="in-progress cases")] = 0,
     closed: Annotated[int, typer.Option(help="closed cases")] = 0,
     changed: Annotated[int, typer.Option(help="changed cases a day")] = 0,
-    writes: Annotated[int, typer.Option(help="writes a day (Q-D4's read-backs)")] = 0,
+    writes: Annotated[int, typer.Option(help="writes a day (their read-backs)")] = 0,
 ) -> None:
-    """§7.1's read load: the plan's example, the exit's and a year's projections (or yours)."""
+    """The read load at projected case counts: four scenarios, or your own numbers."""
     scenarios = dict(readmodel.SCENARIOS)
     if open_cases is not None:
         scenarios = {
@@ -491,7 +484,7 @@ def sync_resume_case(
     reason: Annotated[str, typer.Option(help="why (kept in the audit trail)")],
     config: ConfigOption = None,
 ) -> None:
-    """Lift the pause of ARGUS's writes to one Kibana case, as the database owner (0030)."""
+    """Lift the pause of ARGUS's writes to one Kibana case, as the database owner."""
     settings = load(config)
     engine = owner_engine_for(settings, f"kibana sync resume-case {kibana_case_id}")
 

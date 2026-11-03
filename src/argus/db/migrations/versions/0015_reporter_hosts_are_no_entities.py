@@ -1,9 +1,8 @@
-"""The device that saw or shipped an alert is no host entity (D-066): stored data follows
+"""The device that saw or shipped an alert is no host entity: stored data follows
 
-The normalizer (1.1) no longer makes ``host.name`` an entity when it names the event's
-observer or agent. This removes such entities already stored: from each alert's normalized
-form, from the investigations' entities, and recounts the entity table. Grouping keys are
-not affected (no investigation is keyed by a host name that is its observer).
+The normalizer no longer makes ``host.name`` an entity when it names the event's observer or agent.
+This removes such entities already stored (from each alert's normalized form and the
+investigations' entities) and recounts the entity table. Grouping keys are not affected.
 
 Revision ID: 0015
 Revises: 0014

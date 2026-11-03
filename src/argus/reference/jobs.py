@@ -1,4 +1,4 @@
-"""Reference-data jobs on the collector's schedule (D-057): the rules registry every 15
+"""Reference-data jobs on the collector's schedule: the rules registry every 15
 minutes (local SQL), threat intel every 6 hours when ``reference.ti_sync`` is on."""
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def jobs(
 ) -> list[tuple[str, timedelta, Callable[[], Awaitable[Any]]]]:
     found: list[tuple[str, timedelta, Callable[[], Awaitable[Any]]]] = [
         ("rules", RULES_EVERY, lambda: refresh_rules(engine)),
-        ("soak", timedelta(hours=1), lambda: soak_sample(engine)),  # R16: local SQL only
+        ("soak", timedelta(hours=1), lambda: soak_sample(engine)),  # local SQL only
     ]
     if ti_sync:
         found.append(("ti", TI_EVERY, lambda: sync_ti(engine, gateway)))

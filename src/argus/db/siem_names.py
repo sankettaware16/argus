@@ -1,12 +1,9 @@
-"""The rename of the SIEM's tables to ``siem_*`` (D-291), shared by the migrations.
+"""The rename of the SIEM's tables to ``siem_*``, shared by the migrations.
 
-The migrations create ``siem_*`` since D-291. A database made before it holds the gateway's tables
-under the site's old prefix (the one other prefix under which ``_switches``, ``_requests`` and
-``_live_sessions`` all exist, made by 0004); this renames them in place with every constraint,
-index, sequence and trigger whose name carries the old word, so data, grants and defaults stay as
-they were. With no such prefix, or ``siem_switches`` there already, it does nothing. Every
-migration after 0004 that names a ``siem_`` table runs it first, so an old database (a restored
-dump, a replay copy) upgrades from any revision; 0064 runs it for one already past them all.
+A database made before the rename holds the gateway's tables under an older prefix; this renames
+them in place with every constraint, index, sequence and trigger, so data and grants stay. With no
+such prefix, or ``siem_switches`` there already, it does nothing. Migrations that name a ``siem_``
+table run it first, so an old database upgrades from any revision.
 """
 
 RENAME = """

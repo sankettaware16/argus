@@ -1,24 +1,11 @@
-"""The case team (AR8, D-195): six Kibana users post an incident case; ARGUS keeps every request.
+"""The case team: Kibana users post an incident case; ARGUS keeps every request.
 
-* ``case_team_posts``: one row for each ARGUS case that has a post: its incident id, the Kibana
-  case's id once the lead's create was read back, when it opened and the report version the
-  newest finished generation posted.
-* ``case_team_steps``: every request of a post, in the order it is sent, by one of the six users
-  (``text_body`` is the exact comment or description, ``payload`` the rest), with its state: the
-  writer moves it ``planned -> sending -> sent -> verified``, or into doubt (``ambiguous``,
-  looked for in Kibana before anything is sent again; ``resend``, a person decides). The database
-  keeps the rules the code keeps: only the lead opens a case or touches alerts, only the reporter
-  uploads a file.
-* ``case_team_approvals``: a person's approval of one case's first sequence (the canary); it binds
-  the plan's hash and carries the web's signature. Append-only.
-* ``case_team_seen``: a person's ``Verdict:`` comment on a posted case, read once, and what ARGUS
-  did with it. Append-only.
-
-The writer's login writes posts and steps (and nothing else here); the web's login records
-approvals; the runtime login records the comments it read. Everyone else only reads. The writer
-also gets to read the incident reports it renders and a person's decisions on them.
-
-The role names are written out, not imported (see 0003).
+``case_team_posts`` (one row per posted ARGUS case), ``case_team_steps`` (every request of a post,
+in order, with its state; the database keeps the rules the code keeps: only the lead opens a case
+or touches alerts, only the reporter uploads a file), ``case_team_approvals`` (a person's approval
+of a case's first sequence, append-only) and ``case_team_seen`` (a person's ``Verdict:`` comment,
+read once). The writer's login writes posts and steps, the web's login records approvals, the
+runtime login records the comments it read.
 
 Revision ID: 0053
 Revises: 0052

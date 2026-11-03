@@ -1,13 +1,7 @@
-"""The database side of the campaign analysis (AR2c, D-168, D-170): what the stored investigations
-hold, and what the outside cache says about it. Read only, and nothing here asks an outside source.
-
-* **Sightings:** the domain names of every investigation whose last alert is inside the history
-  window, and its campus devices: the campus addresses and host names its grouping key names, and
-  the campus addresses among its entities (a DNS rule's key lists every source address).
-* **Readings:** the cached VirusTotal answer for each parent, and for the first address it points
-  at that may be asked about (the answer's network), as :class:`~argus.campaigns.analysis.Reading`.
-* **Servers:** the addresses VirusTotal flags that investigations in the window reached.
-"""
+"""The database side of the campaign analysis: what the stored investigations hold (sightings: the
+domain names and internal devices of each investigation in the window), what the outside cache
+says about each parent and its first address (readings) and the addresses VirusTotal flags that
+investigations reached (servers). Read only; nothing here asks an outside source."""
 
 from __future__ import annotations
 
@@ -34,13 +28,13 @@ from argus.outside.read import View
 log = logging.getLogger("argus.campaigns")
 
 MAX_ROWS = 200_000  # domain names read in one pass (a scanner can hold thousands)
-# The classes of an address among an investigation's entities that are a device (D-174): the
-# campus's own addresses. Private space that no network of the asset map covers (INTERNAL) is the
-# campus's infrastructure (a resolver, a gateway) as often as a device, and the entities do not say
-# which side of the traffic an address was on, so it is not counted as a device here.
+# The classes of an address among an investigation's entities that are a device: the
+# organisation's own addresses. Private space that no network of the asset map covers
+# (INTERNAL) is infrastructure (a resolver, a gateway) as often as a device, and the entities
+# do not say which side of the traffic an address was on, so it is not counted as a device here.
 DEVICE_CLASSES = frozenset({IpClass.ASSET, IpClass.CAMPUS})
 # The fields of a grouping key that name who asked (the source side of the traffic). A DNS rule
-# groups by the rare domain and lists every source address in its key (D-172).
+# groups by the rare domain and lists every source address in its key.
 SOURCE_FIELDS = frozenset({"source.ip", "client.ip"})
 MAX_LISTED = 5_000  # source addresses read from one key
 
@@ -71,7 +65,7 @@ _ANSWERS = text(
 
 
 def listed_sources(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
-    """The campus addresses a key lists under a source field (a DNS rule's many source
+    """The internal addresses a key lists under a source field (a DNS rule's many source
     addresses: ``[["source.ip", ["10.x", "10.y"]]]``). The key says which side of the traffic an
     address was on, which the entities do not."""
     try:
@@ -91,8 +85,8 @@ def listed_sources(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
 
 
 def actors_of(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
-    """The campus devices a grouping key names: its campus addresses and host names, and the
-    campus addresses it lists under a source field."""
+    """The internal devices a grouping key names: its internal addresses and host names, and the
+    internal addresses it lists under a source field."""
     actors, _ = opener.actors_of(group_key, classifier)
     named = frozenset(
         (a.kind, a.value)
@@ -104,7 +98,7 @@ def actors_of(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
 
 
 def is_resolver(key: Key, resolvers: Sequence[IPNetwork]) -> bool:
-    """Whether a device key is an address of one of the campus resolvers named in
+    """Whether a device key is an address of one of the resolvers named in
     ``campaigns.resolvers`` (a resolver asks for every name its users ask for: it is no device)."""
     if key[0] != "ip" or not resolvers:
         return False
@@ -118,14 +112,12 @@ async def hosts_for(
     conn: AsyncConnection, groups: Mapping[uuid.UUID, str], classifier: IpClassifier,
     resolvers: Sequence[IPNetwork] = (),
 ) -> dict[uuid.UUID, frozenset[Key]]:  # fmt: skip
-    """The campus devices of each investigation in ``groups`` (its grouping key): the devices its
-    key names or lists as sources and the campus addresses among its entities (an investigation
-    of a rule that groups by destination holds every device that reached it), except the campus
-    resolvers named in ``campaigns.resolvers`` and, among the entities (which do not say which
-    side an address was on), the addresses that are only private space (:data:`DEVICE_CLASSES`:
-    infrastructure the asset map does not know, a destination as often as a device). How many
+    """The internal devices of each investigation in ``groups`` (its grouping key): the devices
+    its key names or lists as sources and the internal addresses among its entities, except the
+    resolvers in ``campaigns.resolvers`` and, among the entities (which do not say which side an
+    address was on), addresses that are only private space (:data:`DEVICE_CLASSES`). How many
     investigations hold an address says nothing here: a device infected with a DGA is in hundreds
-    of them (D-174)."""
+    of them."""
     found: dict[uuid.UUID, set[Key]] = {i: set(actors_of(k, classifier)) for i, k in groups.items()}
     if groups:
         rows = await conn.execute(_ADDRESSES, {"ids": list(groups)})

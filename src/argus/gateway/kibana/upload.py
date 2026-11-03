@@ -1,13 +1,9 @@
-"""A case file as the Kibana lane sends it (AR8, D-157): ``POST api/cases/{case}/files``, multipart.
+"""A case file as the Kibana lane sends it: ``POST api/cases/{case}/files``, multipart.
 
-The runbook's call (docs/runbooks/kibana-incident-case.md): a field ``file`` (the bytes, with the
-file's own name and type) and a field ``filename`` **without the extension**. The lane builds the
-body itself, byte for byte, from a strict model, and the validator reads the exact bytes back with
-:func:`decode` and builds them again: a body that is not what :func:`encode` makes is refused. The
-boundary is a hash of the content, so the same file is the same request (its hash is what an
-approval binds, and what a resume compares).
-
-Only the two types of the hand-made case go (a PDF and a CSV), under 5 MiB, under a plain name.
+The call is a field ``file`` (the bytes, with the file's own name and type) and a field ``filename``
+**without the extension**. The lane builds the body itself from a strict model and the validator
+reads the exact bytes back with :func:`decode`: a body that is not what :func:`encode` makes is
+refused. Only a PDF and a CSV go, under 5 MiB, under a plain name.
 """
 
 from __future__ import annotations

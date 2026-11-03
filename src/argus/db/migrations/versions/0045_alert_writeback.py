@@ -1,30 +1,12 @@
 # ruff: noqa: S608 - the f-strings put fixed table and column names in the SQL
-"""Alert status write-back v2 (Q-D5, plan §5 and §7.10, DQ8 and DQ11).
+"""Alert status write-back v2.
 
-``writeback_outbox`` (R17, 0013 and 0014) gets what a sender that checks Kibana's answer and
-reads every alert back needs:
-
-* ``previous``: the status each alert had before ARGUS changed it (kept, never rewritten);
-* ``written_count``: the alerts Kibana changed and the read-back confirmed, at most
-  ``sent_count`` (the position in ``alert_ids``; an alert already at the target or gone from
-  Kibana moves the position without a write);
-* ``needs_operator`` and ``operator``: a review made without an ELK check that showed alert-write
-  is sent only in a terminal run whose operator signed in with their own ELK account; a row
-  that needs one cannot move without the operator's name;
-* ``held``: a benign verdict that rests on Q-F1's "nothing found" waits for the audit (DQ11).
-  Both flags are a cache the writer fills in: the sender derives them from ``review_events``,
-  ``users`` and ``freshness_shadow`` before every request, so the runtime may not write them
-  (Q-D5 review, finding 2);
-* ``case_id`` and ``closure_request_id``: an approved case closure also closes its alerts, one
-  row per closure; such a row has no review and no investigation (``source_valid`` keeps the
-  two kinds apart).
-
-Grants: the runtime plans (INSERT of what a plan chooses: the alerts and the source, not the
-flags) and supersedes (its R17 UPDATEs are unchanged); the columns that record a send
-(``written_count``, ``previous``, ``operator``, and the flags' cache) are the writer's alone. The
-writer's login, the only one that holds the alert writer's key, moves the rows and reads, before
-each request, the columns of ``review_events`` and ``freshness_shadow`` that say whether the row
-may still go out (``argus.db.roles.WRITER_GRANTS``); not the notes.
+``writeback_outbox`` gets what a sender that checks Kibana's answer and reads every alert back
+needs: ``previous`` (each alert's status before the change), ``written_count`` (alerts Kibana
+changed and the read-back confirmed), ``needs_operator`` / ``operator`` and ``held`` (flags the
+writer derives before every request, so the runtime may not write them), and ``case_id`` /
+``closure_request_id`` for an approved case closure that also closes its alerts. The runtime plans
+and supersedes; the columns that record a send are the writer's alone.
 
 Revision ID: 0045
 Revises: 0044
@@ -38,7 +20,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0045"
-down_revision: str | None = "0044"  # Q-H2's case actions (published first)
+down_revision: str | None = "0044"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

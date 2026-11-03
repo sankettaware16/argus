@@ -1,21 +1,12 @@
-"""The message and the campus relay (Q-H4, DQ26).
+"""The message and the mail relay.
 
-A message is built from addresses :func:`argus.notices.address.parse_address` accepted, a subject
-and a body made of fixed text and numbers (:mod:`argus.notices.render`), so no header can be
-added or folded in by a value: the sender, the recipients and the subject are checked here again
-before the standard library writes them, and a line break in a header is an error in the
-library itself. Sending is the standard library's ``smtplib`` in a thread: no dependency.
-
-``starttls`` is never silently dropped: when it is on and the relay does not offer it, nothing is
-sent. A login happens only after TLS (or to the loopback), by the settings' own rule. The relay's
-reply text is not kept: a failure is reported by the kind of error alone.
-
-A relay cannot hold a pass: the whole conversation has a deadline of its own
-(:data:`DEADLINE_S`, a timer that cuts the connection, because a read timeout alone is reset by
-every line a relay drips) and one reply is limited in lines and bytes (:data:`MAX_REPLY_LINES`,
-:data:`MAX_REPLY_BYTES`; ``smtplib`` itself keeps every continuation line). Over either, the
-messages not yet taken fail and the pass goes on.
-"""
+A message is built from addresses :func:`argus.notices.address.parse_address` accepted and a subject
+and body of fixed text and numbers, so no value can add or fold in a header; the envelope is checked
+again before ``smtplib`` writes it (in a thread). ``starttls`` is never silently dropped, a login
+happens only after TLS (or to the loopback), and the relay's reply text is not kept. A relay cannot
+hold a pass: the whole conversation has a deadline (:data:`DEADLINE_S`, a timer that cuts the
+connection, because a read timeout alone is reset by every line a relay drips) and a reply is
+limited in lines and bytes; over either, the messages not yet taken fail and the pass goes on."""
 
 from __future__ import annotations
 
@@ -88,7 +79,7 @@ def build_message(
 
 @dataclass(frozen=True)
 class Relay:
-    """Where to send: the campus relay's address, whether to require TLS, and an optional login
+    """Where to send: the relay's address, whether to require TLS, and an optional login
     (the password is never shown or logged)."""
 
     host: str

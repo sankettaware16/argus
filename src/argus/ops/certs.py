@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-WARN_DAYS = 30  # every expiry is announced this long ahead (plan Q-A2)
+WARN_DAYS = 30  # every expiry is announced this long ahead
 _PEM = re.compile(r"-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+?-----END CERTIFICATE-----")
 _MAX_PEM_BYTES = 1 << 20
 

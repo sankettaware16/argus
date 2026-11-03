@@ -1,10 +1,7 @@
-"""The pages' side of "who used this device" (AR6, D-216): the stored sightings of an
-investigation's or a case's devices as the API's answer, and the sign-ins as timeline entries.
-
-Names are for ``see_logs`` only. An account without it gets the counts the attribution holds and
-no account name in any field (``hidden``): the same rule as the reports' ``logs_hidden``, applied
-here in one place so a page cannot forget it. Nothing here writes, and nothing reaches the SIEM.
-"""
+"""The pages' side of "who used this device": the stored sightings of an investigation's or a
+case's devices as the API's answer, and the sign-ins as timeline entries. Names are for ``see_logs``
+only; without it the counts are kept and no account name appears in any field (``hidden``).
+Nothing here writes, and nothing reaches the SIEM."""
 
 from __future__ import annotations
 

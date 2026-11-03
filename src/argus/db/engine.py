@@ -40,13 +40,11 @@ def create_engine(
 ) -> AsyncEngine:
     """Engine with conservative timeouts: a stuck query or lock fails instead of hanging ARGUS.
 
-    ``role`` picks the login (D-029): the runtime role ``app`` for everything ARGUS does, the
-    schema ``owner`` only for ``argus db`` (bootstrap, migrations). ``database`` overrides
-    ``settings.name`` (tests use throwaway databases); an override that is blank, too long or not
-    UTF-8 raises ConfigError rather than falling back to the configured database. Bound parameter
-    values never appear in exception text (they may hold credentials or raw SIEM data), and every
-    connection is reset to these session settings, and to the user it logged in as, before it is
-    reused.
+    ``role`` picks the login: the runtime role ``app`` for everything ARGUS does, the schema
+    ``owner`` only for ``argus db``. ``database`` overrides ``settings.name`` (tests use throwaway
+    databases); a blank, too long or non-UTF-8 override raises ConfigError. Bound parameter values
+    never appear in exception text, and every connection is reset to these session settings, and to
+    the user it logged in as, before it is reused.
     """
     url = settings.url(database=database, role=role)
     statement_ms = int(settings.statement_timeout.total_seconds() * 1000)
@@ -82,13 +80,11 @@ def _reset_session_state(
 ) -> None:
     """Undo session-level changes before a pooled connection is reused.
 
-    The pool's own reset is a ROLLBACK, which keeps anything a committed ``SET`` changed
-    (timeouts, TimeZone, search_path, session_replication_role, the role) and every temporary
-    table for the connection's whole life. ``RESET ALL`` restores the startup options above but
-    leaves the role and the session authorization alone, so a ``SET ROLE`` or ``SET SESSION
-    AUTHORIZATION`` in one unit of work would carry its privileges into the next; resetting both
-    returns to the user the connection logged in as. ``DISCARD TEMP`` drops temporary objects.
-    All four are transactional, so they run after the rollback and are committed.
+    The pool's own reset is a ROLLBACK, which keeps anything a committed ``SET`` changed and every
+    temporary table. ``RESET ALL`` restores the startup options but leaves the role and the session
+    authorization, so those are reset too (returning to the user the connection logged in as), and
+    ``DISCARD TEMP`` drops temporary objects. All are transactional and committed after the
+    rollback.
     """
     if state.terminate_only or not state.asyncio_safe:
         return  # the connection is being discarded, or no event loop is available to talk to it

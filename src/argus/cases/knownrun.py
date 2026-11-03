@@ -1,39 +1,12 @@
-"""The known infection at work (AR4b, D-169, D-176): a pass over the cases whose owner was told.
-
-:mod:`argus.cases.known` holds the rules. A pass (:func:`run`, called by the assessment service
-after the evidence is read, and by ``argus case known run``) does this for every case that is
-open or assigned and has a notice:
-
-1. **Seed** the fingerprint the first time: the evidence flags, the university services, the
-   flagged destinations and the data volume that the case's investigations showed when the
-   notice was recorded (the members linked at or before it), kept as ``case_known_keys``; those
-   investigations then are known.
-2. **Read** the investigations that name one of the case's devices (an entity or an actor of the
-   grouping key; ``per_pass`` counts only these) with activity since the notice that were not
-   decided at their current version, and decide each one: known or changed
-   (:func:`argus.cases.known.evaluate`). The decision is a row of ``case_known_matches``; the
-   investigation joins the case (a silent link); what a change brought becomes known, and the
-   destinations that are new but not flagged are noted on the case. A change is durable
-   (:func:`argus.cases.known.settle`): it stays until a person reviews the investigation.
-3. **Notice a moved address:** an investigation from a new campus address, soon after the
-   case's only device went quiet, with the same set of indicators (a separate, small query), or
-   with the case's host name, is probably the same device: ARGUS adds the address to the case
-   and says so, and offers it no new case. A case with two devices never merges a third, and
-   when the old address alerts again after a move the investigation is a change ("two
-   devices").
-4. **Suggest, never alarm:** a case still active a week after its only notice earns a "notify
-   again" reminder, one still active after three weeks a "ask for network-side action"
-   reminder; one with no matching activity for 14 days is proposed for closing as "stopped after
-   notice" (a person approves; an unanswered proposal that expired is made again).
-
-A case closed as "stopped after notice" keeps a short watch (``notified.reopen_days``): its
-device's investigations that reach the case's indicators, or bring something new, are a change
-again ("active again after it stopped"); nothing reopens by itself.
-
-The pass reads ARGUS's own database and the outside cache only (nothing reaches the SIEM or an
-outside source) and writes under the opener's lock, as the other case writers do. One case's
-failure is a problem in the report and the other cases go on.
-"""
+"""The known infection at work: a pass over the cases whose owner was told (rules in
+:mod:`argus.cases.known`). For every open or assigned case with a notice, a pass (:func:`run`, from
+the assessment service and ``argus case known run``): (1) seeds the fingerprint once from what the
+case's investigations showed at the notice; (2) decides each new investigation of the case's
+devices, known or changed, and joins it silently; (3) notices a moved address (same indicators or
+host name, the only device went quiet) and adds it; (4) suggests, never alarms: reminders after 7
+and 21 days and a proposal to close after 14 quiet days. A case closed as "stopped after notice"
+keeps a short watch (``notified.reopen_days``). Only ARGUS's database and the outside cache are
+read; one case's failure is a problem in the report."""
 
 from __future__ import annotations
 
@@ -81,7 +54,7 @@ AGAIN = "it is active again after it stopped (case {number}, closed {day})"
 class Context:
     """What a pass needs: the asset map's classes and site types, the shared-infrastructure list
     (no outside address on it says who is behind it), the rules, the outside cache's view, and the
-    eligibility check that keeps campus names out of the destinations."""
+    eligibility check that keeps internal names out of the destinations."""
 
     classifier: IpClassifier
     shared: Shared = NO_SHARED
@@ -113,7 +86,7 @@ def site_type(classifier: IpClassifier, value: str) -> str | None:
 async def managed(
     conn: AsyncConnection, case_id: uuid.UUID, classifier: IpClassifier | None, rules: Rules
 ) -> bool:
-    """Whether a case's devices are campus-managed (D-169): every campus address it holds as a
+    """Whether a case's devices are organisation-managed: every internal address it holds as a
     device is in an asset-map network whose ``site.type`` is one of ``managed_types``. A device
     the map does not know, a case with no address, and a missing map are not managed."""
     if classifier is None:
@@ -149,9 +122,6 @@ def context_for(
         resolvers=tuple(settings.campaigns.resolvers), view=view, eligible=eligible,
         history=settings.history.window,
     )  # fmt: skip
-
-
-# --------------------------------------------------------------------------- the cases
 
 
 @dataclass(frozen=True)
@@ -209,8 +179,6 @@ async def tracked(conn: AsyncConnection, ctx: Context, now: datetime) -> list[Tr
     return out
 
 
-# --------------------------------------------------------------------------- reading subjects
-
 _BASE = text(
     "SELECT i.id, i.version, i.severity, i.group_key, i.first_event_at, i.last_event_at,"
     " rz.flags FROM investigations i LEFT JOIN investigation_raises rz"
@@ -248,7 +216,7 @@ def _bytes(value: Any) -> int | None:
 
 
 def listed_key(value: object) -> Key | None:
-    """A threat-intel value as a destination, typed as the outside cache types it (D-181): an
+    """A threat-intel value as a destination, typed as the outside cache types it: an
     address or a name as it is written canonically, a URL as its host. A file hash names no
     destination, and neither does anything that is not a valid address, name or URL."""
     if not isinstance(value, str):
@@ -274,7 +242,7 @@ _RANKED = text(
 
 
 async def popular_names(conn: AsyncConnection, names: Iterable[str]) -> frozenset[str]:
-    """The names, among ``names``, that a web-popularity list ranks (D-174), or whose registered
+    """The names, among ``names``, that a web-popularity list ranks, or whose registered
     parent is ranked: popular infrastructure that every case holds, so reaching it says nothing
     about who is behind it."""
     wanted = set(names)
@@ -347,13 +315,14 @@ async def subjects(
 
 
 def _campus_key(ctx: Context, key: Key) -> bool:
-    """A campus or private address: never a destination of a case, whatever a list says."""
+    """An internal or private address: never a destination of a case, whatever a list says."""
     return key[0] == "ip" and ctx.classifier.classify(key[1]).ip_class is not IpClass.PUBLIC
 
 
 def _outside(ctx: Context, key: Key) -> bool:
-    """Whether an address or a name is outside the campus and says something about who is behind
-    it (not a content-delivery or cloud network, not a name every investigation holds)."""
+    """Whether an address or a name is outside the organisation's network and says something
+    about who is behind it (not a content-delivery or cloud network, not a name every
+    investigation holds)."""
     kind, value = key
     if ctx.shared.reason(kind, value) is not None:
         return False
@@ -363,8 +332,6 @@ def _outside(ctx: Context, key: Key) -> bool:
         return ctx.classifier.classify(value).ip_class is IpClass.PUBLIC
     return known.parent_of(value) is not None
 
-
-# --------------------------------------------------------------------------- deciding
 
 # an investigation names one of the case's devices: an entity equal to a device key, or an actor
 # of its grouping key (the key is canonical JSON, each pair ``["name","value"]``)
@@ -390,7 +357,7 @@ _FROM = (
     " WHERE i.last_event_at >= :since AND i.first_event_at <= :now"
 )
 _CANDIDATES = text(f"{_FROM} AND {_DEVICE_MATCH}{_UNDECIDED}")
-# a moved address (D-169 point 6, D-181): the case's one device went quiet, and an investigation
+# a moved address: the case's one device went quiet, and an investigation
 # of an address the case does not hold began soon after, with the case's destinations
 _MOVED = text(
     f"{_FROM} AND i.first_event_at >= :moved_from AND i.first_event_at <= :moved_to"  # noqa: S608
@@ -518,7 +485,7 @@ _KEY = text(
 class Decision:
     subject: Subject
     verdict: known.Verdict
-    new_address: Key | None = None  # a campus address the case does not hold yet (D-169 point 6)
+    new_address: Key | None = None  # an internal address the case does not hold yet
     moved_from: str | None = None  # the old address, or the strong key it came with
     moved_hours: int = 0
     by_timing: bool = False  # the move rests on timing and indicators, not on a host name
@@ -530,7 +497,7 @@ class CaseResult:
     known: int = 0
     changed: int = 0
     moved: int = 0
-    kept: int = 0  # changes that stay changes (D-181): decided again, not yet reviewed
+    kept: int = 0  # changes that stay changes: decided again, not yet reviewed
     unjudged: int = 0  # decisions made without a byte count for the data volume
     reminders: list[str] = field(default_factory=list)
     proposed: bool = False
@@ -709,7 +676,7 @@ _MOVES = text(
 
 async def moved_addresses(conn: AsyncConnection, case: Tracked) -> dict[str, datetime]:
     """The addresses the case was moved from (an address, not a host name) and when the new one
-    first alerted: an alert of the old one after that makes two devices (D-181)."""
+    first alerted: an alert of the old one after that makes two devices."""
     out: dict[str, datetime] = {}
     for r in await conn.execute(_MOVES, {"c": case.id}):
         if r.old is not None and r.since is not None and facts.canonical("ip", r.old) == r.old:
@@ -725,8 +692,8 @@ def _severity(subject: Subject) -> Severity:
 
 
 def _fresh_addresses(ctx: Context, fp: Print, subject: Subject) -> list[Key]:
-    """The campus addresses of an investigation that the case does not hold as devices (a
-    university service is not one)."""
+    """The internal addresses of an investigation that the case does not hold as devices (an
+    internal service is not one)."""
     extra = subject.devices - fp.devices - subject.services
     return sorted(k for k in extra if k[0] == "ip" and ctx.is_campus(k[1]))
 
@@ -744,7 +711,7 @@ def _again(case: Tracked, fp: Print, subject: Subject, rules: Rules) -> known.Ve
 
 def _two_devices(verdict: known.Verdict, back: Sequence[str]) -> known.Verdict:
     """A known or changed investigation in which an address that was moved from alerts again
-    after the move (D-181): the case has two devices, not one that moved. It is a change."""
+    after the move: the case has two devices, not one that moved. It is a change."""
     said = tuple(f"two devices: {old} active again after the move" for old in back)
     return known.Verdict("changed", (*said, *verdict.changes), verdict.adds, verdict.volume_judged)
 
@@ -752,8 +719,8 @@ def _two_devices(verdict: known.Verdict, back: Sequence[str]) -> known.Verdict:
 def _moved(
     ctx: Context, fp: Print, subject: Subject, gone: Sequence[Gone]
 ) -> Decision | None:  # fmt: skip
-    """The same device from a new address (D-169 point 6, D-181), and only for a case that holds
-    exactly one device (one address): the investigation lists one campus address the case does
+    """The same device from a new address, and only for a case that holds
+    exactly one device (one address): the investigation lists one internal address the case does
     not hold and nothing else it does not (a host or user key of another machine, a second
     address, makes it another device: the suggester offers it). Then either it carries the host
     name the case holds (a stronger key than any timing), or it began soon after the case's
@@ -824,8 +791,8 @@ def decide(
             continue
         if decision is not None:
             out.append(decision)
-    # Two new addresses that both fit the one device that went quiet are never guessed between
-    # (D-181): neither is a move, and the suggester offers them.
+    # Two new addresses that both fit the one device that went quiet are never guessed between:
+    # neither is a move, and the suggester offers them.
     guesses = {d.new_address for d in out if d.by_timing}
     if len(guesses) > 1:
         log.info("known infection of case %s: %d new addresses fit the device that went quiet;"
@@ -979,8 +946,6 @@ async def apply_decisions(
         result.unjudged += sum(1 for d in done if not d.verdict.volume_judged)
 
 
-# --------------------------------------------------------------------------- reminders and ending
-
 _ACTIVITY = text(
     "SELECT max(i.last_event_at) FROM case_members m JOIN investigations i"
     " ON i.id = m.investigation_id WHERE m.case_id = :c AND m.removed_at IS NULL"
@@ -996,7 +961,7 @@ _REMIND = text(
 )
 # A proposal at the case's current version is asked: it is waiting (its expiry is ahead of the
 # database's clock) or a person answered it. One that expired unanswered is not, so the proposal
-# is made again on a later pass (D-181: keyed by the expiry, not only by the case version).
+# is made again on a later pass (keyed by the expiry, not only by the case version).
 _ASKED = text(
     "SELECT 1 FROM approval_requests r JOIN cases c ON c.id = r.case_id"
     " WHERE r.case_id = :c AND r.case_version = c.version AND (r.expires_at > now()"
@@ -1062,9 +1027,6 @@ async def housekeeping(
             result.proposed = True
         else:
             result.notes.append(f"closing not proposed: {proposed.refused}")
-
-
-# --------------------------------------------------------------------------- a pass
 
 
 async def _case(

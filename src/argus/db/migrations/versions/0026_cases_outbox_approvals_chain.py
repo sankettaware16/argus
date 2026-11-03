@@ -1,26 +1,17 @@
-"""Cases, the Kibana outbox, approvals, notes, and the audit hash chain (Q-C1, plan §7.1, §7.9)
+"""Cases, the Kibana outbox, approvals, notes, and the audit hash chain
 
-What the database itself guarantees, whatever code runs against it:
-
-* **Hash chain** on ``audit_events`` and ``case_events``: an owner's trigger numbers every new
-  row and stores sha256(previous hash, the row), so a changed, removed or reordered row breaks
-  the chain (``argus audit verify``). The audit rows written before this migration are sealed
-  into the chain's genesis hash. The runtime role cannot set the chain columns, and cannot write
-  ``chain_heads``.
-* **Cases** move only along the lifecycle's edges, their version rises by exactly one per change,
-  every version has its case event with the same state, and a confirmed case is closed only with
-  a complete, unexpired approval bound to its version and reason.
-* **Outbox**: a case event's Kibana rows are exactly ``kibana_rows`` (checked at commit), rows
-  never change their payload, their state moves only along the outbox's edges, and a write is
-  sent a second time only after a person's approved resend.
-* **Approvals** are inserted only by ``argus_approval_request()`` and ``argus_approval_decide()``,
-  which ``argus_approvals`` may call and ARGUS's runtime role may not; requests, decisions,
-  case events, notes, openings and the action ledger are append-only.
+What the database itself guarantees, whatever code runs against it: a **hash chain** on
+``audit_events`` and ``case_events`` (an owner's trigger numbers every row and stores
+sha256(previous hash, the row); ``argus audit verify`` checks it); **cases** move only along the
+lifecycle's edges, with a version that rises by one per change, a case event for every version,
+and a confirmed case closed only with a complete, unexpired approval; an **outbox** whose rows
+never change their payload, move only along its edges and are sent twice only after an approved
+resend; **approvals** inserted only by ``argus_approval_request()`` and
+``argus_approval_decide()``.
 
 Revision ID: 0026
 Revises: 0025
-Create Date: 2026-10-22 (written as 0021; renumbered after Q-A2's 0021 and 0022, Q-F2's 0023 and
-Q-A1's 0024 and 0025, 2026-10-23)
+Create Date: 2026-10-22
 """
 
 from collections.abc import Sequence
@@ -244,7 +235,7 @@ $$;
 """
 
 # ---------------------------------------------------------------------------- cases
-# The lifecycle's edges (plan §7.1), as argus.cases.machine.EDGES; a same-state update (a link,
+# The lifecycle's edges, as argus.cases.machine.EDGES; a same-state update (a link,
 # a request, a reassignment) keeps the state.
 CASE_GUARD = """
 CREATE FUNCTION argus_case_guard() RETURNS trigger
@@ -505,15 +496,12 @@ $$;
 """
 
 # ---------------------------------------------------------------------------- approvals
-# Only argus_approvals may call these (the web's own login joins it, Q-A2). The approver is the
-# user of a live web session, never a parameter: the caller hands in the session's raw token
-# (the cookie) and the function hashes it, so the hashes anyone may read in user_sessions are
-# useless here; a session past its absolute end (expires_at, Q-A1's 0024) or idle longer than
-# the web's default idle expiry (12 hours) is refused. Every request and decision is written to
-# the audit trail (and so the hash chain) in the same transaction, naming the person; argus
-# audit verify compares the two. Expiries are checked against the clock, never the
-# transaction's start. The cases are locked before the request row and the chain, in id order,
-# as CaseService locks them. Errors carry SQLSTATE QC4xx (argus.cases.approvals).
+# Only argus_approvals may call these (the web's own login joins it). The approver is the user of a
+# live web session, never a parameter: the caller hands in the session's raw token (the cookie) and
+# the function hashes it, so the hashes anyone may read in user_sessions are useless here; a session
+# past its absolute end or idle too long is refused. Every request and decision is written to the
+# audit trail (and so the hash chain) in the same transaction, naming the person. Expiries are
+# checked against the clock, never the transaction's start. Errors carry SQLSTATE QC4xx.
 APPROVAL_FUNCTIONS = """
 CREATE FUNCTION argus_approval_session_user(p_session_token text) RETURNS bigint
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
@@ -707,7 +695,7 @@ def _timestamps(*names: str) -> list[sa.Column]:  # type: ignore[type-arg]
 def upgrade() -> None:
     op.execute(ROLE_CHECK.format(role="argus_runtime"))
     op.execute(ROLE_CHECK.format(role="argus_approvals"))
-    # The legacy seal reads every audit row; production's trail is ~10^5 rows (seconds), the
+    # The legacy seal reads every audit row, which takes a while on a long trail; the
     # engine's 30 s statement limit is for ARGUS's own queries.
     op.execute("SET LOCAL statement_timeout = '15min'")
 

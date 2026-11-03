@@ -1,23 +1,24 @@
 # ARGUS configuration (non-secret). Secrets go in .env — see .env.example.
 # Any key can be overridden by an environment variable: ARGUS_<SECTION>__<KEY>.
+# Every setting is described in docs/configuration.md.
 
 environment: dev
 
 history:
   # How far back ARGUS looks (backfill depth and entity-history lookback).
-  # One-line change: 4d, 5d, 30d, 36h ... (allowed range 1h to 365d). Keep it at or
-  # below the log retention on the SIEM (its ILM policy).
+  # Examples: 4d, 5d, 30d, 36h (allowed range 1h to 365d). Keep it at or below the log retention
+  # on the SIEM (its ILM policy).
   window: 5d
 
 memory:
-  # How long ARGUS keeps alerts, entity facts and baselines locally (D-028). Older
-  # investigations go with the retention purge (Q-A4), unless held.
+  # How long ARGUS keeps alerts, entity facts and baselines locally. Older investigations go with
+  # the retention purge, unless held.
   window: 90d
 
 retention:
-  # Personal data the purge removes (D-028, Q-A4); each period is at least history.window in
-  # effect. Holds: open cases, pending approvals, the gold set. Audit events and case records
-  # stay. `argus purge plan` shows the counts; the first purge and the schedule are the user's.
+  # Personal data the purge removes; each period is at least history.window in effect. Held:
+  # open cases, pending approvals, the gold set. Audit events and case records stay.
+  # `argus purge plan` shows the counts.
   raw_source: 30d   # an alert's raw _source (its normalized form stays until memory.window)
   evidence: 90d     # evidence snapshots, from the investigation's newest review
   quarantine: 30d   # a quarantined alert's raw _source
@@ -37,144 +38,82 @@ logging:
 
 assets:
   # The asset map, imported with `argus assets import <file>` (local only, never committed); the
-  # default is data/assets/asset_map.yaml.
-  # Deprecated: site.own_networks (D-284). Left out here; an install that still sets it (the
-  # YAML or ARGUS_ASSETS__CAMPUS_PREFIXES) fills site.own_networks while that is empty.
+  # default is data/assets/asset_map.yaml. The older campus_prefixes setting is deprecated: use
+  # site.own_networks.
 
 reference:
-  # On since the first live check passed (2026-10-14 16:09 UTC, D-068): the site's mirror sources
-  # (site.ti_sources) sync every 6 h; its lookup sources are asked as investigations need them.
+  # The site's mirror sources (site.ti_sources) sync every 6 h; its lookup sources are asked as
+  # investigations need them.
   ti_sync: true
 
 enrichment:
-  # On since their first production runs passed (2026-10-14 16:2x UTC, D-069, D-070): the web
-  # follow-up search and the proxy aggregations, each asked once per investigation.
+  # The web follow-up search and the proxy aggregations, each asked once per investigation.
   log_queries: true
   proxy_aggregations: true
 
-# siem: the SIEM's Elasticsearch. No default address (D-293): this installation's url and the
-# read-only key's expiry (api_key_expires, as its creation recorded it; `argus doctor` warns 30
-# days ahead and never asks the SIEM) go in config/local.yaml (D-294), the key in .env.
+# siem: the SIEM's Elasticsearch. There is no default address: the url and the read-only key's
+# expiry (api_key_expires; `argus doctor` warns 30 days ahead and never asks the SIEM) go in
+# config/local.yaml, the key itself in .env.
 
-# site (D-238, P4-D1): everything about this organisation's Elastic that is not code. The defaults
-# are neutral (no log family, the "default" space, any Elastic 8.x or 9.x, UTC); `argus discover`
-# proposes the section from a fresh Elastic and `--write` puts it in config/site.yaml (read
-# beside this file, below it in priority). The section lives there, not here (D-294).
-#   families: the log indices ARGUS may read. Each has a role (proxy, web, dns, auth, mail, other:
-#     what the logs are; the evidence modules pick their family by role), a pattern (a pattern
-#     ending in '*' is daily indices <prefix>YYYY.MM.DD, a name without '*' is one data stream or
-#     alias), an optional name (the source key in stored evidence, the freshness readings and the
-#     ledger; default: the role), the event time field (default @timestamp), `fields` (the field
-#     names the evidence modules query, by field role; a role left out has its ECS name, a text
-#     field with a keyword sub-field is written with the suffix: url.domain.keyword), `watch`
-#     (false: read, but not watched by the health probe and the freshness reader), `types` (the
-#     mapping type of a field path where it is not the role's default: url.original: keyword) and
-#     `ignore_above` (the keyword fields' limit, default 256, at least 32: no request carries a
-#     longer value; `types` names fields of the family, without .keyword).
-#     Field roles: proxy: client_ip server_ip server_port bytes url method status_code action; web:
-#     client_ip domain url_path method status_code bytes user_agent; dns: client_ip client_ip_alt
-#     query_name query_type response_code; auth: client_ip user_name action outcome user_agent.
-#   space: the Kibana space that holds the Security alerts; alerts_index: its alerts alias
-#     ({space} is the space id; default .alerts-security.alerts-{space}).
-#   log_patterns: the index patterns the self-test and the see_logs capability check `read` on;
-#     left out, each family's own pattern (list one wider pattern when the key is granted it).
-#   ti_sources: the threat-intel sources ARGUS may read, each {index, schema, mode}: the index (or
-#     pattern, logs-ti_*) is the source's id everywhere; schema ecs = ECS threat.indicator.* (what
-#     Elastic's Threat Intel integration writes), ioc = ioc_type / ioc_value / intel_source rows;
-#     mode mirror = the whole index in one bounded read kept in ARGUS's store (small indices),
-#     lookup = the values asked about, cached for a day (large ones). None by default: threat
-#     intel is off and ARGUS says so wherever it reports intel.
-#   elastic_versions / kibana_versions: the versions ARGUS runs against / writes to, comparators
-#     joined by commas ('>=8.0,<10', '==8.19.12', '*'); pin Kibana to the version its writes
-#     were tested on.
-#   timezone, timezone_label: the zone people read times and days in (an IANA name; default UTC)
-#     and how a time in it is labelled (IST, say; left out, the zone's offset at that moment,
-#     UTC-05:00 or UTC-04:00, the same in the pages, the PDF and the Kibana text). The zone is also the zone of the investigation day: every investigation
-#     id depends on it, so choose it once, before the first alert is stored (changing it later
-#     starts new investigations at the new day boundary; existing ones keep their ids).
-#   quiet_hours: {start, end} in UTC, as quoted "HH:MM": the daily window in which ARGUS asks the
-#     SIEM for nothing optional (its daily index creation and ILM deletes, say); start equal
-#     to end is no window (a window may cross midnight). kibana.write_window stays UTC whatever
-#     the zone is, and must not reach into it.
-#   incident_id_prefix: the prefix of incident case ids, <prefix>-YYYY-MMDD-NN (capital letters,
-#     digits and '-', at most 16 characters: the database check allows that; SOC-IR, say).
-#   own_networks, own_domains: the organisation's public networks (CIDR) and domain suffixes;
-#     private ranges are always its own. The domains are the ones the privacy layer pseudonymizes
-#     and the case titles recognise as the organisation's own sites. assets.campus_prefixes and
-#     the privacy policy's campus_domains are the older names: what they list joins these.
-#   own_network_noun: the word for the organisation's own network in the pages' sentences
-#     ("campus device", "outside the campus"; default "your network"): one phrase in lower case;
-#     a noun that needs "the" carries it ("the plant"), one used after "on" reads as it stands
-#     there ("on campus"); organisation: its name and
-#     its security team's name (page header, PDF footer, block-list sign-off), what kind of
-#     organisation it is ("university": "a university network" in what a model reads), the units
-#     an owner may be told through ("department, hostel or lab") and who reads the reports
-#     ("research and teaching assistants"). Lower-case words for the middle of a sentence; the
-#     defaults are "organisation", "department, team or lab" and "analysts".
+# site: everything about this organisation's Elastic that is not code (log families, space,
+# threat-intel sources, versions, time zone, quiet hours, names). `argus discover` proposes the
+# section from a fresh Elastic and `--write` puts it in config/site.yaml, which is read beside
+# this file. It lives there, not here. See docs/configuration.md for every key.
 
-# backup (Q-A2): dumps go to data/backups/ (never committed); the nightly dump and the weekly
-# restore drill are argus-backup.timer and argus-backup-drill.timer (deploy/systemd). The dump
-# before every `argus db upgrade`/`downgrade` is switched on in production's own .env
-# (ARGUS_BACKUP__BEFORE_MIGRATION=true), never here: every checkout and stream worktree loads
-# this file, and a dump started from one must never reach another checkout's database server
-# through docker compose (QA2-R1).
+# backup: dumps go to data/backups/ (never committed); the nightly dump and the weekly restore
+# drill are argus-backup.timer and argus-backup-drill.timer (deploy/systemd). The dump before
+# every `argus db upgrade`/`downgrade` is switched on in production's own .env
+# (ARGUS_BACKUP__BEFORE_MIGRATION=true), never here: every checkout loads this file, and a dump
+# started from one must never reach another checkout's database server through docker compose.
 
-# freshness (Q-F1): watermarks and verified zeros. Off until the lead switches the shadow on
-# (docs/runbooks/freshness.md); the margins come from scripts/derive_margin.py and a decision;
-# "on" (a log zero may say "nothing found") is the user's own approval after the shadow.
+# freshness: watermarks and verified zeros. "off" until switched on (docs/runbooks/freshness.md);
+# the margins come from scripts/derive_margin.py. "on" lets a log zero say "nothing found".
 freshness:
   mode: "off"
 
-# web (Q-A1, Q-A2): doctor alarms when the served certificate differs from web.tls_pin_sha256
-# (D-113, step 6), this installation's own pin (config/local.yaml).
+# web: doctor alarms when the served certificate differs from web.tls_pin_sha256, this
+# installation's own pin (config/local.yaml).
 
-# cases (Q-C2): the daily still-active watch of open true-positive cases, off until the lead
-# switches it on. "local": ARGUS's own alerts only (nothing reaches the SIEM); "on": also the proxy
-# logs (proxy.contact / proxy.pair, a new kind of read: after Q-F4's first runs). The command is
-# `argus case watch run`, once a day (docs/runbooks/case-watch.md).
-#
-# suggest (AR2b, AR2c): `argus assess run` suggests a case every 15 minutes from evidence across
-# investigations (a campaign: several campus devices that reached one flagged destination or one
-# operator's domains; a host in Needs attention seen by several rules or on several days; actors
-# that hit the same rare targets, one of them in Needs attention): a suspected case a person
-# confirms or dismisses. ARGUS opens nothing. What an open case holds is never suggested into a
-# new one (D-171). Local reads only (the outside cache and the stored investigations).
-# Off in D-164 (replayed on 15–28 Oct it suggested about 110 cases a day, 395 of 471 of them
-# "2 investigations of one campus host"); on again with AR2c (D-173): the same replay, 8–28 Oct
-# on the 08:03 UTC dump, suggests 37 cases in 20 days, at most 8 a day after the first pass's
-# backlog of 12, and the DNS campaign and the Amadey servers are one case each.
-#
-# offers_per_hour (30, D-174): offers of a new device's investigations to an open case an hour,
-# one for each device; a roaming device counts once for each address until AR4b.
+# cases: the daily still-active watch of open true-positive cases, off until switched on.
+# "local": ARGUS's own alerts only (nothing reaches the SIEM); "on": also the proxy logs. The
+# command is `argus case watch run`, once a day (docs/runbooks/case-watch.md).
+#   suggest: `argus assess run` suggests a case every 15 minutes from evidence across
+#     investigations (several devices that reached one flagged destination or one operator's
+#     domains; a host in Needs attention seen by several rules or on several days; actors that hit
+#     the same rare targets): a suspected case a person confirms or dismisses. ARGUS opens nothing.
+#     What an open case holds is never suggested into a new one. Local reads only.
+#   offers_per_hour: offers of a new device's investigations to an open case an hour, one for each
+#     device.
 cases:
   watch: "off"
   suggest: true
   offers_per_hour: 30
   retitle: true
 
-# campaigns (AR2c, D-168, D-174): campus devices that reach the same rare domains.
-# resolvers: the campus's recursive DNS resolvers, addresses or networks. A resolver asks for
-# every name its users ask for, so it is no device and would join unrelated campaigns through
-# the devices behind it. SET THIS to the resolvers your DNS alerts show as the client (nothing
-# guesses them any more: a device infected with a domain-generation algorithm is in hundreds of
-# investigations too). Example: resolvers: [10.0.0.53, 10.0.0.54].
+# campaigns: devices that reach the same rare domains.
+#   resolvers: the recursive DNS resolvers, addresses or networks. A resolver asks for every name
+#     its users ask for, so it is no device and would join unrelated campaigns. SET THIS to the
+#     resolvers your DNS alerts show as the client. Example: resolvers: [10.0.0.53, 10.0.0.54].
 campaigns:
   resolvers: []
 
-# notified (AR4b, D-169, D-176): a case whose owner was told. Devices here are mostly personal and
-# cannot be forced clean, so a notified case is tracked quietly: its alerts are counted, not
-# raised, and ARGUS speaks again only on change. All days are counted from the notice.
+# notified: a case whose owner was told. Such devices are mostly personal and cannot be forced
+# clean, so a notified case is tracked quietly: its alerts are counted, not raised, and ARGUS
+# speaks again only on change. All days are counted from the notice.
 #   renotify_days / network_days: still active this long -> a suggestion to notify again / to ask
 #     for network-side action (the case's block list); never an alarm.
-#   quiet_days: no matching activity this long -> ARGUS proposes closing it as "stopped after
-#     notice" (a person approves). active_days: activity within this many days is "still active".
-#   move_gap / move_window / move_similarity: the same indicators from a new campus address that
-#     began between 2 hours and 72 hours after an old one went quiet, and are this alike (0 to 1),
+#   quiet_days: no matching activity this long -> ARGUS proposes closing the case as "stopped
+#     after notice" (a person approves). active_days: activity within this many days is "still
+#     active".
+#   move_gap / move_window / move_similarity: the same indicators from a new address that began
+#     between move_gap and move_window after an old one went quiet, and are this alike (0 to 1),
 #     are probably the same device.
 #   volume_factor: traffic this many times the level at the notice (or at the last spoken change)
-#     is a change (judged only when the evidence carries bytes). managed_types: the asset map's
-#     site.type values of campus-managed machines; any other, and an address the map does not
-#     know, is personal.
+#     is a change (judged only when the evidence carries bytes).
+#   managed_types: the asset map's site.type values of managed machines; any other type, and an
+#     address the map does not know, is personal.
+#   reopen_days: how long after a "stopped" closure new activity counts as a change again.
+#     per_pass: investigations one pass reads for one case.
 notified:
   renotify_days: 7
   network_days: 21
@@ -184,21 +123,19 @@ notified:
   move_window: 72h
   move_similarity: 0.8
   volume_factor: 10
-  managed_types: [lab, computer-room]  # D-180: department labs, hostel computer rooms
+  managed_types: [lab, computer-room]
   reopen_days: 30
   per_pass: 500
 
-# incident (AR7, D-190): ARGUS writes the incident report of each suggested or open case (summary,
-# verdict, timeline, actors, assets, evidence with the query behind each line, hypotheses,
-# indicators, actions) from its own database; a person confirms or rejects it. It asks the SIEM and
-# Kibana nothing: the queries are text, and the links only open a page a signed-in person may see.
+# incident: ARGUS writes the incident report of each suggested or open case (summary, verdict,
+# timeline, actors, assets, evidence with the query behind each line, hypotheses, indicators,
+# actions) from its own database; a person confirms or rejects it. It asks the SIEM and Kibana
+# nothing: the queries are text, and the links only open a page a signed-in person may see.
 #   per_pass / look: reports written / cases examined in one assessment pass. min_interval: a case
 #     is not written again sooner than this after its last report.
 #   prose: let a model word the summary from verified facts, through the LLM gateway and the
-#     citation checks (any refusal leaves the deterministic text). Off by default.
-#   kibana_url: the address people open Kibana at (default kibana.url). data_views: "source=id"
-#     pairs (squid=..., dns=..., nginx=..., alerts=..., ti=...); a source with a data view gets
-#     KQL links on it, any other an ES|QL link, which needs no id.
+#     citation checks (any refusal leaves the deterministic text).
+#   kibana_url, data_views: where the evidence links open (docs/configuration.md).
 incident:
   enabled: true
   per_pass: 5
@@ -207,55 +144,53 @@ incident:
   prose: false
 
 # kibana: the Kibana lane stays off here (kibana.enabled false); only argus-kibana-sync and
-# argus-case-team turn it on, in their own environment files (local/, never .env; D-214).
-# url: the address of this installation's Kibana (config/local.yaml; no default, D-293).
+# argus-case-team turn it on, in their own environment files (local/, never .env).
+# url: the address of this installation's Kibana (config/local.yaml; no default).
 kibana:
   sync:
     enabled: true  # the read-back and the Verdict: comments, where kibana.enabled is true
 
-# case_team (AR8, D-195): seven Kibana users (the seventh optional) post an incident case (docs/runbooks/kibana-case-team.md).
-# `post: false` writes nothing to the SIEM: the rendering still runs as a dry run (`argus case team
-# preview <n>`). The six keys are secrets of the writer's own credentials, never here.
+# case_team: Kibana users (docs/runbooks/kibana-case-team.md) post an incident case.
+# `post: false` writes nothing to the SIEM: the rendering still runs as a dry run
+# (`argus case team preview <n>`). The writers' own credentials are secrets, never here.
 case_team:
   post: false
-  auto: false  # only a person's confirm opens a Kibana case (the user, 2026-10-30; D-214)
+  auto: false  # only a person's confirm opens a Kibana case
   auto_min_confidence: 0.8
   per_day: 5
   canary: 1
 
-# notices (Q-H4): e-mails that carry a link, a severity and a count (never a name) through the
-# campus relay. Off until you approve the relay and the recipients (docs/runbooks/notices.md).
-# The relay and the recipients are production's own choices and go in its .env, never here:
-# every checkout and stream worktree loads this file (ARGUS_NOTICES__ENABLED,
-# ARGUS_NOTICES__RELAY_HOST, ARGUS_NOTICES__RELAY_PORT, ARGUS_NOTICES__RELAY_FROM,
+# notices: e-mails that carry a link, a severity and a count (never a name) through your mail
+# relay. Off until you approve the relay and the recipients (docs/runbooks/notices.md). They go in
+# the production .env, never here: ARGUS_NOTICES__ENABLED, ARGUS_NOTICES__RELAY_HOST,
+# ARGUS_NOTICES__RELAY_PORT, ARGUS_NOTICES__RELAY_FROM,
 # ARGUS_NOTICES__RECIPIENTS=a@example.org,b@example.org, ARGUS_NOTICES__WEB_URL, and the relay
-# login ARGUS_NOTICES__USER / ARGUS_NOTICES__PASSWORD if it needs one).
+# login ARGUS_NOTICES__USER / ARGUS_NOTICES__PASSWORD if it needs one.
 notices:
   enabled: false
 
-# investigation (Q-F3): the deterministic wave. For an undecided investigation with a closable
-# gap ARGUS asks the ranked checks through the investigation lane before any model is asked
-# (docs/gates/q-f3.md). Off until the first live wave, which the lead does with the user;
-# "Check more" (a person's request) does not depend on it.
+# investigation: the deterministic wave. For an undecided investigation with a closable gap ARGUS
+# asks the ranked checks through the investigation lane before any model is asked. Off until the
+# first supervised wave; "Check more" (a person's request) does not depend on it.
 investigation:
   wave: false
 
-# signins (AR6, D-216): who was behind an internal address. ARGUS reads the SSO sign-in logs
-# (the site's auth family) for the addresses of its investigations, a few requests a pass, and keeps
-# the accounts that signed in from each address each UTC day (the logs are kept 5 days; ARGUS keeps
-# 180). Usernames are personal data: shown only with log access, never sent to any model. Off until
-# the lead turns it on (docs/runbooks/signins.md). The knobs, if one is ever needed: actions (the
-# browser and interactive sign-in events), pad_hours (2), shared_accounts (4), batch (200),
-# max_requests_per_pass (6), gap (3s), current_day_every (1h), retention_days (5), keep_days (180),
-# final_after (3h: a finished day is final once looked up this long after its end, D-224).
+# signins: who was behind an internal address. ARGUS reads the SSO sign-in logs (the site's auth
+# family) for the addresses of its investigations, a few requests a pass, and keeps the accounts
+# that signed in from each address each UTC day. Usernames are personal data: shown only with log
+# access, never sent to any model (docs/runbooks/signins.md). Further knobs, if ever needed:
+# actions (the browser and interactive sign-in events), pad_hours (2), shared_accounts (4),
+# batch (200), max_requests_per_pass (6), gap (3s), current_day_every (1h), retention_days (5:
+# how long the logs are kept), keep_days (180: how long ARGUS keeps the accounts), final_after
+# (3h: a finished day is final once looked up this long after its end).
 signins:
-  enabled: true  # live 2026-10-30 after the measured first request (D-233)
+  enabled: true
 
-# outside (AR3, D-165): VirusTotal, Shodan and Censys, looked up only for outside addresses and
-# names, at most once a week each (the cache; a day for "no record"), within limits below the free plans. The keys are
-# secrets and go in .env only (ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY, ARGUS_OUTSIDE__SHODAN_API_KEY,
-# ARGUS_OUTSIDE__CENSYS_API_KEY); a source without a key is off. The defaults are right for the
-# free plans; the knobs, if one is ever needed (a value above a plan's limit is refused):
+# outside: VirusTotal, Shodan and Censys, looked up only for outside addresses and names, at most
+# once a week each (the cache; a day for "no record"), within limits below the free plans. The
+# keys are secrets and go in .env only (ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY,
+# ARGUS_OUTSIDE__SHODAN_API_KEY, ARGUS_OUTSIDE__CENSYS_API_KEY); a source without a key is off.
+# The defaults suit the free plans; further knobs (a value above a plan's limit is refused):
 #   virustotal_per_minute (3), virustotal_per_day (400), shodan_per_minute (30),
 #   shodan_per_day (200), censys_per_day (10), censys_per_month (50), cache_window (7d: a
 #   detection, a server's description), clean_cache_window (1d: no record, or too few engines,
@@ -263,6 +198,6 @@ signins:
 #   flag_threshold (3 VirusTotal engines make a detection), prefetch (true: look up the
 #   destinations of beacon-flagged investigations), prefetch_per_day (260), prefetch_batch (3),
 #   families_per_day (40: VirusTotal requests a day for domain families, the registered parent of
-#   many names and then its first address, AR2c, D-168; 0 switches them off; 40 + 260 leave the
-#   investigator 100 of the 400), shodan_internetdb (true: with no Shodan key the shodan source
-#   asks Shodan's free InternetDB, which needs none).
+#   many names and then its first address; 0 switches them off; 40 + 260 leave the investigator
+#   100 of the 400), shodan_internetdb (true: with no Shodan key the shodan source asks Shodan's
+#   free InternetDB, which needs none).

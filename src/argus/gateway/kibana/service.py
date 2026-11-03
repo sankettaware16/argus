@@ -1,4 +1,4 @@
-"""Putting the Kibana lane together from the settings (Q-D2). Nothing is built while
+"""Putting the Kibana lane together from the settings. Nothing is built while
 ``kibana.enabled`` is false: no transport, no key read."""
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def caps(settings: Settings) -> WriteCaps:
 
 
 def team_keys(settings: Settings) -> dict[str, SecretStr]:
-    """The case team's six keys by Kibana user (AR8); only those installed."""
+    """The case team's keys by Kibana user; only those installed."""
     return settings.case_team.keys()
 
 

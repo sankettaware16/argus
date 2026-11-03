@@ -1,14 +1,9 @@
-"""Outside look-ups for domain families (AR2c, D-168, D-170).
+"""Outside look-ups for domain families.
 
 ``outside_requests.purpose`` gains ``families``: the VirusTotal requests ARGUS makes for the
-registered parent of a family of many names, and then for the family's first address. They have a
-daily budget of their own (``outside.families_per_day``), counted from the ledger like the
-prefetch's. Nothing else changes: the answers go in ``outside_lookups`` as before (a domain's
-answer now also holds whether it is ranked among the popular sites, its registrar, name servers
-and addresses, inside the same size cap), and no table is added, so no grant changes.
-
-Downgrade: the family requests are counted as prefetch requests again (the ledger keeps no
-indicator, so nothing else is lost).
+registered parent of a family of many names, with a daily budget of their own
+(``outside.families_per_day``). No table is added, so no grant changes. Downgrade: the family
+requests are counted as prefetch requests again.
 
 Revision ID: 0049
 Revises: 0048

@@ -1,20 +1,12 @@
-"""The patterns ARGUS recommends closing, for Home (AR4 review, D-186): a lean summary computed in
-SQL from the investigator's runs and their patterns, whatever the number of investigations.
+"""The patterns ARGUS recommends closing, for Home: a lean summary computed in SQL from the
+investigator's runs and their patterns, whatever the number of investigations.
 
-A pattern here is what AR2 grouped (``assessment_shares``: the investigations one run stands for,
-its pattern's hash and IST day), counted at each member's current version, unreviewed and not
-held as a notified case's known infection. The Patterns page groups by the dossiers it can read
-(a sample of the newest 2,000, ``queries.patterns``); this one reads no dossier, so its numbers are
-the real totals, not a sample's. The rule of the recommendation is ``stance.recommend``, in SQL:
-every member that has a proposal has the same closing outcome, no member's answer was a true
-positive it did not propose; the covered members are the ones with a proposal. A property test
-holds the two to each other on generated data.
-
-``summary`` is the few largest patterns (a count of all of them, and of the investigations they
-cover); ``closing`` is one pattern's covered members with the version and latest review each was
-read at, for the one request that closes them, asked for only when a person presses Close. Reading
-only.
-"""
+A pattern is what the assessments grouped (``assessment_shares``), counted at each member's current
+version, unreviewed and not held as a notified case's known infection. Unlike the Patterns page,
+which samples the newest 2,000 dossiers, this reads no dossier, so its numbers are the real totals.
+The recommendation's rule is ``stance.recommend``, in SQL (every member with a proposal has the same
+closing outcome, none was a true positive); a property test holds the two to each other. ``summary``
+is the few largest patterns; ``closing`` one pattern's covered members. Reading only."""
 
 from __future__ import annotations
 
@@ -41,7 +33,7 @@ _ANSWER = f"CASE WHEN a.status = 'no_decision' THEN {stance._ANSWER} END"
 # * A member is unreviewed (no decision, ``queries._HUMAN``) and not held as known
 #   (``queries.HELD``), written as two anti-joins: as ``LEFT JOIN ... IS NULL`` the planner reads
 #   zero rows from the review table's never-null column, sizes everything after it at one row and
-#   nests loops over the whole set (minutes on the R7 seed).
+#   nests loops over the whole set.
 # * A member's proposal is its own (the investigator's before the engine's) else the newest of the
 #   runs that stand for it; a run that stands for it never replaces the investigator's own
 #   assessment, of any status (``stance._lean_of``). The reading that blocks is a run that proposed
@@ -171,7 +163,7 @@ def _brief(row: Any) -> m.PatternBriefOut:
 async def _quick(conn: AsyncConnection) -> None:
     """No JIT for this request's statements. The planner sizes the joins of CTEs (which have no
     statistics) at a million rows, above ``jit_above_cost``, and compiling the query takes longer
-    than running it (60 ms of 160 on the R7 seed). The setting ends with the transaction."""
+    than running it. The setting ends with the transaction."""
     await conn.execute(text("SELECT set_config('jit', 'off', true)"))
 
 

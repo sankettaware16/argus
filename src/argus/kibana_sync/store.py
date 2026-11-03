@@ -1,7 +1,7 @@
-"""What the read-back keeps (Q-D3): the mirror, its state, cycles, findings and people's
-cases. ``PgSyncStore`` (migration 0030, as the runtime role) and ``MemorySyncStore`` (tests and
-the busy-week simulation) behave alike; each case's change is one transaction, so a crash
-mid-cycle loses at most the case being read, and findings are kept once each (their key)."""
+"""What the read-back keeps: the mirror, its state, cycles, findings and people's cases.
+``PgSyncStore`` (as the runtime role) and ``MemorySyncStore`` (tests and simulations) behave alike;
+each case's change is one transaction, so a crash mid-cycle loses at most the case being read,
+and findings are kept once each (their key)."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def finding_key(finding: Finding) -> str:
 
 def clean_json(value: Any) -> Any:
     """A finding's details without a character the database refuses, in any string, key
-    or nesting (review D3-R1)."""
+    or nesting."""
     if isinstance(value, str):
         return clean(value)
     if isinstance(value, Mapping):
@@ -141,9 +141,6 @@ def _split(cursor: str | None) -> tuple[datetime, str] | None:
         return datetime.fromisoformat(at), alert
     except ValueError:
         return None
-
-
-# --------------------------------------------------------------------------- memory
 
 
 @dataclass
@@ -269,9 +266,6 @@ class MemorySyncStore:
         self.cycles.append(record)
 
 
-# --------------------------------------------------------------------------- Postgres
-
-
 def _mirror(row: Any) -> Mirror:
     return Mirror(
         case_id=row.case_id,
@@ -371,7 +365,7 @@ class PgSyncStore:
                 found[row.case_id].append(
                     SentWrite(row.op, _payload_fields(row.payload), row.sent_count)
                 )
-            # the writer's own steps (Q-D4): a created case's opening comment and attachments,
+            # the writer's own steps: a created case's opening comment and attachments,
             # and an approved compensating write's change and comment
             steps = await conn.execute(
                 text(
@@ -386,7 +380,7 @@ class PgSyncStore:
                 )
                 fields = _payload_fields(step.payload) if op == "update" else frozenset()
                 found[step.case_id].append(SentWrite(op, fields, step.sent_count))
-            # the case team's steps (P4-B1): each explains an action of its own author. A tag
+            # the case team's steps: each explains an action of its own author. A tag
             # step tags alerts, which is no action on the case.
             team = await conn.execute(
                 text(
@@ -468,7 +462,7 @@ class PgSyncStore:
         params = self._mirror_params(mirror)
         async with self.engine.begin() as conn:
             # a recreated case takes over its deleted predecessor's row (one per ARGUS case;
-            # 0035's trigger allows the new Kibana id only after the deletion)
+            # the database trigger allows the new Kibana id only after the deletion)
             taken = (
                 new
                 and (
@@ -498,7 +492,7 @@ class PgSyncStore:
                     params,
                 )
             elif not new:
-                # a pause is set here, never lifted (the owner's: 0030's trigger refuses it)
+                # a pause is set here, never lifted (only the owner lifts it)
                 await conn.execute(
                     text(
                         f"UPDATE kibana_mirror SET {MIRROR_SET},"  # noqa: S608 - a constant

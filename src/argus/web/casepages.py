@@ -1,18 +1,10 @@
-"""What the case pages show (plan §5 Q-B3, §7.1): the reads behind ``/api/v1/cases``,
-``/api/v1/approvals`` and the notes, and the words ARGUS uses for them.
-
-Reading only (the commands go through :class:`argus.cases.service.CaseService`). Two rules hold
-everywhere here:
-
-* **An action is shown as available exactly when the command would be allowed**: the case
-  machine itself is asked (``machine.decide`` on the case with the person's own capabilities), so
-  a button's "why not" is the refusal the command would give, in plain words, and the two cannot
-  drift. The command still checks again when it is given.
-* **Words of ARGUS and words of people stay apart.** A sentence made here may carry a person's
-  name or a value from an alert, so the app shows every string through its untrusted-text view;
-  what a person typed (a note, a reason, an attestation, a Kibana comment) is returned in its own
-  field and never mixed into a sentence that could pass for ARGUS's own.
-"""
+"""What the case pages show: the reads behind ``/api/v1/cases``, ``/api/v1/approvals`` and the
+notes, and the words ARGUS uses for them. Reading only (commands go through
+:class:`argus.cases.service.CaseService`). An action is shown as available exactly when the command
+would be allowed (the case machine itself is asked with the person's own capabilities, so a
+button's "why not" is the refusal the command would give). Words of ARGUS and words of people stay
+apart: what a person typed is returned in its own field and never mixed into a sentence that could
+pass for ARGUS's own."""
 
 from __future__ import annotations
 
@@ -170,9 +162,6 @@ FINDING_FIELDS = ("by", "at", "comment", "what", "before", "after", "field", "ty
 SHOWN_FIELD = 500
 
 
-# --------------------------------------------------------------------------- small helpers
-
-
 def _cap(value: str | None, limit: int = SHOWN_FIELD) -> str:
     return (value or "")[:limit]
 
@@ -232,8 +221,6 @@ def who(actor: str, by_id: Mapping[int, str]) -> str:
     return actor
 
 
-# --------------------------------------------------------------------------- the rows
-
 _PENDING_TEMPLATE = (
     "(r.expires_at > now() AND (r.kind NOT IN ('closure', 'merge') OR r.case_version = c.version)"
     " AND NOT EXISTS (SELECT 1 FROM approval_decisions d WHERE d.request_id = r.id"
@@ -245,7 +232,7 @@ _PENDING_TEMPLATE = (
 _PENDING = _PENDING_TEMPLATE.replace("{not_revoked}", NOT_REVOKED)
 # ARGUS's reason on a suggested case (cause raised) stays on the case when a person confirms it,
 # but it asks for no one any more: the case needs attention while it is suspected.
-# a notified case with a change since the notice that no person has reviewed (D-181)
+# a notified case with a change since the notice that no person has reviewed
 CHANGED_SINCE_NOTICE = (
     "EXISTS (SELECT 1 FROM case_known_matches k WHERE k.case_id = c.id"
     " AND k.outcome = 'changed' AND c.state IN ('open', 'assigned') AND NOT EXISTS"
@@ -303,7 +290,7 @@ def _row(r: Any) -> m.CaseRowOut:
     )  # fmt: skip
 
 
-# --- the queue's cases (AR4, D-182; the review, D-186): one definition for Home and for the list
+# --- the queue's cases: one definition for Home and for the list
 # behind its link, so the two always hold the same cases.
 # a confirmed case nobody owns (a notified one is tracked quietly: it is not asking for an owner)
 UNOWNED = "(c.state = 'open' AND c.owner_user_id IS NULL AND c.notified_at IS NULL)"
@@ -322,7 +309,7 @@ WORK = (
     f" OR {UNOWNED} OR {NEW_MEMBER}))"
 )
 
-# a notified case (AR4b, D-169) is tracked quietly: it leaves "active" for its own view
+# a notified case is tracked quietly: it leaves "active" for its own view
 _VIEWS = {
     "active": "c.state IN ('open', 'assigned', 'contained') AND c.notified_at IS NULL",
     "notified": "c.state IN ('open', 'assigned') AND c.notified_at IS NOT NULL",
@@ -395,9 +382,6 @@ async def row_of(conn: AsyncConnection, case_id: uuid.UUID) -> m.CaseRowOut | No
     return None if found is None else _row(found)
 
 
-# --------------------------------------------------------------------------- actions
-
-
 _STATE_REFUSAL = re.compile(r"cannot [a-z ]+? a (suspected|open|assigned|contained|closed) case")
 _ONLY = {
     "take": "an open or assigned case can be taken",
@@ -436,7 +420,7 @@ def why_not(exc: CaseRefused, action: str | None = None) -> str:
     """A refusal of the case machine in plain words: a move the case's state does not allow says
     which states do; a reason that needs a quiet window says what is missing; any other refusal
     is the machine's own sentence. No stored word (``remediated_verified``) and no build
-    component's code reaches a person (Q-B3 review R3-9)."""
+    component's code reaches a person."""
     found = _STATE_REFUSAL.fullmatch(exc.message)
     if found is not None and action in _ONLY:
         return f"Only {_ONLY[action]}; this one is {found.group(1)}."
@@ -576,9 +560,6 @@ def case_actions(
             )
         )  # fmt: skip
     return out
-
-
-# --------------------------------------------------------------------------- the sentences
 
 
 def _other_case(kind: str, details: Mapping[str, Any]) -> str | None:
@@ -731,9 +712,6 @@ CAUSE_WORDS = {
     "raised": "Suggested by ARGUS from evidence across investigations. Nothing is open until a"
     " person confirms it.",
 }
-
-
-# --------------------------------------------------------------------------- one case
 
 
 async def _investigations(conn: AsyncConnection, case_id: uuid.UUID) -> tuple[Sequence[Any], int]:
@@ -1058,9 +1036,6 @@ async def _mirror(conn: AsyncConnection, case_id: uuid.UUID, row: m.CaseRowOut) 
     )  # fmt: skip
 
 
-# --------------------------------------------------------------------------- what's new, timeline
-
-
 async def whats_new(
     conn: AsyncConnection,
     case_id: uuid.UUID,
@@ -1210,7 +1185,7 @@ async def timeline(
     context: Sequence[m.TimelineItemOut] = (),
 ) -> list[m.TimelineItemOut]:
     """The case's timeline, oldest first, the newest ``DETAIL_TIMELINE``. ``context`` are entries
-    that are not events of the case (the device's sign-ins, AR6), merged in by time."""
+    that are not events of the case (the device's sign-ins), merged in by time."""
     items: list[m.TimelineItemOut] = list(context)
     for i in members[:40]:
         if i.first_event_at is None:
@@ -1301,8 +1276,6 @@ async def timeline(
     items.sort(key=lambda i: i.at)
     return items[-DETAIL_TIMELINE:]
 
-
-# --------------------------------------------------------------------------- approvals
 
 _REQUEST = """
 SELECT r.id, r.case_id, r.case_version, r.kind, r.reason, r.target_case_id, r.outbox_id,
@@ -1551,7 +1524,7 @@ def group_kind(a: m.ApprovalOut) -> bool:
 def group_eligible(a: m.ApprovalOut) -> bool:
     """Whether a request may be approved in a group now: of that kind, still waiting, one this
     person may decide, and not one whose alerts changed since it was asked for (that one is read
-    alone, with its warning: Q-B3 review R3-12)."""
+    alone, with its warning)."""
     return (
         group_kind(a) and a.status == "pending" and a.you.can_decide and a.alerts_same is not False
     )
@@ -1623,9 +1596,6 @@ async def queue(
     )  # fmt: skip
 
 
-# --------------------------------------------------------------------------- the detail
-
-
 async def assignees(conn: AsyncConnection) -> list[m.PersonRef]:
     rows = await conn.execute(
         text(
@@ -1675,7 +1645,7 @@ async def suggestions(
 ) -> tuple[list[m.CaseSuggestionOut], int]:
     """The investigations ARGUS found that may belong to the case but did not join (their match
     is a shared address or name, or ties between cases), until one is joined or dismissed. The
-    values in them come from alerts: shown as text only (Q-C2 decision 33)."""
+    values in them come from alerts: shown as text only."""
     rows = (
         await conn.execute(
             text(
@@ -1702,7 +1672,7 @@ async def suggestions(
 
 def watched(case: Case, now: datetime) -> bool:
     """Whether the still-active watch looks at the case: confirmed and not closed, or closed as
-    remediated within the watch (Q-C2: ``watchrun.watched``)."""
+    remediated within the watch (``watchrun.watched``)."""
     if not case.confirmed or case.merged_into_id is not None:
         return False
     if case.state in ACTIVE_STATES:
@@ -1851,7 +1821,7 @@ async def known_section(
     users: Mapping[int, str],
     classifier: IpClassifier | None = None,
 ) -> m.KnownOut | None:
-    """The owner-notified record of a confirmed case that is open or assigned (AR4b, D-169):
+    """The owner-notified record of a confirmed case that is open or assigned:
     what a person recorded, what ARGUS counted since (and did not raise), the changes it did
     raise, its suggestions and the size of the ready block list."""
     if case.state not in ("open", "assigned"):
@@ -1915,8 +1885,8 @@ async def detail(
     users = await case_user_names(conn, case_id)
     members, total = await _investigations(conn, case_id)
     can_manage = me.can(Capability.MANAGE_CASES)
-    # Q-C2's finder reads the active cases: asked only for a case a person who may act on it is
-    # looking at (everyone else is told what they lack, which needs no window)
+    # the quiet-window finder reads the active cases: asked only for a case a person who may act
+    # on it is looking at (everyone else is told what they lack, which needs no window)
     asked = can_manage and case.state in ACTIVE_STATES
     window = await service.quiet_windows(case) if asked else NO_QUIET_WINDOW
     choices = closure_choices(case, me, window, now)
@@ -1985,8 +1955,6 @@ async def detail(
         signins=sign_ins,
     )  # fmt: skip
 
-
-# --------------------------------------------------------------------------- Check more
 
 CHECK_WORDS = Words(
     {

@@ -1,12 +1,9 @@
-"""The local model's shadow store (Q-G2): answers to live items, kept for the evaluation
-ladder and never shown
+"""The local model's shadow store: answers to live items, kept for the evaluation ladder
 
-The runtime role may read and add rows (``argus llm shadow``); it may not change or delete
-them. The web's role gets nothing on this table, so no page and no API can read it (plan §3
-rule 12: shadow output is never shown); ``argus doctor`` checks the web's grants table by
-table. That barrier holds once the web logs in as its own login (``web.database_role: api``,
-Q-A2): the runtime login may read the table, so ``argus llm shadow`` refuses while the web
-uses it, and ``argus doctor`` fails if rows exist then.
+The runtime role may read and add rows (``argus llm shadow``), not change or delete them. The web's
+role gets nothing on the table, so no page or API can read it (shadow output is never shown);
+``argus doctor`` checks the web's grants table by table. That holds once the web logs in as its own
+login (``web.database_role: api``).
 
 Revision ID: 0028
 Revises: 0027

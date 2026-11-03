@@ -1,18 +1,9 @@
 """Programmatic migrations (used by the CLI, ``doctor`` and tests).
 
 Every migration runs in one transaction that first takes a PostgreSQL advisory lock, so concurrent
-runners go one after the other and the later one finds the database already at its target:
-
-* A runner in another process (a second ``argus db upgrade``, or plain ``alembic``) waits for the
-  advisory lock for at most the engine's ``lock_timeout``, then fails.
-* Another task in this process first queues on an in-process lock, because Alembic keeps its
-  ``context``/``op`` proxies in module globals. That wait has no timeout of its own: it lasts until
-  the earlier migration commits or rolls back (each of its statements is bounded by the statement
-  and lock timeouts).
-* While a migration is in progress, neither the task running it nor a task started meanwhile can
-  start another one: it gets RuntimeError at once, because the migration may be waiting for that
-  very task, and the two would then wait for each other for ever. Once the migration has ended,
-  those tasks may migrate like any other.
+runners go one after the other. A runner in another process waits for the lock at most the engine's
+``lock_timeout``; another task in this process queues on an in-process lock, and a task started
+during a migration cannot start another (RuntimeError, not a deadlock).
 """
 
 from __future__ import annotations
@@ -113,16 +104,11 @@ def resolve_revision(revision: str, *, direction: Direction | None = None) -> st
     """The target to hand Alembic for ``revision``, checked against this code's chain.
 
     Accepted: ``head``/``heads``, ``base``, a revision id or a unique prefix of one, a step from
-    the database's revision (``+1``, ``-2``; at most the chain's length), and a step from a named
-    point (``head-1``, ``base+2``, ``0001+1``). A step from a named point is resolved here, to an
-    id or ``base``: Alembic itself fails with a bare AssertionError on such a step when it lands
-    on base or walks off the chain. A step from the database's revision is checked by Alembic when
-    it runs (a CommandError if it leaves the chain). Given the ``direction``, such a step must also
-    go that way: ``+N`` for an upgrade, ``-N`` for a downgrade.
-
-    Anything else raises UnknownRevisionError: a typo, an ambiguous prefix, a step that walks off
-    the chain or goes the wrong way, or the ``branch@`` forms (ARGUS's migrations have no branch
-    labels).
+    the database's revision (``+1``, ``-2``) and a step from a named point (``head-1``, ``base+2``).
+    A step from a named point is resolved here, because Alembic fails with a bare AssertionError
+    when it lands on base or walks off the chain. Given the ``direction``, a step must go that way.
+    Anything else (a typo, an ambiguous prefix, a step off the chain, ``branch@``) raises
+    UnknownRevisionError.
     """
     chain = revision_chain()
     relative = _RELATIVE_REVISION.fullmatch(revision)
@@ -174,7 +160,7 @@ def is_argus_table(
 ) -> bool:
     """Alembic ``include_name`` hook: compare only the tables ARGUS's models declare.
 
-    Other tables share this database (LangGraph's checkpoint tables, D-009). They are not drift,
+    Other tables share this database (LangGraph's checkpoint tables). They are not drift,
     and autogenerate must never emit DROP TABLE for them. The flip side: a table that ARGUS
     drops from its models must be dropped by a hand-written migration.
     """
@@ -287,7 +273,7 @@ async def schema_drift(engine: AsyncEngine) -> list[Any]:
 # triggers, so they are checked explicitly (doctor + tests).
 GUARD_TRIGGERS: dict[str, tuple[str, ...]] = {
     "audit_events": ("audit_events_append_only_rows", "audit_events_append_only_truncate"),
-    # 0026 (Q-C1): the case record's append-only tables (their TRUNCATE guard below); outbox
+    # the case record's append-only tables (their TRUNCATE guard below); outbox
     # rows are never deleted.
     **{
         table: (f"{table}_append_only_rows",)
@@ -299,11 +285,11 @@ GUARD_TRIGGERS: dict[str, tuple[str, ...]] = {
             "approval_requests",
             "approval_decisions",
             "action_ledger",
-            "case_notices",  # 0050 (AR4b, D-181)
-            "incident_reports",  # 0052 (AR7, D-190): a report version is never changed
-            "incident_report_decisions",  # 0052: what a person decided is a record
-            "case_team_approvals",  # 0053 (AR8): a signed approval is a record
-            "case_team_seen",  # 0053: a verdict comment, read once, and what ARGUS did with it
+            "case_notices",  # what a person told the owner, and the blocks they recorded
+            "incident_reports",  # a report version is never changed
+            "incident_report_decisions",  # what a person decided is a record
+            "case_team_approvals",  # a signed approval is a record
+            "case_team_seen",  # a verdict comment, read once, and what ARGUS did with it
         )
     },
     "kibana_outbox": ("kibana_outbox_no_delete",),
@@ -316,14 +302,14 @@ _CASE_APPEND_ONLY = (
     "approval_requests",
     "approval_decisions",
     "action_ledger",
-    "case_notices",  # 0050 (AR4b): what a person told the owner, and the blocks they recorded
-    "incident_reports",  # 0052 (AR7): the versions of a case's incident report
-    "incident_report_decisions",  # 0052 (AR7): a person's confirm or reject of a version
-    "case_team_approvals",  # 0053 (AR8): a person's approval of a first sequence (canary)
-    "case_team_seen",  # 0053 (AR8): the verdict comments read, and what was done with them
+    "case_notices",  # what a person told the owner, and the blocks they recorded
+    "incident_reports",  # the versions of a case's incident report
+    "incident_report_decisions",  # a person's confirm or reject of a version
+    "case_team_approvals",  # a person's approval of a first sequence (canary)
+    "case_team_seen",  # the verdict comments read, and what was done with them
 )
 GUARD_FUNCTION = "argus_reject_mutation"
-# 0026 (Q-C1): the other triggers ARGUS's guarantees rest on, each with the function it calls:
+# The other triggers ARGUS's guarantees rest on, each with the function it calls:
 # the hash chains, the case lifecycle guard and its commit-time checks, the outbox guard.
 CHECK_TRIGGERS: dict[tuple[str, str], str] = {
     ("audit_events", "audit_events_chain"): "argus_chain_append",
@@ -333,23 +319,23 @@ CHECK_TRIGGERS: dict[tuple[str, str], str] = {
     ("cases", "cases_guard"): "argus_case_guard",
     ("cases", "cases_have_events"): "argus_case_has_event",
     ("case_events", "case_events_follow_case"): "argus_case_event_follows",
-    # 0036 (Q-E2's review): the web's login changes only the identity lane's state rows
+    # the web's login changes only the identity lane's state rows
     ("siem_state", "siem_state_web_rows"): "argus_web_state_rows",
     ("case_events", "case_events_have_outbox"): "argus_case_event_outbox",
     ("kibana_outbox", "kibana_outbox_guard"): "argus_outbox_guard",
-    # 0042 (Q-B3 review): the web's login records a case only as the person who acted
+    # the web's login records a case only as the person who acted
     ("case_events", "case_events_web_writes"): "argus_web_case_writes",
     ("case_members", "case_members_web_writes"): "argus_web_case_writes",
     ("case_indicators", "case_indicators_web_writes"): "argus_web_case_writes",
     ("kibana_outbox", "kibana_outbox_web_writes"): "argus_web_case_writes",
     ("kibana_outbox", "kibana_outbox_no_truncate"): "argus_reject_truncate_unless_empty",
-    # 0033 (Q-F1): a log source's watermark only advances
+    # a log source's watermark only advances
     ("freshness_watermarks", "freshness_watermarks_advance"): "argus_watermark_advance",
-    # 0041 (Q-C2): a watch answer that was decided (anything but "not checked") is never replaced
+    # a watch answer that was decided (anything but "not checked") is never replaced
     ("case_watch_checks", "case_watch_checks_decided_once"): "argus_watch_check_guard",
-    # 0044 (Q-H2): a case action moves along its edges only; the web's login is a person's hands
+    # a case action moves along its edges only; the web's login is a person's hands
     ("case_actions", "case_actions_guard"): "argus_case_action_guard",
-    # 0035 (Q-D3's review): a mirror is pointed at another Kibana case only after the deletion
+    # a mirror is pointed at another Kibana case only after the deletion
     ("kibana_mirror", "kibana_mirror_repoint_after_deletion"): (
         "argus_mirror_repoint_after_deletion"
     ),
@@ -360,20 +346,20 @@ CHECK_TRIGGERS: dict[tuple[str, str], str] = {
 }
 
 
-# 0027 (Q-A5): services may stop a kill switch, only the owner resumes one; each trigger and
+# Services may stop a kill switch, only the owner resumes one; each trigger and
 # the function it must call.
 RESUME_TRIGGERS: dict[tuple[str, str], str] = {
     ("siem_switches", "siem_switches_resume_needs_owner"): "argus_resume_needs_owner",
     ("llm_state", "llm_state_resume_needs_owner"): "argus_resume_needs_owner",
-    # 0029 (Q-D2): the same rule for Kibana's stop and its paused write classes
+    # the same rule for Kibana's stop and its paused write classes
     ("siem_state", "siem_state_kibana_resume_needs_owner"): "argus_kibana_resume_needs_owner",
-    # 0034 (Q-D3): a paused Kibana case (a person changed ARGUS's tags or its settings)
+    # a paused Kibana case (a person changed ARGUS's tags or its settings)
     ("kibana_mirror", "kibana_mirror_resume_needs_owner"): "argus_mirror_resume_needs_owner",
 }
 
 
 async def missing_resume_triggers(engine: AsyncEngine) -> list[str]:
-    """The resume guards (migration 0027) that would not fire in every session: missing,
+    """The resume guards that would not fire in every session: missing,
     disabled, not ENABLE ALWAYS, or calling another function."""
     async with engine.connect() as conn:
         rows = await conn.execute(

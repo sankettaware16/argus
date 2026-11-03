@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict
 
-NORMALIZER_VERSION = "1.1.0"  # 1.1: the reporting device is no host entity (D-066)
+NORMALIZER_VERSION = "1.1.0"  # bump when the normalized output changes
 
 Scalar = str | int | float | bool
 KeyValue = Scalar | tuple[Scalar, ...] | None
@@ -32,7 +32,7 @@ class RuleType(StrEnum):
 
 
 class Adapter(StrEnum):
-    """How time, window and fingerprint are derived (plan §5.5)."""
+    """How time, window and fingerprint are derived."""
 
     EVENT = (
         "event"  # one source event: query, saved_query, threat_match, new_terms, eql, ES|QL rows
@@ -135,7 +135,7 @@ class FieldIssue(_Model):
 
 
 class GroupKey(_Model):
-    """Canonical group-key inputs (plan §7.1); R6 turns them into an investigation id."""
+    """Canonical group-key inputs; the grouping step turns them into an investigation id."""
 
     source: KeySource
     fields: tuple[str, ...]

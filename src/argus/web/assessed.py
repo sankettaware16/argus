@@ -1,6 +1,6 @@
-"""The Inbox's view of assessments (P8, D-091): the current proposal of an investigation, the
+"""The Inbox's view of assessments: the current proposal of an investigation, the
 proposals waiting for a person grouped by what decided them (each group with a random audit
-sample), and the operating metrics of Phase 2 (validator blocks, floor hits, fallbacks,
+sample), and the operating metrics (validator blocks, floor hits, fallbacks,
 backlog, quota per provider)."""
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ class Shown:
 
 def is_agent(assessor: str) -> bool:
     """Whether an assessment is the AI investigator's (any version of its name): the one rule
-    every page and list uses for "the agent's own assessment" (AR4 review, D-186)."""
+    every page and list uses for "the agent's own assessment"."""
     return assessor.startswith("agent")
 
 
@@ -258,7 +258,7 @@ def quota(state: Any, config: Any, now: datetime) -> list[tuple[str, str]]:
 async def gateway(conn: AsyncConnection, now: datetime) -> tuple[list[tuple[str, str]], bool]:
     """The model gateway's day limits against today's use, and whether its kill switch is on;
     nothing when no gateway is configured here. Read on the request's own connection, in a
-    savepoint, so a failure leaves the rest of the request's reads working (Q-A1 review F1)."""
+    savepoint, so a failure leaves the rest of the request's reads working."""
     try:
         from argus.llm.providers import load_config
         from argus.llm.store import read_state
@@ -361,7 +361,7 @@ async def history(conn: AsyncConnection, investigation_id: uuid.UUID) -> list[De
 
 @dataclass(frozen=True)
 class Shared:
-    """The investigator's run on another investigation of the same pattern and IST day (AR2):
+    """The investigator's run on another investigation of the same pattern and local day:
     shown as "same pattern as <id>". Display only: never this investigation's own assessment,
     so it is never accepted, scored, closed or written back for it."""
 

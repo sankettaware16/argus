@@ -1,13 +1,9 @@
-"""The read side (AR6, D-216): the probable users of an investigation's or a case's devices, from
-the stored sightings. Used by the pages, the incident report and ``argus signins show``. It reads
-ARGUS's own database only; nothing here asks the SIEM.
-
-The devices are the source-side addresses of an investigation's grouping key
-(``store.devices_of``, D-226); a case's are those of its members plus the actors a person added.
-Each device is attributed over the alerts of its own investigations, not over the whole case's
-span (D-226). The incident report reads the same way (``for_case``), so the page, the report and
-the pass agree on what a device is.
-"""
+"""The read side: the probable users of an investigation's or a case's devices, from the stored
+sightings; used by the pages, the incident report and ``argus signins show``. It reads ARGUS's own
+database only. A device is a source-side address of an investigation's grouping key
+(``store.devices_of``); a case's are those of its members plus the actors a person added. Each
+device is attributed over the alerts of its own investigations, not over the whole case's span, so
+the page, the report and the pass agree on what a device is."""
 
 from __future__ import annotations
 
@@ -34,7 +30,7 @@ Span = tuple[datetime, datetime]  # the first and last alert of a device's own i
 @dataclass(frozen=True)
 class Reading:
     """What a page needs to read the sign-ins: the rules, the classifier that says which addresses
-    are internal, the campus resolvers that are no device, and whether the feature is on."""
+    are internal, the resolvers that are no device, and whether the feature is on."""
 
     rules: m.Rules
     classifier: IpClassifier | None
@@ -75,7 +71,7 @@ def assemble(
     timeline entries of the devices that have a user to name: a shared address names no one, in
     the timeline neither. A device is attributed over the alerts of the investigations that
     involve it, never over the whole case: another device's later alerts say nothing about who
-    used this one (D-226)."""
+    used this one."""
     attributions = tuple(attribute(a, found.get(a, {}), *spans[a], rules, now=now) for a in devices)
     made: list[Entry] = []
     for att in attributions:
@@ -133,7 +129,7 @@ async def spans_of_case(
     conn: AsyncConnection, reading: Reading, case_id: uuid.UUID
 ) -> dict[str, Span]:
     """A case's devices, each with the span of the alerts of the member investigations that
-    involve it: the source-side addresses of its members' grouping keys, and the campus
+    involve it: the source-side addresses of its members' grouping keys, and the internal
     addresses a person added as actors (over the span of the whole case)."""
     rows = (
         await conn.execute(

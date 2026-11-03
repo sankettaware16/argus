@@ -1,24 +1,12 @@
-"""The one sign-in (Q-E2, plan §7.2): every way in (``/signin``, ``/login``, ``/api/login``)
-goes through :func:`attempt`: one at a time per name and per client (a second is answered "busy"
-at once, never queued), the one throttle (:mod:`argus.web.throttle`), one identity provider, one
-audit trail.
-
-* :class:`LocalSignIn` checks the password against the account's argon2id hash (today's mode,
-  and the rollback);
-* :class:`ElkSignIn` checks the person's own ELK account against Elasticsearch through the
-  identity lane (``whoami`` and ``verify``), finds or creates their account, and hands the
-  session the capabilities ELK showed and, under DQ16 (a), their credential sealed for
-  re-checks; in ELK mode the emergency account signs in here too (:mod:`argus.web.breakglass`).
-
-A provider says what happened: ``Authenticated`` (an account and what its session gets),
-``Refused`` (``counts``: the credential itself was refused; ARGUS's other refusals never count)
-or ``Unavailable`` (ARGUS could not ask). :func:`attempt` writes the audit rows and the throttle
-reads them, so what is counted and what is only recorded is decided in one place.
-
-The caller answers every failure the same way, a fixed time after the request arrived
-(``web.failure_delay_s``), after the transaction is over (``app``), so neither the time nor the
-words show whether a name exists.
-"""
+"""The one sign-in: every way in (``/signin``, ``/login``, ``/api/login``) goes through
+:func:`attempt`: one at a time per name and per client (a second is answered "busy" at once), the
+one throttle (:mod:`argus.web.throttle`), one identity provider, one audit trail.
+:class:`LocalSignIn` checks the password against the account's argon2id hash; :class:`ElkSignIn`
+checks the person's own ELK account against Elasticsearch through the identity lane, finds or
+creates their account and seals their credential for re-checks. A provider says ``Authenticated``,
+``Refused`` (``counts``: the credential itself was refused) or ``Unavailable``; :func:`attempt`
+writes the audit rows and the throttle reads them. Every failure is answered a fixed time after the
+request arrived, so neither time nor words show whether a name exists."""
 
 from __future__ import annotations
 
@@ -95,9 +83,6 @@ class Outcome:
     device_token: str | None = None  # a new device cookie to set
 
 
-# --------------------------------------------------------------------------- providers
-
-
 class LocalSignIn:
     """Local accounts: the password against the account's hash. An account without access
     (no ``view``) is refused like a wrong password, and does not count."""
@@ -114,7 +99,7 @@ class LocalSignIn:
 
 
 class ElkSignIn:
-    """The person's own ELK account (plan §7.2 steps 2 to 6)."""
+    """The person's own ELK account."""
 
     name = "elk"
 
@@ -176,7 +161,7 @@ class ElkSignIn:
         return await self._account(conn, checked, password)
 
     async def _account(self, conn: AsyncConnection, checked, password: str) -> Result:  # type: ignore[no-untyped-def]
-        """Find, bind, freeze or create the account behind a good check (plan §7.2 step 6)."""
+        """Find, bind, freeze or create the account behind a good check."""
         identity, access = checked.identity, checked.access
         now = self.clock()
         found = (
@@ -293,9 +278,6 @@ async def create_account(conn: AsyncConnection, identity, now: datetime) -> int:
     return user_id
 
 
-# --------------------------------------------------------------------------- the attempt
-
-
 @dataclass
 class SignIn:
     """The sign-in of one app: its provider, mode and settings."""
@@ -371,7 +353,7 @@ class SignIn:
 
     async def _void(self, conn: AsyncConnection, username: str) -> None:
         """A denial from the person's own browser (a device cookie of theirs): their approvals
-        stop counting, as any 401 or 403 in a sign-in, re-check or step-up does (plan §7.1). A
+        stop counting, as any 401 or 403 in a sign-in, re-check or step-up does. A
         refusal from a browser that never signed in as them is told from a guess by nothing, so
         it voids nothing."""
         row = (
@@ -391,7 +373,7 @@ class SignIn:
 
     def sealer(self, ok: Authenticated) -> auth.Seal | None:
         """How this sign-in's credential is sealed under its session's token (custody), or
-        None: an admin account keeps none (DQ15 (b)), and a local sign-in has none to keep."""
+        None: an admin account keeps none, and a local sign-in has none to keep."""
         if ok.password is None or ok.elk_username is None or self.custody is None:
             return None
         custody, secret, user_id, name = self.custody, ok.password, ok.user_id, ok.elk_username

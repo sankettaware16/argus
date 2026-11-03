@@ -1,15 +1,11 @@
-"""report@2 as people read it (Q-F2): plain text, and the view of someone without log access.
+"""report@2 as people read it: plain text, and the view of someone without log access.
 
-``hide_logs`` gives the report a person whose ELK account cannot read the logs sees: nothing
-in it depends on what a log check returned. Each log check that got an answer (found
-something or nothing alike) is one line, "Hidden: needs log access in ELK.", with what was
-asked (template, window); every fact, line, gap, change and event that reads its answer is
-dropped, so a positive answer and a zero look the same. The model's words (summary,
-hypotheses, the verdict's reasons) are hidden when it read a log answer; ARGUS's own fixed
-reasons stay. A log check that failed or did not run stays as it is: no log content in it.
-Kept by design (decision 10): the verdict, the evidence strength's counts and the cost.
-``text`` writes a report in analyst order, times in India time.
-"""
+``hide_logs`` gives the report a person whose ELK account cannot read the logs sees: each log check
+that got an answer is one line, "Hidden: needs log access in ELK.", with what was asked; every
+fact, line, gap, change and event that reads its answer is dropped, so a positive answer and a zero
+look the same, and the model's words are hidden when it read a log answer. A check that failed or
+did not run stays as it is. Kept by design: the verdict, the evidence strength's counts and the
+cost. ``text`` writes a report in analyst order."""
 
 from __future__ import annotations
 
@@ -90,9 +86,6 @@ FLOOR_KEPT = frozenset(
 )
 FLOOR = "floor: "
 FLOOR_HIDDEN = "what the logs say is hidden (it needs log access in ELK)"
-
-
-# ----------------------------------------------------------------------------- hiding
 
 
 def _line(p: Provenance) -> str:
@@ -227,9 +220,6 @@ def _hypothesis(h: Hypothesis) -> Hypothesis:
     support = tuple(r for r in h.support if not r.from_logs)
     against = tuple(r for r in h.against if not r.from_logs)
     return Hypothesis(name=h.name, by=h.by, support=support, against=against)
-
-
-# ----------------------------------------------------------------------------- text
 
 
 def visible(value: str) -> str:

@@ -1,12 +1,10 @@
-"""The frontend's toolchain and its committed build (Q-A2, DQ25).
+"""The frontend's toolchain and its committed build.
 
-Node 24 and npm 11 live in ``~/.local/opt/node24``; the system's Node 20 (end of life) is never
-used. The build is committed (DQ25): ``scripts/frontend_gate.sh`` builds ``frontend/`` into
-:data:`BUILD_DIR` and writes :data:`MANIFEST` there, which names the hash of the sources it was
-built from, so ``argus doctor`` can tell a stale build. The policy check reads the project's
-files only (no network): exact versions, install scripts blocked, a 14-day release age, no
-banned package (plan §7.5).
-"""
+Node 24 and npm 11 live in ``~/.local/opt/node24``; the system's Node is never used. The build is
+committed: ``scripts/frontend_gate.sh`` builds ``frontend/`` into :data:`BUILD_DIR` and writes
+:data:`MANIFEST`, the hash of the sources it was built from, so ``argus doctor`` can tell a stale
+build. The policy check reads the project's files only: exact versions, install scripts blocked, a
+14-day release age, no banned package."""
 
 from __future__ import annotations
 
@@ -24,7 +22,7 @@ from typing import Any
 from argus.ops.units import REPO
 
 FRONTEND_DIR = REPO / "frontend"
-BUILD_DIR = REPO / "src" / "argus" / "web" / "spa"  # served at /app (Q-B1); committed (DQ25)
+BUILD_DIR = REPO / "src" / "argus" / "web" / "spa"  # served at /app; committed
 MANIFEST = "argus-build.json"
 NODE_MAJOR, NPM_MAJOR = 24, 11
 MIN_RELEASE_AGE_DAYS = 14
@@ -34,7 +32,7 @@ _GENERATED = frozenset(
      ".turbo", ".cache", ".stryker-tmp", "reports"}
 )  # fmt: skip
 _EXACT = re.compile(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?")
-# plan §7.5: CSP breaks (style injection) and XSS-prone components; Radix injects <style>
+# CSP breaks (style injection) and XSS-prone components; Radix injects <style>
 BANNED = ("sonner", "vaul", "@radix-ui/")
 
 
@@ -95,7 +93,7 @@ class Toolchain:
 
 def toolchain(directory: Path | None = None, timeout_s: float = 20.0) -> Toolchain:
     """The Node and npm in ``directory`` (default ``~/.local/opt/node24``), never the ones on
-    PATH: both must be there and of the majors DQ25 chose."""
+    PATH: both must be there and of the chosen majors."""
     directory = node_dir() if directory is None else directory
     node, npm = directory / "bin" / "node", directory / "bin" / "npm"
     if not node.is_file():
@@ -124,7 +122,7 @@ def _version(command: list[str], env: Mapping[str, str], timeout_s: float) -> st
 
 
 def policy_problems(frontend: Path = FRONTEND_DIR) -> list[str]:
-    """What breaks the frontend's supply-chain rules (DQ25, plan §7.5), from its files alone:
+    """What breaks the frontend's supply-chain rules, from its files alone:
     exact versions in package.json, a lockfile (version 3), and an ``.npmrc`` that blocks
     install scripts, saves exact versions and waits 14 days for a release; no banned package
     anywhere in the lockfile."""
@@ -167,7 +165,7 @@ def policy_problems(frontend: Path = FRONTEND_DIR) -> list[str]:
         folder = path.rsplit("node_modules/", 1)[-1]
         entry = entries[path]
         # an npm alias installs a package under another folder name; the entry's "name" says
-        # which package it really is (QA2-R6)
+        # which package it really is
         recorded = entry.get("name") if isinstance(entry, dict) else None
         name = recorded if isinstance(recorded, str) and recorded else folder
         if _banned(name):

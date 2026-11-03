@@ -1,5 +1,5 @@
-"""Drafted tuning suggestions (P7, D-090): the model reads one rule's weekly report, its
-values through the privacy layer (P1), and drafts exceptions, thresholds or scope changes.
+"""Drafted tuning suggestions: the model reads one rule's weekly report, its values through
+the privacy layer, and drafts exceptions, thresholds or scope changes.
 ARGUS keeps a suggestion only with evidence: every quote must be in what the model read, an
 exception's value must be one of the report's, and an exception needs the people's labels:
 at least ``MIN_LABELS`` benign or false-positive investigations with that value and no true

@@ -1,14 +1,10 @@
-"""``argus signins ...`` (AR6, D-216): the sign-in pass by hand, and what is stored.
+"""``argus signins ...``: the sign-in pass by hand, and what is stored.
 
-``run`` is the assessment loop's sign-in pass, once: ``--dry-run`` plans the requests and validates
-them against the gateway's contract without sending anything (it reads ARGUS's own database only),
-``--max-requests`` caps the requests of this run (at most ``signins.max_requests_per_pass``), and
-``--backfill`` lifts that cap up to ``--max-requests`` (the gap between requests stays) and waits
-for the investigation lane's budget instead of stopping at once. ``show`` prints what is stored for
-an investigation, a case or an address: **account names are personal data**, so it is for the
-operator's terminal and says so.
-
-See ``docs/runbooks/signins.md``.
+``run`` is the assessment loop's sign-in pass, once: ``--dry-run`` plans and validates the requests
+against the gateway's contract without sending anything, ``--max-requests`` caps this run, and
+``--backfill`` lifts the per-pass cap up to ``--max-requests`` and waits for the investigation
+lane's budget. ``show`` prints what is stored for an investigation, a case or an address: **account
+names are personal data**, so it is for the operator's terminal. See ``docs/runbooks/signins.md``.
 """
 
 from __future__ import annotations
@@ -36,7 +32,7 @@ from argus.signins.ua import device_words
 
 signins_app = typer.Typer(
     no_args_is_help=True,
-    help="Who was behind an internal address: SSO sign-ins kept per address and day (AR6).",
+    help="Who was behind an internal address: SSO sign-ins kept per address and day.",
 )
 BACKFILL_MAX = 500
 BACKFILL_ASK = timedelta(minutes=5)

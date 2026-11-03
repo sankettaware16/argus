@@ -38,7 +38,7 @@ VIEW = need(Capability.VIEW, Surface.V1)
 APPROVE = need(Capability.APPROVE, Surface.V1, csrf=True)
 Viewer = Annotated[auth.Reviewer, Depends(VIEW)]
 Approver = Annotated[auth.Reviewer, Depends(APPROVE)]
-STEP_UP_VALID = timedelta(minutes=5)  # an approval needs a step-up this recent (plan §7.1)
+STEP_UP_VALID = timedelta(minutes=5)  # an approval needs a step-up this recent
 AUTHORS: list[m.Author] = [a.value for a in Author]
 
 

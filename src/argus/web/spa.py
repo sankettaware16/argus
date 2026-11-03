@@ -1,20 +1,12 @@
-"""The single-page app at ``/app`` (Phase 3 plan §7.5, Q-B1), served from its committed build
-(DQ25: ``frontend/`` builds into this package's ``spa/`` folder, which is in git, so a deploy
-needs no Node).
+"""The single-page app at ``/app``, served from its committed build (``frontend/`` builds into this
+package's ``spa/`` folder, which is in git, so a deploy needs no Node).
 
-- **The page** (``/app`` and every path under it that is not a file) is ``index.html`` for a
-  signed-in person with the view capability (a signed-out one goes to ``/signin`` and back),
-  ``Cache-Control: no-cache``, so a deploy is seen at the next load.
-- **Its files** (``/app/assets/<hashed name>``) are code and styles with no data, served to
-  anyone, immutable for a year (their names change with their content), gzipped when the
-  browser accepts it. A missing one is a 404, never the page: a stale page then reloads once
-  (the stale-build check) instead of running HTML as a script.
-- **The policy** on ``/app``: the site's CSP, never loosened, plus Trusted Types
-  (``require-trusted-types-for 'script'; trusted-types 'none'``): no string can become markup or
-  script, whatever a dependency does.
-- **The build's id** (``<meta name="argus-build">``, a hash of the sources) goes out as
-  ``X-Argus-Build`` on /app and /api answers; the page compares it with its own.
-"""
+The page (``/app`` and every path under it that is not a file) is ``index.html`` for a signed-in
+person with the view capability, ``Cache-Control: no-cache``. Its files (``/app/assets/<hashed
+name>``) are code and styles with no data, immutable for a year; a missing one is a 404, never the
+page. The policy is the site's CSP plus Trusted Types, so no string can become markup or script.
+The build's id goes out as ``X-Argus-Build`` on /app and /api answers; the page compares it with its
+own."""
 
 from __future__ import annotations
 
@@ -43,7 +35,7 @@ TYPES = {
 _COMPRESS = frozenset({".js", ".css", ".svg"})
 ROOT_FILES = frozenset({"favicon.svg"})  # frontend/public: served at /app/<name>
 # paths under /app (the part after "/app/") that name a file: never answered with the page.
-# The build's assets/ folder only, at the start (review F6: a route may hold "assets"), or a
+# The build's assets/ folder only, at the start ( a route may hold "assets"), or a
 # name ending in a file extension.
 FILE_LIKE = re.compile(r"^assets(?:/|$)|\.(?:js|mjs|css|map|svg|png|ico|woff2?|json|txt|html?)$")
 _META = re.compile(rb'<meta name="argus-build" content="([0-9a-f]{16})"')

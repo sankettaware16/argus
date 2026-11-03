@@ -1,18 +1,9 @@
-"""The LLM gateway's budgets (P5, D-086; v2, Q-G1): per-minute and per-day requests and tokens
-for each provider and model, the paid providers' monthly cost cap, cool-downs from
-``Retry-After``, breakers (per model for answers, per provider for transport), the kill switch,
-leases (calls in flight per provider, across processes), recent latencies (a slow model cools
-down) and alarms (a provider whose certificate, key or model is not what ARGUS expects).
-
-Admission reserves an estimate that is an upper bound (every byte of the body is at most one
-token, plus the answer's cap), so what is counted never falls below what the provider counts;
-settling the call replaces the estimate with the provider's own count. A priority may use only
-its share of each day limit and of the monthly cap, so evaluation runs cannot use up a day.
-Windows are fixed (the UTC minute, day and month) and ARGUS uses ``margin`` of each limit.
-
-Pure: (state, request, now) in, (admission, state) out; the store keeps the state in Postgres
-so every ARGUS process shares one budget.
-"""
+"""The LLM gateway's budgets: per-minute and per-day requests and tokens per provider and model,
+the monthly cost cap, cool-downs from ``Retry-After``, breakers, the kill switch, leases,
+latencies and alarms. Admission reserves an upper-bound estimate (a body byte is at most a token,
+plus the answer's cap) that settling replaces with the provider's count; a priority may use only
+its share of each limit; windows are fixed UTC and ARGUS uses ``margin`` of each limit. Pure:
+(state, request, now) in, (admission, state) out; the store keeps the state in Postgres."""
 
 from __future__ import annotations
 
@@ -28,7 +19,7 @@ MAX_COOLDOWN = timedelta(days=1)
 LEASE_RETRY = timedelta(seconds=60)  # a busy provider is asked again at the latest then
 SLOW_SAMPLES = 5  # the latencies kept per model
 SLOW_MIN_SAMPLES = 3  # a model is judged slow on at least this many
-SLOW_WAIT = timedelta(minutes=30)  # a slow model's cool-down: a deferral stays under an hour
+SLOW_WAIT = timedelta(minutes=30)  # a slow model's cool-down
 
 
 class Priority(StrEnum):
@@ -55,7 +46,6 @@ class Window:
     day_tokens: int = 0
 
     def at(self, now: datetime) -> Window:
-        """This window rolled forward to ``now``."""
         minute = now.replace(second=0, microsecond=0)
         w = self
         if w.minute != minute:
@@ -80,7 +70,7 @@ class State:
     month: str = ""
     spent_usd: float = 0.0  # this month, paid providers, reserved and settled
     stopped: bool = False
-    day: str = ""  # the UTC day of day_spent_usd (D-098)
+    day: str = ""  # the UTC day of day_spent_usd
     day_spent_usd: float = 0.0
     leases: dict[str, dict[str, datetime]] = field(default_factory=dict)  # provider: holder→end
     probed: dict[str, datetime] = field(default_factory=dict)  # provider: its last "up" probe
@@ -119,7 +109,7 @@ class Config:
     shares: dict[Priority, float] = field(
         default_factory=lambda: {Priority.HIGH: 1.0, Priority.NORMAL: 0.8, Priority.LOW: 0.5}
     )
-    daily_cap_usd: float | None = None  # None: no daily cap (D-098)
+    daily_cap_usd: float | None = None  # None: no daily cap
 
 
 def month_of(now: datetime) -> str:

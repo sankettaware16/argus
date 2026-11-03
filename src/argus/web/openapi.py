@@ -1,7 +1,7 @@
-"""The ``/api/v1`` contract as OpenAPI (Q-A1): built from the routes, served at
+"""The ``/api/v1`` contract as OpenAPI: built from the routes, served at
 ``/api/v1/openapi.json`` and committed as ``docs/api/openapi-v1.json`` by
 ``scripts/export_openapi.py`` (a test keeps the two equal). The app's client is generated
-from the committed copy (DQ25: Hey API)."""
+from the committed copy."""
 
 from __future__ import annotations
 

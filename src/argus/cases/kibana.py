@@ -1,17 +1,10 @@
-"""What a case change plans for its Kibana mirror (plan §7.1, DQ5 (a)): pure.
+"""What a case change plans for its Kibana mirror: pure.
 
 A planned write is ARGUS-level intent, not a Kibana request body: a fixed set of ARGUS's own
-``argus:*`` tags (the writer keeps every other tag a person added), a status, a severity, and
-comments as a template name with values, never text from logs or a model (plan §3 rule 13).
-The writer (Q-D4) renders them into Kibana's request bodies with its Markdown-safe renderer;
-an approval binds to the payload's hash (:func:`payload_hash`).
-
-In Kibana an open case is status ``open`` with ``argus:owner:argus`` and ``argus:state:open``;
-assigned is ``in-progress`` with ``argus:owner:user-<id>``; contained is ``in-progress`` with
-``argus:state:contained``; closed carries ``argus:state:closed``, ``argus:closed`` and
-``argus:reason:<code>``; every mirrored case has ``argus`` and ``argus:case:<uuid>``. Suspected
-cases have no mirror.
-"""
+``argus:*`` tags (the writer keeps every other tag), a status, a severity, and comments as a
+template name with values, never text from logs or a model. The writer renders them; an approval
+binds to the payload's hash (:func:`payload_hash`). Mirrored cases carry ``argus``,
+``argus:case:<uuid>`` and state and owner tags; suspected cases have no mirror."""
 
 from __future__ import annotations
 
@@ -31,7 +24,7 @@ KIBANA_STATUS = {
     "contained": "in-progress",
     "closed": "closed",
 }
-CASE_LINK = "/go/case/{id}"  # on DQ29's host name (Q-A1's permanent link)
+CASE_LINK = "/go/case/{id}"  # the permanent link to a case
 # Kibana's cases API refuses a longer title (MAX_TITLE_LENGTH, counted as JavaScript does: in
 # UTF-16 code units).
 KIBANA_TITLE_LIMIT = 160
@@ -112,7 +105,7 @@ def create(case: Case, span: AlertSpan | None = None) -> PlannedWrite:
     on a create; an update never sends them). The description is a short summary code writes
     from the case's alerts (what happened, its hosts and indicators, the first and latest
     alert), says decisions are made in ARGUS and links the case; findings from logs stay in
-    ARGUS. No connector, assignees or custom fields (the writer's strict body model, Q-D2)."""
+    ARGUS. No connector, assignees or custom fields (the writer's strict body model)."""
     actors = sorted(i.value for i in case.indicators if i.role == "actor")
     marks = sorted(i.value for i in case.indicators if i.role != "actor")
     return PlannedWrite(
@@ -175,7 +168,7 @@ def closes_case(write: PlannedWrite) -> bool:
 
 def close(after: Case) -> list[PlannedWrite]:
     """W3: one change with the closed status and the reason's tags, then the closing comment
-    as its own row (plan §7.1). Both are bound to the approval by the outbox row; the comment
+    as its own row. Both are bound to the approval by the outbox row; the comment
     names the approver from it when the writer renders it."""
     return [
         PlannedWrite("W3", "close", _fields(after)),

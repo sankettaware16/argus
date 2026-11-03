@@ -1,23 +1,10 @@
-"""Write safety of the Kibana lane (plan §3 rules 2-4, §7.1, §7.8; Q-D2): the write classes,
-their caps and window, and the lane's shared state (Kibana stopped, classes paused).
+"""Write safety of the Kibana lane: the write classes, their caps and window, and the shared state.
 
-A write is sent only if every one of these holds, asked just before the budget and again
-just before the request leaves (``KibanaGateway.write``):
-
-- its class is switched on at the host (``kibana.write_classes``: off by default, typed by
-  name) and not paused (a 403 or a wrong answer pauses it, DQ9 (b));
-- the run verified Kibana's version (``kibana.status`` = the pinned version, within
-  ``RUN_FRESH``) and the licence;
-- the SIEM is NORMAL; the time is inside the write window (DQ8 (a): 02:30-17:30 UTC) and never in
-  the quiet hours (00:00-01:30 UTC);
-- the caps (plan §7.8): case writes ≤ 1 every 3 s, ≤ 10 a run, ≤ 50 a day; alert mutations
-  (WA, and every alert an attachment adds) ≤ 5 a call (WA: ``status_per_call``, at most 100),
-  ≥ 60 s apart, ≤ 1,000 a day;
-- an outbox row, the payload's hash, and for W3 and compensating writes an approval id
-  (verified by the writer, Q-C3, before it calls the gateway).
-
-Nothing here sends; ``admit_write`` reserves a write's place in the caps atomically (the stores
-hold the state), so two writers cannot both take the last place.
+A write is sent only if its class is switched on at the host and not paused, the run verified
+Kibana's version and the licence, the SIEM is NORMAL, the time is inside the write window and
+outside the quiet hours, the caps hold (case writes per run and day, alert mutations per call, gap
+and day) and it has an outbox row, the payload's hash and, for closures, an approval. Nothing here
+sends; ``admit_write`` reserves a write's place in the caps atomically.
 """
 
 from __future__ import annotations
@@ -35,9 +22,9 @@ class WriteClass(StrEnum):
     W1 = "W1"  # create; comments; attach representative alerts
     W2 = "W2"  # tags, severity, status, reopen, each with its comment
     W3 = "W3"  # close with reason tags, then the comment
-    WA = "WA"  # alert status (R17 v2, Q-D5)
-    WT = "WT"  # alert tags (D-004): off, a separate decision (DQ11)
-    WC = "WC"  # the case team (AR8, D-195): the six users' incident case, its files and alert tags
+    WA = "WA"  # alert status
+    WT = "WT"  # alert tags: off, a separate decision
+    WC = "WC"  # the case team: the users' incident case, its files and alert tags
 
 
 CASE_CLASSES = frozenset({WriteClass.W1, WriteClass.W2, WriteClass.W3})
@@ -52,14 +39,14 @@ class WriteCaps:
     case_per_day: int = 50
     team_per_run: int = 40  # the case team's writes a run (WC): a 500-alert case is ~34 writes
     team_per_day: int = 200  # ... and a day (counted apart from W1-W3's 50): five such cases
-    team_alerts_per_call: int = 100  # the case team's attach and tag calls (WC, D-235)
+    team_alerts_per_call: int = 100  # the case team's attach and tag calls (WC)
     team_alert_gap: timedelta = timedelta(seconds=3)  # the lane's bucket paces; this is a courtesy
     team_alerts_per_day: int = 2_000  # a 500-alert case is 500 attached + 500 tagged
     alerts_per_call: int = 5  # attachments (W1)
-    status_per_call: int = 5  # alert status (WA, Q-D5): ``writeback.batch``, at most 100
+    status_per_call: int = 5  # alert status (WA): ``writeback.batch``, at most 100
     alert_gap: timedelta = timedelta(seconds=60)
     alerts_per_day: int = 1_000
-    window: tuple[time, time] = (time(2, 30), time(17, 30))  # DQ8 (a), UTC
+    window: tuple[time, time] = (time(2, 30), time(17, 30))  # UTC
 
     def __post_init__(self) -> None:
         if not self.window[0] < self.window[1]:

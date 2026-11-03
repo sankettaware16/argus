@@ -1,4 +1,4 @@
-"""The freshness tables (migration 0033): readings, watermarks, the shadow's verdicts and its
+"""The freshness tables: readings, watermarks, the shadow's verdicts and its
 would-be proposals. Every statement binds its values."""
 
 from __future__ import annotations

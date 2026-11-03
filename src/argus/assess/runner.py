@@ -1,12 +1,9 @@
-"""Running assessments (P3, D-084): find what needs one, run an assessor, store the result.
-
-An ``Assessor`` reads a dossier body and returns a ``Verdict``: a proposal, no decision, or
-``Defer`` (raised: try again later, e.g. a model's budget). ``schedule`` queues the current
-dossier view of every unreviewed investigation an assessor has not seen; ``run_once`` claims
-and assesses a batch. The view hash is the hash of what the privacy layer renders (P1): the
-same text a model would read, so a re-derivation that changes nothing visible is not
-assessed again.
-"""
+"""Running assessments: find what needs one, run an assessor, store the result. An ``Assessor``
+reads a dossier body and returns a ``Verdict`` (a proposal, or no decision) or raises ``Defer``
+(try again later). ``schedule`` queues the current view of every unreviewed investigation an
+assessor has not seen; ``run_once`` claims and assesses a batch. The view hash is the hash of
+what the privacy layer renders, so a re-derivation that changes nothing visible is not assessed
+again."""
 
 from __future__ import annotations
 
@@ -93,7 +90,7 @@ async def schedule(
     seen, newest first (an unchanged dossier is skipped before rendering; an unchanged view
     after). With ``after``, only where that assessor found no decision on the same dossier;
     with ``per_day``, at most that many queued per UTC day; never an investigation in
-    ``skip`` (the deterministic wave still owes it its checks, Q-F3)."""
+    ``skip`` (the deterministic wave still owes it its checks)."""
     if per_day is not None:
         today = await conn.scalar(text(_TODAY), {"assessor": assessor, "now": now})
         limit = min(limit, per_day - int(today or 0))
@@ -125,10 +122,10 @@ async def request(
     conn: AsyncConnection, privacy: Privacy, investigation_id: uuid.UUID, assessor: str,
     now: datetime,
 ) -> str:  # fmt: skip
-    """A person asks for an assessment of one investigation now, reviewed or not (D-095):
+    """A person asks for an assessment of one investigation now, reviewed or not:
     "queued", "exists" (this view has one already), "no dossier", or "refused" when the
-    assessor is the investigation agent and its file does not take a person's request (Q-H1:
-    whatever route the request came by)."""
+    assessor is the investigation agent and its file does not take a person's request (whatever
+    route the request came by)."""
     from argus.agent import loader
     from argus.agent.agent import NAME as AGENT
     from argus.agent.registry import Trigger

@@ -1,5 +1,5 @@
-"""Putting the case team's poster together from the settings, and what must hold before it writes
-(AR8, D-195). Nothing here sends anything; ``gate_problems`` only reads the configuration."""
+"""Putting the case team's poster together from the settings, and what must hold before it
+writes. Nothing here sends anything; ``gate_problems`` only reads the configuration."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""How the Inbox writes values on a page (plan §5.7, §9.7; D-052)."""
+"""How the Inbox writes values on a page."""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ _CODES = re.compile(r"\s*\((?:R\d{1,2}(?:, )?)+\)")
 
 
 def plain(text: Any) -> str:
-    """ARGUS's stored sentences without its component codes (D-095): older dossiers name
+    """ARGUS's stored sentences without its component codes: older dossiers name
     the pack that answers a step ("the proxy pack (R12)"); a reviewer needs what it does."""
     out = str(text)
     for old, new in _PACKS:

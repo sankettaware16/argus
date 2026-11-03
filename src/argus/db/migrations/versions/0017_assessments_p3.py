@@ -1,4 +1,4 @@
-"""Assessments (P3, D-084): a proposed outcome per investigation view and assessor; reviews
+"""Assessments: a proposed outcome per investigation view and assessor; reviews
 that accept one link to it
 
 Revision ID: 0017

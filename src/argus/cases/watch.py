@@ -1,32 +1,15 @@
-"""The still-active watch (Q-C2, plan §5 and §7.1, DQ13): pure rules.
+"""The still-active watch: pure rules.
 
-Every open true-positive case is asked once a day whether it is *still active*. Per UTC day:
-
-1. **ARGUS's own alerts** (local, nothing sent to the SIEM): did a member investigation, or one
-   that strongly matches the case's actors and indicators, alert on that day? A day with no
-   alert is *quiet* only if the collector provably saw every alert of it
-   (:func:`coverage_reason`); else it is *unverified*.
-2. **The proxy logs**, for the case's addresses (``proxy.contact``; ``proxy.pair`` describes
-   the rhythm when contact was seen): one request per destination address and daily index,
-   the case's campus hosts as the watched hosts, at most :func:`cap_for` questions a case a day
-   (one for each checkable subject and two spare, from 6 to 20), in the investigation lane. A
-   day's window is 01:40 to 22:59 UTC (one daily index; Q-F1's readings stop at 00:00 and resume
-   at 01:30, so an earlier start has no anchor reading). A zero is *quiet* only when Q-F1
-   verifies it (:func:`judge_contact`); otherwise *unverified* with the reason, or *not checked*
-   with the reason when nothing was asked (STOP, a switch, the lane's budget, the cap) or the
-   question did not finish: the next run asks again.
-
-**"Contained"** needs positive evidence (:func:`quiet_window`): the last three whole UTC days
-(DQ13's "72 hours" means these three days, and the verdict says so), every one with a quiet
-alerts answer and a quiet answer for every address that can be checked in the logs, and no
-activity since; plus a person's attestation, which the machine asks for. Without Q-F1's
-verified zeros nothing is verified. Each night's seam (22:59 to 01:40 UTC) and today are not
-read in the logs: they are covered by ARGUS's own alerts only, and the verdict names what was
-read (a case with no address to check in the logs is verified on its alerts alone, and says so).
-A key that appears in very many investigations is never quiet (:data:`TOO_COMMON`).
-
-The rules are pure: they read no clock, database or network. :mod:`argus.cases.watchrun` does.
-"""
+Every open true-positive case is asked once a day whether it is *still active*, per UTC day: by
+**ARGUS's own alerts** (a day with none is *quiet* only if the collector provably saw every alert
+of it, else *unverified*) and by **the proxy logs** for the case's addresses (at most
+:func:`cap_for` questions a case a day, in the investigation lane, over 01:40 to 22:59 UTC; a zero
+is *quiet* only when freshness verifies it, else *unverified* or *not checked* with the reason).
+**"Contained"** needs positive evidence (:func:`quiet_window`): the last three whole UTC days quiet
+on both counts and no activity since, plus a person's attestation; the nightly seam and today are
+covered by ARGUS's alerts only, and the verdict names what was read. A key in very many
+investigations is never quiet (:data:`TOO_COMMON`). The rules read no clock, database or network;
+:mod:`argus.cases.watchrun` does."""
 
 from __future__ import annotations
 
@@ -47,18 +30,18 @@ ALERTS = "alerts"
 CONTACT = "proxy.contact"
 PAIR = "proxy.pair"
 
-QUIET_DAYS = 3  # 72 hours (DQ13)
+QUIET_DAYS = 3  # 72 hours
 # A case's the SIEM questions a day: one for each of its checkable subjects (address x host chunk)
-# and two more, at least 6 (plan §5 Q-C2) and at most 20 (the lead's decision after review R18: a
-# case with more subjects than its cap could never complete a moving three-day window). The two
+# and two more, at least 6 and at most 20 (a case with more subjects than its cap could never
+# complete a moving three-day window). The two
 # spare questions clear a question asked again the next day. See :func:`cap_for`.
 MIN_REQUESTS_A_DAY = 6
 MAX_REQUESTS_A_DAY = 20
 SPARE_REQUESTS = 2
 BACKLOG_DAYS = 7  # how far back a missed day is still asked about
-WATCH_AFTER_CLOSURE = timedelta(days=14)  # DQ13
+WATCH_AFTER_CLOSURE = timedelta(days=14)  # the watch lasts 14 days after closure
 # Closures that claim the problem ended: activity after one is news. A benign or accepted
-# closure expects the activity to go on (plan §7.1).
+# closure expects the activity to go on.
 WATCHED_REASONS = frozenset({"remediated_verified", "remediated_unverified"})
 LOG_START = time(1, 40)  # the first minute of a day's log window (see the module docstring)
 LOG_END = time(22, 59)
@@ -69,7 +52,7 @@ NOT_ON = (
     "known 'nothing found' answers are not switched on yet (Q-F1), so a quiet period cannot be"
     " verified"
 )
-# Q-F1's reasons (argus.freshness.model.REASONS) in plain words
+# The freshness reasons (argus.freshness.model.REASONS) in plain words
 ZERO_WORDS = {
     "no_margin": "ARGUS has no measured delay for the proxy logs yet",
     "not_log_search": "the answer was not a log search",
@@ -88,7 +71,7 @@ TOO_COMMON = (
     " search for its activity"
 )
 MALFORMED = "malformed answer"
-MAX_COUNT = 10**12  # a request count above this is not a count (squid logs ~10^8 documents a day)
+MAX_COUNT = 10**12  # a request count above this is not a count
 MAX_STAMP_MS = 253_402_300_799_000  # 9999-12-31T23:59:59Z: the last time a datetime can hold
 
 
@@ -115,12 +98,9 @@ def complete_days(first: date, now: datetime, *, backlog: int = BACKLOG_DAYS) ->
     return [start + timedelta(days=n) for n in range((last - start).days + 1)]
 
 
-# --------------------------------------------------------------------------- what to ask
-
-
 @dataclass(frozen=True, order=True)
 class Subject:
-    """What one proxy check is about: a destination address, and the campus hosts of the case
+    """What one proxy check is about: a destination address, and the internal hosts of the case
     that are watched for it (at most 10 a request; more make further parts)."""
 
     destination: str
@@ -138,7 +118,7 @@ def subjects(
     shared: Callable[[str, str], str | None] = lambda kind, value: None,
 ) -> list[Subject]:
     """The proxy checks a case has, from its (kind, value, role) indicators: each destination
-    address (a public ``c2`` or ``indicator`` address) with the case's campus host addresses as
+    address (a public ``c2`` or ``indicator`` address) with the case's internal host addresses as
     the watched hosts. A destination in shared infrastructure is checked only for watched hosts:
     "who reached it" is no question about a content-delivery network."""
     held = sorted(set(indicators))
@@ -199,9 +179,6 @@ def plan_asks(
     ]
     room = max(cap - spent_today, 0)
     return open_[:room], open_[room:]
-
-
-# --------------------------------------------------------------------------- reading answers
 
 
 @dataclass(frozen=True)
@@ -275,8 +252,9 @@ class Judged:
 
 
 def judge_contact(reading: Reading, check: Check | None, *, zeros_on: bool) -> Judged:
-    """The answer to one proxy check. Contact is news whatever Q-F1 says; a zero is *quiet*
-    only when Q-F1 verifies it (``check``: its verdict for this search, None when not asked)."""
+    """The answer to one proxy check. Contact is news whatever the freshness check says; a zero
+    is *quiet* only when that check verifies it (``check``: its verdict for this search, None
+    when not asked)."""
     if not reading.complete:
         return Judged("not_checked", reading.problem or "the search did not finish", {})
     assert reading.requests is not None
@@ -322,9 +300,6 @@ def refusal_words(code: str) -> str:
 FINAL_REFUSALS = frozenset({"source_expired", "too_common", "rejected", "no_subject"})
 
 
-# --------------------------------------------------------------------------- the alerts check
-
-
 def coverage_reason(
     start: datetime,
     end: datetime,
@@ -343,9 +318,6 @@ def coverage_reason(
         if begin < end and (until is None or until > start):
             return (True, f"ARGUS may have missed alerts that day ({kind.replace('_', ' ')})")
     return None
-
-
-# --------------------------------------------------------------------------- the quiet window
 
 
 @dataclass(frozen=True)
@@ -377,7 +349,7 @@ def quiet_window(
     """Whether the case was verifiably quiet for the last three whole UTC days ("72 hours"):
     ARGUS's alerts quiet on each, every proxy check of ``wanted`` quiet on each, no activity
     since, and ``alert_days`` (days with a matching alert in the database now) none of them.
-    Anything unknown keeps the case where it is, with the reason (plan §7.1); while answers are
+    Anything unknown keeps the case where it is, with the reason; while answers are
     still missing the reason also says how many of the needed checks are answered.
     ``blocked``: why the case's activity cannot be searched at all (a key too common), never
     quiet."""

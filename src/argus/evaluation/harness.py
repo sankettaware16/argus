@@ -1,15 +1,9 @@
-"""Scoring against the gold set (P2; plan §3, §6, D-082): how often a decision-maker agrees
-with the person's answers, with 95% intervals, so a small sample is never overstated.
+"""Scoring against the gold set: how often a decision-maker agrees with the person's answers,
+with 95% intervals, so a small sample is never overstated.
 
-``score(gold, predicted)`` takes the person's answers and any predictor's outcomes
-(ARGUS's suggestions as a baseline today; P4's decisions and P5/P6's proposals later):
-- accuracy, per rule and overall;
-- the true positives proposed benign (plan §6.2: must be 0) and true-positive recall;
-- the precision of benign proposals (plan §6.3: ≥ 95%, lower bound ≥ 90%);
-- the confusion of outcomes.
-A figure whose sample is too small says so (``MIN_SAMPLE``); intervals are Wilson score
-intervals. Pure functions: deterministic for the same input (the gate's "reproduces its
-numbers exactly").
+``score(gold, predicted)`` reports accuracy (per rule and overall), true positives proposed benign
+(must be 0), true-positive recall, the precision of benign proposals and the confusion of
+outcomes. A figure whose sample is too small says so (``MIN_SAMPLE``). Pure and deterministic.
 """
 
 from __future__ import annotations
@@ -72,7 +66,7 @@ class Score:
     proposed: int  # items the predictor proposed anything for
     accuracy: Rate
     tp_recall: Rate
-    tp_proposed_benign: tuple[str, ...]  # must be empty (plan §6.2)
+    tp_proposed_benign: tuple[str, ...]  # must be empty
     benign_precision: Rate
     per_rule: dict[str, Rate] = field(default_factory=dict)
     confusion: dict[tuple[str, str], int] = field(default_factory=dict)  # (answer, predicted)

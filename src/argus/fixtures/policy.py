@@ -115,7 +115,7 @@ class FixturePolicy(BaseModel):
 _RESERVED_TLDS = ("example", "invalid", "test", "localhost")
 _LDH_NAME = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]+")
 _CANARY_FIELDS = ("message", "@timestamp", "event.original", "x", "a.b.c")
-_MIN_TERM = 3  # as DomainMapper: shorter campus names and literals are not looked for inside
+_MIN_TERM = 3  # as DomainMapper: shorter organisation names and literals are not looked for inside
 
 
 def _norm(domain: str) -> str:
@@ -124,7 +124,7 @@ def _norm(domain: str) -> str:
 
 def _squash(text: str) -> str:
     """As the sanitizer compares names: NFKC, case-folded, letters and digits only, any script
-    (``Campus-University`` and ``campus university`` are one name)."""
+    (``Example-University`` and ``example university`` are one name)."""
     return "".join(c for c in unicodedata.normalize("NFKC", text).casefold() if c.isalnum())
 
 
@@ -154,9 +154,10 @@ def _check_patterns(patterns: tuple[tuple[str, str], ...]) -> None:
 
 
 def _check_keep_lists(policy: FixturePolicy) -> None:
-    """The keep lists keep things verbatim: no keep name or keep domain may hold a campus name
-    or a literal (compared as the sanitizer compares them: squashed, decoded, by containment),
-    and no literal may be a kept domain (the text and the domain fields would then disagree)."""
+    """The keep lists keep things verbatim: no keep name or keep domain may hold an
+    organisation name or a literal (compared as the sanitizer compares them: squashed, decoded,
+    by containment), and no literal may be a kept domain (the text and the domain fields would
+    then disagree)."""
     campus = [_norm(c) for c in policy.campus_domains]
     terms: set[str] = set()
     for domain in campus:
@@ -230,7 +231,7 @@ def _mapping(path: Path, raw: bytes) -> dict[str, Any]:
 def load_policy(path: Path, overlay: Path | None = None) -> tuple[FixturePolicy, str]:
     """The policy and the sha256 of its file (recorded in fixture manifests). ``overlay``, when
     the file exists, is laid over it key by key (the organisation's own names and ranges, kept
-    out of the shipped file, D-294); the hash then covers both files."""
+    out of the shipped file); the hash then covers both files."""
     raw = path.read_bytes()
     data = _mapping(path, raw)
     if overlay is not None and overlay.is_file():

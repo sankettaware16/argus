@@ -1,7 +1,7 @@
-"""The shapes of the agents' answers (json_schema, strict) for providers that take one (Q-G1,
-D-112), by the output code binds each agent to (``argus.agent.registry``): ``answer@1`` for a
-coordinator, whose ``consult`` names the specialists its file names, and ``notes@1`` for a
-specialist. They change no prompt, so cloud bodies and cassettes are unchanged."""
+"""The shapes of the agents' answers (json_schema, strict) for providers that take one, by the
+output code binds each agent to (``argus.agent.registry``): ``answer@1`` for a coordinator,
+whose ``consult`` names the specialists its file names, and ``notes@1`` for a specialist. They
+change no prompt, so cloud bodies and cassettes are unchanged."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def answer(specialists: Sequence[str]) -> dict[str, Any]:
 
 NOTES = strict_object(notes={"type": "string"}, cites=strings(12), ask=_ASK)  # notes@1
 
-# ranking@1 (Q-H2): the catalogue's actions in the responder's order, each phrased in a sentence
+# ranking@1: the catalogue's actions in the responder's order, each phrased in a sentence
 RANKING = strict_object(
     ranking={
         "type": "array",
@@ -47,7 +47,7 @@ RANKING = strict_object(
     }
 )
 
-# prose@1 (Q-H3): one paragraph that says a report's figures; argus.reporter.prose checks it
+# prose@1: one paragraph that says a report's figures; argus.reporter.prose checks it
 PROSE = strict_object(paragraph={"type": "string", "maxLength": 1500})
 
 # every output a binding may name has its shape here
@@ -55,7 +55,6 @@ SHAPES = ("answer@1", "notes@1", "ranking@1", "prose@1")
 
 
 def of(definition: Definition) -> dict[str, Any]:
-    """The shape of ``definition``'s answers, by its bound output."""
     if definition.output == "answer@1":
         return answer(definition.specialists)
     if definition.output == "notes@1":
@@ -67,6 +66,6 @@ def of(definition: Definition) -> dict[str, Any]:
     raise ValueError(f"{definition.name}: no answer shape for the output {definition.output!r}")
 
 
-# agent@1's, as Q-G1 first sent them: coordinator@3 (web, proxy, intel) and specialist@1
+# agent@1's original schemas: coordinator@3 (web, proxy, intel) and specialist@1
 COORDINATOR_SCHEMA = answer(("web", "proxy", "intel"))
 SPECIALIST_SCHEMA = NOTES

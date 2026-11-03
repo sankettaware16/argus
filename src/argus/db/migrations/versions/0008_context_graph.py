@@ -1,12 +1,10 @@
 """Context graph: evidence, dossiers, signals, deferred jobs, LangGraph's checkpoint tables
 
-R8 (D-054). Evidence rows are written by the graph's evidence node and may be retried (not
-for ok/empty rows); dossiers and signals are written once per investigation version. The
-checkpoint tables live in their own schema, ``langgraph``: a frozen copy of the DDL of
-``langgraph-checkpoint-postgres`` 3.1 (its migrations 0-9; ``CONCURRENTLY`` dropped, as the
-tables are new and empty), recorded in its ``checkpoint_migrations`` table so that the saver
-sees itself as set up. ``tests/unit/context/test_checkpoint_ddl.py`` compares it with the
-installed package.
+Evidence rows are written by the graph's evidence node and may be retried (not ok/empty rows);
+dossiers and signals are written once per investigation version. The checkpoint tables live in
+their own schema, ``langgraph``: a frozen copy of the DDL of ``langgraph-checkpoint-postgres``
+(``CONCURRENTLY`` dropped), recorded in its ``checkpoint_migrations`` table so the saver sees itself
+as set up. ``tests/unit/context/test_checkpoint_ddl.py`` compares it with the installed package.
 
 Revision ID: 0008
 Revises: 0007

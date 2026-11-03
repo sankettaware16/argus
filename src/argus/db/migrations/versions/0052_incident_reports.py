@@ -1,28 +1,11 @@
-"""The incident report (AR7, D-190): ARGUS writes, for each suggested or open case, the report the
-security team writes by hand, and a person confirms or rejects it.
+"""The incident report: ARGUS drafts one per suggested or open case, a person confirms or rejects
 
-* ``incident_reports``: one row for each version of a case's report. The report is a structured
-  object (``body``, ``incident-report@1``), written whole by ARGUS's assessment pass or the
-  terminal and **never changed**: when the case's evidence changes ARGUS writes the next version
-  (``version`` 1, 2, ...), and the versions are kept. ``content_hash`` is the hash of what the
-  report says (without when it was made and without a model's wording), so the same evidence
-  gives the same hash. ``generated_at`` is the database's clock. Append-only (the owner's
-  trigger, like the case events).
-* ``incident_report_decisions``: what a person said about a version: ``confirmed`` or
-  ``rejected`` with a reason and the outcome they hold instead. The labels that follow (reviews of
-  the case's investigations, through the existing review path) are named in ``review_ids``.
-  Append-only; the newest decision of a version counts, and an earlier one stays as the record.
-  Confirming never closes anything.
-* ``incident_report_checks``: one row for each case ARGUS looked at: the cheap signal of the
-  evidence it saw (a case is read again only when it changes), when, which report that was, and
-  the last failure (a failed report is reported and never stops the pass).
-
-``argus_runtime`` writes the reports and the checks (and a decision, for the terminal); the web's
-role reads all three and writes a person's decision (the reviews it records go through its existing
-grants on ``review_events``). Downgrading is refused while a decision exists: a label was written
-from it.
-
-The role names are written out, not imported (see 0003).
+``incident_reports``: one row per version, written whole and never changed; ``content_hash`` is
+the hash of what the report says, so the same evidence gives the same hash.
+``incident_report_decisions``: what a person said about a version (``confirmed`` or ``rejected``
+with a reason), append-only. ``incident_report_checks``: the cheap signal of the evidence last
+seen per case, so a case is read again only when it changes. Downgrading is refused while a
+decision exists.
 
 Revision ID: 0052
 Revises: 0051

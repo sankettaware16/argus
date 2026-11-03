@@ -1,4 +1,4 @@
-"""``argus backup ...``: the nightly dump, the weekly restore drill, and what is kept (Q-A2).
+"""``argus backup ...``: the nightly dump, the weekly restore drill, and what is kept.
 Local only: nothing reaches the SIEM."""
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ _FAILURES: tuple[type[Exception], ...] = (BackupError, *DB_ERRORS)
 _AUDIT_FAILURES: tuple[type[Exception], ...] = (AuditError, *DB_ERRORS)
 backup_app = typer.Typer(
     no_args_is_help=True,
-    help="Database backups: the nightly dump, the weekly restore drill (Q-A2).",
+    help="Database backups: the nightly dump, the weekly restore drill.",
 )
 
 
@@ -123,8 +123,8 @@ def backup_drill(
 
 @backup_app.command("check")
 def backup_check(config: ConfigOption = None) -> None:
-    """A dump, then a restore drill of that very dump (R16's check, Q-A2): what to run before a
-    checkpoint's migrations. Every service keeps running."""
+    """A dump, then a restore drill of that very dump: what to run before applying
+    migrations. Every service keeps running."""
     settings = load(config)
 
     async def go() -> tuple[backup.Manifest, backup.DrillResult]:

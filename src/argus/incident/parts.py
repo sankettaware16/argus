@@ -1,12 +1,10 @@
-"""The factual parts of the incident report (AR7, D-190): timeline, actors with their roles,
-affected assets, evidence with the query behind each line, and the indicators.
+"""The factual parts of the incident report: timeline, actors with their roles, affected assets,
+evidence with the query behind each line, and the indicators.
 
-Generic signals only: nothing here knows a rule's name or an incident's shape. An actor's role
-comes from counts and order in time (a *collector* made at least five times the requests of the
-next actor; a *scout* came before it with few, a *prober* after it with few); an asset is a campus
-address, a host, an account or a web directory the alerts name; each evidence line is one stored
-answer of a check that ran, with that check's own query.
-"""
+Generic signals only: nothing here knows a rule's name. An actor's role comes from counts and order
+in time (a *collector* made at least five times the requests of the next actor; a *scout* came
+before it with few, a *prober* after it with few); each evidence line is one stored answer of a
+check that ran, with that check's own query."""
 
 from __future__ import annotations
 
@@ -37,9 +35,6 @@ ROLE_WORDS = {
     "c2": "command-and-control (the server or name the actor reached)",
     "indicator": "an indicator tied to the case",
 }
-
-
-# ----------------------------------------------------------------------------- timeline
 
 
 def timeline(scene: Scene, book: Book) -> m.ReportTimeline:
@@ -93,9 +88,6 @@ def timeline(scene: Scene, book: Book) -> m.ReportTimeline:
     )
 
 
-# ----------------------------------------------------------------------------- actors
-
-
 def _requests(scene: Scene, ip: str) -> int | None:
     """The requests a web check counted for this address (the largest stored answer)."""
     best: int | None = None
@@ -130,7 +122,7 @@ def _network(scene: Scene, ip: str) -> tuple[str | None, str | None]:
 
 
 def reached_servers(scene: Scene, device: str) -> bool:
-    """Whether a campus device actually reached one of the case's servers: an investigation that
+    """Whether an internal device actually reached one of the case's servers: an investigation that
     names the device also names a command-and-control indicator."""
     servers = set(scene.servers)
     return any(
@@ -283,9 +275,6 @@ def actors(scene: Scene, book: Book) -> tuple[tuple[m.ReportActor, ...], int]:
     return tuple(out), len(outside_ips)
 
 
-# ----------------------------------------------------------------------------- assets
-
-
 def _directories(scene: Scene) -> list[tuple[str | None, str, int]]:
     counts: Counter[tuple[str | None, str]] = Counter()
     for d in scene.f.docs:
@@ -336,8 +325,6 @@ def assets(scene: Scene) -> tuple[tuple[m.ReportAsset, ...], int]:
     return tuple(items[:MAX_ASSETS]), total
 
 
-# ----------------------------------------------------------------------------- accounts
-
 MAX_USER_DEVICES = 60
 MAX_SIGNINS = 40
 USERS_SOURCE = "the SSO sign-in logs, as ARGUS kept them"
@@ -345,7 +332,7 @@ STATE_ORDER = {"likely": 0, "possible": 1, "unknown": 2, "shared": 3, "none_seen
 
 
 def users(scene: Scene, book: Book) -> m.ReportUsers:
-    """The accounts that signed in from the case's devices (AR6, D-216), from the stored SSO
+    """The accounts that signed in from the case's devices, from the stored SSO
     sightings and never from a model. Each device's sentence is a fact read from the logs
     (``from_logs``, no ``safe`` form), so an account without log access sees it hidden and no model
     is ever shown it. Empty when the lookups are off or the case has no internal device."""
@@ -404,9 +391,6 @@ def users(scene: Scene, book: Book) -> m.ReportUsers:
         devices_total=found.devices_total,
         signins=signins,
     )
-
-
-# ----------------------------------------------------------------------------- evidence
 
 
 def _line_text(template: str, version: int) -> str:
@@ -507,12 +491,9 @@ def evidence_lines(
     return tuple(lines), tuple(unique.values())
 
 
-# ----------------------------------------------------------------------------- indicators
-
-
 def indicators(scene: Scene) -> tuple[tuple[m.ReportIndicator, ...], int]:
     """The case's own indicators, each with what ARGUS holds about it (the outside answers it
-    cached, the local threat lists, when it first appeared on campus)."""
+    cached, the local threat lists, when it first appeared on the internal network)."""
     f = scene.f
     first_seen: dict[str, datetime] = {}
     for x in f.members:

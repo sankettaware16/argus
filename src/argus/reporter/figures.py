@@ -1,40 +1,10 @@
-"""The number extractor and the check that keeps invented numbers out of the Reporter's prose
-(Q-H3, plan §5 and §7.7).
+"""The number extractor and the check that keeps invented numbers out of the Reporter's prose.
 
-The Reporter's numbers come from SQL; the optional prose agent (off) may only say them in
-words. :func:`numbers_of` finds every number a text *claims*, whatever its dress, and
-:func:`unknown` returns those the report's input does not hold, so one number that is not in the
-input rejects the whole prose (:func:`argus.reporter.prose.accept`).
-
-What counts as a number (each is a :class:`Found`, with the value or values it needs):
-
-* digits, with thousands commas and decimals (``1,234.5``), in any script (NFKC and the Unicode
-  decimal digits are read, invisible characters and combining marks are dropped first, so
-  ``1<ZWSP>7`` is 17), fractions and ranges (``3/4``, ``3-5``, ``3 to 5``: each end is a number),
-  dotted numbers (``10.0.0.1``: each part), hexadecimal, binary and octal, exponents (``1e3``)
-  and the multipliers ``5k``, ``5M``, ``2 million``;
-* number words, compounds and runs (``seventeen``, ``twenty-three``, ``one hundred and five``,
-  ``two thousand twenty six``), ordinals (``third``), ``dozen``, ``half``, ``twice``, ``none``,
-  ``hundreds`` and the like, CJK numerals and Roman numerals of two letters or more;
-* percentages (``12%``, ``twelve percent``), with the unit ``percent``;
-* times and dates (``13:52``, ``7:20 PM``, ``2026-10-25``): each part is a number, and the whole
-  must be a time or date of the input too (a transposed ``13:25`` is not ``13:52``);
-* a unit after a number (``120 ms``, ``5 minutes``, ``3 GB``): a number with a unit that the
-  input only holds with another unit is unknown, so ``120 minutes`` is not ``120 ms``.
-
-Signs are ignored (a claimed ``-5`` needs 5). Vague words (several, many, few) claim no number.
-A figure of more than 60 digits is never in the input. The check is exact: ``67%`` is not
-``66.7``, ``1 hour`` is not ``3600 seconds``.
-
-**It fails closed.** Whatever the extractor cannot read exactly is refused (:func:`unreadable`),
-not guessed at. After NFKC, the prose is refused if it holds any Unicode number character other
-than ASCII 0 to 9 (other scripts' digits, CJK numerals, circled and keycap numbers), a comma
-between digits that is not standard 3-digit grouping (``1,7``, ``1,00,000``), a multiplier word
-(lakh, crore, k, mil, mln, thou, grand, dozen, score, fold, and their plurals), number words run
-together (``twentythree``, ``tenfold``) or a Roman numeral in any case that is not a known
-acronym (``xvii``, ``XVII``). A dash or hyphen of any kind between number words is a join
-(``twenty\u201313`` is 23). One such token refuses the whole prose.
-"""
+:func:`numbers_of` finds every number a text *claims*, whatever its dress (digits in any script,
+number words, ordinals, percentages, ranges, times and dates, multipliers, units) and
+:func:`unknown` returns those the report's input does not hold, so one invented number rejects the
+whole prose. The check is exact (``67%`` is not ``66.7``) and **fails closed**: whatever the
+extractor cannot read exactly (:func:`unreadable`) is refused, not guessed at."""
 
 from __future__ import annotations
 
@@ -64,9 +34,6 @@ class Found:
     def values(self) -> tuple[Fraction, ...]:
         """The first alternative of each needed value (for tests and messages)."""
         return tuple(min(n) for n in self.needs)
-
-
-# --------------------------------------------------------------------------- reading the text
 
 
 def clean(text: str) -> str:
@@ -476,8 +443,6 @@ def numbers_of(text: str) -> list[Found]:
     return [item for _, item in sorted(found, key=lambda pair: pair[0])]
 
 
-# --------------------------------------------------------------------------- failing closed
-
 # Words that multiply the number before them (or stand for a number) that the extractor does not
 # read exactly: a text that uses one is refused, whatever the input holds.
 MULTIPLIERS = frozenset({
@@ -556,9 +521,6 @@ def unreadable(text: str) -> list[str]:
     refused += [m.group() for m in _AFTER_NUMBER.finditer(seen)]
     refused += [word for word in _LETTERS.findall(seen) if _opaque(word)]
     return refused
-
-
-# --------------------------------------------------------------------------- the input's numbers
 
 
 @dataclass

@@ -1,9 +1,9 @@
 # ruff: noqa: S608 - the f-strings put fixed table and column names in the SQL; values are bound
-"""The writer's database access (Q-D4): rows to send, their moves, lookups, runs and the ramp.
+"""The writer's database access: rows to send, their moves, lookups, runs and the ramp.
 
 Every function takes the connection of the transaction it belongs to. The outbox moves are the
 ones the guard trigger allows (``argus.cases.outbox``); the writer's login holds UPDATE on
-exactly the columns moved here (migration 0037). Time comes from the caller (a fake clock in
+exactly the columns moved here. Time comes from the caller (a fake clock in
 the tests), never from the database, except for the approvals' expiry, which is the database's.
 """
 
@@ -62,9 +62,6 @@ async def audit(
         )
     finally:
         await session.close()
-
-
-# --------------------------------------------------------------------------- outbox rows
 
 
 def _row(r: Any) -> plan.Row:
@@ -280,9 +277,6 @@ async def alert_groups(
     return groups
 
 
-# --------------------------------------------------------------------------- moves
-
-
 async def begin_sending(conn: AsyncConnection, table: str, row_id: int, now: datetime) -> None:
     """``approved`` -> ``sending``, counted and committed before the request leaves."""
     moved = await conn.execute(
@@ -360,9 +354,6 @@ async def ids_in(conn: AsyncConnection, table: str, state: str) -> list[int]:
         {"s": state},
     )
     return [int(i) for i in rows.scalars()]
-
-
-# --------------------------------------------------------------------------- steps
 
 
 @dataclass(frozen=True)
@@ -482,7 +473,7 @@ async def insert_step(
     return None if new is None else int(new)
 
 
-CANARY_ALERTS = 5  # alerts a case holds while its class is at the canary step (plan §7.1)
+CANARY_ALERTS = 5  # alerts a case holds while its class is at the canary step
 
 
 async def attach_limit(conn: AsyncConnection) -> int:
@@ -547,9 +538,6 @@ async def plan_attachments(conn: AsyncConnection, row: plan.Row) -> int:
         )
         planned += added is not None
     return planned
-
-
-# --------------------------------------------------------------------------- lookups
 
 
 async def schedule_lookups(
@@ -634,9 +622,6 @@ async def outcomes(
     return [str(o) for o in rows.scalars()]
 
 
-# --------------------------------------------------------------------------- resends
-
-
 async def complete_requests(
     conn: AsyncConnection, kind: str, *, outbox_id: int | None = None
 ) -> list[int]:
@@ -656,9 +641,6 @@ async def complete_requests(
         {"k": kind, "o": outbox_id},
     )
     return [int(i) for i in rows.scalars()]
-
-
-# --------------------------------------------------------------------------- runs and the ramp
 
 
 async def record_run(

@@ -1,29 +1,12 @@
-"""Turn real SIEM documents into shareable test fixtures (R2, D-030, D-041).
+"""Turn real SIEM documents into shareable test fixtures.
 
-Two passes over a corpus:
-
-1. ``harvest`` reads every document and records each identifier it can find, with its pseudonym:
-   values of the identifier fields named in the policy (and the parts of qualified values: the
-   account of ``user@realm``, ``user+tag@realm`` or ``DOMAIN\\user``, the host of a machine
-   account ``HOST$``, the first label of a host FQDN), and everything the text detectors find in
-   any string or mapping key (IPs, URL hosts and users, e-mails and their local parts, campus
-   domains, reverse-DNS names, LDAP domains, HTTP credentials, ``field: value`` pairs and value
-   lists of identifier fields). The raw identifiers form the leak-scan denylist.
-2. ``sanitize`` rewrites each document: identifier fields through their mapper, every other string
-   through the text pass (spans found by the detectors on the original text are replaced once; the
-   untouched text in between gets the dictionary of harvested names and ids, then the policy
-   literals). Numbers, booleans, timestamps, paths and attack strings are kept.
-
-Where a document names the field of a value instead of nesting it, the value takes that field's
-kind: ``{"field"/"key": f, "value"/"values"/"params"/"query": v}`` objects (threshold terms,
-Kibana filter pills), mapping keys that are field paths (Query DSL ``term``/``match``, a hit's
-``fields``, ``.keyword`` sub-fields) and the bucket keys of a ``terms`` aggregation whose request
-names the field.
-
-Identity rules: names (hosts, users, places, organisations) are case-insensitive, so every case
-variant of one name gets one pseudonym; a value seen under several kinds is written in free text
-with the pseudonym of the highest-priority kind, whatever the document order. Ids are
-case-sensitive. A short host name and the first label of its FQDN share one label token.
+Two passes over a corpus: ``harvest`` reads every document and records each identifier it finds
+(policy identifier fields, parts of qualified values, and what the text detectors find in any
+string or key) with its pseudonym; the raw identifiers form the leak-scan denylist. ``sanitize``
+rewrites each document: identifier fields through their mapper, other strings through the text
+pass. Numbers, booleans, timestamps, paths and attack strings are kept. Names are case-insensitive
+(one pseudonym per name; ids are case-sensitive); a value seen under several kinds takes the
+highest-priority kind's pseudonym.
 """
 
 from __future__ import annotations
@@ -42,11 +25,11 @@ from argus.fixtures.ipmap import IPMapper, format_ip
 from argus.fixtures.policy import FixturePolicy
 from argus.fixtures.tokens import DomainMapper, Tokenizer
 
-SANITIZER_VERSION = "2.3.0"  # 2.3.0: R2 gate (escape letters, IPv6 spellings, DOMAIN\HOST$)
+SANITIZER_VERSION = "2.3.0"  # changes whenever the output for the same input changes
 
 _PCT = r"(?<=%[0-9A-Fa-f]{2})"  # just after a %XX escape: a URL-encoded boundary
 # Just after a literal \t, \n, ... escape (JSON inside a log line), but not inside a Windows
-# path (C:\Users\tarun, D:\backup): the backslash must follow a non-word character that is not
+# path (C:\Users\alice, D:\backup): the backslash must follow a non-word character that is not
 # a drive's colon, or another escape.
 _ESC = (
     r"(?:(?<=[^\w\\]\\[tnrbf])(?<![^\w][A-Za-z]:\\[tnrbf])(?<!^[A-Za-z]:\\[tnrbf])"  # not D:\b
@@ -724,7 +707,7 @@ class Sanitizer:
             if m is None or dashed is None:
                 continue
             mapped = self.domains.map(value).split(".")
-            if len(mapped) != len(labels):  # a campus suffix changed the label count
+            if len(mapped) != len(labels):  # a suffix of the organisation changed the label count
                 mapped = [self.domains.label(lb) for lb in labels]
             mapped[index] = label[: m.start()] + dashed + label[m.end() :]
             return ".".join(mapped)
@@ -814,7 +797,7 @@ class Sanitizer:
 
     def _map_fragment(self, kind: str, fragment: str) -> str:
         if not _name_like(fragment):
-            return self.map_text(fragment)  # .campus.ac.in of *.campus.ac.in, an address
+            return self.map_text(fragment)  # .example.edu of *.example.edu, an address
         core = fragment.strip("-_.")
         start = fragment.index(core)
         return fragment[:start] + self._map_field(kind, core) + fragment[start + len(core) :]

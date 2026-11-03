@@ -1,21 +1,12 @@
-"""Signatures on approval decisions (plan §7.1, §7.9): ``argus-web`` signs every decision it
-records, and ``argus-writer`` refuses to send a closure whose decisions are unsigned or were
-changed (:mod:`argus.cases.sendcheck`).
+"""Signatures on approval decisions: ``argus-web`` signs every decision it records, and
+``argus-writer`` refuses to send a closure whose decisions are unsigned or were changed.
 
-A signature is HMAC-SHA256 over the decision's *statement*: the canonical JSON of everything
-the decision binds (the request with its case, version, payload hash, alert set, Kibana
-version and expiry; the approver, their decision, step-up time, live identity check and the
-group they approved with). The writer rebuilds the statement from the database's rows, so a
-row changed after signing, a decision written by anything but the web, or a signature moved to
-another request fails.
-
-Keys are 32 random bytes in a file of their own (``argus approvals keygen``): mode 0600,
-owned by the process that reads it. The web holds the signing key; the writer holds the keys
-it accepts (several, for a rotation). Until Q-A5's separate system users both are files of the
-one Unix user; then root-owned credentials passed only to ``argus-web`` and ``argus-writer``.
-HMAC means the writer could sign too: a writer that is compromised already holds the Kibana
-writer keys, so it gains nothing; nothing else (the runtime role, the database, a dump) can.
-"""
+A signature is HMAC-SHA256 over the decision's *statement*, the canonical JSON of everything it
+binds (the request, the approver, their decision, step-up time, live check and group). The writer
+rebuilds the statement from the database's rows, so a changed row, a decision not written by the
+web or a signature moved to another request fails. Keys are 32 random bytes in a file of their own
+(``argus approvals keygen``, mode 0600): the web holds the signing key, the writer the keys it
+accepts."""
 
 from __future__ import annotations
 
@@ -35,7 +26,7 @@ from argus.normalize.canon import canonical_json
 
 ALGORITHM = "hmac-sha256"
 KEY_BYTES = 32
-STATEMENT_VERSION = 2  # 2: the request binds its requester's live check (review F2)
+STATEMENT_VERSION = 2  # 2: the request binds its requester's live check
 _DOMAIN = b"argus-approval-statement-v1\n"
 _KEY_ID_DOMAIN = b"argus-approval-key-id\0"
 SIGNATURE = re.compile(r"hmac-sha256:([0-9a-f]{16}):([0-9a-f]{64})")

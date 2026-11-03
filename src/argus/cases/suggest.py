@@ -1,58 +1,16 @@
-"""Suggest a case from evidence across investigations (AR2b, AR2c, D-154, D-155, D-160, D-168):
-the story a person pieces together by hand, put in front of them.
+"""Suggest a case from evidence across investigations: the story a person pieces together by hand.
 
-Three kinds of evidence, all generic (never a rule's name), within 72 hours of unreviewed
-investigations:
-
-* **a campaign** (AR2c, D-168): several campus devices that reached one flagged destination (an
-  address or the registered parent of many names that VirusTotal flags), or destinations of one
-  operator (the same network or name servers). ``argus.campaigns`` finds them from the whole
-  history window; each is one story whatever the rules that raised the investigations, with the
-  benign families that were in the same alerts listed as "benign, ARGUS recommends closing";
-* **a host seen by several rules** (two or more) or **the same flag on two or more days**, when
-  one of its investigations is in Needs attention: one campus host, one story (the Amadey
-  incident: a download and a beacon from one host, over three days). Without a raise the pair is
-  no story: it was 395 of the 471 cases a replay suggested (D-164);
-* **actors that hit the same rare targets** (two or more shared targets, each reached by only a
-  few actors, never shared infrastructure): the scout and the collector of the Git exfiltration
-  hit the same repositories. A target is an address or name an investigation involves, or a
-  request path reduced to the directory it names (:func:`path_target`).
-
-Investigations that share evidence are one **component**; a component becomes one **suggested
-case**: a suspected case (cause ``raised``) holding its unheld investigations, with ARGUS's
-reason as its attention. ARGUS opens nothing: the case stays suspected until a person confirms or
-dismisses it (plan §7.1). A component that touches cases already:
-
-* links its other investigations into the one raised suspected case it touches (investigations
-  arriving later join the same case, as the opener links a proposal to a suspected case);
-* otherwise suggests them to the active cases that hold their siblings (``case_suggestions``,
-  a person joins them); it never opens a competing case.
-
-A person's "no" stands: a component whose actors a dismissed suggestion had (or, for a campaign,
-whose domains and servers it had, all of them: a case stores up to :data:`MAX_CAMPAIGN_KEYS`), and
-whose flags it had too, is not suggested again for :data:`DISMISSAL_STANDS` (a flag kind the
-dismissed case did not have is news). New cases have their own hourly budget
-(:data:`MAX_SUGGESTED_PER_HOUR`), spent by priority and never taken from the opener's; offers to
-an open case (one for each new device) have another (:data:`MAX_OFFERS_PER_HOUR`, setting
-``cases.offers_per_hour``). A shared address (a content-delivery or cloud network, or a value in
-very many investigations) is no actor, as it is no target. A roaming device counts once for each
-address it had until a stronger key joins them (AR4b, D-169 point 6).
-
-**What an open case holds is never suggested into a new one** (D-170, the user's rule: on this
-campus a true positive often stays active after the owner is told, so its alerts keep coming).
-A component whose hosts or indicators a case in any state but closed already holds opens no case:
-an investigation of a host the case already has gets nothing (the opener joins it), one of a new
-host that reaches the case's indicators is offered to that case, one offer for each new host, and
-a suggested case ARGUS made and nobody confirmed yet simply takes it in. A campaign is offered to
-a case, or taken in by one, only when that case holds one of the campaign's indicators (its
-domains or flagged servers): a case that merely shares a device is not its case, and a
-campaign is never linked into someone else's host story (D-174). Investigations another open case
-holds are not moved: the campaign's case opens with the free ones and names the others ("also in
-case N").
-
-:func:`plan` is pure; :func:`run` loads what is unreviewed, plans, and applies each action in its
-own transaction under the opener's lock (or only reports, for a dry run).
-"""
+Three kinds of generic evidence (never a rule's name) within 72 hours of unreviewed
+investigations: a **campaign** (several internal devices reaching one flagged destination, or one
+operator's destinations; ``argus.campaigns``), a **host seen by several rules** or with the same
+flag on several days when one of its investigations needs attention, and **actors that hit the
+same rare targets**. Evidence sharing an investigation is one component, which becomes one
+*suspected* case for a person to confirm or dismiss (ARGUS opens nothing), or links into the
+raised suspected case it touches, or is suggested to the active cases holding its siblings. What
+an open case already holds is never suggested into a new one; a campaign is offered only to a
+case holding one of its indicators. A person's "no" stands for :data:`DISMISSAL_STANDS`. New
+cases and offers have hourly budgets of their own. :func:`plan` is pure; :func:`run` applies each
+action in its own transaction."""
 
 from __future__ import annotations
 
@@ -88,7 +46,7 @@ MIN_SHARED = 2  # rare targets two actors must share to be one story
 MAX_MEMBERS = 200  # investigations in one suggested case
 MAX_TARGETS = 20  # shared targets kept as the case's indicators
 MAX_SUGGESTED_PER_HOUR = 20  # new suggested cases an hour: its own pool, apart from the opener's
-MAX_OFFERS_PER_HOUR = 30  # offers to open cases an hour (one for each new device; D-174)
+MAX_OFFERS_PER_HOUR = 30  # offers to open cases an hour (one for each new device)
 MAX_CAMPAIGN_KEYS = 250  # a campaign's domains and servers a case stores (MAX_MEMBERS in all)
 MAX_ACTORS = 200  # devices a suggested case stores as actors
 MAX_ENTITIES = 50  # addresses and names read per investigation (a scanner has thousands)
@@ -118,10 +76,10 @@ class Seen:
     investigation_id: uuid.UUID
     rule: str  # the rule's name (a rule recreated in Kibana keeps it), else its id
     severity: Severity
-    day: date  # its IST day
+    day: date  # its local day
     at: datetime  # its last alert
     actors: frozenset[Key]  # who acted: addresses and hosts, never accounts
-    campus: frozenset[Key]  # the actors that are campus hosts
+    campus: frozenset[Key]  # the actors that are internal hosts
     flags: tuple[str, ...]  # the evidence's generic flags (investigation_raises)
     targets: frozenset[Key]  # what it reached: ("ip" | "domain" | "url", value)
     held: Held | None = None
@@ -134,13 +92,13 @@ class Existing:
     ref: uuid.UUID
     number: int
     actors: frozenset[Key]
-    indicators: frozenset[Key] = frozenset()  # the addresses and names it holds (D-170)
+    indicators: frozenset[Key] = frozenset()  # the addresses and names it holds
 
 
 @dataclass(frozen=True)
 class Live:
     """Any other case that is not closed (suspected by a person's verdict, open, assigned,
-    contained): what it holds is never suggested into a new case (D-170)."""
+    contained): what it holds is never suggested into a new case."""
 
     ref: uuid.UUID
     number: int
@@ -194,12 +152,9 @@ class SuggestMembers:
 Action = OpenCase | LinkCase | SuggestMembers
 
 
-# --------------------------------------------------------------------------- the pure rules
-
-
 def path_target(value: str) -> str | None:
     """A request path as the directory it names: no query or fragment, at most two segments
-    (``/~hostel5/.git/HEAD`` is ``/~hostel5/.git``), and None for the site's root or no path."""
+    (``/~user5/.git/HEAD`` is ``/~user5/.git``), and None for the site's root or no path."""
     path = value.split("?", 1)[0].split("#", 1)[0]
     parts = [p for p in path.split("/") if p.strip()]
     if not parts:
@@ -227,9 +182,9 @@ class _Evidence:
 
 
 def _hosts(seen: Sequence[Seen]) -> list[_Evidence]:
-    """A campus host with investigations from two or more rules (one of them flagged), or the
+    """An internal host with investigations from two or more rules (one of them flagged), or the
     same flag on two or more days, when one of its investigations is in Needs attention
-    (``raises``): the pair without a raise was most of the noise (D-164, D-168)."""
+    (``raises``): the pair without a raise was most of the noise."""
     by_host: dict[Key, list[Seen]] = defaultdict(list)
     for s in seen:
         for host in s.campus:
@@ -279,8 +234,8 @@ def in_attention(s: Seen) -> bool:
 def _shared_targets(seen: Sequence[Seen], shared: Shared) -> list[_Evidence]:
     """Actors that reach the same rare targets: two actors are one story when they share
     :data:`MIN_SHARED` targets that no more than :data:`MAX_RARE_ACTORS` actors reach, and one of
-    the investigations of the story is in Needs attention (replayed on 15 to 28 Oct, 85 of the 87
-    cases suggested without that were such stories of low, unraised investigations: D-170)."""
+    the investigations of the story is in Needs attention (without that, most suggestions were
+    such stories of low, unraised investigations)."""
     reach: dict[Key, set[Key]] = defaultdict(set)
     for s in seen:
         for target in s.targets:
@@ -376,7 +331,7 @@ def _indicators(keys: Iterable[Key], role: Literal["actor", "indicator"]) -> tup
 
 
 def _with_devices(s: Seen, devices: Mapping[uuid.UUID, frozenset[Key]]) -> Seen:
-    """``s`` with the campus devices a campaign found behind it as actors too."""
+    """``s`` with the internal devices a campaign found behind it as actors too."""
     extra = devices.get(s.investigation_id)
     return replace(s, actors=s.actors | extra, campus=s.campus | extra) if extra else s
 
@@ -472,7 +427,7 @@ def plan(
 
         holding = {s.held.case_id: s.held for s in members if s.held is not None}
         active = [h for h in holding.values() if h.state != "closed"]
-        if campaign:  # its case is the one that holds its domains or servers, and no other (D-174)
+        if campaign:  # its case is the one that holds its domains or servers, and no other
             touched = [e for e in raised if e.indicators & keys]
             owners = [c for c in cases if c.indicators & keys]
         else:
@@ -486,7 +441,7 @@ def plan(
                                f"matches several suggested cases: {_why(group, first)}")
                 for e in touched
             )  # fmt: skip
-        elif touched or owners:  # what a case holds is never suggested into a new one (D-170)
+        elif touched or owners:  # what a case holds is never suggested into a new one
             kind: Literal["also", "tie"] = "also" if len(touched) + len(owners) == 1 else "tie"
             both: list[Existing | Live] = [*touched, *owners]
             for owner in sorted(both, key=lambda c: c.number):
@@ -636,8 +591,6 @@ def _merged(actions: list[Action]) -> list[Action]:
         out[out.index(before)] = merged
     return out
 
-
-# --------------------------------------------------------------------------- loading
 
 _SEEN = """
 SELECT i.id, coalesce(i.rule_name, i.rule_id) AS rule, i.severity, i.bucket_start,
@@ -800,7 +753,7 @@ async def load_existing(conn: AsyncConnection) -> list[Existing]:
 
 async def load_live(conn: AsyncConnection) -> list[Live]:
     """Every case that is not closed and not a suggested case nobody confirmed (those are
-    :func:`load_existing`'s): what they hold is never suggested into a new case (D-170)."""
+    :func:`load_existing`'s): what they hold is never suggested into a new case."""
     cases = (await conn.execute(text(_LIVE))).all()
     actors, indicators = await _held(conn, [c.id for c in cases])
     return [
@@ -843,9 +796,6 @@ async def load_offered(
     if not ids:
         return set()
     return {(r[0], r[1]) for r in await conn.execute(text(_OFFERED), {"ids": list(ids)})}
-
-
-# --------------------------------------------------------------------------- applying
 
 
 @dataclass
@@ -933,9 +883,9 @@ async def run(
 async def _titled(
     engine: AsyncEngine, actions: list[Action], classifier: IpClassifier
 ) -> list[Action]:  # fmt: skip
-    """The actions with each new case's title made from the database's facts (D-230): the
+    """The actions with each new case's title made from the database's facts: the
     investigations' flags and threat-listed values, the outside answers cached for the servers,
-    the campus sites and the stored web checks."""
+    the internal sites and the stored web checks."""
     if not any(isinstance(a, OpenCase) for a in actions):
         return actions
     ctx = titling.Context(classifier)

@@ -1,22 +1,15 @@
 """``argus writer run`` (the service) and ``argus kibana plan|diff|run|ramp|compensate`` (the
 operator's side, run in the writer's account: ``sudo argus-owner --as writer kibana ...``).
 
-* ``plan --class W1``: what is waiting and what stops it (the database only; nothing is sent).
-* ``diff --class W1``: the same, each row planned against the Kibana case as it is now (reads
-  only; nothing is written).
-* ``run --class W1``: one run of the class, at a terminal, with the class name typed. Its limit
-  is the class's ramp step: 1 at the canary (one case, its comment and up to five alerts, or one
-  change, or one closure), then 5, then 10. A canary is checked in Kibana's own UI by the
-  person who runs it.
-* ``ramp --class W1 --to 5``: raise the step once the runs so far allow it and the person has
-  checked Kibana (the class name typed again).
-* ``skip --outbox N --reason ...``: a person decides a write in doubt, paused or in conflict is
-  not wanted; it is skipped (never a way to send).
-* ``compensate --outbox N``: the compensating write for a W2 or W3 row, as the approval binds it.
-* ``argus writer run``: the service. Each class in ``kibana.writer.scheduled`` runs every
-  ``kibana.writer.interval`` (at most 10 minutes) at its ramp step, with the lane's own gates
-  (window, NORMAL health, caps, switches, breakers); due lookups are made every 30 seconds. It
-  says so and exits 0 while nothing is scheduled.
+* ``plan --class W1``: what is waiting and what stops it (the database only).
+* ``diff --class W1``: the same, each row planned against the Kibana case as it is now (reads only).
+* ``run --class W1``: one run of the class at a terminal with the class name typed, up to the
+  class's ramp step (1 at the canary, then 5, then 10); a person checks a canary in Kibana.
+* ``ramp --class W1 --to 5``: raise the step once the runs so far allow it and a person has checked.
+* ``skip --outbox N --reason ...``: decide that a write in doubt, paused or in conflict is not
+  wanted (never a way to send). ``compensate --outbox N``: the compensating write for a W2/W3 row.
+* ``argus writer run``: each class in ``kibana.writer.scheduled`` runs every
+  ``kibana.writer.interval`` at its ramp step, with the lane's own gates; due lookups every 30 s.
 """
 
 from __future__ import annotations
@@ -40,7 +33,7 @@ from argus.writer.service import build_writer, gate_problems
 
 log = logging.getLogger("argus.writer")
 writer_app = typer.Typer(
-    no_args_is_help=True, help="argus-writer: Kibana case writes from the outbox (Q-D4)."
+    no_args_is_help=True, help="argus-writer: Kibana case writes from the outbox."
 )
 CLASSES = ("W1", "W2", "W3")
 TICK = 30  # seconds between the service's looks at due lookups
@@ -86,9 +79,6 @@ def _confirm(word: str, what: str) -> None:
     if typer.prompt(f"Type {word} to confirm") != word:
         typer.echo("not confirmed", err=True)
         raise typer.Exit(1)
-
-
-# --------------------------------------------------------------------------- operator commands
 
 
 async def plan_lines(engine: AsyncEngine, settings: Settings, write_class: str) -> list[str]:
@@ -332,9 +322,6 @@ def register(kibana_app: typer.Typer) -> None:
 
         for line in _run(go()):
             typer.echo(line)
-
-
-# --------------------------------------------------------------------------- the service
 
 
 @writer_app.command("run")

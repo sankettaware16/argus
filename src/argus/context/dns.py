@@ -1,17 +1,10 @@
-"""``dns.host_domains`` (Q-F4, plan §5 WS-F, §7.3): which names one client looked up in a
-window of at most 2 hours: its most and least asked names, how many distinct names, the query
-types and the answer codes. A client that asks thousands of distinct names under one parent
-domain in two hours looks like a DNS tunnel; one that looked up the C2's name shows it here.
+"""``dns.host_domains``: which names one client looked up in a window of at most 2 hours: its most
+and least asked names, how many distinct names, the query types and the answer codes.
 
-An aggregation on the DNS logs (~80M documents a day), so heavy: one daily index, a 10 s
-timeout, a prevalence gate on the client (a resolver or a NAT is a shared address) before it
-runs, 18 buckets at most, an answer within the 16 KiB snapshot even when every name is 256
-characters of three UTF-8 bytes each (a name of control characters, six bytes each in JSON,
-would not fit: then the snapshot is dropped and every signal reads unknown, never negative).
-The captured mapping has the client in both ``source.ip`` and ``client.ip`` (no captured DNS
-event says which is filled), so the filter takes either; names are
-``dns.question.name.keyword`` (``ignore_above`` 256): a name too long to index is counted apart
-("could not read"), never dropped silently.
+A client asking thousands of distinct names under one parent domain looks like a DNS tunnel. An
+aggregation on the DNS logs, so heavy: one daily index, a 10 s timeout, a prevalence gate on the
+client, 18 buckets at most, an answer within the 16 KiB snapshot. A name too long to index is
+counted apart ("could not read"), never dropped silently.
 """
 
 from __future__ import annotations
@@ -55,7 +48,7 @@ TUNNEL_SHARE = 0.5
 TUNNEL_DATA = 16
 # Lookups that ask very many distinct names by design, never a tunnel: reverse (PTR) lookups
 # and the DNS blocklists and reputation services a mail, web or antivirus server asks about
-# each address, domain or file it sees (review F4-R8).
+# each address, domain or file it sees.
 LOOKUP_ZONES = frozenset(
     {
         "in-addr.arpa", "ip6.arpa", "spamhaus.org", "spamcop.net", "sorbs.net",
@@ -232,7 +225,7 @@ def read(
         from_logs(derived("dns.lookups", version, [ref], lambda: got.queries, counts=True)),
         from_logs(derived("dns.names", version, names, lambda: got.names, counts=True)),
         # Found among the names that could be read, so it stands whatever else was unreadable;
-        # a tunnel's absence is never known from the logs alone (D-023).
+        # a tunnel's absence is never known from the logs alone.
         derived(
             "dns.tunnel_suspected", version, [ref], lambda: True if got.tunnel_parent else None
         ),

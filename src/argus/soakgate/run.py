@@ -1,10 +1,9 @@
-"""Building the soak gate's report (P4-A1): read each line's facts as the runtime login, in a
-transaction that cannot write, and judge them.
+"""Building the soak gate's report: read each line's facts as the runtime login, in a transaction
+that cannot write, and judge them.
 
 Each line is read in a transaction of its own (``SET TRANSACTION READ ONLY``, a statement timeout),
 so a table the runtime login may not select fails one line, not the report: that line becomes an
-OPEN check that names the table, and the report says so in its notes (the grant is the owner's to
-change, never this command's).
+OPEN check that names the table, and the report says so in its notes.
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ from argus.soakgate import fetch, judge
 from argus.soakgate.model import Check, Line, Report, Verdict, Window
 
 GATE = "phase3"
-PHASE3_CLOSE = datetime(2026, 10, 30, 12, 45, tzinfo=UTC)  # D-228: the gate runs from here
+PHASE3_CLOSE = datetime(2026, 10, 30, 12, 45, tzinfo=UTC)  # the gate counts from here
 INSUFFICIENT_PRIVILEGE = "42501"
 UNDEFINED_TABLE = "42P01"
 STATEMENT_TIMEOUT = "60s"
@@ -74,7 +73,7 @@ def _unreadable(number: int, exc: DBAPIError) -> Check:
 
 
 def lines(settings: Settings, w: Window) -> list[tuple[int, str, Producer]]:
-    """The eleven lines of docs/phase-3-exit.md's gate, each with how it is read."""
+    """The gate's lines, each with how it is read."""
 
     async def one(conn: AsyncConnection) -> list[Check]:
         return judge.judge_lifecycle(await fetch.lifecycle(conn, w, w.until))

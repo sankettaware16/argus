@@ -1,12 +1,11 @@
-"""The SOC dashboard (D-103): alerts, cases and incidents over time, by state, severity, rule
-and entity, all under one set of filters. It reads ARGUS's own database only, never the SIEM, so
-it costs the SIEM nothing however often it is opened or filtered.
+"""The SOC dashboard: alerts, cases and incidents over time, by state, severity, rule and entity,
+under one set of filters. It reads ARGUS's own database only, never the SIEM.
 
-Words (DQ23, D-110): an *investigation* is one rule, one key and one IST day (the code's
-``cases`` and ``Case`` here still mean investigations: the pre-Phase-3 name); an *incident* is
-one a person decided is a true positive; a *suspected incident* is one the AI investigator or
-the engine proposes as a true positive that nobody has confirmed yet. A Phase 3 *case* (one
-real problem across days, hosts and rules) is another record (Q-C1)."""
+Words: an *investigation* is one rule, one key and one local day (``cases`` and ``Case`` here
+still mean investigations: their old name); an *incident* is one a person decided is a true
+positive; a *suspected incident* is one the AI investigator or the engine proposes as a true
+positive that nobody has confirmed yet. A *case* (one real problem across days, hosts and rules)
+is another record."""
 
 from __future__ import annotations
 
@@ -54,7 +53,7 @@ class Filters:
     """What the dashboard shows. Each list is "any of these"; empty means all."""
 
     range: str = "7d"
-    start: date | None = None  # a custom span, in IST days (both or neither)
+    start: date | None = None  # a custom span, in local days (both or neither)
     end: date | None = None
     severity: tuple[str, ...] = ()
     state: tuple[str, ...] = ()
@@ -219,7 +218,7 @@ class Dashboard:
     incidents: list[Case]
     open_cases: list[Case]
     rule_choices: list[tuple[str, str]]
-    notified: list[knownview.KnownCase] = field(default_factory=list)  # AR4b, D-169
+    notified: list[knownview.KnownCase] = field(default_factory=list)  # cases whose owner was told
 
 
 def _case(row: Any) -> Case:
@@ -403,7 +402,7 @@ def _ti_answer(row: Any) -> str:
 
 async def threat_lists(conn: AsyncConnection, f: Filters, now: datetime) -> ThreatTile:
     """Whether the most urgent open investigations of the dashboard's span are on a threat
-    list, as their dossiers' ``ti.listed`` signal says (D-023: unknown is never "clear")."""
+    list, as their dossiers' ``ti.listed`` signal says (unknown is never "clear")."""
     start, end = f.span(now)
     cte, p = _cases(f, start, end, with_ai=False)
     found = list(await conn.execute(text(cte + _THREAT), {**p, "examined": THREAT_EXAMINED}))

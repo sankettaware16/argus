@@ -1,27 +1,9 @@
-"""The autonomy ledger (plan §5 Q-C3, DQ14 (b) as D-111 answered it): for each class of closure
-ARGUS proposes, what people did with its proposals, so a class can one day earn closing on its
-own. Nothing here closes anything: Phase 3 has no automatic closure, and a class that meets
-every measured bar is only *ready for the user's decision*.
-
-A class (a closure reason) is ready when all of these hold: at least 125 audited proposals
-(approved or rejected by a person), none wrong (rejected, or closed and then reopened), a
-Wilson lower bound of the right ones of at least 97.0 % (the harness's method), four stable
-weeks (each of the last four complete weeks had decided proposals, none wrong), and then a
-10 % audit and the user's decision, which this ledger cannot record and always lists as
-outstanding.
-
-It also counts **approvals expired unsent** (exit criterion 5: at most 5 %): complete closure
-or merge approvals with Kibana writes whose expiry passed before the first of them was sent,
-and requests that expired before anyone decided them. Writes rightly skipped (a person
-reopened the case, or rejected the write's re-confirmation) are neither: they are counted on
-their own line.
-
-Decisions count as people made them: an approver revoked later (disabled, or denied by a check)
-does not turn an approved proposal into an undecided one; such proposals are also counted as
-``revoked`` (review F8).
-
-Everything is read from the approval and case tables, so the ledger cannot drift from them.
-"""
+"""The autonomy ledger: for each class of closure ARGUS proposes, what people did with its
+proposals. Nothing closes automatically; a class that meets every measured bar (125 audited
+proposals, none wrong, a Wilson lower bound of at least 97 %, four stable weeks, then a 10 % audit)
+is only *ready for a person's decision*, which the ledger cannot record. It also counts approvals
+that expired unsent (at most 5 %) and proposals whose approver was revoked later. Everything is
+read from the approval and case tables."""
 
 from __future__ import annotations
 

@@ -1,16 +1,10 @@
-"""What a person may do in ARGUS (plan §7.2, Q-A1): eight capabilities, each declared by every
-route that needs it.
+"""What a person may do in ARGUS: eight capabilities, each declared by every route that needs it.
 
-In ELK mode (Q-E2) they come from the person's Kibana privileges, re-checked (plus
-``answer_gold`` for the gold-key owners ARGUS names itself, D-080); in today's local
-mode from the ``users.capabilities`` column, which gives every account exactly what any
-signed-in reviewer could do before Q-A1 (``LOCAL_DEFAULT``), and the rest only by an explicit
-grant at the terminal (``argus user grant``).
-
-A capability counts only with its prerequisites (``NEEDS``): everything needs ``view``,
-answering gold items needs ``review``, approving needs ``manage_cases``. ``effective`` drops
-any name it does not know and any capability whose prerequisites are missing, so a broken or
-partial grant fails closed."""
+In ELK mode they come from the person's Kibana privileges, re-checked (plus ``answer_gold`` for the
+gold-key owners ARGUS names itself); in local mode from the ``users.capabilities`` column. A
+capability counts only with its prerequisites (``NEEDS``: everything needs ``view``, answering gold
+needs ``review``, approving needs ``manage_cases``): ``effective`` drops unknown names and
+capabilities whose prerequisites are missing, so a broken or partial grant fails closed."""
 
 from __future__ import annotations
 
@@ -59,7 +53,7 @@ LOCAL_DEFAULT: frozenset[Capability] = frozenset(
     {Capability.VIEW, Capability.SEE_LOGS, Capability.REVIEW, Capability.ANSWER_GOLD}
 )
 ALL: tuple[Capability, ...] = tuple(Capability)
-# What the break-glass account may do (plan §7.2): view and review, never anything that is
+# What the break-glass account may do: view and review, never anything that is
 # written to Kibana, approved or changed in ARGUS's settings.
 BREAK_GLASS: frozenset[Capability] = frozenset({Capability.VIEW, Capability.REVIEW})
 

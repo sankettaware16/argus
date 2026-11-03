@@ -1,22 +1,11 @@
-"""The reads of ``argus discover`` (P4-D1): a fixed, short list of metadata requests through the
-gateways, collected into ``Inputs`` for ``propose``.
+"""The reads of ``argus discover``: a fixed, short list of metadata requests through the gateways,
+collected into ``Inputs`` for ``propose``.
 
-Every request goes through the Elastic Gateway (the ledger, the budget, the health states) or the
-Kibana lane; nothing is written anywhere. The reads, in this order:
-
-1. Elasticsearch ``GET /`` (version) and ``GET /_license`` (level and status);
-2. the names of indices, aliases and data streams (``discover.indices``: the visible ones, then
-   the hidden Security alerts aliases of every space);
-3. Kibana ``GET api/status`` (version), ``api/spaces/space`` and ``api/features`` when the
-   Kibana lane is available (otherwise a warning says what was not read);
-4. the mapping of ``MAX_MAPPINGS`` candidate families at most, the likeliest first: how a few
-   well-known fields are mapped in the newest index of each (``discover.field_mapping``). Of the
-   data streams of Elastic's Threat Intel integration (``logs-ti_*``) one speaks for the group;
-5. when the key holds ``read_ilm`` (asked first: a 403 would stop ARGUS's access), the ILM
-   policies' delete ages.
-
-A read that fails is a warning, not the end, except the Elasticsearch listing: without it there
-is nothing to propose.
+Every request goes through the Elastic Gateway or the Kibana lane; nothing is written anywhere.
+In order: Elasticsearch ``GET /`` and ``GET /_license``; the names of indices, aliases and data
+streams; Kibana status, spaces and features (when the lane is available); the mapping of at most
+``MAX_MAPPINGS`` candidate families; and, when the key holds ``read_ilm``, the ILM delete ages.
+A read that fails is a warning, except the Elasticsearch listing: without it nothing is proposed.
 """
 
 from __future__ import annotations
@@ -60,7 +49,7 @@ async def siem_state(
 ) -> HealthMemory:
     """The SIEM's health as discovery may trust it (what it is refused on unless NORMAL): the
     stored memory when a probe made it lately, else one probe, taken here and kept only for this
-    command (``DiscoveryStore.adopt``), never saved over the real memory (F2). The probe reads
+    command (``DiscoveryStore.adopt``), never saved over the real memory. The probe reads
     the index blocks of every family the site names (a site that names none has none to look
     at: node stats only). A probe the gateway refused to send leaves the stored memory, which
     ``effective`` then does not trust."""
@@ -113,7 +102,7 @@ async def collect(
         label: str, template: Template, params: Params | Callable[[], Params], **kw: Any
     ) -> Any:
         """A read that may fail. The parameters may be a function: building them is inside the
-        guard, so a name the template cannot take (it is legal in Elasticsearch, F4) is a warning,
+        guard, so a name the template cannot take (it is legal in Elasticsearch) is a warning,
         not the end of the run."""
         try:
             return await ask(template, params() if callable(params) else params, **kw)
@@ -179,7 +168,7 @@ async def collect(
             }
             if typed:
                 mappings[candidate.pattern] = typed
-            else:  # an answer that maps none of the fields is no reading of the mapping (F15)
+            else:  # an answer that maps none of the fields is no reading of the mapping
                 warnings.append(
                     f"the mapping of {candidate.pattern} named none of the fields asked about:"
                     " it is judged by its name alone"

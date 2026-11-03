@@ -1,6 +1,6 @@
-"""ORM models: the audit trail (R1), the Elastic Gateway's shared state (R4, D-048), the
-collector's alert store (R5, D-050), investigations and jobs (R6, D-051), reviewers and
-reviews (R7, D-052), evidence, dossiers and signals (R8, D-054)."""
+"""ORM models: the audit trail, the Elastic Gateway's shared state, the collector's alert store,
+investigations and jobs, reviewers and reviews, evidence, dossiers and signals, and the case,
+write-back, reporting and case-team tables."""
 
 from __future__ import annotations
 
@@ -48,9 +48,9 @@ class Base(DeclarativeBase):
 
 
 class AuditEvent(Base):
-    """Append-only record of what ARGUS did and why (enforced by triggers, see migrations 0001
-    and 0002). Since 0026 (Q-C1) every new row is hash-chained by an owner's trigger: the
-    ``chain_*`` columns are set by the database, never by ARGUS (argus.cases.chain)."""
+    """Append-only record of what ARGUS did and why (enforced by triggers). Every new row is
+    hash-chained by an owner's trigger: the ``chain_*`` columns are set by the database, never
+    by ARGUS (argus.cases.chain)."""
 
     __tablename__ = "audit_events"
 
@@ -67,7 +67,7 @@ class AuditEvent(Base):
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     # Set by the chain trigger; NULL only on rows written before the chain started. In the table
     # but not mapped (__mapper_args__): ARGUS's own writes never name them (the runtime role may
-    # not), and the trail keeps working on a database at a revision before 0026 (the CLI audits
+    # not), and the trail keeps working on a database at an earlier revision (the CLI audits
     # every migration step). Only argus.cases.chain reads them, through the table's columns.
     chain_seq: Mapped[int | None] = mapped_column(BigInteger, server_default=FetchedValue())
     prev_hash: Mapped[str | None] = mapped_column(Text, server_default=FetchedValue())
@@ -91,11 +91,11 @@ class AuditEvent(Base):
     )
 
 
-# --------------------------------------------------------------------------- Elastic Gateway (R4)
+# --------------------------------------------------------------------------- Elastic Gateway
 
 GATEWAY_COMPONENTS = (
     "global", "collector", "enrichment", "kibana", "writeback",
-    "investigation", "freshness", "cases", "identity",  # Q-D2 (0029)
+    "investigation", "freshness", "cases", "identity",
 )  # fmt: skip
 GATEWAY_STATES = ("health", "budget", "breaker", "lanes", "kibana", "kibana_breaker")
 LANES = (
@@ -166,9 +166,9 @@ class SiemRequest(Base):
     response_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False)
     live_session: Mapped[str | None] = mapped_column(Text)
-    # Q-F2: the request's content address (``templates.task_key``): joins it to its evidence
+    # the request's content address (``templates.task_key``): joins it to its evidence
     task_key: Mapped[str | None] = mapped_column(Text)
-    # Q-D2 (0029): the lane it spent, where it went, a write's outbox row, hash, class and
+    # the lane it spent, where it went, a write's outbox row, hash, class and
     # approval, and the SIEM's health and the stopped switches when it was sent
     lane: Mapped[str | None] = mapped_column(Text)
     target: Mapped[str] = mapped_column(Text, nullable=False, server_default="elasticsearch")
@@ -209,9 +209,9 @@ HEALTH_STATES = ("normal", "caution", "degraded", "stop")
 
 
 class SiemProbe(Base):
-    """The health probe's readings, one row per probe (Q-A2): what the gateway reads anyway every
+    """The health probe's readings, one row per probe: what the gateway reads anyway every
     minute (node stats, index blocks) and the state it concluded, kept so that the SIEM's load
-    budget can be measured again (Q-A3). Storing them sends no request."""
+    budget can be measured again. Storing them sends no request."""
 
     __tablename__ = "siem_probes"
 
@@ -254,7 +254,7 @@ class SiemProbe(Base):
 
 
 class SiemLiveSession(Base):
-    """A human-issued live-test session (plan §10): request cap and end time."""
+    """A human-issued live-test session: request cap and end time."""
 
     __tablename__ = "siem_live_sessions"
 
@@ -274,7 +274,7 @@ class SiemLiveSession(Base):
     )
 
 
-# --------------------------------------------------------------------------- Collector (R5)
+# --------------------------------------------------------------------------- Collector
 
 ALERT_STATUSES = ("normalized", "quarantined")
 RECOVERED_BY = ("live", "backfill", "reconciliation")
@@ -291,9 +291,9 @@ GAP_KINDS = (
 
 
 class AlertRecord(Base):
-    """One alert from the SIEM as it was read (raw ``_source``) and as R3 understood it (D-050).
-    An alert gone from the SIEM gets ``source_missing_at``. Only the retention purge (Q-A4,
-    D-028) removes anything: the raw ``_source`` after ``retention.raw_source``, the whole row
+    """One alert from the SIEM as it was read (raw ``_source``) and as the normalizer read it.
+    An alert gone from the SIEM gets ``source_missing_at``. Only the retention purge
+    removes anything: the raw ``_source`` after ``retention.raw_source``, the whole row
     with its investigation after ``memory.window``."""
 
     __tablename__ = "alert_records"
@@ -321,7 +321,7 @@ class AlertRecord(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     source_missing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Q-A4 (D-028): when the retention purge removed ``raw`` (it is ``{}`` from then on, and the
+    # when the retention purge removed ``raw`` (it is ``{}`` from then on, and the
     # collector never writes it back); set only by the purge role.
     raw_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -338,7 +338,7 @@ class AlertRecord(Base):
         Index(None, "detected_at"),
         Index(None, "rule_id", "event_time"),
         Index(None, "fingerprint"),
-        Index(None, "first_seen_at"),  # R9: what is new since the last rules refresh
+        Index(None, "first_seen_at"),  # what is new since the last rules refresh
     )
 
 
@@ -360,7 +360,7 @@ class CollectorCursor(Base):
 
 
 class ReconciliationRun(Base):
-    """One comparison of the SIEM's alerts with the store over a window (plan §7.3)."""
+    """One comparison of the SIEM's alerts with the store over a window."""
 
     __tablename__ = "reconciliation_runs"
 
@@ -386,7 +386,7 @@ class ReconciliationRun(Base):
 
 
 class CoverageGap(Base):
-    """A stretch of time ARGUS may not have seen everything (plan §5.6); open while ``end_at``
+    """A stretch of time ARGUS may not have seen everything; open while ``end_at``
     is null. One open gap per (kind, subject)."""
 
     __tablename__ = "coverage_gaps"
@@ -420,13 +420,13 @@ class CoverageGap(Base):
     )
 
 
-# --------------------------------------------------------------------------- Grouping and jobs (R6)
+# --------------------------------------------------------------------------- Grouping and jobs
 
 JOB_STATUSES = ("queued", "running", "done", "failed")
 
 
 class Investigation(Base):
-    """A group of alerts: one rule, one canonical key, one 24-hour bucket (plan §7.1, D-051).
+    """A group of alerts: one rule, one canonical key, one 24-hour bucket.
     Everything but ``version`` is derived from its alerts and recomputed on every change."""
 
     __tablename__ = "investigations"
@@ -462,13 +462,13 @@ class Investigation(Base):
         Index(None, "bucket_start"),
         Index(None, "previous_id"),
         Index(None, "rule_id", "bucket_start"),
-        # the retention purge clears links to what it removes (migration 0030, Q-A4)
+        # the retention purge clears links to what it removes
         Index(
             "ix_investigations_continues_id",
             "continues_id",
             postgresql_where=text("continues_id IS NOT NULL"),
         ),
-        # The Inbox's orders (migration 0025, Q-A1 review F2; argus.web.queries._ORDER).
+        # The Inbox's orders (argus.web.queries._ORDER).
         Index("ix_investigations_newest", text("last_event_at DESC NULLS LAST"), "id"),
         Index("ix_investigations_oldest", text("last_event_at ASC NULLS LAST"), "id"),
         Index(  # the rank as Postgres writes it back (the schema check compares the text)
@@ -519,7 +519,7 @@ class InvestigationEntity(Base):
 
 
 class Entity(Base):
-    """How many investigations an entity appears in (above 200: a supernode, D-051)."""
+    """How many investigations an entity appears in (above 200: a supernode)."""
 
     __tablename__ = "entities"
 
@@ -529,8 +529,8 @@ class Entity(Base):
 
 
 class Job(Base):
-    """Work on an investigation (R8 runs it). At most one active job per investigation; a
-    claim is a lease, and only the current claim may finish the job (D-051)."""
+    """Work on an investigation (the context worker runs it). At most one active job per
+    investigation; a claim is a lease, and only the current claim may finish the job."""
 
     __tablename__ = "jobs"
 
@@ -551,7 +551,7 @@ class Job(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # R8 (D-054): waiting for the SIEM or Postgres to come back; not a failure.
+    # waiting for the SIEM or Postgres to come back; not a failure.
     deferred_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deferrals: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
@@ -565,11 +565,11 @@ class Job(Base):
             postgresql_where=text("status IN ('queued', 'running')"),
         ),
         Index(None, "status", "run_after"),
-        Index(None, "investigation_id"),  # the purge's deletes and their key checks (0030)
+        Index(None, "investigation_id"),  # the purge's deletes and their key checks
     )
 
 
-# --------------------------------------------------------------------------- Inbox (R7)
+# --------------------------------------------------------------------------- Inbox
 
 REVIEW_ACTIONS = ("reviewed", "follow_up", "note")
 OUTCOMES = (
@@ -582,7 +582,7 @@ OUTCOMES = (
 
 
 class User(Base):
-    """An ARGUS account (D-052; Q-A1, Q-E2): a local reviewer (argon2id password,
+    """An ARGUS account: a local reviewer (argon2id password,
     ``argus user add``) and/or the ELK account behind a person (``elk_username``, the exact
     name Elasticsearch knows; ``username`` stays ARGUS's own 2 to 32 character handle). A
     person who first signed in through ELK has no password hash; a hash is never dropped before
@@ -599,15 +599,15 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    # Q-A1: what the account may do in local mode (argus.web.capabilities); every account
+    # what the account may do in local mode (argus.web.capabilities); every account
     # starts with what any reviewer could do before capabilities existed. In ELK mode only
-    # ``answer_gold`` counts from it (ARGUS's own gold-key owners, D-080).
+    # ``answer_gold`` counts from it (ARGUS's own gold-key owners).
     capabilities: Mapped[list[str]] = mapped_column(
         ARRAY(Text),
         nullable=False,
         server_default=text("'{view,see_logs,review,answer_gold}'::text[]"),
     )
-    # Q-E2 (0036)
+    # the account's kind (a person by default)
     kind: Mapped[str] = mapped_column(Text, nullable=False, server_default="person")
     realm: Mapped[str] = mapped_column(Text, nullable=False, server_default="local")
     elk_username: Mapped[str | None] = mapped_column(Text)
@@ -655,9 +655,9 @@ class User(Base):
 
 
 class UserSession(Base):
-    """A sign-in: the token is stored only as its SHA-256; an idle and an absolute expiry
-    (D-052, Q-A1), and when its person last confirmed their password (step-up). An ELK session
-    (Q-E2) also holds the capability snapshot and when it was checked, the encrypted credential
+    """A sign-in: the token is stored only as its SHA-256; an idle and an absolute expiry,
+    and when its person last confirmed their password (step-up). An ELK session
+    also holds the capability snapshot and when it was checked, the encrypted credential
     (AES-256-GCM under a key from the web's secret and the token, wiped at logout), and when
     ARGUS could not verify the person any longer, and why."""
 
@@ -675,7 +675,7 @@ class UserSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     stepped_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     stepup_failures: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")
-    # Q-E2 (0036)
+    # how the person signed in: "local" or ELK
     mode: Mapped[str] = mapped_column(Text, nullable=False, server_default="local")
     capabilities: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -716,7 +716,7 @@ class UserSession(Base):
 
 
 class UserDevice(Base):
-    """A browser that signed in well once (Q-E2, plan §7.2): the hash of its device cookie. A
+    """A browser that signed in well once: the hash of its device cookie. A
     name locked by the throttle still lets this browser try."""
 
     __tablename__ = "user_devices"
@@ -735,7 +735,7 @@ class UserDevice(Base):
 
 
 class BreakGlass(Base):
-    """The one emergency window (Q-E2, plan §7.2): switched on at the host with a typed reason,
+    """The one emergency window: switched on at the host with a typed reason,
     at most 4 hours, one at a time; its one-time password is used by the first sign-in."""
 
     __tablename__ = "break_glass"
@@ -764,7 +764,7 @@ class BreakGlass(Base):
 
 
 class ReviewEvent(Base):
-    """What a reviewer did with an investigation (append-only; plan §9.3, D-052)."""
+    """What a reviewer did with an investigation (append-only)."""
 
     __tablename__ = "review_events"
 
@@ -778,13 +778,13 @@ class ReviewEvent(Base):
     action: Mapped[str] = mapped_column(Text, nullable=False)
     outcome: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)
-    # P3 (plan §2.8): set when the review accepted an assessment's proposal, a label kind of
-    # its own ("confirmed proposal") that never counts as support for P4's decisions
+    # set when the review accepted an assessment's proposal, a label kind of
+    # its own ("confirmed proposal") that never counts as support for the decision engine
     assessment_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("assessments.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    # Q-E2 (0036): made under a live ELK check that showed the alert-status privileges, in a
+    # made under a live ELK check that showed the alert-status privileges, in a
     # verified session (never an outage's, never break-glass's): the only reviews that may be
     # written back to Kibana
     kibana_ok: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
@@ -802,9 +802,9 @@ class ReviewEvent(Base):
 
 
 class ReviewState(Base):
-    """Each reviewed investigation's newest review, kept by a trigger on ``review_events``
-    (migration 0025, Q-A1), so the lists need not rank every review on every request
-    (plan §8 criterion 14). ``latest_id`` is the newest review of any kind; the ``decision_``
+    """Each reviewed investigation's newest review, kept by a trigger on ``review_events``,
+    so the lists need not rank every review on every request. ``latest_id`` is the newest
+    review of any kind; the ``decision_``
     columns are the newest one that changes the state (not a note), NULL while there is none.
     ARGUS only reads it: the trigger alone writes it."""
 
@@ -833,7 +833,7 @@ class ReviewState(Base):
     )
 
 
-# --------------------------------------------------------------------------- context graph (R8)
+# --------------------------------------------------------------------------- context graph
 
 EVIDENCE_STATUSES = (
     "ok",
@@ -854,7 +854,7 @@ def _one_of(column: str, values: tuple[str, ...]) -> str:
 
 
 class Evidence(Base):
-    """One evidence task's result for one investigation version (plan §5.4, D-054). Written
+    """One evidence task's result for one investigation version. Written
     before the graph node returns; an ``ok``/``empty`` row is reused for the same ``task_key``,
     any other may be overwritten by a later attempt."""
 
@@ -879,10 +879,10 @@ class Evidence(Base):
     reused_from_version: Mapped[int | None] = mapped_column(Integer)
     error: Mapped[str | None] = mapped_column(Text)
     collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    # Q-F1 (0033): when the gateway was asked for it (a copy keeps the original's), so a
+    # when the gateway was asked for it (a copy keeps the original's), so a
     # verified zero needs a reading that answered before the search was sent
     asked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Q-A4 (D-028): when the retention purge removed ``snapshot``; the row (what was asked,
+    # when the retention purge removed ``snapshot``; the row (what was asked,
     # its status, counts and hash) stays. Never reused once purged. Set only by the purge role.
     snapshot_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -896,7 +896,7 @@ class Evidence(Base):
         CheckConstraint(
             "(status IN ('ok', 'empty')) = (result_hash IS NOT NULL)", name="result_hash"
         ),
-        # Q-F2: a row exists only for a request that has its E-id
+        # a row exists only for a request that has its E-id
         ForeignKeyConstraint(
             ["investigation_id", "task_key"],
             ["evidence_requests.investigation_id", "evidence_requests.task_key"],
@@ -909,12 +909,12 @@ EVIDENCE_ORIGINS = ("pack", "agent", "wave", "person", "watch")
 
 
 class EvidenceRequest(Base):
-    """An evidence request of an investigation and its opaque id ``E<eid>`` (Q-F2): one per
-    task key, whatever the version (an earlier request planned again keeps its id, D-070).
+    """An evidence request of an investigation and its opaque id ``E<eid>``: one per
+    task key, whatever the version (an earlier request planned again keeps its id).
     Numbered in the order ARGUS planned them; never changed or removed at run time. Who asked:
     the dossier's own wave (``pack``), an assessor's tool (``agent``), the deterministic wave
-    (``wave``, Q-F3), a person's "check more" (``person``) or the still-active watch
-    (``watch``, Q-C2)."""
+    (``wave``), a person's "check more" (``person``) or the still-active watch
+    (``watch``)."""
 
     __tablename__ = "evidence_requests"
 
@@ -941,7 +941,7 @@ class EvidenceRequest(Base):
 
 
 class Dossier(Base):
-    """What ARGUS found for one investigation version (plan §8, D-054). Written with its
+    """What ARGUS found for one investigation version. Written with its
     signals, the job's completion and an audit event in one transaction; never changed."""
 
     __tablename__ = "dossiers"
@@ -950,7 +950,7 @@ class Dossier(Base):
         UUID(as_uuid=True), ForeignKey("investigations.id"), primary_key=True
     )
     version: Mapped[int] = mapped_column(Integer, primary_key=True)
-    pack: Mapped[str] = mapped_column(Text, primary_key=True)  # D-058: one per pack version
+    pack: Mapped[str] = mapped_column(Text, primary_key=True)  # one per pack version
     facts_version: Mapped[int] = mapped_column(Integer, nullable=False)
     job_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     run_kind: Mapped[str] = mapped_column(Text, nullable=False)
@@ -972,7 +972,7 @@ class Dossier(Base):
 
 
 class Signal(Base):
-    """A typed signal of a dossier (plan §5.4): a value only when it is known (D-023)."""
+    """A typed signal of a dossier: a value only when it is known."""
 
     __tablename__ = "signals"
 
@@ -1004,14 +1004,14 @@ class Signal(Base):
     )
 
 
-# --------------------------------------------------------------------------- reference data (R9)
+# --------------------------------------------------------------------------- reference data
 
 TI_KINDS = ("ip", "domain", "url", "hash", "email", "other")
 KNOWLEDGE_STATUSES = ("proposed", "active", "retired")
 
 
 class Rule(Base):
-    """A detection rule as its newest alert describes it (D-057)."""
+    """A detection rule as its newest alert describes it."""
 
     __tablename__ = "rules"
 
@@ -1046,7 +1046,7 @@ class Rule(Base):
 
 class RuleRevision(Base):
     """Each (rule, revision, note) ARGUS has seen, and when first: a changed note marks the
-    dossiers built on the old one (R10)."""
+    dossiers built on the old one."""
 
     __tablename__ = "rule_revisions"
 
@@ -1058,7 +1058,7 @@ class RuleRevision(Base):
 
 
 class TiSource(Base):
-    """How fresh a threat-intel source is (D-057): its newest indicator, the last success."""
+    """How fresh a threat-intel source is: its newest indicator, the last success."""
 
     __tablename__ = "ti_sources"
 
@@ -1106,7 +1106,7 @@ class TiLookup(Base):
 
 
 class KnowledgeItem(Base):
-    """What reviewers taught ARGUS (plan §9.3): typed, scoped, with provenance; benign
+    """What reviewers taught ARGUS: typed, scoped, with provenance; benign
     patterns always expire."""
 
     __tablename__ = "knowledge_items"
@@ -1135,11 +1135,11 @@ class KnowledgeItem(Base):
     )
 
 
-# --------------------------------------------------------------------------- soak (R16)
+# --------------------------------------------------------------------------- soak
 
 
 class SoakSample(Base):
-    """An hourly snapshot of how ARGUS is doing (R16): the exit gate is judged from these."""
+    """An hourly snapshot of how ARGUS is doing: the soak test is judged from these."""
 
     __tablename__ = "soak_samples"
 
@@ -1149,11 +1149,11 @@ class SoakSample(Base):
     __table_args__ = (CheckConstraint("jsonb_typeof(metrics) = 'object'", name="is_object"),)
 
 
-# --------------------------------------------------------------------------- write-back (R17)
+# --------------------------------------------------------------------------- write-back
 
 
 class WritebackItem(Base):
-    """A planned change of alert status in Kibana (D-061, Q-D5): from a person's review, or from
+    """A planned change of alert status in Kibana: from a person's review, or from
     an approved case closure. Sent at most once per alert (``sent_count`` is the position in
     ``alert_ids``; ``written_count`` the alerts Kibana changed and the read-back confirmed;
     ``previous`` the status each of them had before)."""
@@ -1163,7 +1163,7 @@ class WritebackItem(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     review_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     investigation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    # an approved closure's row (0045): the case and its approval; no investigation
+    # an approved closure's row: the case and its approval; no investigation
     case_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cases.id"))
     closure_request_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("approval_requests.id"), unique=True
@@ -1185,7 +1185,7 @@ class WritebackItem(Base):
     # whose operator signed in with their own ELK account (``operator``)
     needs_operator: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     operator: Mapped[str | None] = mapped_column(Text)
-    held: Mapped[str | None] = mapped_column(Text)  # waits for something (DQ11: F1's audit)
+    held: Mapped[str | None] = mapped_column(Text)  # waits for something
 
     __table_args__ = (
         CheckConstraint("status IN ('acknowledged', 'closed')", name="status_valid"),
@@ -1210,12 +1210,12 @@ class WritebackItem(Base):
     )
 
 
-# --------------------------------------------------------------------------- gold set (P2)
+# --------------------------------------------------------------------------- gold set
 GOLD_SPLITS = ("dev", "test")
 
 
 class GoldItem(Base):
-    """An investigation of a frozen gold set (P2, D-080): the dossier it was chosen at, why,
+    """An investigation of a frozen gold set: the dossier it was chosen at, why,
     and the pre-filled suggestion shown to the person (never the answer)."""
 
     __tablename__ = "gold_items"
@@ -1238,7 +1238,7 @@ class GoldItem(Base):
     __table_args__ = (
         CheckConstraint(_one_of("split", GOLD_SPLITS), name="split_valid"),
         CheckConstraint("dossier_hash ~ '^[0-9a-f]{64}$'", name="hash_valid"),
-        Index(None, "investigation_id"),  # the purge's holds and key checks (0030)
+        Index(None, "investigation_id"),  # the purge's holds and key checks
     )
 
 
@@ -1269,15 +1269,15 @@ class GoldLabel(Base):
     )
 
 
-# --------------------------------------------------------------------------- assessments (P3)
+# --------------------------------------------------------------------------- assessments
 ASSESSMENT_STATUSES = ("queued", "running", "proposed", "no_decision", "failed")
 
 
 class Assessment(Base):
     """A proposed outcome for one investigation, by one assessor, from one exact view of its
-    dossier (P3, D-084): queue and result in one row. Keyed by the view's hash, so a
+    dossier: queue and result in one row. Keyed by the view's hash, so a
     re-derivation that changes nothing the assessor reads is never assessed again. A claim
-    is a lease with a fencing number (as ``jobs``, D-051); waiting for a model's budget gives
+    is a lease with a fencing number (as ``jobs``); waiting for a model's budget gives
     the lease back."""
 
     __tablename__ = "assessments"
@@ -1298,7 +1298,7 @@ class Assessment(Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     deferrals: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    # 1: a person asked for it (D-097): claimed before what waits, deferred or not
+    # 1: a person asked for it: claimed before what waits, deferred or not
     priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     error: Mapped[str | None] = mapped_column(Text)
     outcome: Mapped[str | None] = mapped_column(Text)
@@ -1329,9 +1329,9 @@ class Assessment(Base):
 
 
 class AssessmentShare(Base):
-    """An investigation an investigator run stands for (AR2, D-160): the run's own
+    """An investigation an investigator run stands for: the run's own
     investigation and each other investigation of the same pattern (``display.signature``,
-    the Patterns page's key) and IST day, which show the run as "same pattern as ...". Display
+    the Patterns page's key) and local day, which show the run as "same pattern as ...". Display
     only: the run's outcome, score, closure and write-back stay with the assessed
     investigation, so nothing here is ever a proposal for the others."""
 
@@ -1347,7 +1347,7 @@ class AssessmentShare(Base):
     )
     version: Mapped[int] = mapped_column(Integer, primary_key=True)
     pattern: Mapped[str] = mapped_column(Text, nullable=False)  # sha256 of the pattern's key
-    day: Mapped[date] = mapped_column(Date, nullable=False)  # the IST day of the bucket
+    day: Mapped[date] = mapped_column(Date, nullable=False)  # the bucket's day in the site's zone
 
     __table_args__ = (
         CheckConstraint("pattern ~ '^[0-9a-f]{64}$'", name="pattern_valid"),
@@ -1358,7 +1358,7 @@ class AssessmentShare(Base):
 
 
 class InvestigationRaise(Base):
-    """What ARGUS's evidence flagged on an investigation's newest dossier (AR2b, D-160): the
+    """What ARGUS's evidence flagged on an investigation's newest dossier: the
     generic flags of ``evaluation.gold.flags`` (a threat-list hit, success after an attack, a
     beacon-like regularity, risky ports). One row per investigation, replaced when a newer dossier
     is read; a row with no flags records that the dossier was read. An unreviewed investigation
@@ -1385,7 +1385,7 @@ class InvestigationRaise(Base):
 
 
 class OutsideLookup(Base):
-    """An outside threat-intel answer (AR3, D-165): what VirusTotal, Shodan or Censys said of one
+    """An outside threat-intel answer: what VirusTotal, Shodan or Censys said of one
     external indicator, parsed and size-capped (never the raw reply), valid for
     ``outside.cache_window``. Only external indicators get a row. ``not_found``: the source has no
     record of it (cached too, so a miss is not asked again)."""
@@ -1415,7 +1415,7 @@ class OutsideLookup(Base):
 
 
 class OutsideRequest(Base):
-    """The outside-intel ledger (AR3, D-165): one row per request made, with the purpose that
+    """The outside-intel ledger: one row per request made, with the purpose that
     asked, the outcome, the HTTP status, the answer's size and, for a 429, until when the source
     is stopped. Never the key and never the indicator. The limits are counted from it."""
 
@@ -1446,7 +1446,7 @@ class OutsideRequest(Base):
 
 
 class LlmState(Base):
-    """The LLM gateway's shared state (P5, D-086): budgets, cool-downs, breakers, the kill
+    """The LLM gateway's shared state: budgets, cool-downs, breakers, the kill
     switch, as JSON in one row."""
 
     __tablename__ = "llm_state"
@@ -1502,7 +1502,7 @@ SHADOW_TASKS = ("extract", "triage", "summary", "notes", "fallback")
 
 
 class LlmShadow(Base):
-    """A model's answer to a live item in shadow (Q-G2, plan §7.4): stored for the evaluation
+    """A model's answer to a live item in shadow: stored for the evaluation
     ladder, never shown (no page, no API, no grant to the web's role) and never revealed (the
     answer stays pseudonymized: the pseudonyms' values are not kept)."""
 
@@ -1562,7 +1562,7 @@ class LlmShadow(Base):
 
 
 class TuningReport(Base):
-    """A rule's weekly tuning report (P7, D-090): the numbers, and the suggestions drafted
+    """A rule's weekly tuning report: the numbers, and the suggestions drafted
     for a person (kept only with evidence). ARGUS never edits a rule."""
 
     __tablename__ = "tuning_reports"
@@ -1590,9 +1590,9 @@ class TuningReport(Base):
     )
 
 
-# --------------------------------------------------------------------------- cases (Q-C1)
-# Plan §7.1 and §7.9 (Phase 3): ARGUS's case record is the system of record; Kibana is a verified
-# mirror fed by an outbox. Words (DQ23): an *investigation* is one rule, actor and IST day; a
+# --------------------------------------------------------------------------- cases
+# ARGUS's case record is the system of record; Kibana is a verified
+# mirror fed by an outbox. Words: an *investigation* is one rule, actor and day; a
 # *case* is one real problem across days, hosts and rules; an *incident* is a confirmed case.
 CASE_STATES = ("suspected", "open", "assigned", "contained", "closed")
 CASE_SEVERITIES = ("low", "medium", "high", "critical")
@@ -1688,7 +1688,7 @@ class ChainHead(Base):
 
 
 class Case(Base):
-    """One real-world problem (plan §7.1): its state, owner and version. Every change raises
+    """One real-world problem: its state, owner and version. Every change raises
     ``version`` by one and writes exactly one ``case_events`` row with that version (a database
     trigger checks both, and a confirmed case closes only with a valid approval)."""
 
@@ -1798,7 +1798,7 @@ class Case(Base):
 
 
 class CaseMember(Base):
-    """An investigation in a case, and why (DQ4: a verdict, an actor, an indicator, a C2, a
+    """An investigation in a case, and why (a verdict, an actor, an indicator, a C2, a
     person; never model similarity). An investigation is in at most one case at a time."""
 
     __tablename__ = "case_members"
@@ -1837,7 +1837,7 @@ class CaseMember(Base):
 
 
 class CaseIndicator(Base):
-    """What links new activity to a case: its actors (campus hosts, users, attackers), its C2
+    """What links new activity to a case: its actors (internal hosts, users, attackers), its C2
     destinations and other indicators."""
 
     __tablename__ = "case_indicators"
@@ -1926,7 +1926,7 @@ class CaseEvent(Base):
 
 
 class CaseNote(Base):
-    """A person's note on a case: for people only, never sent to a model (plan Q-B3)."""
+    """A person's note on a case: for people only, never sent to a model."""
 
     __tablename__ = "case_notes"
 
@@ -1947,7 +1947,7 @@ class CaseNote(Base):
 
 
 class EntityNote(Base):
-    """A person's note on an IP, domain, host or user (D-025): for people only, never sent to a
+    """A person's note on an IP, domain, host or user: for people only, never sent to a
     model."""
 
     __tablename__ = "entity_notes"
@@ -1970,7 +1970,7 @@ class EntityNote(Base):
 
 
 class CaseOpening(Base):
-    """What the case opener (DQ4) decided for one true-positive verdict or proposal: once."""
+    """What the case opener decided for one true-positive verdict or proposal: once."""
 
     __tablename__ = "case_openings"
 
@@ -2003,15 +2003,13 @@ SUGGESTION_KINDS = ("shared", "tie", "also")
 
 
 class CaseWatchCheck(Base):
-    """One answer of the still-active watch (Q-C2, plan §7.1): was a case's activity seen on a
-    UTC day, by ARGUS's own alerts (``alerts``, local) or in the proxy logs (``proxy.contact``,
-    ``proxy.pair``; one request per member address and daily index). ``active``: activity was
-    seen; ``quiet``: none, and the zero is verified (the collector's coverage, or Q-F1's
-    verified zero for logs); ``unverified``: none seen but it cannot be vouched for (final for
-    that day); ``not_checked``: nothing was asked or the question did not finish (the reason is
-    shown, and the next run asks again). A row is decided once: only a ``not_checked`` row may
-    be replaced (a trigger holds it). ``requests`` counts SIEM requests sent for it on
-    ``asked_on`` (at most 6 a case a day)."""
+    """One answer of the still-active watch: was a case's activity seen on a UTC day, by ARGUS's
+    own alerts (``alerts``) or in the proxy logs (``proxy.contact``, ``proxy.pair``). ``active``:
+    seen; ``quiet``: none, and the zero is verified; ``unverified``: none seen but it cannot be
+    vouched for (final for that day); ``not_checked``: nothing was asked or it did not finish (the
+    next run asks again). A row is decided once: only a ``not_checked`` row may be replaced (a
+    trigger holds it). ``requests`` counts SIEM requests sent on ``asked_on`` (at most 6 a case a
+    day)."""
 
     __tablename__ = "case_watch_checks"
 
@@ -2059,7 +2057,7 @@ class CaseWatchCheck(Base):
 
 
 class CaseSuggestion(Base):
-    """An investigation that may belong to a case but is not joined (Q-C2, plan §5): its only
+    """An investigation that may belong to a case but is not joined: its only
     match is through a shared address or name (a content-delivery or cloud network, or a value
     in very many unrelated investigations: ``shared``), or it matches several cases equally
     (``tie``), or a case it matches is not the strongest it matches (``also``). A person joins
@@ -2108,9 +2106,9 @@ REMINDER_KINDS = ("notify_again", "network_action")
 
 
 class CaseNotice(Base):
-    """What a person recorded about a case whose device keeps alerting after a true positive
-    (AR4b, D-169): ``owner``: who was told (``told``: the owner, a department, a hostel, a lab),
-    when (``at``), how (``how``) and whether the machines are campus-managed; ``block``: who put
+    """What a person recorded about a case whose device keeps alerting after a true positive:
+    ``owner``: who was told (``told``: the owner, a department, a team),
+    when (``at``), how (``how``) and whether the machines are centrally managed; ``block``: who put
     a network-side block on the case's servers or domains (``told``), where (``how``: DNS,
     firewall, proxy) and when. Append-only; ``case_version`` is the case event that records it."""
 
@@ -2146,14 +2144,12 @@ class CaseNotice(Base):
 
 
 class CaseKnownMatch(Base):
-    """What ARGUS decided about one investigation of a notified case's device at one version of
-    it (AR4b, D-169, D-176): ``known`` (it belongs to the known infection, so it is counted and
-    kept out of Needs attention and the AI queue) or ``changed`` (something is new since the
-    notice; ``why`` says what, and it is in Needs attention). One row for each investigation,
-    replaced as the investigation gets a new version; removed with it by the retention purge.
-    A change is durable (0051, D-181): ``changed_version`` is the version at which it was decided,
-    and the row stays ``changed`` (its ``why`` kept, a later change adding its own) until a person
-    reviews a version at or after it."""
+    """What ARGUS decided about one investigation of a notified case's device at one version:
+    ``known`` (it belongs to the known infection: counted, and kept out of Needs attention and the
+    AI queue) or ``changed`` (something is new since the notice; ``why`` says what, and it is in
+    Needs attention). One row per investigation, replaced as it gets a new version; removed with it
+    by the retention purge. A change is durable: ``changed_version`` is when it was decided, and
+    the row stays ``changed`` until a person reviews a version at or after it."""
 
     __tablename__ = "case_known_matches"
 
@@ -2191,8 +2187,8 @@ class CaseKnownMatch(Base):
 
 class CaseKnownKey(Base):
     """A thing the known infection of a notified case already includes beyond the case's own
-    devices and indicators (AR4b, D-169): an evidence flag, a destination, a domain family, a
-    university service, the data volume (``bytes``), or the ``seed`` that says the first set was
+    devices and indicators: an evidence flag, a destination, a domain family, a service of the
+    organisation, the data volume (``bytes``), or the ``seed`` that says the first set was
     taken. ``source``: the notice, or a change that was raised once and is now known."""
 
     __tablename__ = "case_known_keys"
@@ -2215,7 +2211,7 @@ class CaseKnownKey(Base):
 
 
 class CaseReminder(Base):
-    """ARGUS's suggestion for a notified case that stays active (AR4b, D-169): notify the owner
+    """ARGUS's suggestion for a notified case that stays active: notify the owner
     again (7 days after the notice), or ask for network-side action (21 days). Shown on the case,
     never an alarm; one of each kind for a case; a person dismisses one."""
 
@@ -2247,10 +2243,10 @@ ACTION_STATES = ("recommended", "requested", "reported_done", "verified", "not_v
 
 
 class CaseAction(Base):
-    """What was advised, asked and done about a case (Q-H2, plan §7.7): one row for each
+    """What was advised, asked and done about a case: one row for each
     (case, catalogue action). ``recommended`` is ARGUS's advice; ``requested`` and
     ``reported_done`` are a person's (``user:<id>``; "done" is an attestation, ARGUS cannot see
-    the action and nothing is executed before Phase 6); ``verified`` and ``not_verified`` are
+    the action and nothing is executed by ARGUS); ``verified`` and ``not_verified`` are
     ARGUS's own answer from the still-active watch (``last_beat``: the newest sign of activity
     after the action). The guard trigger holds the edges, the identity of a row and what the
     web's login may write."""
@@ -2342,7 +2338,7 @@ class CaseAction(Base):
 
 
 class ApprovalRequest(Base):
-    """A closure, merge, compensating write or resend waiting for people (plan §7.1), bound to
+    """A closure, merge, compensating write or resend waiting for people, bound to
     the case and its version, the payload, the alert set (count and sha256 of the sorted ids,
     computed by the database from the members) and the Kibana version seen. Inserted
     only through ``argus_approval_request()`` (``argus_approvals`` may call it; ARGUS's runtime
@@ -2368,10 +2364,10 @@ class ApprovalRequest(Base):
     alert_digest: Mapped[str] = mapped_column(Text, nullable=False)
     kibana_version: Mapped[str | None] = mapped_column(Text)
     required_approvals: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    # a person's request, or ARGUS's own proposal or re-confirmation (``argus:<part>``, 0030)
+    # a person's request, or ARGUS's own proposal or re-confirmation (``argus:<part>``)
     requested_by_user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"))
     proposed_by: Mapped[str | None] = mapped_column(Text)
-    # the requester's live check when they asked (0030, review F2): one person behind two
+    # the requester's live check when they asked: one person behind two
     # accounts never approves their own request
     requester_check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     requested_at: Mapped[datetime] = mapped_column(
@@ -2438,7 +2434,7 @@ class ApprovalDecision(Base):
     decision: Mapped[str] = mapped_column(Text, nullable=False)
     capabilities: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
     stepped_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # 0030 (Q-C3): the web's live check of the approver, its signature over the decision
+    # the web's live check of the approver, its signature over the decision
     # (argus.cases.signing), and the group it approved with its sample
     identity_check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     signature: Mapped[str | None] = mapped_column(Text)
@@ -2468,9 +2464,9 @@ IDENTITY_PURPOSES = ("signin", "recheck", "stepup", "request", "approval", "send
 
 
 class IdentityCheck(Base):
-    """One check of a person against the identity source (plan §7.2; Q-E1's provider, a local
-    one before it): its outcome and what it showed. Append-only, inserted only through
-    ``argus_identity_record()`` and the decide function (0030). A denied check voids the
+    """One check of a person against the identity source: its outcome and what it showed.
+    Append-only, inserted only through
+    ``argus_identity_record()`` and the decide function. A denied check voids the
     person's earlier approvals; the newest good one dates their live check at send time."""
 
     __tablename__ = "identity_checks"
@@ -2495,7 +2491,7 @@ class IdentityCheck(Base):
 
 
 class KibanaOutboxItem(Base):
-    """A planned change to a case's Kibana mirror (plan §3 rule 1), committed with the case
+    """A planned change to a case's Kibana mirror, committed with the case
     change that caused it. Sent at most once without a person's approved resend; its state only
     moves along the outbox's edges (argus.cases.outbox, checked again by a trigger)."""
 
@@ -2564,7 +2560,7 @@ class KibanaOutboxItem(Base):
 
 class KibanaMirror(Base):
     """What ARGUS last read back of a case's Kibana mirror (written by the read-back and
-    reconciliation, Q-D3); ``unmanaged`` lists fields a person edited there, which ARGUS no
+    reconciliation); ``unmanaged`` lists fields a person edited there, which ARGUS no
     longer changes."""
 
     __tablename__ = "kibana_mirror"
@@ -2585,7 +2581,7 @@ class KibanaMirror(Base):
     kibana_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     read_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # 0034 (Q-D3): how many of the case's user actions were read, and why ARGUS's writes to
+    # how many of the case's user actions were read, and why ARGUS's writes to
     # the case are paused (a person changed ARGUS's tags or its settings); only the owner
     # lifts a pause (the trigger argus_mirror_resume_needs_owner)
     actions_seen: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -2593,7 +2589,7 @@ class KibanaMirror(Base):
         JSONB, nullable=False, server_default="{}"
     )
     paused_reason: Mapped[str | None] = mapped_column(Text)
-    # 0035: ARGUS's actions on the case that no sent write explained, by kind, already alarmed
+    # ARGUS's actions on the case that no sent write explained, by kind, already alarmed
     unexplained: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
 
     __table_args__ = (
@@ -2607,7 +2603,7 @@ SYNC_OUTCOMES = ("complete", "partial", "failed")
 FINDING_SEVERITIES = ("alarm", "attention", "info")
 FINDING_KINDS = (
     "person_edited",
-    "person_deleted",  # 0035
+    "person_deleted",
     "argus_tags_changed",
     "settings_changed",
     "person_commented",
@@ -2629,7 +2625,7 @@ FINDING_KINDS = (
 
 
 class KibanaSyncState(Base):
-    """The read-back's one row (Q-D3): where the change poll starts, the discovery's place in
+    """The read-back's one row: where the change poll starts, the discovery's place in
     the known alerts, Kibana's clock offset and the last cycles."""
 
     __tablename__ = "kibana_sync_state"
@@ -2642,7 +2638,7 @@ class KibanaSyncState(Base):
     last_discovery_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_closed_listing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     discovery_cursor: Mapped[str | None] = mapped_column(Text)
-    diff_cursor: Mapped[str | None] = mapped_column(Text)  # 0035: the alert-status diff's place
+    diff_cursor: Mapped[str | None] = mapped_column(Text)  # the alert-status diff's place
     alerts_checked_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     clock_offset_ms: Mapped[int | None] = mapped_column(Integer)
     clock_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -2654,7 +2650,7 @@ class KibanaSyncState(Base):
 
 
 class KibanaSyncCycle(Base):
-    """One read-back cycle (Q-D3): what it read, found and how it ended. Append-only for the
+    """One read-back cycle: what it read, found and how it ended. Append-only for the
     runtime (it may insert, never change)."""
 
     __tablename__ = "kibana_sync_cycles"
@@ -2682,9 +2678,9 @@ class KibanaSyncCycle(Base):
 
 
 class KibanaFinding(Base):
-    """What the reconciliation found (plan §7.1): an alarm, an item that needs a person, or a
+    """What the reconciliation found: an alarm, an item that needs a person, or a
     note. Each once (``dedupe_key``); the runtime may insert, never change one; a person
-    resolves it (Q-B3)."""
+    resolves it."""
 
     __tablename__ = "kibana_findings"
 
@@ -2711,7 +2707,7 @@ class KibanaFinding(Base):
 
 
 class KibanaAlertState(Base):
-    """An alert on one of ARGUS's cases as the last discovery saw it (Q-D3): a change is found
+    """An alert on one of ARGUS's cases as the last discovery saw it: a change is found
     by diffing statuses (Kibana's internal route records no user or time)."""
 
     __tablename__ = "kibana_alert_states"
@@ -2724,7 +2720,7 @@ class KibanaAlertState(Base):
 
 
 class KibanaPeopleCase(Base):
-    """A case people made in Kibana that holds alerts ARGUS knows (plan §7.1): shown read-only,
+    """A case people made in Kibana that holds alerts ARGUS knows: shown read-only,
     never adopted, never written to."""
 
     __tablename__ = "kibana_people_cases"
@@ -2754,7 +2750,7 @@ RUN_KINDS = ("canary", "ramp", "scheduled")
 
 
 class KibanaStep(Base):
-    """A write the case writer derives from an outbox row (Q-D4): the opening comment and the
+    """A write the case writer derives from an outbox row: the opening comment and the
     alert attachments of a created case, and the comment and change of an approved compensating
     write. Its states are the outbox's (``argus.cases.outbox``) except that a step is sent at
     most once and never resent: a lost one stays lost and is shown, never sent again."""
@@ -2808,7 +2804,7 @@ class KibanaStep(Base):
 
 
 class KibanaLookup(Base):
-    """One scheduled look for a write whose outcome is unknown (plan §7.1: at 2, 5, 15 and 30
+    """One scheduled look for a write whose outcome is unknown (at 2, 5, 15 and 30
     minutes), for an outbox row (``subject`` ``outbox``) or a step; the outcome is kept."""
 
     __tablename__ = "kibana_lookups"
@@ -2839,9 +2835,9 @@ class KibanaLookup(Base):
 
 
 class KibanaWriterRun(Base):
-    """One run of the case writer for one class (Q-D4): its kind (a canary or ramp step at the
+    """One run of the case writer for one class: its kind (a canary or ramp step at the
     terminal, or the service's schedule), its limit, what it sent and read back. The ramp reads
-    these (plan §7.1: a class moves up after at least 3 runs on 3 days with 100 % verified
+    these (a class moves up after at least 3 runs on 3 days with 100 % verified
     read-backs)."""
 
     __tablename__ = "kibana_writer_runs"
@@ -2892,8 +2888,8 @@ class KibanaWriterRamp(Base):
 
 
 class ActionLedgerEntry(Base):
-    """Every request ARGUS sends to change something outside it (brief §10; Kibana writes from
-    Q-D2): its outbox row, payload hash, approval, health and switches. Append-only; never a
+    """Every request ARGUS sends to change something outside it (Kibana writes): its outbox
+    row, payload hash, approval, health and switches. Append-only; never a
     DELETE (the method check)."""
 
     __tablename__ = "action_ledger"
@@ -2933,7 +2929,7 @@ class ActionLedgerEntry(Base):
     )
 
 
-# --------------------------------------------------------------------------- Q-F1 (0033)
+# --------------------------------------------------------------------------- freshness
 
 FRESHNESS_OUTCOMES = ("ok", "empty", "refused", "failed")
 FRESHNESS_VERDICTS = ("known_zero", "could_not_tell")
@@ -2941,7 +2937,7 @@ FRESHNESS_MODES = ("shadow", "on")
 
 
 class FreshnessReading(Base):
-    """One freshness-lane reading of a log source (Q-F1, plan §7.3): the newest document by
+    """One freshness-lane reading of a log source: the newest document by
     ingest time, or why there was none. Append-only for the runtime role."""
 
     __tablename__ = "freshness_readings"
@@ -2987,7 +2983,7 @@ class FreshnessWatermark(Base):
 
 
 class FreshnessShadow(Base):
-    """The verdict a log zero gets (Q-F1): in shadow, stored and never used or shown (no grant
+    """The verdict a log zero gets: in shadow, stored and never used or shown (no grant
     to the web's role); once switched on, also the record of each verified zero. One row per
     investigation version, pack and signal, replaced when the signal is derived again."""
 
@@ -3026,8 +3022,8 @@ class FreshnessShadow(Base):
 
 
 class FreshnessProposal(Base):
-    """A would-be proposal in the shadow (Q-F1): what an assessor would propose if the shadow's
-    verified zeros were used, beside what it proposed. Stored for the user's audit, never used
+    """A would-be proposal in the shadow: what an assessor would propose if the shadow's
+    verified zeros were used, beside what it proposed. Stored for the audit, never used
     or shown."""
 
     __tablename__ = "freshness_proposals"
@@ -3063,7 +3059,7 @@ CHECK_STATUSES = ("queued", "running", "done", "refused", "failed")
 
 
 class InvestigationCheck(Base):
-    """A deterministic wave or a person's "Check more" (Q-F3): the request, who wanted it, and
+    """A deterministic wave or a person's "Check more": the request, who wanted it, and
     what it came to. A queue and its record in one row, like an assessment: ``queued`` until the
     service claims it (``running``, with a lease), then ``done`` (``outcome`` holds the checks,
     their E-ids and server time), ``refused`` (a rule of the catalogue said no) or ``failed``.
@@ -3077,14 +3073,14 @@ class InvestigationCheck(Base):
         UUID(as_uuid=True), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    # the defaults are what a person's "Check more" is: the web's login inserts neither (0040)
+    # the defaults are what a person's "Check more" is: the web's login inserts neither
     kind: Mapped[str] = mapped_column(Text, nullable=False, server_default="check")
     source: Mapped[str] = mapped_column(Text, nullable=False, server_default="person")
     template: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     entity: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     requested_by: Mapped[str | None] = mapped_column(Text)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    # the server's own clock, which no one inserts: the daily limit of a person's checks (0040)
+    # the server's own clock, which no one inserts: the daily limit of a person's checks
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -3148,7 +3144,7 @@ NOTICE_KINDS = ("case_active", "after_closure", "closure_waiting", "ioc_hit", "o
 
 
 class Notice(Base):
-    """What the notices (Q-H4) remember about one subject, one occurrence of it: the kind, an
+    """What the notices remember about one subject, one occurrence of it: the kind, an
     opaque subject (a case's or an investigation's id, or a fixed word: never shown in a
     message), the severity and count now, when it was first and last seen, when it ended
     (``resolved_at``: a later occurrence is a new row), and the last notice that went out for it
@@ -3201,13 +3197,13 @@ class Notice(Base):
     )
 
 
-# --------------------------------------------------------------------------- Q-H3 (0046)
+# --------------------------------------------------------------------------- reports
 
 REPORT_KINDS = ("daily", "weekly")
 
 
 class ReportRecord(Base):
-    """A report the Reporter made (Q-H3): the numbers with their definitions, the deterministic
+    """A report the Reporter made: the numbers with their definitions, the deterministic
     text written from them and, only when the optional prose agent was on and its prose passed
     the number check, that prose. One row for each (kind, ``period_end``); never changed (the
     runtime role may insert and read, the web's role may read). A period is whole UTC days."""
@@ -3253,7 +3249,7 @@ INCIDENT_DECISIONS = ("confirmed", "rejected")
 
 
 class IncidentReport(Base):
-    """One version of a case's incident report (AR7, D-190): the structured object ARGUS writes
+    """One version of a case's incident report: the structured object ARGUS writes
     for a suggested or open case (``body``, ``incident-report@1``), written whole and never
     changed. When the case's evidence changes ARGUS writes the next version; the versions are
     kept. ``content_hash`` is the hash of what the report says, without when it was made and
@@ -3269,7 +3265,7 @@ class IncidentReport(Base):
     schema_version: Mapped[str] = mapped_column(Text, nullable=False)
     writer: Mapped[str] = mapped_column(Text, nullable=False)
     content_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    core_hash: Mapped[str | None] = mapped_column(Text)  # 0057: the hash without the accounts
+    core_hash: Mapped[str | None] = mapped_column(Text)  # the hash without the accounts
     case_version: Mapped[int] = mapped_column(Integer, nullable=False)
     verdict_outcome: Mapped[str | None] = mapped_column(Text)
     verdict_confidence: Mapped[float | None] = mapped_column(Double)
@@ -3306,7 +3302,7 @@ class IncidentReport(Base):
 
 
 class IncidentReportDecision(Base):
-    """What a person said about a version of a report (AR7): ``confirmed`` or ``rejected`` (with
+    """What a person said about a version of a report: ``confirmed`` or ``rejected`` (with
     a reason and the outcome they hold instead). The labels written from it (reviews of the case's
     investigations, through the existing review path) are named in ``review_ids``. Append-only;
     the newest decision of a version counts."""
@@ -3383,7 +3379,7 @@ CASE_TEAM_SEEN_STATUS = ("recorded", "ignored", "unmatched", "needs_reason", "re
 
 
 class CaseTeamPost(Base):
-    """The Kibana incident case ARGUS's case team posted for an ARGUS case (AR8, D-195): one row
+    """The Kibana incident case ARGUS's case team posted for an ARGUS case: one row
     for each case, made when its first sequence is planned. ``kibana_case_id`` is set once the
     lead's create is read back; ``last_version`` is the report version the newest finished
     generation posted. Written by the writer's login."""
@@ -3478,7 +3474,7 @@ class CaseTeamStep(Base):
 
 
 class CaseTeamApproval(Base):
-    """A person's approval of one case's first sequence (the canary, AR8): it binds the plan's
+    """A person's approval of one case's first sequence (the canary): it binds the plan's
     hash, so a plan that changed needs a new one. ``signature`` is the web's HMAC over
     ``statement`` (the approval key of the closures). Append-only."""
 
@@ -3510,7 +3506,7 @@ class CaseTeamApproval(Base):
 
 
 class CaseTeamSeen(Base):
-    """A person's ``Verdict:`` comment on a posted case, read once (AR8): what it said, who wrote
+    """A person's ``Verdict:`` comment on a posted case, read once: what it said, who wrote
     it and what ARGUS did (``recorded``: a label through the review path; ``ignored``,
     ``unmatched``: the author is no known ARGUS person; ``needs_reason``; ``refused``).
     Append-only; the same comment text is never read twice."""
@@ -3519,7 +3515,7 @@ class CaseTeamSeen(Base):
 
     kibana_comment_id: Mapped[str] = mapped_column(Text, primary_key=True)
     text_hash: Mapped[str] = mapped_column(Text, primary_key=True)
-    status: Mapped[str] = mapped_column(Text, primary_key=True)  # 0054: unmatched, then decided
+    status: Mapped[str] = mapped_column(Text, primary_key=True)  # unmatched, then decided
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("case_team_posts.case_id"), nullable=False
     )
@@ -3527,7 +3523,7 @@ class CaseTeamSeen(Base):
     written_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     verdict: Mapped[str | None] = mapped_column(Text)
     detail: Mapped[str | None] = mapped_column(Text)
-    counts: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # 0054: what the review did
+    counts: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # what the review did
     user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"))
     review_ids: Mapped[list[int]] = mapped_column(
         ARRAY(BigInteger), server_default=text("'{}'::bigint[]"), nullable=False
@@ -3547,7 +3543,7 @@ class CaseTeamSeen(Base):
 
 
 class CaseTeamLook(Base):
-    """When the case team's poster last looked at a case (0054): it picks its candidates in SQL
+    """When the case team's poster last looked at a case: it picks its candidates in SQL
     and rotates through them by this time, so a case at the back of a long list is reached.
     Written by the writer's login."""
 
@@ -3564,7 +3560,7 @@ class CaseTeamLook(Base):
 
 
 class CaseTeamRead(Base):
-    """What the Kibana case looked like at the last read of its comments (0054): its
+    """What the Kibana case looked like at the last read of its comments: its
     ``updated_at`` and comment count. The sync reads a posted case's comments again only when
     either changed. Written by the runtime login (the sync's pass)."""
 
@@ -3589,9 +3585,9 @@ SIGNIN_REASONS = (
 
 
 class SigninSighting(Base):
-    """One account's SSO sign-ins from one internal address on one UTC day (AR6, D-216, 0056).
+    """One account's SSO sign-ins from one internal address on one UTC day.
     The user name is personal data: shown only to people with log access, never given to a model.
-    Not derived from grouping: the logs last five days at the SIEM and this copy stays."""
+    Not derived from grouping: the SIEM's logs expire and this copy stays."""
 
     __tablename__ = "signin_sightings"
 
@@ -3619,7 +3615,7 @@ class SigninSighting(Base):
             name="counts_valid",
         ),
         CheckConstraint(
-            "cardinality(hours) >= 1 AND cardinality(hours) <= 24"  # flat: D-234
+            "cardinality(hours) >= 1 AND cardinality(hours) <= 24"  # a flat check: no subquery
             " AND hours <@ ARRAY[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]"
             "::smallint[]",
             name="hours_valid",
@@ -3633,8 +3629,8 @@ class SigninSighting(Base):
 
 
 class SigninLookup(Base):
-    """That ARGUS asked about an address on a UTC day, when, and whether the answer was whole
-    (AR6, D-216, 0056): "looked, none seen", "not looked yet", "incomplete" and "logs no longer
+    """That ARGUS asked about an address on a UTC day, when, and whether the answer was whole:
+    "looked, none seen", "not looked yet", "incomplete" and "logs no longer
     kept" are different things."""
 
     __tablename__ = "signin_lookups"
@@ -3646,7 +3642,7 @@ class SigninLookup(Base):
     accounts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     more_accounts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     reason: Mapped[str | None] = mapped_column(Text)
-    unnamed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")  # 0057
+    unnamed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     store_failures: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")
 
     __table_args__ = (

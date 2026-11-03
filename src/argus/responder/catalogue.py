@@ -1,20 +1,9 @@
-"""``config/actions.yaml``: the actions ARGUS may advise (Q-H2, plan §7.7), strictly loaded.
-
-A **family** is a kind of true-positive incident the packs can tell apart (``when``: facts from
-:data:`argus.responder.facts.FACTS`); each has **actions** with an owner role, plain words for
-RAs and TAs, and how a person's "done" can be checked, or why it cannot be in Phase 3.
-
-* Unknown keys, a duplicate key, an unknown owner or fact, a rank used twice, a fact no family
-  uses (a signal the packs establish must have its advice), an id or version the table cannot
-  hold, text outside a short allow-list (letters, digits, spaces and basic punctuation: no link,
-  markup, flag or command) and any verifier that is not a read are refused, with the reason.
-* A verifier names a registered *read* template (:data:`VERIFIERS`: a search of the proxy or web
-  logs, which the gateway sends as ``POST _search`` and nothing else), ARGUS's own stored
-  alerts (``local: alerts``), or says ``not_verifiable`` with the reason. A catalogue entry
-  holds no URL, method, body or command: it cannot name a write, and nothing here sends a
-  request. The watch (Q-C2) and the evidence ledger already hold the answers; verification
-  reads them from the database (:mod:`argus.responder.machine`).
-"""
+"""``config/actions.yaml``: the actions ARGUS may advise, strictly loaded. A **family** is a kind
+of true-positive incident the packs can tell apart (``when``: facts from
+:data:`argus.responder.facts.FACTS`) with **actions**: an owner role, plain words for analysts and
+how a person's "done" can be checked (a registered *read* template, ARGUS's own alerts, or
+``not_verifiable`` with the reason). Unknown keys or facts, text outside a short allow-list and
+any verifier that is not a read are refused; an entry holds no URL, method, body or command."""
 
 from __future__ import annotations
 

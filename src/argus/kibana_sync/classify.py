@@ -1,25 +1,13 @@
-"""The reconciliation (plan §7.1's table, DQ7 (a)): what ARGUS sees in Kibana and what it does.
-Pure: records in, the mirror's new state and findings out.
+"""The reconciliation: what ARGUS sees in Kibana and what it does. Pure: records in, the mirror's
+new state and findings out.
 
-- its own write (a user action by ``argus``, or by one of the case team's users on the case it
-  opened, P4-B1): explained by a sent outbox row or case-team step of its kind (and, for the
-  team, of its author); else an alarm, and every write class pauses;
-- a person edits content (title, description, severity, ...) or their own tags: kept; ARGUS
-  stops managing that field (``unmanaged``);
-- a person changes ``argus:*`` tags or the settings (Sync alerts): recorded; ARGUS's writes to
-  the case pause; Needs attention;
-- a person comments: kept as untrusted text, never an attestation or model input;
-- a person closes or reopens the case: an item to confirm in ARGUS, never reverted;
-- a person deletes it: "Deleted in Kibana" (the id-set diff, confirmed by a get);
-- a case of ``argus`` with no ARGUS case or no sent create: an alarm; every write class pauses;
-  a case of the case team's with no post or no sent open step: the same (:func:`adopt_team`);
-- two Kibana cases for one ARGUS case: flagged, never deleted by ARGUS;
-- an alert change ARGUS cannot explain (no person in ``workflow_user``, no WA row, no person's
-  change on a case with Sync alerts on since the alert was last seen): an alarm; writers pause;
-- alerts closed by a person: a human signal, never a review, never reverted.
-
-People always win (DQ7 (a)): nothing here plans a write to Kibana.
-"""
+ARGUS's own write must be explained by a sent outbox row or case-team step of its kind, else an
+alarm and every write class pauses. A person's edit of content or their own tags is kept (ARGUS
+stops managing that field); a change of ``argus:*`` tags or Sync alerts pauses ARGUS's writes to
+the case; a comment is kept as untrusted text; a close or reopen is an item to confirm, never
+reverted; a deletion is "Deleted in Kibana". A case of ARGUS's with no ARGUS case or sent create
+is an alarm; two Kibana cases for one ARGUS case are flagged, never deleted; an alert change
+ARGUS cannot explain is an alarm. People always win: nothing here plans a write to Kibana."""
 
 from __future__ import annotations
 
@@ -46,7 +34,7 @@ from argus.kibana_sync.model import (
 
 # The kinds of ARGUS's own user actions, and which sent writes explain them.
 # create_case <- a sent create; a user comment <- a sent comment; an alert attachment <- a
-# sent attach (Q-D4); a status, severity or tags change <- a sent update or close that changes
+# sent attach; a status, severity or tags change <- a sent update or close that changes
 # that field. Kibana records a PATCH that adds and removes tags as up to two tags actions.
 FIELD_OF_ACTION = {"status": "status", "severity": "severity", "tags": "argus_tags"}
 PER_SEND = {"tags": 2}
@@ -68,13 +56,13 @@ CONTENT = frozenset(
 # A case that the user actions do not explain (a status or tag the actions never show, or a
 # change moments ago whose user action may not be searchable yet: Kibana writes the case and
 # its user action separately) keeps its old version, so it is read again; one hour later the
-# read gives up with a finding rather than read for ever (review D3-R3).
+# read gives up with a finding rather than read for ever.
 GIVE_UP = timedelta(hours=1)
 # A change dated further ahead of Kibana's clock than this is not "moments ago" (the clock
 # alarm is 30 s): the case is not held for it.
 AHEAD = timedelta(hours=1)
 # Elasticsearch's daily index creation and ILM deletes (the SIEM's quiet hours): no discovery
-# search and no closed listing then (review D3-R11); the cheap change poll goes on.
+# search and no closed listing then; the cheap change poll goes on.
 
 
 def quiet_hours(at: datetime) -> bool:
@@ -96,7 +84,7 @@ def action_kind(action: KAction) -> str:
     return action.type
 
 
-# The case team's edits in place (D-241): a retitle is Kibana's ``title`` action, a redescribe its
+# The case team's edits in place: a retitle is Kibana's ``title`` action, a redescribe its
 # ``description`` action, a comment edit a ``comment`` action with the verb ``update``.
 TEAM_EDITS = {"title": "title", "description": "description", "edit_comment": "edit_comment"}
 
@@ -137,7 +125,7 @@ def _is_argus_tag(tag: object) -> bool:
 class CaseOutcome:
     mirror: Mirror
     findings: tuple[Finding, ...]
-    pause_all: bool  # an alarm: every write class pauses (plan §7.1)
+    pause_all: bool  # an alarm: every write class pauses
 
 
 def lag_seconds(action: KAction, kibana_now: datetime) -> int:
@@ -415,7 +403,7 @@ def adopt(
 def adopt_team(
     case: KCase, *, posts: Sequence[TeamPost], mirrored: Mapping[uuid.UUID, str]
 ) -> Adoption:
-    """A case one of the case team's users made that ARGUS has no mirror of (P4-B1). The team's
+    """A case one of the case team's users made that ARGUS has no mirror of. The team's
     cases carry no ``argus:case:<uuid>`` tag: the post is found by the Kibana id the poster
     recorded or, before it recorded one (the create landed, the run ended), by the incident ID
     among the case's tags with an open step that was sent. A case that matches no post is an
@@ -511,18 +499,18 @@ def classify_alerts(
     slack: timedelta = timedelta(0),
 ) -> AlertOutcome:
     """Status changes of the alerts on ARGUS's cases, by **diffing each alert's status**
-    against the one kept at the last discovery (Q-D1's finding #7: Kibana's internal alert
+    against the one kept at the last discovery (Kibana's internal alert
     route records neither ``workflow_user`` nor ``workflow_status_updated_at``, so neither
     field can be relied on). A change with a person in ``workflow_user`` and a newer
     ``workflow_status_updated_at`` is a human signal, never a review; one ARGUS's write-back
-    sent (``explained``) is quiet; any other is an alarm (possible use of the internal route,
-    plan §2): writers pause. An alert seen for the first time only sets its baseline.
+    sent (``explained``) is quiet; any other is an alarm (possible use of the internal route):
+    writers pause. An alert seen for the first time only sets its baseline.
 
     ``synced``: the ARGUS cases (Kibana ids) with Sync alerts on, with when they last changed:
     Kibana's own sync moves their alerts when a person closes, reopens or fills the case (and
     records no person on the alert), so a change on an alert of such a case, made after the
-    alert was last seen (less ``slack``), is a person's and is quiet (§7.1's third exclusion:
-    "no person's change on a synced case")."""
+    alert was last seen (less ``slack``), is a person's and is quiet (it is no unexplained
+    change)."""
     findings: list[Finding] = []
     states: list[AlertState] = []
     pause = False
@@ -571,9 +559,6 @@ def _synced_change(
     if not synced:
         return False
     return any(case in synced and synced[case] >= before.seen_at - slack for case in link.case_ids)
-
-
-# --------------------------------------------------------------------------- timing
 
 
 @dataclass(frozen=True)

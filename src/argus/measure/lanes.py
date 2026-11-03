@@ -1,21 +1,12 @@
-"""The lanes' allowances from what was measured (Q-A3, plan §7.8, DQ21 (a) under D-110).
+"""The lanes' allowances from what was measured.
 
-**The derivation rule.** For each lane and each of its templates, the p95 of the template's
-server time (``took``, from at least 3 answered requests in the ledger) times the template's
-planned rate, summed over the lane, must fit the lane's share of the headroom: per minute (the
-busiest minute's rate) and per day (the busiest full day's rate); the lane's heavy requests a
-day must fit its heavy share. A lane with a template of fewer than 3 samples, or with no planned
-rate at all, keeps §7.8's proposal and is reported as not measured, unless its measured
-templates alone already put it over: then it is over (more samples could only add demand).
-
-**The headroom** is D-022's ceiling (3 s a minute, 60 min a day, 2,000 heavy a day), lowered and
-never raised by the probe readings: ARGUS may use at most ``spare_share`` (2 %) of the core time
-the SIEM leaves unused at its 95th-percentile one-minute load. Raising the ceiling is the user's
-decision (D-109 keeps D-022's budget), so the rule only proposes; a lowered headroom shrinks
-every lane in proportion.
-
-The planned rate is the observed one (the ledger since the hardware change, the session's own
-requests left out) unless a plan file says more. Pure: rows in, results out.
+For each lane and template, the p95 of the template's server time (from at least 3 answered
+requests) times its planned rate, summed over the lane, must fit the lane's share of the headroom
+per minute and per day (heavy requests against its heavy share). A lane with a template of fewer
+than 3 samples keeps its proposed allowance and is reported as not measured, unless its measured
+templates alone put it over. The headroom is the ceiling, lowered (never raised) by the probe
+readings: ARGUS may use at most ``spare_share`` of the core time the SIEM leaves unused. The rule
+only proposes; raising the ceiling is the operator's decision. Pure: rows in, results out.
 """
 
 from __future__ import annotations
@@ -59,7 +50,7 @@ def _lane(
     return Lane(name, label, minute, minutes * MINUTE_MS, heavy, frozenset(components))
 
 
-# Plan §7.8's proposals: they add up to D-022's ceiling (a test keeps them so).
+# The proposed allowances: they add up to the ceiling (a test keeps them so).
 LANES = (
     _lane(
         "collector",
@@ -78,7 +69,7 @@ LANES = (
     _lane("identity", "Identity", 200, 2, None, "identity"),
     _lane("measurement", "Measurement and reserve", 0, 2, 100, MEASURE_COMPONENT),
 )
-OUTSIDE = frozenset({"probe", "selftest", "gateway"})  # probes: outside the bucket (§7.8)
+OUTSIDE = frozenset({"probe", "selftest", "gateway"})  # probes: outside the bucket
 
 
 def nearest_rank(values: Sequence[float], q: float) -> float:
@@ -176,7 +167,7 @@ def apply_plan(rates: Sequence[Rate], plan: Mapping[str, Any]) -> list[Rate]:
     """A plan file's rates replace (or add to) the observed ones: ``{lane: {template:
     {"per_minute": n, "per_day": n}}}``; a plan never lowers an observed rate. Only templates
     ARGUS has (and no probe: probes are outside the bucket), so a typo cannot hide a lane's
-    demand (review F5)."""
+    demand."""
     if not isinstance(plan, Mapping):
         raise ValueError("the plan is a mapping of lanes to templates")
     known = {lane.name for lane in LANES}
@@ -224,7 +215,7 @@ class Headroom:
 
     @property
     def factor(self) -> float:
-        """The share of D-022's ceiling the headroom leaves (at most 1)."""
+        """The share of the ceiling the headroom leaves (at most 1)."""
         return self.minute_ms / self.ceiling.minute_ms
 
 
@@ -236,7 +227,7 @@ def headroom(
     spare_share: float = 0.02,
     min_readings: int = MIN_SAMPLES,
 ) -> Headroom:
-    """D-022's ceiling, or less when the SIEM is busier: ``spare_share`` of the core time left
+    """The ceiling, or less when the SIEM is busier: ``spare_share`` of the core time left
     unused at the p95 load of the good probe readings. Too few readings: the ceiling, marked
     not measured."""
     if cores < 1 or not 0 < spare_share <= 1:
@@ -307,7 +298,7 @@ def derive(
             if not enough(rate)
         ]
         # what the measured templates alone need: a lower bound when some are short, so a
-        # lane they already put over stays over (review F5)
+        # lane they already put over stays over
         measured = [r for r in mine if enough(r)]
         demand_minute = sum(stats[r.template].p95_ms * r.per_minute for r in measured)
         demand_day = sum(stats[r.template].p95_ms * r.per_day for r in measured)
@@ -392,7 +383,7 @@ def report_lines(
 def decision_draft(
     results: Sequence[LaneResult], room: Headroom, since: datetime, until: datetime
 ) -> str:
-    """The DECISIONS entry's text for the lead to number and record (never written here)."""
+    """The text of a decision record for the operator to number and keep (never written here)."""
     rows = "\n".join(
         f"| {r.lane.label} | {r.minute_ms:,} ms | {r.day_ms / MINUTE_MS:g} min |"
         f" {'—' if r.heavy_day is None else f'{r.heavy_day:,}'} | {r.verdict} |"
@@ -472,5 +463,5 @@ def to_json(
     }
 
 
-HARDWARE_CHANGE = datetime.fromisoformat("2026-10-12T00:00:00+00:00")  # 16 cores since then
+HARDWARE_CHANGE = datetime.fromisoformat("2026-10-12T00:00:00+00:00")  # older rows: other hardware
 DEFAULT_SPAN = timedelta(days=7)

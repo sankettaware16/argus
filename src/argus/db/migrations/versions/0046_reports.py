@@ -1,18 +1,10 @@
-"""The Reporter's history (Q-H3, plan §5 and §7.7).
+"""The Reporter's history.
 
-``reports`` holds one row for each (kind, period): the numbers (``numbers``, every figure with
-its definition), the deterministic text written from them (``text``) and, only when the optional
-prose agent is switched on and its prose passed the number check, that prose (``prose``). A
-period is a whole UTC day (``daily``) or seven whole UTC days (``weekly``), ending at
-``period_end`` (exclusive); the CHECKs hold the shape and tie the kind and the period named in
-``numbers`` to the columns, so a report cannot claim another kind or period. ``generated_at`` is
-the database's clock (``now()``): the runtime cannot set it.
-
-A report is a record, not a view: ``argus_runtime`` may INSERT and SELECT (no UPDATE, no DELETE),
-so a report that was made stays as it was, and a second run for the same period is refused by the
-unique key (the CLI says "already made"). The web's role reads it (SELECT) and writes nothing.
-
-The role names are written out, not imported (see 0003).
+``reports`` holds one row for each (kind, period): the numbers with their definitions, the
+deterministic text written from them and, only when the optional prose agent is on and its prose
+passed the number check, that prose. A period is one or seven whole UTC days ending at
+``period_end``. A report is a record: the runtime may INSERT and SELECT only, ``generated_at`` is
+the database's clock, and a second run for the same period is refused by the unique key.
 
 Revision ID: 0046
 Revises: 0045
@@ -26,7 +18,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0046"
-down_revision: str | None = "0045"  # Q-D5's 0045_alert_writeback publishes first
+down_revision: str | None = "0045"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

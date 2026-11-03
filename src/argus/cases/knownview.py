@@ -1,15 +1,9 @@
-"""What the pages, the API and the reports say about notified cases (AR4b, D-169 points 4, 5 and 8):
-read-only. A notified case is "still active, N alerts in D days since notice" (or, once a block is
-recorded, "blocked at the network; the device is still infected; owner notified on <date>"), with
-its alerts a day, the notices and blocks a person recorded, the reminders ARGUS suggested that
-nobody has answered, and the changes since the notice that nobody has looked at.
-
-The alerts counted are those of the case's member investigations that came after the notice: the
-known infection's investigations join the case silently (:mod:`argus.cases.knownrun`), so this is
-the count of what ARGUS did not raise. The days are IST days, as the rest of the reports. A change
-stays in the list until a person reviews it (D-181), and the destinations the case's devices
-reached that nobody flags and the case did not hold are listed as new since the notice.
-"""
+"""What the pages, the API and the reports say about notified cases: read-only. A notified case is
+"still active, N alerts in D days since notice" (or "blocked at the network; the device is still
+infected"), with its alerts a day, the notices and blocks a person recorded, unanswered reminders
+and the changes nobody has looked at. The alerts counted are those that came after the notice and
+joined silently, so this is what ARGUS did not raise; destinations nobody flags and the case did not
+hold are listed as new. The days are the site's days."""
 
 from __future__ import annotations
 
@@ -67,7 +61,7 @@ class ChangeRow:
 @dataclass(frozen=True)
 class NewDestination:
     """A destination a notified device reached after the notice that nobody flags and the case did
-    not hold (D-181): counted, not raised."""
+    not hold: counted, not raised."""
 
     kind: str
     value: str
@@ -83,13 +77,13 @@ class KnownCase:
     severity: str
     notified_at: datetime
     blocked_at: datetime | None
-    managed: bool | None  # the first notice's word: the machines are campus-managed
+    managed: bool | None  # the first notice's word: the machines are organisation-managed
     devices: int
     owner_notices: int
     blocks: int
     alerts: int  # since the notice
     days: int  # whole days since the notice, at least 1
-    per_day: dict[str, int] = field(default_factory=dict)  # IST day -> alerts, since the notice
+    per_day: dict[str, int] = field(default_factory=dict)  # local day -> alerts, since the notice
     last_alert_at: datetime | None = None
     reminders: tuple[ReminderRow, ...] = ()  # suggested, not answered
     changes: tuple[ChangeRow, ...] = ()  # raised since the notice, not reviewed

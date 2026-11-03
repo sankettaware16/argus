@@ -1,4 +1,4 @@
-"""The gold set (P2, D-080): frozen items and a person's answers (append-only)
+"""The gold set: frozen items and a person's answers (append-only)
 
 Revision ID: 0016
 Revises: 0015

@@ -1,4 +1,4 @@
-"""``argus tune ...``: the weekly rule-tuning reports (P7, D-090)."""
+"""``argus tune ...``: the weekly rule-tuning reports."""
 
 from __future__ import annotations
 

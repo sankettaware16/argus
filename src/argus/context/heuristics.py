@@ -1,4 +1,4 @@
-"""Proxy heuristics of the generic pack (R14, D-060), from the stored alerts only: what kind
+"""Proxy heuristics of the generic pack, from the stored alerts only: what kind
 of port a host used, how its requests were denied, and whether one address looks like many
 users behind a NAT. Hints for a person, stated as such; never a verdict."""
 
@@ -39,7 +39,7 @@ def _shown(fact: Mapping[str, Any], complete: bool) -> str:
 
 
 def context(fields: Mapping[str, Any], complete: bool = True) -> dict[str, Any]:
-    """Only the fields the alerts have: an absent field is not a zero (D-023)."""
+    """Only the fields the alerts have: an absent field is not a zero."""
     out: dict[str, Any] = {}
     if "destination.port" in fields:
         fact = fields["destination.port"]

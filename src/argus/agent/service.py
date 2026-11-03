@@ -1,6 +1,6 @@
-"""Wiring the agent to a running ARGUS (P6): its evidence goes through the worker's own
-evidence step (idempotent, stored, inside the Elastic gateway's budget and health), with no
-job claim and never a dossier."""
+"""Wiring the agent to a running ARGUS: its evidence goes through the worker's own evidence
+step (idempotent, stored, inside the Elastic gateway's budget and health), with no job claim
+and never a dossier."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def evidence(
         task = {**spec.ref(), "mode": "collect"}
         try:
             return await graph.evidence_step(ctx, inv, version, task)
-        except SourceUnavailable as exc:  # unknown, never negative (D-023): nothing stored
+        except SourceUnavailable as exc:  # unknown, never negative: nothing stored
             return {
                 "task_key": task["task_key"],
                 "template": f"{task['template']}@{task['version']}",

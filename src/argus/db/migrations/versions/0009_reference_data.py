@@ -1,7 +1,5 @@
 """Reference data: rules registry, threat-intel mirror and lookup cache, knowledge store
 
-R9 (D-057).
-
 Revision ID: 0009
 Revises: 0008
 Create Date: 2026-10-13 14:06:30.007106

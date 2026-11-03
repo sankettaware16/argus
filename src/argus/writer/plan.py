@@ -1,19 +1,11 @@
-"""What to send for an outbox row, given what Kibana holds now (plan §7.1): pure.
+"""What to send for an outbox row, given what Kibana holds now: pure.
 
-The planner never trusts the row alone and never overwrites a person:
-
-* the row's payload must still have its hash (else the row is tampered with: nothing is sent);
-* the Kibana case is re-read first; it must be a case ARGUS made (``created_by``), not paused,
-  not deleted, and, for a status change or an attach, with Sync alerts off (else nothing is sent
-  and the case needs attention);
-* a PATCH sends the latest version, keeps every tag a person added, and leaves alone a field a
-  person edited (the mirror's ``unmanaged``, or a value that is neither one ARGUS has seen or
-  set nor the one it sets: an edit the read-back has not polled yet) and a status a person
-  changed in Kibana (it is neither the status ARGUS expects nor the one it sets);
-* what is already as planned is skipped, not sent again.
-
-The result is a request for the Kibana lane's strict templates, or a reason for not sending.
-"""
+The planner never trusts the row alone and never overwrites a person: the payload must still have
+its hash; the Kibana case is re-read first and must be one ARGUS made, not paused or deleted, and
+with Sync alerts off for a status change or an attach; a PATCH sends the latest version, keeps every
+tag a person added and leaves alone a field or status a person changed; what is already as planned
+is skipped. The result is a request for the Kibana lane's strict templates, or a reason for not
+sending."""
 
 from __future__ import annotations
 
@@ -354,9 +346,6 @@ def _plan_close(
     return Send(CloseCase(), patch, {"status": "closed", "tags": frozenset(tags)})
 
 
-# --------------------------------------------------------------------------- attachments
-
-
 @dataclass(frozen=True, order=True)
 class AlertRef:
     """An alert with its concrete index, and when it happened (for the order)."""
@@ -370,7 +359,7 @@ def representatives(
     groups: Mapping[uuid.UUID, Sequence[AlertRef]], cap: int = MAX_ATTACHED
 ) -> list[AlertRef]:
     """The alerts a case attaches: the first and the latest of each investigation (one rule,
-    actor and IST day), each with its concrete index, in the order of their investigations'
+    actor and local day), each with its concrete index, in the order of their investigations'
     first alerts, at most ``cap``. An alert without a usable index is left out."""
     picked: list[tuple[AlertRef, AlertRef | None]] = []
     for group in groups.values():

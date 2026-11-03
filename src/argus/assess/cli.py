@@ -1,4 +1,4 @@
-"""``argus assess ...``: queue and run assessments (P3), the decision engine (P4)."""
+"""``argus assess ...``: queue and run assessments, the decision engine."""
 
 from __future__ import annotations
 
@@ -50,51 +50,47 @@ def assess_run(
     once: Annotated[bool, typer.Option(help="One pass, then stop.")] = False,
     every: Annotated[int, typer.Option(help="Seconds between passes.")] = 300,
     agent: Annotated[
-        bool, typer.Option(help="Also run the investigation agent (P6) after the engine.")
+        bool, typer.Option(help="Also run the investigation agent after the engine.")
     ] = False,
     agent_per_day: Annotated[
         int, typer.Option(min=0, help="At most this many agent runs (patterns) a day.")
     ] = 100,
     agent_batch: Annotated[int, typer.Option(min=1, help="Agent runs per pass.")] = 3,
     tuning: Annotated[
-        bool, typer.Option(help="Also write the weekly rule-tuning reports (P7).")
+        bool, typer.Option(help="Also write the weekly rule-tuning reports.")
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """Queue what needs assessing and assess it with the decision engine, forever (a
-    service) or once. The engine relearns its keys every pass. Each pass also reads the evidence
-    of new dossiers and raises the flagged ones into Needs attention (AR2b), and every 15 minutes
-    suggests cases from evidence across investigations (AR2b; ``cases.suggest``). With a VirusTotal
-    key (``ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY``) it also looks up the outside destinations of
-    beacon-flagged investigations, a few a pass within a daily budget, and raises those VirusTotal
-    flags (AR3, D-165). Each pass also writes the incident report of each suggested or open case
-    whose evidence changed (AR7, ``incident.*``: a few a pass; a failure is said and never stops
-    the pass; the summary's prose only with ``incident.prose``). With --agent,
-    what the engine cannot decide goes to the investigation agent once per pattern (the Patterns
-    page's key, per rule and site day; raised ones first, then the newest and most severe), within
-    a daily quota of patterns; the run is shown on the pattern's other investigations (AR2). The
-    agent's files are checked every pass (Q-H1): while they are refused the agent is off, with a
-    warning, and the engine keeps running; what waits for the agent stays queued."""
+    """Queue what needs assessing and assess it with the decision engine, forever (a service) or
+    once. The engine relearns its keys every pass. Each pass also reads the evidence of new
+    dossiers and raises the flagged ones into Needs attention, and every 15 minutes suggests cases
+    from evidence across investigations (``cases.suggest``). With a VirusTotal key
+    (``ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY``) it also looks up the outside destinations of
+    beacon-flagged investigations within a daily budget, and writes the incident report of each
+    suggested or open case whose evidence changed (``incident.*``). With --agent, what the engine
+    cannot decide goes to the investigation agent once per pattern, within a daily quota; the
+    agent's files are checked every pass, and while they are refused the agent is off and the
+    engine keeps running."""
     settings = load(config)
     privacy = _privacy(settings)
     owner = f"{socket.gethostname()}:{os.getpid()}"
 
     async def loop() -> None:
         db = engine_for(settings)
-        outside, shared, close_outside = raising.outside_for(settings, privacy, db)  # AR3, D-165
+        outside, shared, close_outside = raising.outside_for(settings, privacy, db)
         investigator, close = (None, None)
-        incident_prose: Any = None  # the summary's prose for the incident reports (AR7), when on
+        incident_prose: Any = None  # the summary's prose for the incident reports, when on
         close_prose: Any = None
         prose_off = False  # the gateway could not be built: not tried again this run
         off: str | None = None  # why the agent is off, as last said
         suggested_at: datetime | None = None  # when cases were last suggested
-        titled_at: datetime | None = None  # when the case titles were last refreshed (D-230)
+        titled_at: datetime | None = None  # when the case titles were last refreshed
         titles = raising.titles_for(settings, privacy)
-        deep = await _investigation(settings, privacy, db)  # the wave and "Check more" (Q-F3)
+        deep = await _investigation(settings, privacy, db)  # the wave and "Check more"
         classifier = getattr(privacy, "classifier", None)
         known = raising.known_for(
             settings, privacy, shared, None if outside is None else outside.view
-        )  # AR4b, D-169
+        )
         try:
             while True:
                 now = datetime.now(UTC)
@@ -117,7 +113,7 @@ def assess_run(
                         break
                 typer.echo(" ".join(f"{k} {v}" for k, v in counts.items()))
                 owed: set[Any] = set()
-                if deep is not None:  # deterministic checks before any model is asked (Q-F3)
+                if deep is not None:  # deterministic checks before any model is asked
                     from argus.investigation import wave
 
                     done_ = await wave.run_pass(deep[0], owner, wave=settings.investigation.wave)
@@ -139,9 +135,7 @@ def assess_run(
                     typer.echo(line)
                 for line in flagged.warned:
                     typer.echo(line, err=True)
-                if (
-                    settings.incident.enabled
-                ):  # the incident reports (AR7): a failure never stops it
+                if settings.incident.enabled:  # the incident reports: a failure never stops it
                     from argus.incident import run as incident_run
 
                     if (
@@ -160,9 +154,9 @@ def assess_run(
                         typer.echo(line)
                     for line in wrote.warned:
                         typer.echo(line, err=True)
-                if settings.signins.enabled:  # AR6: who was behind an address; never stops the pass
+                if settings.signins.enabled:  # who was behind an address; never stops the pass
                     await _signins(settings, db, deep, classifier)
-                else:  # AR6: the retention of what was kept holds with the switch off (D-227)
+                else:  # the retention of what was kept holds with the switch off
                     await _signins_retention(settings, db)
                 agents, refused = _agents() if agent else (None, None)
                 keyless = _no_model() if agent or tuning else None
@@ -229,7 +223,7 @@ def assess_run(
 
 
 async def _signins(settings: Any, db: Any, deep: Any, classifier: Any) -> None:
-    """The sign-in pass (AR6, D-216): a few requests for the SSO sign-ins of the investigations'
+    """The sign-in pass: a few requests for the SSO sign-ins of the investigations'
     internal addresses, through the gateway the wave uses. A failure is said and goes on."""
     from argus.signins import run as signins_run
 
@@ -267,7 +261,7 @@ async def _signins_retention(settings: Any, db: Any) -> None:
 def _no_model() -> str | None:
     """Why no model can be called (no keys file, or no enabled provider with a key), or None.
     Then the agent is off, the tuning reports carry no suggestions and the incident reports keep
-    their deterministic text: nothing waits on a call that cannot be made (D-298)."""
+    their deterministic text: nothing waits on a call that cannot be made."""
     from argus.llm.providers import callable_providers, load_config
 
     try:
@@ -282,7 +276,7 @@ def _no_model() -> str | None:
 
 
 async def _incident_prose(settings: Any, privacy: Privacy, db: Any) -> tuple[Any, Any, bool]:
-    """The summary's prose for the incident reports (AR7, ``incident.prose``): a function that
+    """The summary's prose for the incident reports (``incident.prose``): a function that
     words a report's summary through the LLM gateway and the citation checks, its close function,
     and whether it could not be built (then reports keep their deterministic text and the pass says
     so once). Never raises: the pass goes on without it."""
@@ -329,7 +323,7 @@ async def _tuning_due(db: Any, now: datetime) -> bool:
 
 def _agents() -> tuple[Any, Any]:
     """The investigation agent's files (``config/agents/``), pinned and enabled, and None;
-    or None and the refusal (Q-H1: a refused file never runs the agent; ``loader.AgentOffError``
+    or None and the refusal (a refused file never runs the agent; ``loader.AgentOffError``
     when it is switched off in code), an OSError's reason made one too."""
     from argus.agent import loader
 
@@ -367,7 +361,7 @@ def _agent(
     except ConfigError:
         siem = None
     llm = load_config()
-    transport = HttpxLlmTransport(llm)  # one pinned client per provider (Q-G1)
+    transport = HttpxLlmTransport(llm)  # one pinned client per provider
     fetch, snapshots = service.evidence(db, siem, packs, lambda: datetime.now(UTC))
     gateway = build_gateway(db, llm, transport)
     investigator = Agent(privacy, gateway.complete, packs, fetch, snapshots, privacy.classifier,

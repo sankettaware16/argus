@@ -45,7 +45,7 @@ from argus.web.v1 import models as m
 from argus.web.v1 import queue_models as qm
 
 PREFIX = "/api/v1"
-STEP_UP_VALID = timedelta(minutes=5)  # an approval needs a step-up this recent (plan §7.1)
+STEP_UP_VALID = timedelta(minutes=5)  # an approval needs a step-up this recent
 _COLUMN = r"^[A-Za-z0-9_@.\-]{1,120}$"  # a field name a column may have
 _COLUMNS = r"^[A-Za-z0-9_@.,\-]*$"  # field names separated by commas
 
@@ -124,8 +124,6 @@ def build(
     router = APIRouter(prefix=PREFIX)
     cap, paid_share, daily_cap = cost_caps
 
-    # ------------------------------------------------------------------ the session
-
     @router.get("/session", tags=["session"], operation_id="getSession",
                 responses=errors(401, 403))  # fmt: skip
     async def get_session(request: Request, me: Session) -> m.SessionOut:
@@ -162,8 +160,6 @@ def build(
         response.delete_cookie(security.session_cookie(tls), path="/", secure=tls,
                                httponly=True, samesite="strict")  # fmt: skip
         return response
-
-    # ------------------------------------------------------------------ investigations
 
     @router.get("/investigations", tags=["investigations"], operation_id="listInvestigations",
                 responses=READ)  # fmt: skip
@@ -324,8 +320,6 @@ def build(
             raise refuse(404, "not_found", "no such alert in this investigation")
         return m.RawAlertOut(alert_id=alert_id, investigation_id=investigation_id, raw=raw)
 
-    # ------------------------------------------------------------------ changes
-
     @router.post("/investigations/{investigation_id}/reviews", tags=["investigations"],
                  operation_id="createReview", status_code=201,
                  responses=errors(400, 401, 403, 404, 409, 422))  # fmt: skip
@@ -449,8 +443,6 @@ def build(
                          details={"result": got})  # fmt: skip
         return m.AskOut(result="queued" if got == "queued" else "exists")
 
-    # ------------------------------------------------------------------ proposals, patterns
-
     @router.get("/proposals", tags=["proposals"], operation_id="listProposals", responses=READ)
     async def list_proposals(me: Viewer, conn: Conn) -> list[m.ProposalGroupOut]:
         """Proposals waiting for a person, grouped by what decided them, the largest group
@@ -538,8 +530,6 @@ def build(
             except (ReviewConflictError, NotFoundError):
                 changed += 1
         return m.PatternReviewOut(reviewed=done, changed=changed)
-
-    # ------------------------------------------------------------------ browse, system
 
     @router.get("/rules", tags=["browse"], operation_id="listRules", responses=READ)
     async def list_rules(me: Viewer, conn: Conn) -> list[m.RuleOut]:
@@ -649,6 +639,6 @@ def build(
         return views.since_out(me.previous_seen_at, found)
 
     case_routes.install(router, clock=clock, errors=errors)  # cases, approvals, notes, checks
-    report_routes.install(router, clock=clock, errors=errors)  # the incident report (AR7)
-    team_routes.install(router, clock=clock, errors=errors)  # the Kibana case preview (AR8)
+    report_routes.install(router, clock=clock, errors=errors)  # the incident report
+    team_routes.install(router, clock=clock, errors=errors)  # the Kibana case preview
     return router

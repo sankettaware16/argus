@@ -1,4 +1,4 @@
-"""What the Inbox shows (plan §9.4, D-052): read functions shared by the JSON API and the pages.
+"""What the Inbox shows: read functions shared by the JSON API and the pages.
 The human state of an investigation is derived from its latest review and its version."""
 
 from __future__ import annotations
@@ -21,14 +21,14 @@ PAGE = 100
 
 # The latest state-changing review (notes do not change the state) and the latest review of
 # any kind: one row per reviewed investigation in review_state, kept by a trigger on
-# review_events (migration 0025), and the derived state.
+# review_events, and the derived state.
 _STATE = """
 LEFT JOIN review_state last ON last.investigation_id = i.id
 LEFT JOIN case_known_matches km ON km.investigation_id = i.id
 LEFT JOIN cases kc ON kc.id = km.case_id
 """
-# What ARGUS decided about an investigation of a notified case's device (AR4b, D-169, D-176,
-# D-181). Held: decided known for the investigation's current version; it stays known when the
+# What ARGUS decided about an investigation of a notified case's device.
+# Held: decided known for the investigation's current version; it stays known when the
 # case ends (frozen: it never comes back as new work), and a later version is decided afresh.
 # Waiting: decided changed, and no person has reviewed a version of the investigation at or after
 # the change; a change is durable, it outlives the investigation's next versions.
@@ -58,7 +58,7 @@ CASE WHEN {_WAITING} THEN 'changed' WHEN {_HELD} THEN 'known' END AS known_outco
 CASE WHEN {_WAITING} THEN km.why END AS known_why,
 CASE WHEN {_WAITING} OR {_HELD} THEN kc.notified_at END AS known_since
 """  # noqa: S608 - constant fragments (the name is looked up only for the rows returned)
-# ARGUS raised it (AR2b, D-160, D-164, D-165, D-168): the evidence of the current version carries
+# ARGUS raised it: the evidence of the current version carries
 # a threat-list hit, an outside detection or a tie to the operator of one, and another flag
 # (``raised.raises``)
 RAISED = (
@@ -67,7 +67,7 @@ RAISED = (
     + " OR ".join(f"rz.flags ? '{flag}'" for flag in raised.STRONG)
     + f") AND jsonb_array_length(rz.flags) >= {raised.MIN_FLAGS})"
 )
-# AR4b (D-169, D-176, D-181): an investigation of a notified case's device that belongs to the
+#  an investigation of a notified case's device that belongs to the
 # known infection (the owner was told; it is counted, not raised), and one that changed since the
 # notice (it is raised, with its reason, until a person reviews it). Both are decisions of
 # ``argus.cases.knownrun``. ``HELD`` is what stays out of Needs attention, even once the case has
@@ -88,18 +88,18 @@ _WOULD = (
 # the known infections keep out: new + known is what Needs attention was.
 ATTENTION = f"({_HUMAN} = 'follow_up' OR (NOT {HELD} AND {_WOULD}) OR {CHANGED})"
 KNOWN_ATTENTION = f"({KNOWN} AND {_WOULD})"
-# What a person still has to look at among a case's investigations (AR4, D-186): not reviewed and
+# What a person still has to look at among a case's investigations: not reviewed and
 # not a known infection's, or in Needs attention (a person's follow-up request is work even on a
 # known one). Every investigation in Needs attention that belongs to a case that is not closed is
 # this, so Home's cases and singles together hold all of Needs attention.
 MEMBER_WORK = f"(({_HUMAN} <> 'reviewed' AND NOT {HELD}) OR {ATTENTION})"
-# the definition before AR4b, kept for the tests that hold new + known to it
+# the earlier definition, kept for the tests that hold new + known to it
 BEFORE_NOTICES = (
     f"({_HUMAN} IN ('follow_up', 'changed_since_review')"
     f" OR ({_HUMAN} = 'unreviewed' AND (i.severity IN ('critical', 'high') OR {RAISED})))"
 )
 # belongs to no case that is still being worked (a closed case is no one's work: a single
-# investigation of its device is judged on its own, AR4)
+# investigation of its device is judged on its own)
 NO_CASE = (
     "NOT EXISTS (SELECT 1 FROM case_members cm JOIN cases cc ON cc.id = cm.case_id"
     " WHERE cm.investigation_id = i.id AND cm.removed_at IS NULL AND cc.state <> 'closed')"
@@ -114,9 +114,9 @@ _ORDER = {
     "urgent": f"({_HUMAN} = 'follow_up') DESC, {_SEVERITY_RANK} DESC,"
     " i.last_event_at DESC NULLS LAST, i.id",
     "reviewed": "last.decided_at DESC, i.id",
-    "newest": "i.last_event_at DESC NULLS LAST, i.id",  # by the last alert (D-095)
+    "newest": "i.last_event_at DESC NULLS LAST, i.id",  # by the last alert
     "oldest": "i.last_event_at ASC NULLS LAST, i.id",
-    # the queue's order (AR4 review, D-186): what a person has to look at first. Changed since the
+    # the queue's order: what a person has to look at first. Changed since the
     # notice, then raised by ARGUS's evidence, then a follow-up, then the rule's severity, then
     # the last alert. A rule's rating alone put 20 high-rated alerts ahead of a low-rated
     # investigation ARGUS had flagged.
@@ -124,8 +124,8 @@ _ORDER = {
     f" {_SEVERITY_RANK} DESC, i.last_event_at DESC NULLS LAST, i.id",
 }
 Sort = Literal["newest", "oldest", "urgent", "reviewed", "queue"]
-# How each order is read (Q-A1 review F2): in parts, together exactly _ORDER, each but the
-# follow-ups walking an index in its order (migration 0025) instead of sorting every
+# How each order is read: in parts, together exactly _ORDER, each but the
+# follow-ups walking an index in its order instead of sorting every
 # investigation. The urgent order is the follow-ups (few: read through their own index and
 # sorted), then the rest, both by rank and the last alert; the decision order is the
 # never-decided (NULLS FIRST, by id), then the decided, newest first.
@@ -234,8 +234,8 @@ class Summary:
     last_reviewer: str | None = None
     key_fields: list[tuple[str, Any]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
-    raised_flags: list[Any] | None = None  # the evidence's flags (AR2b), when it has any
-    known_case: int | None = None  # the notified case that holds it as a known infection (AR4b)
+    raised_flags: list[Any] | None = None  # the evidence's flags, when it has any
+    known_case: int | None = None  # the notified case that holds it as a known infection
     known_case_id: uuid.UUID | None = None
     known_outcome: str | None = None  # "known", or "changed" (something is new since the notice)
     known_why: str | None = None  # "changed since notice: ..." for a change
@@ -254,7 +254,7 @@ def key_fields(group_key: str) -> list[tuple[str, Any]]:
 
 
 def reasons(s: Summary) -> list[str]:
-    """Reasons to look (§9.4): never verdicts."""
+    """Reasons to look: never verdicts."""
     out: list[str] = []
     if s.human_state == "follow_up":
         out.append("A reviewer asked for a follow-up.")
@@ -291,7 +291,7 @@ async def inbox(
     critical/high), ``open`` (everything not reviewed), ``all``; optionally one rule or one
     entity. ``sort``: by the last alert (newest or oldest first), most urgent first, or the
     newest decision first; without it, the view's own order (urgent; reviewed: decided).
-    ``without_case``: only investigations that belong to no case that is not closed (AR4)."""
+    ``without_case``: only investigations that belong to no case that is not closed."""
     where = ["true"]
     params: dict[str, Any] = {"offset": offset, "limit": limit}
     if view == "attention":
@@ -444,7 +444,7 @@ async def raw_alert(
 async def incident_report_of(
     conn: AsyncConnection, investigation_id: uuid.UUID
 ) -> tuple[uuid.UUID, int] | None:
-    """The active case that holds the investigation and has an incident report (AR7): its id and
+    """The active case that holds the investigation and has an incident report: its id and
     number, for the classic page's link to the read-only report."""
     row = (
         await conn.execute(
@@ -465,8 +465,8 @@ async def outside_intel(
     conn: AsyncConnection, investigation_id: uuid.UUID, now: datetime,
     view: Any = None,
 ) -> list[tuple[str, str]]:  # fmt: skip
-    """What outside threat intel said of the investigation's external addresses and names (AR3,
-    D-165), as (indicator, plain sentence), detections first: the cache's answers still kept under
+    """What outside threat intel said of the investigation's external addresses and names
+    as (indicator, plain sentence), detections first: the cache's answers still kept under
     ``view`` (the configured ``outside.cache_window``, ``clean_cache_window`` and
     ``flag_threshold``; the defaults without one). The page only reads; it never asks a source."""
     from argus.outside import facts
@@ -487,7 +487,7 @@ async def outside_intel(
 
 
 async def dossier(conn: AsyncConnection, investigation_id: uuid.UUID) -> dict[str, Any] | None:
-    """The newest dossier of an investigation (R8, R10), with each signal's plain sentence."""
+    """The newest dossier of an investigation, with each signal's plain sentence."""
     from argus.context.display import sentence
 
     row = (
@@ -622,7 +622,7 @@ async def by_rule(conn: AsyncConnection) -> list[dict[str, Any]]:
 
 
 async def coverage(conn: AsyncConnection, inv: Summary) -> list[dict[str, Any]]:
-    """Coverage gaps (plan §5.6) over an investigation's time: the collector's own outages,
+    """Coverage gaps over an investigation's time: the collector's own outages,
     and executions of its rule that hit their alert limit."""
     # Gaps are in write time (when the alerts were written, when the rule ran); events can be
     # earlier by the detection lag or a whole look-back: both ranges count.
@@ -683,9 +683,9 @@ class PatternsFound:
 async def patterns_page(conn: AsyncConnection, limit: int = PATTERN_SAMPLE) -> PatternsFound:
     """Investigations not reviewed yet, grouped when the same rule found the same things (each
     step's outcome, a threat-list hit, the values its steps look at; ``display.signature``):
-    look at one, decide for the group (plan §5.4, D-072). The groups are made from the ``limit``
+    look at one, decide for the group. The groups are made from the ``limit``
     newest unreviewed investigations that have a dossier (by their last alert: the ones a person
-    will meet first), so older ones are in no group when there are more (AR4 review, D-186)."""
+    will meet first), so older ones are in no group when there are more."""
     from argus.context.display import signature
 
     rows = await conn.execute(

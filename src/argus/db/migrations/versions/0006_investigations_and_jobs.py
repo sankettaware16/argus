@@ -1,6 +1,6 @@
 """Investigations and jobs: grouping alerts, the entity index, the durable job queue
 
-R6 (D-051). Investigations are derived from their alerts and recomputed, never deleted; the
+Investigations are derived from their alerts and recomputed, never deleted; the
 runtime role may insert and update the columns that change.
 
 Revision ID: 0006

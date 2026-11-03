@@ -1,13 +1,10 @@
-"""The case team's vocabulary (AR8, D-158, D-195; AR10, D-250): the seven authors, a post's
-steps and its plan.
+"""The case team's vocabulary: the seven authors, a post's steps and its plan.
 
 A **post** is everything ARGUS writes to one Kibana incident case; it goes in **generations**:
-generation 1 opens the case (the lead), and each later one is the "Update" round after the
-report got a newer version. A generation is a fixed, ordered list of :class:`Step`: each step is
-one request (a case, a call of alerts, a call of tags, a comment, a file) by one author, with the
-exact text or bytes' hash it will send. The plan's hash binds a person's approval to exactly what
-will be written. Nothing here sends anything.
-"""
+generation 1 opens the case (the lead), each later one is an "Update" round after the report got a
+newer version. A generation is a fixed, ordered list of :class:`Step`: one request (a case, alerts,
+tags, a comment, a file) by one author, with the hash of its exact text or bytes. The plan's hash
+binds a person's approval to exactly what will be written. Nothing here sends anything."""
 
 from __future__ import annotations
 
@@ -31,14 +28,14 @@ StepState = Literal[
     "superseded",
 ]
 OPEN_STATES: Final = frozenset({"planned", "sending", "sent", "ambiguous", "resend", "held"})
-# Steps that correct what was posted (D-236): they set a value, so they are read-then-set and may
+# Steps that correct what was posted: they set a value, so they are read-then-set and may
 # be done again after a doubt; the lead's two are the case's title and description.
 EDIT_KINDS: Final = frozenset({"retitle", "redescribe", "edit_comment"})
 DONE_STATES: Final = frozenset({"verified", "skipped", "superseded"})
 
 
 class Author(StrEnum):
-    """The Kibana users (D-159, D-250); the value is the Kibana username."""
+    """The Kibana users; the value is the Kibana username."""
 
     LEAD = "argus-lead"
     EVIDENCE = "argus-evidence"
@@ -46,11 +43,11 @@ class Author(StrEnum):
     RESPONDER = "argus-responder"
     HUNTER = "argus-hunter"
     REPORTER = "argus-reporter"
-    VISUALISER = "argus-visualiser"  # AR10: the seventh, optional (no key: its step is skipped)
+    VISUALISER = "argus-visualiser"  # the seventh, optional (no key: its step is skipped)
 
 
-# The order of a case (AR8): the lead opens, then evidence (the visualiser's glance follows the
-# evidence comment, AR10), intel when needed, the responder, the hunter, the reporter and, last,
+# The order of a case: the lead opens, then evidence (the visualiser's glance follows the
+# evidence comment), intel when needed, the responder, the hunter, the reporter and, last,
 # the lead's verdict.
 ORDER: Final = (
     Author.LEAD,
@@ -73,7 +70,7 @@ PART_AUTHOR: Final[dict[str, Author]] = {
     "verdict": Author.LEAD,
 }
 VERDICT_ENDING: Final = "Confirm or reject in a comment."
-# why an edit was left alone: a person changed it in Kibana (D-236); kept as the step's reason
+# why an edit was left alone: a person changed it in Kibana; kept as the step's reason
 PERSON_EDIT: Final = "a person changed it in Kibana, so ARGUS leaves it"
 
 

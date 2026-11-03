@@ -1,19 +1,12 @@
-"""``argus purge ...``: the retention purge (Q-A4, D-028). Local only: nothing reaches the SIEM.
+"""``argus purge ...``: the retention purge. Local only: nothing reaches the SIEM.
 
-``argus purge plan`` counts what a purge would remove (read only). ``argus purge run`` is a dry
-run too unless ``--apply`` is given, and then deletes only
-
-* with ``--expect PLAN``: the counts a person reviewed (``argus purge plan --output PLAN``),
-  re-counted at the plan's own time and refused if anything differs, after a restore drill that
-  passed within the last 24 hours (the first purge, D-109: the user's); or
-* with ``--scheduled`` (argus-purge.timer): only once ``retention.scheduled`` is on (the
-  schedule is its own approval), with exactly the periods of the last reviewed purge that
-  succeeded (a changed period needs a reviewed plan again), and after a restore drill that
-  passed within 8 days.
-
-The purge logs in as the owner and works as ``argus_purge`` (``SET LOCAL ROLE``); every
-``--apply``, whether it deletes, fails or is refused, is an audit event.
-"""
+``plan`` counts what a purge would remove (read only). ``run`` is a dry run unless ``--apply``,
+which deletes only with ``--expect PLAN`` (the counts a person reviewed, re-counted at the plan's
+own time and refused if anything differs, after a restore drill within 24 hours) or with
+``--scheduled`` (the timer: only once ``retention.scheduled`` is on, with exactly the periods of
+the last reviewed purge, after a restore drill within 8 days). The purge logs in as the owner and
+works as ``argus_purge``; every ``--apply`` is an audit event, whether it deletes, fails or is
+refused."""
 
 from __future__ import annotations
 
@@ -45,7 +38,7 @@ PLAN_FORMAT = 2
 
 purge_app = typer.Typer(
     no_args_is_help=True,
-    help="The retention purge (Q-A4, D-028): dry-run counts, and the purge itself.",
+    help="The retention purge: dry-run counts, and the purge itself.",
 )
 
 AtOption = Annotated[

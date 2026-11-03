@@ -1,36 +1,15 @@
-"""The case team's poster (AR8, D-195): the plan for a case in, the six users' requests out.
+"""The case team's poster: the plan for a case in, the six users' requests out.
 
-For each case, in this order:
-
-1. **prepare** (no writes): the stored report, the person's decision, what the case already holds,
-   the plan this would send, the policy's decision (``case_team.post``, the confidence rule, the
-   daily cap, the canary, the notified rule) and anything that stops it (a key missing, a text the
-   guardian refuses). The dry run, the CLI's preview, the API and the case page show exactly this.
-2. **persist** the plan: every step as a ``planned`` row, in order; a plan nothing was sent for is
-   replaced when the report changed, one that was started is never changed.
-3. **send** step by step, once each, by its author's key through the Kibana lane (class WC: the
-   lane's budget, health states, window, caps, breakers and ledger). ``sending`` is committed at
-   the last step before the request leaves (``before_send``).
-
-**Resuming** is the same walk: a step that went through is skipped; a step left ``sending`` by a
-crash or in doubt after a timeout (``ambiguous``) is **looked for in Kibana before anything is
-sent again**: a comment by its text and author, the case by its incident ID tag, the alerts by the
-case's alert count, a file by the case's user actions. It is looked for at 2, 5, 15 and 30
-minutes; found, it is ``verified``; not found after four looks, it is ``resend`` and waits for a
-person (``argus case team resend``). The one in doubt holds the steps after it. Tags are added
-to a set, so a tag call in doubt is simply sent again.
-
-**One run at a time, and a run is bounded** (D-204): ``run_case``, ``run_pass`` and
-``housekeeping`` take one advisory lock (a second call does nothing), share one Kibana write run,
-and stop at the lane's cap of case writes whatever cases the run takes. **Nothing is sent to a
-placeholder** (D-206): a step but the create is refused while the post has no Kibana case. A tag
-call whose answer is smaller than the call (alerts the index dropped, version conflicts) is read,
-not a failure (D-210), and the lead's notes (a person's verdict, people who disagree, alerts left
-untagged) are planned from what the database records, each said once (D-202).
-
-Nothing is retried inside a step, and no step is edited or deleted or sent twice (a tag call, which
-only adds to a set, may be sent again: after a doubt, or once after a version conflict).
-"""
+For each case: (1) **prepare** (no writes): the stored report, the person's decision, what the case
+holds, the plan, the policy's decision and anything that stops it (a missing key, a text the
+guardian refuses); the dry run, preview, API and case page show exactly this; (2) **persist** the
+plan as ``planned`` rows (a plan nothing was sent for is replaced when the report changed); (3)
+**send** step by step, once each, by its author's key through the Kibana lane (class WC).
+**Resuming** is the same walk: a step left ``sending`` or in doubt (``ambiguous``) is **looked for
+in Kibana before anything is sent again**, at 2, 5, 15 and 30 minutes, then waits for a person
+(``resend``); the step in doubt holds the ones after it. Runs are bounded: one advisory lock, one
+Kibana write run, the lane's cap of case writes. Nothing is sent to a placeholder, retried inside a
+step, edited, deleted or sent twice (a tag call only adds to a set, so it may be sent again)."""
 
 from __future__ import annotations
 
@@ -96,11 +75,11 @@ COMPONENT = "caseteam"
 WRITE_DEADLINE = timedelta(minutes=5)
 READ_DEADLINE = timedelta(minutes=2)
 CASE_GAP_WAIT = 3.1  # case writes are 3 s apart
-GAP_WAITS = 20  # gaps waited out for one step: a run keeps sending while the lane admits (D-235)
+GAP_WAITS = 20  # gaps waited out for one step: a run keeps sending while the lane admits
 POSTPONE = timedelta(minutes=2)  # a look that could not be made is tried again after this
 TAG_RETRY = timedelta(minutes=10)  # a tag call that met version conflicts is tried once more then
 _HOLDING: ContextVar[bool] = ContextVar("case_team_lock_held", default=False)
-# D-288
+# why an attach is skipped under Sync alerts
 SYNC_NOT_OPEN = (
     "Sync alerts is on and the case is not open: the attach would change the alerts' status"
 )
@@ -137,7 +116,7 @@ class PostConfig:
     canary: int = 1
     max_alerts: int = 500
     alerts_per_call: int = 100
-    alert_pause: timedelta = timedelta(seconds=3)  # the least between two alert calls (D-242)
+    alert_pause: timedelta = timedelta(seconds=3)  # the least between two alert calls
     min_update_gap: timedelta = timedelta(hours=6)
     look: int = 40
     link_base: str = "https://argus.example"
@@ -213,7 +192,7 @@ class PostReport:
 
 @dataclass
 class RefreshReport:
-    """What ``argus case team refresh`` would do (or did) to a posted case (D-236)."""
+    """What ``argus case team refresh`` would do (or did) to a posted case."""
 
     number: int
     plan: Plan | None = None
@@ -245,7 +224,7 @@ async def _person_core(
     decided: store.PersonDecision | None,
     newest: incident_store.Stored,
 ) -> str | None:
-    """The hash, without the accounts, of the report version a person decided on (D-225): None
+    """The hash, without the accounts, of the report version a person decided on: None
     when nobody did or that version cannot be read."""
     if decided is None:
         return None
@@ -303,7 +282,7 @@ class Preparer:
             and all(r.state in DONE_STATES for r in open_gen)
         )
         unfinished = any(r.state not in DONE_STATES for r in live)
-        # a refresh a person planned (D-236) is finished before anything else is planned: a newer
+        # a refresh a person planned is finished before anything else is planned: a newer
         # report does not replace it
         refreshing = any(r.kind in ("redescribe", "edit_comment") for r in live)
         in_progress = unfinished and (refreshing or any(r.sent_count > 0 for r in live))
@@ -347,12 +326,12 @@ class Preparer:
                     target=cfg.target,
                     per_call=cfg.alerts_per_call,
                 )
-                if not cfg.has_key(Author.VISUALISER.value):  # AR10: a round has no use for it
+                if not cfg.has_key(Author.VISUALISER.value):  # a round has no use for it
                     steps = tuple(s for s in prep.plan.steps if s.author is not Author.VISUALISER)
                     prep.plan = replace(prep.plan, steps=steps)
                 last_round = None if post is None else post.last_round_at
                 if last_round is not None and now - last_round < cfg.min_update_gap:
-                    # the round has to wait, but a title that moved does not (D-236)
+                    # the round has to wait, but a title that moved does not
                     titles = tuple(s for s in prep.plan.steps if s.kind == "retitle")
                     if titles:
                         prep.plan = replace(prep.plan, steps=titles)
@@ -406,7 +385,7 @@ class Preparer:
         text the guardian refuses."""
         if prep.plan is None:
             return
-        optional = Author.VISUALISER.value  # AR10: its step is skipped, never a stop
+        optional = Author.VISUALISER.value  # its step is skipped, never a stop
         missing = sorted(
             a for a in prep.plan.authors() if a != optional and not self.config.has_key(a)
         )
@@ -467,15 +446,11 @@ class Poster:
             raise RunStopped("this poster has no Kibana lane (a preview only prepares)")
         return self._gateway
 
-    # ------------------------------------------------------------------ prepare (no writes)
-
     async def prepare(self, conn: AsyncConnection, case_id: uuid.UUID) -> Prepared:
         return await self.preparer.prepare(conn, case_id)
 
     def requests(self, prep: Prepared) -> list[dict[str, Any]]:
         return self.preparer.requests(prep)
-
-    # ------------------------------------------------------------------ a case
 
     @asynccontextmanager
     async def _exclusive(self) -> AsyncIterator[bool]:
@@ -575,8 +550,6 @@ class Poster:
                 if rep.stopped and rep.stopped.startswith(("Kibana", "the lane")):
                     break  # Kibana is not ready (or this run's cap is reached): the rest wait
             return reports
-
-    # ------------------------------------------------------------------ carrying a plan out
 
     async def _persist(self, prep: Prepared) -> list[StepRow]:
         """The plan as rows: a generation nothing was sent for is replaced when it changed."""
@@ -702,7 +675,7 @@ class Poster:
     ) -> None:
         step = row.step()
         if step.author is Author.VISUALISER and not self.config.has_key(step.author.value):
-            # AR10: the seventh user is optional: without its key the step is skipped, not failed
+            #  the seventh user is optional: without its key the step is skipped, not failed
             await self._mark(row, "skipped", visual.SKIPPED, ("planned",))
             said = f"{row.key}: {visual.SKIPPED}"
             report.note = f"{report.note}; {said}" if report.note else said
@@ -715,7 +688,7 @@ class Poster:
         left: frozenset[str] = frozenset()
         if step.kind == "attach":
             seen = await self._attach_view(row, post, report)
-            if seen is None:  # skipped: nothing to send (Sync alerts is on, D-288)
+            if seen is None:  # skipped: nothing to send (Sync alerts is on)
                 return
             step, left = seen
         try:
@@ -738,7 +711,7 @@ class Poster:
         if step.kind in EDIT_KINDS:
             await self._send_edit(row, post, step, rep, report)
             return
-        if step.kind == "tag":  # the tags follow the attached alerts (D-288)
+        if step.kind == "tag":  # the tags follow the attached alerts
             tagged = await self._tag_view(row, params, report)
             if tagged is None:
                 return
@@ -761,14 +734,12 @@ class Poster:
         if step.kind == "open":
             await self._read_back_open(row, str(ids["case"]), step, report, incident_id)
 
-    # ------------------------------------------------------------------ Sync alerts (D-288)
-
     async def _tag_view(
         self, row: StepRow, params: BaseModel, report: PostReport
     ) -> BaseModel | None:
         """A tag step tags what its attach step attached: nothing when that attach was skipped
         (the step is skipped with the same reason), and never the alerts the attach left out
-        under Sync alerts (D-288). None when nothing is left to tag."""
+        under Sync alerts. None when nothing is left to tag."""
         number = row.key.rsplit(":", 1)[-1]
         async with self.engine.connect() as conn:
             rows = await store.steps_of(conn, row.case_id)
@@ -840,8 +811,6 @@ class Poster:
             rows = await store.steps_of(conn, row.case_id, row.gen)
         mine = next((r for r in rows if r.id == row.id), row)
         return store.attach_view(rows, mine), store.left_out_of(mine)
-
-    # ------------------------------------------------------------------ edits in place (D-236)
 
     async def _read_live(self, step: Step, kid: str) -> dict[str, str] | None:
         """What Kibana holds now for the thing an edit sets: the case's title, description and
@@ -1119,8 +1088,6 @@ class Poster:
         await self._mark(row, "failed", why, ("sending",))
         report.held.append(f"{row.key}: {why}")
 
-    # ------------------------------------------------------------------ in doubt
-
     async def _resolve(
         self, row: StepRow, post: PostRow, rep: m.IncidentReport, report: PostReport
     ) -> bool:
@@ -1245,8 +1212,6 @@ class Poster:
             if await self._resolve(row, post, stored.report, rep):
                 done += 1
         return done
-
-    # ------------------------------------------------------------------ reading Kibana
 
     async def _read(self, template: Any, params: Any) -> Any:
         result = await self.gateway.read(
@@ -1376,7 +1341,7 @@ class Poster:
         except (GatewayError, KibanaResponseError):
             return  # the answer to the create was already checked field by field
         wanted = set(step.payload.get("tags", ()))
-        problems = []  # Sync alerts on is a person's setting, not a problem (D-272, D-288)
+        problems = []  # Sync alerts on is a person's setting, not a problem
         if not wanted <= set(case["tags"]):
             problems.append("the tags are not as sent")
         if case.get("description") != step.text:
@@ -1394,7 +1359,7 @@ class Poster:
         generation of only edits (a retitle, or a refresh) is not an update round: the report's
         newer lines, files and verdict still wait for theirs. A refresh may add a comment for a
         part that now needs one more (its step carries the ``refresh`` flag); that is still a
-        refresh and moves neither the version nor the round's time (D-247)."""
+        refresh and moves neither the version nor the round's time."""
         if not all(r.kind in EDIT_KINDS or r.payload.get(plan.REFRESH) is True for r in rows):
             async with self.engine.begin() as conn:
                 await store.finish_generation(conn, post.case_id, stored.version, self.clock())
@@ -1426,8 +1391,6 @@ class Poster:
             report.held.append(why)
         if case.get("status") == "closed":
             report.note = "the case is closed in Kibana"
-
-    # ------------------------------------------------------------------ the lead's notes
 
     async def _closings(self, case_id: uuid.UUID, prep: Prepared, report: PostReport) -> None:
         """For each person's verdict read from a comment, the lead's note: what the review path
@@ -1561,10 +1524,8 @@ class Poster:
             await store.write_generation(conn, prep.case_id, replace(prep.plan, gen=gen))
             return await store.steps_of(conn, prep.case_id, gen)
 
-    # ------------------------------------------------------------------ a person's refresh
-
     async def refresh(self, case_id: uuid.UUID, *, apply: bool = False) -> RefreshReport:
-        """A person's decision to correct a posted case in place (D-236): its title, description
+        """A person's decision to correct a posted case in place: its title, description
         and comments as the newest report renders them, wherever they differ from what ARGUS last
         wrote. A dry run says what would change; ``apply`` writes the steps as ``planned`` rows (to
         ARGUS's database only) and the case team's next run sends them. Refused while the case is
@@ -1613,8 +1574,6 @@ class Poster:
         found.planned = True
         return found
 
-    # ------------------------------------------------------------------ a person's decision
-
     async def resend(self, step_id: int, *, by: str) -> bool:
         """A person's decision on a step the four looks did not find: send it once more. Only
         ``resend`` steps (and a ``held`` create, for a case someone else made by hand once the
@@ -1658,9 +1617,6 @@ class Poster:
                 now=self.clock(),
                 reason=f"{by}: {reason}",
             )
-
-
-# --------------------------------------------------------------------------- helpers
 
 
 def _why(exc: BaseException) -> str:

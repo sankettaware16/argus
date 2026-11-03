@@ -1,18 +1,12 @@
-"""The cases sender (Q-D4, plan §7.1): drains approved outbox rows class by class.
+"""The cases sender: drains approved outbox rows class by class.
 
-For each row the writer, in this order: re-reads the Kibana case; plans the request from the
-row and what Kibana holds now (:mod:`argus.writer.plan`); renders it from deterministic text
-only; passes the Kibana lane's checks (class on, window, caps, health, breakers, kill switches);
-**commits ``sending`` at the last step before the request leaves** (``before_send``); sends it
-once; records the answer; and reads the case back.
-
-Nothing is retried or resent. A write whose outcome is unknown (a timeout, a reset, a 5xx) is
-``ambiguous`` and looked for at 2, 5, 15 and 30 minutes (:meth:`Writer.run_lookups`); a resend
-needs a person's complete, signed approval, and the writer looks once more before it sends. A
-step (an opening comment, an attachment, a compensating write) is never resent at all. A 409 is
-Kibana's "not changed": the row goes to ``conflict`` and a person decides. A read-back that
-does not match pauses the class and raises Needs attention.
-"""
+For each row the writer re-reads the Kibana case, plans the request from the row and what Kibana
+holds now, renders it from deterministic text, passes the Kibana lane's checks, **commits
+``sending`` at the last step before the request leaves**, sends it once, records the answer and
+reads the case back. Nothing is retried or resent: a write with an unknown outcome is ``ambiguous``
+and looked for; a resend needs a person's approval; a step (comment, attachment, compensating write)
+is never resent. A 409 puts the row in ``conflict`` for a person; a read-back that does not match
+pauses the class and raises Needs attention."""
 
 from __future__ import annotations
 
@@ -204,8 +198,6 @@ class Writer:
         self.key_selftest = key_selftest
         self._key_checked = False
 
-    # ------------------------------------------------------------------ a run
-
     async def run_class(self, write_class: str, *, limit: int, kind: str, by: str) -> RunReport:
         """One run of one class: housekeeping (what the last run left in doubt), then up to
         ``limit`` units (a case's create with its comment and attachments; a case change with
@@ -254,7 +246,7 @@ class Writer:
         return report
 
     async def preflight(self) -> list[str]:
-        """The start-up key self-test (plan §5 Q-D4): the cases writer's key holds what it must
+        """The start-up key self-test: the cases writer's key holds what it must
         and none of what it must not (``api:rac``, the alert updates, ``deleteCase``,
         ``createConfiguration``, ``pushCase``, ``assignCase``), asked of Elasticsearch with the
         key itself, once for this writer. A failed test sends nothing."""
@@ -335,8 +327,6 @@ class Writer:
                 return item_of_step(step)
         return None
 
-    # ------------------------------------------------------------------ housekeeping
-
     async def housekeeping(self, report: RunReport, cls: str) -> None:
         """What the last run left: rows stuck in ``sending`` become ambiguous, rows sent but
         not read back are read back, closure writes get their send-time check, approved
@@ -406,8 +396,6 @@ class Writer:
         for row_id in waiting:
             async with self.engine.begin() as conn:
                 await sendcheck.release(conn, row_id, self.verifier)
-
-    # ------------------------------------------------------------------ one item
 
     async def _work(self, item: Item, run: WriteRun | None, report: RunReport) -> WriteRun | None:
         try:
@@ -533,8 +521,6 @@ class Writer:
     async def _pause_class(self, write_class: str, reason: str) -> None:
         cls = WriteClass(write_class)
         await self.gateway.state.kibana_change(lambda s: (None, writes.pause(s, cls, reason[:200])))
-
-    # ------------------------------------------------------------------ send
 
     async def _execute(
         self,
@@ -750,8 +736,6 @@ class Writer:
             outcome="failure",
         )
 
-    # ------------------------------------------------------------------ read-back
-
     async def _verify(self, item: Item, report: RunReport, send: plan.Send | None) -> bool:
         """Read the case back: ``verified`` if Kibana holds what was written, else the row goes
         to ``conflict`` and the class pauses (a mismatch is not tolerated). A read that cannot be
@@ -910,8 +894,6 @@ class Writer:
         payload = item.row.payload if item.row else (item.step.payload if item.step else {})
         return render.comment(payload["template"], payload["params"], ctx)
 
-    # ------------------------------------------------------------------ reads
-
     async def _get(self, kid: str) -> Mapping[str, Any] | None:
         try:
             result = await self.gateway.read(
@@ -972,8 +954,6 @@ class Writer:
             if attempt + 1 < READBACK_TRIES:
                 await self.sleep(READBACK_WAIT)
         return False, f"alerts that do not list the case: {', '.join(missing[:5])}"
-
-    # ------------------------------------------------------------------ steps
 
     async def _work_step(
         self, step: store.Step, run: WriteRun | None, report: RunReport
@@ -1066,8 +1046,6 @@ class Writer:
                     write_class=step.write_class,
                     payload={"alerts": [list(p) for p in kept]},
                 )
-
-    # ------------------------------------------------------------------ plans for later parts
 
     async def _plan_attachments(self) -> None:
         """Attachments for cases whose create was verified in an earlier run (and the opening

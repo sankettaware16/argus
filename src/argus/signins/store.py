@@ -1,12 +1,9 @@
-"""The database side of the sign-in lookups (AR6, D-216): ``signin_sightings`` and
-``signin_lookups``, and the questions the pass and the pages ask of them.
+"""The database side of the sign-in lookups: ``signin_sightings`` and ``signin_lookups``.
 
 These tables are not derived from grouping (``argus regroup`` leaves them): the sign-in logs last
-five days at the SIEM and the sightings are the only copy then. ``save`` replaces what an earlier
-complete lookup of the same address and day stored, and never turns an earlier complete lookup into
-nothing when a later one fails (the sightings stay, the lookup row says the last try was
-incomplete).
-"""
+only a few days at the SIEM, so the sightings are the only copy. ``save`` replaces what an earlier
+complete lookup of the same address and day stored, and never turns a complete lookup into nothing
+when a later one fails."""
 
 from __future__ import annotations
 
@@ -187,12 +184,12 @@ def ipv4(values: Iterable[str]) -> list[str]:
 
 def source_devices(group_key: str, classifier: IpClassifier) -> list[str]:
     """The internal IPv4 addresses on the **source side** of an investigation's grouping key: the
-    campus addresses it names or lists under a source field (``source.ip``, ``client.ip``; a DNS
-    rule lists every asking address). The one definition of "a device" for the sign-in lookups
-    (D-226): the pass, the pages and the report use it. An address that was only the
-    destination of the traffic (a campus server an outside scanner probed) is not a device, and
-    neither is an address that only appears among the investigation's entities, which do not say
-    which side it was on."""
+    internal addresses it names or lists under a source field (``source.ip``, ``client.ip``; a DNS
+    rule lists every asking address). The one definition of "a device" for the sign-in lookups:
+    the pass, the pages and the report use it. An address that was only the destination of the
+    traffic (an internal server an outside scanner probed) is not a device, and neither is an
+    address that only appears among the investigation's entities, which do not say which side it
+    was on."""
     from argus.campaigns import load as campaign_load
     from argus.cases import opener
 
@@ -220,7 +217,7 @@ def devices_of(
     resolvers: Sequence[IPNetwork] = (),
 ) -> dict[uuid.UUID, list[str]]:
     """The devices of each investigation in ``groups`` (its grouping key): its
-    :func:`source_devices`, minus the campus resolvers named in ``campaigns.resolvers`` (a
+    :func:`source_devices`, minus the resolvers named in ``campaigns.resolvers`` (a
     resolver asks for every name its users ask for: it is no device)."""
     from argus.campaigns import load as campaign_load
 

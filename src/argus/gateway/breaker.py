@@ -1,4 +1,4 @@
-"""The overload breaker (plan §5.2): a 429, a rejected execution or a tripped circuit breaker
+"""The overload breaker: a 429, a rejected execution or a tripped circuit breaker
 on the SIEM pauses every request except health probes, with escalating cool-downs. After a
 cool-down exactly one trial request may go; its success closes the breaker, another overload
 re-opens it one step longer. A trial that never reports (its process died) is given up after

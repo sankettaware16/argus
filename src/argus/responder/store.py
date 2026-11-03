@@ -1,18 +1,8 @@
-"""Action tracking for a case, on the database (Q-H2, plan §7.7).
-
-* :func:`actions_for` is what a page or the terminal shows: the catalogue's advice for the case
-  (from the facts the case shows), what is stored about each action, and the newest verdict on
-  a reported "done", all computed from the database. It writes nothing and asks nobody.
-* :func:`recommend` records the advice (``recommended``); :func:`request` and :func:`report_done`
-  record a person's words (``user:<id>``; "done" is an attestation); :func:`refresh` records
-  ARGUS's verdict (``verified`` or ``not_verified``) when the evidence is definite.
-
-The web's login runs the same functions as the runtime's: it reads the tables the pages read
-and inserts or updates only a person's ``requested`` or ``reported_done`` (migration 0044, the
-database guards it). Nothing here reaches the SIEM, Kibana or a model: verification reads the
-still-active watch's stored answers, ARGUS's own alerts and answers of ``web.path_outcomes``
-already stored.
-"""
+"""Action tracking for a case, on the database: :func:`actions_for` (the catalogue's advice, what
+is stored and the newest verdict; writes nothing), :func:`recommend`, :func:`request` /
+:func:`report_done` (a person's words: an attestation) and :func:`refresh` (ARGUS's verdict when
+the evidence is definite). The web's login runs the same functions and may only insert or update a
+person's ``requested`` or ``reported_done``. Nothing here reaches the SIEM, Kibana or a model."""
 
 from __future__ import annotations
 
@@ -200,7 +190,7 @@ async def verdict_for(
 ) -> Verdict:
     """The verdict on a reported "done" from what the database holds. For the watch's verifiers
     (the proxy logs, ARGUS's alerts) the days after the action must pass, nothing may have been
-    active since, and then the watch's own finder (Q-C2, :class:`argus.cases.watchrun.Finder`)
+    active since, and then the watch's own finder (:class:`argus.cases.watchrun.Finder`)
     must call the case quiet: it blocks a key too common to search and looks for matching
     investigations not yet joined. Without ``ctx`` it cannot be asked, so nothing is verified.
     ``memo`` keeps the finder's answer for one case within a pass."""

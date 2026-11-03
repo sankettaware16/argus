@@ -1,12 +1,8 @@
-"""report@2's inputs from Postgres (Q-F2): a few bounded reads, nothing written.
+"""report@2's inputs from Postgres: a few bounded reads, nothing written.
 
-The report of an assessment reads the dossier it assessed, the evidence of that version as
-the assessment had it (``facts.as_of``: the rows stored by its end, the dossier's own record
-for a row retried later), the investigation's E-ids, and for each evidence row the ledger row
-that answered it (``_LEDGER``: the evidence step's request with its task key, sent within the
-hour before the row was stored and, for an answer, with its server time). Without an
-assessment: the newest dossier and every row.
-"""
+The report of an assessment reads the dossier it assessed, the evidence of that version as the
+assessment had it (``facts.as_of``), the investigation's E-ids, and for each evidence row the ledger
+row that answered it (``_LEDGER``). Without an assessment: the newest dossier and every row."""
 
 from __future__ import annotations
 
@@ -53,7 +49,7 @@ FROM evidence_requests WHERE investigation_id = :i ORDER BY eid
 """
 # The ledger has no investigation id: a request is matched to the evidence row it answered by
 # its content address, made by the evidence step (component enrichment, or investigation: the
-# deterministic wave's and "Check more"'s lane, Q-F3) within the hour before
+# deterministic wave's and "Check more"'s lane) within the hour before
 # the row was stored, and for an answer by the server time stored with it. A row that sent
 # nothing (deferred, skipped, copied from an earlier version) has no ledger row.
 _LEDGER = """

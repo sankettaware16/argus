@@ -1,17 +1,9 @@
-"""Sending an LLM call: the only code that opens a connection to a model provider (P5, Q-G1).
-
-``HttpxLlmTransport`` holds one client per configured provider. A provider with a ``ca_file``
-trusts that certificate and no other (the local model's self-signed certificate, D-108); the
-others trust the default store. It posts an OpenAI-compatible chat body (or asks
-``GET /v1/models``, the probe) to the provider's base URL over TLS, with the key in a header
-only, never through a proxy and never following a redirect, within one deadline for the whole
-exchange and a cap on the answer's size. It does not retry. A certificate that does not verify
-is ``TransportError(kind="tls_failed")``.
-
-``LlmCassette`` records and replays answers keyed by provider, path and body. A cassette holds
-what was sent (already pseudonymized and validated) and what came back, never a key; replay is
-strict, a miss raises and nothing is sent.
-"""
+"""Sending an LLM call: the only code that opens a connection to a model provider.
+``HttpxLlmTransport`` holds one client per provider (one with a ``ca_file`` trusts that
+certificate only) and posts an OpenAI-compatible chat body, or ``GET /v1/models`` for the probe,
+over TLS with the key in a header, no proxy, no redirect, one deadline and a cap on the answer's
+size; it does not retry. ``LlmCassette`` records and replays answers keyed by provider, path and
+body (never a key); replay is strict."""
 
 from __future__ import annotations
 
@@ -63,7 +55,7 @@ class TransportError(Exception):
     """No answer: a timeout, a refused connection, a certificate that does not verify, or an
     answer too large. ``reached``: whether the request got to the provider at all (a refused
     or timed-out connection, or a failed TLS handshake, did not, so it cannot have been
-    charged, D-096). ``kind``: "tls_failed" for a certificate, else "no_answer"."""
+    charged). ``kind``: "tls_failed" for a certificate, else "no_answer"."""
 
     def __init__(self, message: str, *, reached: bool = True, kind: str = "no_answer") -> None:
         super().__init__(message)
@@ -72,9 +64,9 @@ class TransportError(Exception):
 
 
 def _tls_failure(exc: BaseException) -> bool:
-    """Whether an httpx error is a certificate that does not verify (not the pinned one, or
-    not for this host). A handshake cut short is not: through the tunnel that is a machine
-    that is off (the SSH listener accepts and closes), which is "no answer"."""
+    """Whether an httpx error is a certificate that does not verify (not the pinned one, or not
+    for this host). A handshake cut short is not: through a tunnel that is a machine that is off,
+    which is "no answer"."""
     seen: set[int] = set()
     cause: BaseException | None = exc
     while cause is not None and id(cause) not in seen:

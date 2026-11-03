@@ -1,4 +1,4 @@
-"""The incident report as plain text for the terminal (AR7, ``argus case report``). Every value is
+"""The incident report as plain text for the terminal (``argus case report``). Every value is
 shown with unprintable characters escaped, so a log value can never write to the operator's
 terminal (the same rule as the other ``argus case`` commands)."""
 

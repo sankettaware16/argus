@@ -1,17 +1,9 @@
-"""The investigation agent's tools (P6, docs/p6-design.md): an allowlist over the Elastic
-gateway's registered templates, never a free-form query.
-
-A model asks for a tool and one entity *pseudonym*; ARGUS reveals the value in memory and
-builds every parameter itself, with the same windows and bounds as the packs (proxy: the
-investigation's hours, one daily index; web: the first alert plus six hours). A request the
-catalogue cannot honour is refused with a reason the model sees, never sent.
-
-The two ``outside.*`` tools (AR3, D-165) are not Elastic templates: they ask VirusTotal
-(reputation) or Shodan and then Censys (what a public server is) through
-``argus.outside.service.Outside``. Their build step only checks that the entity is a public
-address or a domain name (an :class:`OutsideAsk`); the lookup itself refuses a campus or private
-address or name again, answers from the 7-day cache and keeps to each source's limits.
-"""
+"""The investigation agent's tools: an allowlist over the Elastic gateway's registered templates,
+never a free-form query. A model asks for a tool and one entity *pseudonym*; ARGUS reveals the
+value in memory and builds every parameter itself, with the packs' windows and bounds, and refuses
+a request it cannot honour with a reason the model sees. The two ``outside.*`` tools are not
+Elastic templates: they ask VirusTotal, or Shodan then Censys, through
+``argus.outside.service.Outside``, which refuses internal indicators again."""
 
 from __future__ import annotations
 

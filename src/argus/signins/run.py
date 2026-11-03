@@ -1,24 +1,15 @@
-"""The sign-in pass (AR6, D-216): run by the assessment loop (``argus assess run``) and by
+"""The sign-in pass: run by the assessment loop (``argus assess run``) and by
 ``argus signins run``.
 
-Each pass reads ARGUS's own database for the internal addresses of the investigations active in the
-retained days, plans the requests (:mod:`argus.signins.plan`), and sends at most
-``signins.max_requests_per_pass`` of them through the Elastic Gateway: heavy, the investigation
-lane, only while the SIEM is NORMAL and never between 00:00 and 01:30 UTC, at least ``signins.gap``
-apart. Each answer is parsed strictly and stored in one transaction; an answer that was not whole is
-stored as incomplete, never as "none seen".
-
-Hardening (AR6 review, D-222 to D-224): text from the logs is made storable by the parser, and a
-batch the database still refuses is stored address by address, the addresses that cannot be stored
-being recorded as incomplete (``store_failed``, not asked again for six hours, left alone after
-three tries) so one bad row never makes the same heavy request every pass; a partial or a
-badly shaped answer stops the pass (a mismatch with the contract costs one request, not six); a
-lock held in the database keeps two passes (the assessment loop's and ``argus signins run``) from
-planning the same batches; and the retention (``signins.keep_days``) is applied whether the pass
-sends or not.
-
-Nothing about an account is logged: the pass says counts.
-"""
+Each pass plans the requests (:mod:`argus.signins.plan`) for the internal addresses of the active
+investigations and sends at most ``signins.max_requests_per_pass`` through the Elastic Gateway:
+heavy, the investigation lane, only while the SIEM is NORMAL, never between 00:00 and 01:30 UTC, at
+least ``signins.gap`` apart. Each answer is parsed strictly and stored in one transaction; one that
+was not whole is stored as incomplete. A batch the database refuses is stored address by address, so
+one bad row never repeats the same heavy request; a partial or badly shaped answer stops the pass.
+A database lock keeps two passes from planning the same batches; the retention
+(``signins.keep_days``) is applied whether the pass sends or not. Nothing about an account is
+logged."""
 
 from __future__ import annotations
 
@@ -96,7 +87,7 @@ def verdict_of(exc: GatewayError, *, kept: bool = True) -> tuple[bool, str | Non
     that was not whole is stored and ends the pass (the contract and the SIEM disagree: one request
     shows it, six do not help); a request that reached the SIEM and failed is stored (so it is not
     asked again at once) and ends the pass. A missing index of a day the logs should still hold
-    (``kept``) is stored as ``index_missing`` and tried again later (D-224); of a day older than
+    (``kept``) is stored as ``index_missing`` and tried again later; of a day older than
     the logs are kept, as ``logs_gone``."""
     if isinstance(exc, SourceMissingError):
         if exc.reason == "source_expired":
@@ -169,7 +160,7 @@ async def prune(
 ) -> list[str]:
     """Remove what is older than ``signins.keep_days`` and say so: whether or not the pass sends
     anything, and whether or not the feature is on, because the rows are personal data and the
-    retention is a promise about them (D-227). ``strict`` False (the feature is off): a database
+    retention is a promise about them. ``strict`` False (the feature is off): a database
     without the tables yet (before ``argus db upgrade``) has nothing to prune and is no error."""
     if not cfg.keep_days:
         return []
@@ -354,7 +345,7 @@ async def _store(
 ) -> int:
     """Store an answer: whole, in one transaction. If the database refuses it, address by
     address (so one row it cannot take costs that address, not the batch), and an address it
-    cannot take is recorded as incomplete (``store_failed``) with a retry time (D-222): it is
+    cannot take is recorded as incomplete (``store_failed``) with a retry time: it is
     not asked again for six hours, and after three tries not at all. Returns the addresses
     stored."""
     try:

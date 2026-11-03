@@ -86,8 +86,6 @@ RequestId = Annotated[int, Field(ge=1, le=SAFE_MAX), BeforeValidator(_json_integ
 UserId = Annotated[int, Field(ge=1, le=SAFE_MAX), BeforeValidator(_json_integer)]
 CaseVersion = Annotated[int, Field(ge=1, le=2**31 - 1), BeforeValidator(_json_integer)]
 
-# --------------------------------------------------------------------------- the list
-
 
 class PersonRef(Out):
     id: int
@@ -125,18 +123,18 @@ class CaseRowOut(Out):
     waiting_for_approval: int  # requests that a person still has to decide
     needs_attention: bool
     merged_into: CaseRef | None
-    notified_at: datetime | None  # the owner was told (AR4b): tracked quietly, in its own list
+    notified_at: datetime | None  # the owner was told: tracked quietly, in its own list
     blocked_at: datetime | None  # a network-side block is recorded
 
 
 class CaseCounts(Out):
     active: int  # open, assigned or contained, apart from the notified ones
-    notified: int  # open or assigned, the owner told: tracked quietly (AR4b)
+    notified: int  # open or assigned, the owner told: tracked quietly
     attention: int
     mine: int
     suspected: int
     closed: int
-    queue: int  # the cases of Home's queue: the ones that need a person, for any reason (AR4)
+    queue: int  # the cases of Home's queue: the ones that need a person, for any reason
     all: int
 
 
@@ -147,9 +145,6 @@ class CasePage(Out):
     limit: int
     has_more: bool
     counts: CaseCounts
-
-
-# --------------------------------------------------------------------------- one case
 
 
 class RuleCountOut(Out):
@@ -428,7 +423,9 @@ class NoticeRecordOut(Out):
     at: datetime  # when it happened, as they said
     told: str  # who was told (owner), or who blocked it (block)
     how: str  # how they were told, or where it was blocked
-    managed: bool | None  # owner notices: the machines are campus-managed (from the asset map)
+    managed: (
+        bool | None
+    )  # owner notices: the machines are organisation-managed (from the asset map)
     note: str | None
     by: str  # the person who recorded it
     case_version: int
@@ -474,7 +471,9 @@ class KnownOut(Out):
 
     notified_at: datetime | None
     blocked_at: datetime | None
-    managed: bool | None  # the machines are campus-managed (the watch and containment still apply)
+    managed: (
+        bool | None
+    )  # the machines are organisation-managed (the watch and containment still apply)
     line: str | None  # "still active: ..." or "blocked at the network; ..."
     alerts: int  # since the notice
     days: int
@@ -511,7 +510,7 @@ class CaseDetail(Out):
     suggestions: list[CaseSuggestionOut]  # newest first, at most 50
     suggestions_total: int
     watch: WatchStatusOut | None  # None: the watch does not look at this case
-    known: KnownOut | None  # the owner-notified record; None unless open or assigned (AR4b)
+    known: KnownOut | None  # the owner-notified record; None unless open or assigned
     actions: list[CaseActionStateOut]
     closure_choices: list[ClosureChoiceOut]
     assignees: list[PersonRef]  # who the case can go to; empty for an account that cannot assign
@@ -523,10 +522,7 @@ class CaseDetail(Out):
     history: list[HistoryItemOut]  # the newest 200
     history_total: int
     logs_hidden: bool  # this account may not see what the logs said (the lead report hides it)
-    signins: SigninsOut | None  # who used its devices (AR6); None: not set up on this server
-
-
-# --------------------------------------------------------------------------- the approvals queue
+    signins: SigninsOut | None  # who used its devices; None: not set up on this server
 
 
 class StepUpOut(Out):
@@ -560,9 +556,6 @@ class ApprovalQueueOut(Out):
     groups: list[ApprovalGroupOut]
     step_up: StepUpOut
     can_sign: bool  # this server holds the key that signs decisions
-
-
-# --------------------------------------------------------------------------- changes
 
 
 class CaseChangeIn(In):
@@ -749,9 +742,6 @@ class GroupDecisionIn(In):
 
 class GroupDecisionDone(Out):
     decided: list[DecisionDone]
-
-
-# --------------------------------------------------------------------------- Check more
 
 
 class CheckTemplateOut(Out):

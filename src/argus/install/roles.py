@@ -1,14 +1,12 @@
-"""The read-only keys ARGUS needs, as Kibana Dev Tools requests a person pastes (D-297). Init
-never creates a user, a role or a key on the SIEM (a write to the person's SIEM); it prints the
-request that makes the key, with the role inline, and asks for the key.
+"""The read-only keys ARGUS needs, as Kibana Dev Tools requests a person pastes. Init never creates
+a user, a role or a key on the SIEM; it prints the request that makes the key, with the role
+inline, and asks for the key.
 
-The Elasticsearch key reads what the gateway reads (``argus.gateway.service.targets`` and the
-self-test): ``monitor`` (node stats, the health probe) and ``read`` and ``view_index_metadata``
-on the Security alerts index of the space and its backing indices, the log families' patterns and
-the threat-intel sources, nothing else. Kibana's key holds Cases Read in the space (the
-read-back). Before discovery the space and the families are not known: the starting key reads
-the alerts of every space and the log patterns the person names; after discovery init prints the
-exact role for the site, to narrow the key to."""
+The Elasticsearch key reads what the gateway reads: ``monitor``, and ``read`` and
+``view_index_metadata`` on the alerts index and its backing indices, the log families and the
+threat-intel sources. Kibana's key holds Cases Read in the space. Before discovery the starting key
+reads every space's alerts; afterwards init prints the exact role for the site, to narrow it to.
+"""
 
 from __future__ import annotations
 

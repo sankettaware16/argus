@@ -1,10 +1,9 @@
-"""Reviewer accounts and sessions (plan §9.1, D-052; Phase 3 §7.2, Q-A1, Q-E2): argon2id
-passwords; a session is a random token kept only as its SHA-256, with an idle and an absolute
-expiry, its own CSRF token, and the time its person last confirmed their password (step-up).
-
-A session has a mode: ``local`` (a password checked against the account's hash), ``elk`` (the
-person's own ELK account, its capabilities a snapshot that ``argus.web.elk`` keeps in step) or
-``break_glass`` (the emergency account: view and review only)."""
+"""Reviewer accounts and sessions: argon2id passwords; a session is a random token kept only as
+its SHA-256, with an idle and an absolute expiry, its own CSRF token and the time its person last
+confirmed their password (step-up). A session has a mode: ``local`` (a password checked against
+the account's hash), ``elk`` (the person's own ELK account, its capabilities a snapshot that
+``argus.web.elk`` keeps in step) or ``break_glass`` (the emergency account: view and review
+only)."""
 
 from __future__ import annotations
 
@@ -35,8 +34,8 @@ HASHER = PasswordHasher()  # argon2id with the library's current defaults
 _DUMMY = HASHER.hash("argus-dummy-password")  # equal work for an unknown user
 SEEN_EVERY = timedelta(minutes=1)  # how often a session's last_seen_at is written
 USERNAME = re.compile(r"[a-z][a-z0-9_.-]{1,31}")  # as the users table's check constraint
-DEFAULT_ABSOLUTE = timedelta(hours=8)  # a session's longest life (plan §7.2, DQ17)
-STEP_UP_FAILURES = 3  # failed step-ups that end a session (plan §7.2)
+DEFAULT_ABSOLUTE = timedelta(hours=8)  # a session's longest life
+STEP_UP_FAILURES = 3  # failed step-ups that end a session
 
 
 def shown_name(username: str) -> str:
@@ -48,12 +47,12 @@ async def one_at_a_time(conn: AsyncConnection, name_key: str, client: str) -> bo
     """Take this name's and this client's sign-in locks until the transaction ends: password
     checks for one name (``name_key``: the name as the audit trail records it), or from one
     client, happen one after another, each refusal committed before the next check counts them,
-    so a burst sent at once gets no more guesses than the throttle allows (Q-A1 review F4).
+    so a burst sent at once gets no more guesses than the throttle allows.
 
     The locks are **try-locks**: False when either is held, and the caller answers "busy" at
     once. A request that waited for a lock would hold a pooled connection while it waited, and a
-    burst of sign-ins for one name would take every connection from the pages (Q-E2 review
-    F11). Always the name first, then the client; the locks are never waited for, so no two
+    burst of sign-ins for one name would take every connection from the pages.
+     Always the name first, then the client; the locks are never waited for, so no two
     requests wait for each other."""
     for key in (f"argus.signin.name:{name_key}", f"argus.signin.client:{client}"):
         got = await conn.scalar(
@@ -180,7 +179,7 @@ async def check_password(conn: AsyncConnection, username: str, password: str) ->
 
 @dataclass(frozen=True)
 class Granted:
-    """What a sign-in other than a local password gives its session (Q-E2): the mode, and for
+    """What a sign-in other than a local password gives its session: the mode, and for
     an ELK session the capabilities ELK showed, when, and the capability map's version."""
 
     mode: str = "local"  # local | elk | break_glass
@@ -385,7 +384,7 @@ async def stepped_up(conn: AsyncConnection, hashed: str, now: datetime) -> None:
 async def step_up_open(conn: AsyncConnection, hashed: str) -> bool:
     """Whether the session may still try a step-up (live, fewer than three failures), its row
     locked until the transaction ends: step-ups of one session happen one after another, and
-    each sees what the one before it committed (Q-A1 review F4)."""
+    each sees what the one before it committed."""
     failures = await conn.scalar(
         text(
             "SELECT stepup_failures FROM user_sessions WHERE token_hash = :t"

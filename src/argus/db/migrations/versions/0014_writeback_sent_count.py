@@ -1,4 +1,4 @@
-"""The write-back outbox records the alerts sent of a row (R17 review: no alert sent twice)
+"""The write-back outbox records the alerts sent of a row (no alert is sent twice)
 
 Revision ID: 0014
 Revises: 0013

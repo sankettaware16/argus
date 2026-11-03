@@ -1,19 +1,13 @@
-"""The Kibana lane and the lane budgets (Q-D2, plan §7.8): switches, shared state, ledger columns
+"""The Kibana lane and the lane budgets: switches, shared state, ledger columns
 
-- New kill switches, running by default like the others: ``investigation``, ``freshness``,
-  ``cases`` (Kibana case writes) and ``identity`` (sign-in checks).
-- New shared states: ``lanes`` (every lane's budget bucket but the collector's, which stays
-  ``budget``), ``kibana`` (Kibana stopped, paused write classes, the write caps' counters) and
-  ``kibana_breaker`` (Kibana's own overload breaker).
-- The request ledger records the lane a request spent, where it went (Elasticsearch or
-  Kibana), and for a write its outbox row, payload hash, class and approval, with the SIEM's
-  health and the stopped switches when it was sent. The runtime role may insert them; the
-  ledger stays append-only for it.
-- Q-A5's rule (0027: services may stop, only the owner resumes) for the Kibana lane: a row
-  trigger on ``siem_state`` refuses lifting Kibana's stop or a paused write class from the
-  ``kibana`` row unless the role making the change is the table's owner or a member of it
-  (``argus kibana resume`` runs as the owner). Stopping, pausing and every other update the
-  runtime makes (the write caps' counters) are unchanged.
+- New kill switches: ``investigation``, ``freshness``, ``cases`` (Kibana case writes) and
+  ``identity``.
+- New shared states: ``lanes`` (every lane's bucket but the collector's, which stays ``budget``),
+  ``kibana`` (stopped, paused write classes, the write caps' counters) and ``kibana_breaker``.
+- The request ledger records the lane, the target, and for a write its outbox row, payload hash,
+  class and approval, with the SIEM's health and the stopped switches; it stays append-only.
+- The rule of 0027 (services may stop, only the owner resumes) for the Kibana lane, by a row
+  trigger on ``siem_state``.
 
 Revision ID: 0029
 Revises: 0028

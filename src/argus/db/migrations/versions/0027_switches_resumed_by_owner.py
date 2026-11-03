@@ -1,12 +1,10 @@
-"""Kill switches: services may stop them, only the owner resumes them (Q-A5, plan §7.9)
+"""Kill switches: services may stop them, only the owner resumes them
 
-Until now the runtime role could clear ``siem_switches.stopped`` and the LLM gateway's
-``stopped`` flag (db/roles.py grants it UPDATE on both), so any ARGUS process, or anything that
-got the runtime password, could undo a person's stop. A row trigger now refuses a change from
-stopped to running unless the role making it is the table's owner or a member of it (the owner
-runs ``argus siem resume`` and ``argus llm resume``). Stopping, and every other update the
-runtime makes (budgets, breakers), is unchanged. The runtime role owns nothing, so it cannot
-drop or switch off the trigger.
+The runtime role could clear ``siem_switches.stopped`` and the LLM gateway's ``stopped`` flag, so
+anything that got the runtime password could undo a person's stop. A row trigger now refuses a
+change from stopped to running unless the role making it is the table's owner or a member of it (the
+owner runs ``argus siem resume`` and ``argus llm resume``). Stopping and every other update the
+runtime makes are unchanged.
 
 Revision ID: 0027
 Revises: 0026

@@ -1,21 +1,12 @@
 """The exact query behind a line of evidence, as text a person can paste and a read-only Kibana
-Discover link (AR7, D-190).
+Discover link.
 
-Built only from the evidence templates that **actually ran** (the ``evidence`` row's template,
-version and parameters) and from configuration (the Kibana address, the space, the log index
-prefix, the data views). Building a query is string work: nothing here asks the SIEM or Kibana
-anything, and a link only opens a page a person already has to be signed in to.
-
-Each query exists in both languages, because the security team uses both: KQL (what Discover's
-search bar takes, over a data view) and ES|QL (what it takes with no data view at all). A link is a
-KQL link when ``incident.data_views`` names a data view for the index family, else an ES|QL link,
-which needs no id. Values enter a query only as quoted literals (``\\`` and ``"`` escaped, control
-characters dropped), so a value from a log or an alert can never add a clause.
-
-The mapping from a template to its query lives here, one function each, and a test holds that
-every template the investigation can run has one: a template without a query would be an evidence
-line a person cannot check.
-"""
+Built only from the evidence templates that **actually ran** and from configuration; building a
+query is string work and asks nothing of the SIEM or Kibana. Each query exists as KQL (over a data
+view) and as ES|QL (no data view needed); a link is KQL when ``incident.data_views`` names a data
+view for the index family, else ES|QL. Values enter a query only as quoted literals, so a value from
+a log or an alert can never add a clause. A test holds that every template the investigation can
+run has a query function here: a line a person cannot check would only look like evidence."""
 
 from __future__ import annotations
 
@@ -60,9 +51,6 @@ class Config:
         return site.active().alerts_index_of(self.space)
 
 
-# ----------------------------------------------------------------------------- the languages
-
-
 def clean(value: object) -> str:
     return _CONTROL.sub("", str(value))
 
@@ -92,9 +80,6 @@ def stamp(at: datetime) -> str:
 
 def esql_window(start: datetime, end: datetime, field_: str = "@timestamp") -> str:
     return f"{field_} >= {esql_str(stamp(start))} AND {field_} < {esql_str(stamp(end))}"
-
-
-# ----------------------------------------------------------------------------- rison and links
 
 
 def rison(value: Any) -> str:
@@ -179,9 +164,6 @@ def make(
                          end=end, source=source, time_field=time_field),
         template=template,
     )  # fmt: skip
-
-
-# ----------------------------------------------------------------------------- the templates
 
 
 def _t(params: Mapping[str, Any], key: str) -> datetime:
@@ -314,7 +296,7 @@ def _logs_source_events(cfg: Config, p: Mapping[str, Any]) -> ReportQuery:
 
 def _ti_lookup(cfg: Config, p: Mapping[str, Any], at: datetime) -> ReportQuery:
     """The look-up as a Discover query over the sources it asked (the stored parameters name
-    them; a request from before sources were settings meant the site's default ``ioc`` one)."""
+    them; a request that names none means the site's default ``ioc`` one)."""
     values = [str(v) for v in p.get("values") or []]
     names = [str(n) for n in p.get("indices") or []]
     if not names:
@@ -378,9 +360,6 @@ def for_template(
         return found.model_copy(update={"template": f"{template}@{version}"})
     except (KeyError, TypeError, ValueError):
         return None
-
-
-# ----------------------------------------------------------------------------- alerts
 
 
 def alerts_query(cfg: Config, rule_names: list[str], start: datetime, end: datetime) -> ReportQuery:

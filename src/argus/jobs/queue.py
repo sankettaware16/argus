@@ -1,13 +1,11 @@
-"""The durable job queue (plan §6 R6, D-051): at most one active job per investigation, claims
-are leases, and only the current claim may finish a job.
+"""The durable job queue: at most one active job per investigation, claims are leases, and only
+the current claim may finish a job.
 
-A worker ``claim``s jobs (``FOR UPDATE SKIP LOCKED``: workers never wait for each other, never
-get the same job), does the work, and calls ``complete`` **in the transaction that writes the
-work's effect**: if its lease was lost meanwhile (it was too slow, or presumed dead and the job
-was claimed again), ``complete`` raises LeaseLostError and the effect rolls back with it. A
-job whose investigation changed while it ran is queued again; a failed one is retried with
-backoff, then given up. A job that cannot run because the SIEM or Postgres is unavailable is
-deferred (R8, D-054): queued again with growing waits, without counting a failure.
+A worker ``claim``s jobs (``FOR UPDATE SKIP LOCKED``), does the work, and calls ``complete`` **in
+the transaction that writes the work's effect**: if its lease was lost meanwhile, ``complete``
+raises LeaseLostError and the effect rolls back. A job whose investigation changed while it ran is
+queued again; a failed one is retried with backoff; a job deferred by an unavailable SIEM or
+Postgres is queued again with growing waits, without counting a failure.
 """
 
 from __future__ import annotations
@@ -126,7 +124,7 @@ async def complete(conn: AsyncConnection, job: Claim, now: datetime) -> bool:
 
 
 async def skip(conn: AsyncConnection, job: Claim, now: datetime, reason: str) -> None:
-    """Finished without running: what the work would read is gone (the retention purge, Q-A4),
+    """Finished without running: what the work would read is gone (the retention purge),
     so the investigation keeps what it has. The job is done, with the reason kept for a human;
     nothing is queued again."""
     await _current(conn, job, now)

@@ -1,26 +1,9 @@
-"""The three outside sources (AR3, D-165): how a lookup is asked and how a reply is read.
-
-* **VirusTotal** (public API v3, ``x-apikey`` header): ``/ip_addresses/{ip}``, ``/domains/{name}``,
-  ``/files/{hash}``, ``/urls/{id}``. The reply's ``last_analysis_stats`` give the engines that
-  call the indicator malicious or suspicious.
-* **Shodan** (``/shodan/host/{ip}``, the key as a query parameter): a public address's open
-  ports, services, names, organisation and known CVEs. A host lookup only: ARGUS never uses the
-  search or the on-demand scan, whose credits are scarce. With no key it asks Shodan's free
-  **InternetDB** (``internetdb.shodan.io/{ip}``, no key: ports, names, CPEs, tags, known CVEs)
-  instead (AR2c, D-168, D-170).
-* **Censys** (the Platform API, ``/v3/global/asset/host/{ip}``, a personal access token as a
-  bearer token): a public address's services and its network. A host lookup only.
-
-``prepare`` builds the request without any reply; ``parse`` reduces a reply (a status and the
-body bytes) to a :class:`Parsed`: an outcome and a small answer. Neither does I/O, and neither
-puts a key anywhere but the headers or query parameters of the request it returns (whose repr
-shows neither). A reply that is not what the source documents is an error, never an answer.
-
-The transport (:class:`HttpxTransport`) is separate and the only part that touches the network:
-HTTPS to the source's own host, no redirects, no proxy or certificate settings from the
-environment, a deadline, a cap on the size read, and no exception text that could hold a URL
-(Shodan's key is in the URL).
-"""
+"""The three outside sources: VirusTotal (public API v3), Shodan (host lookup; the free InternetDB
+with no key) and Censys (Platform API host lookup). ``prepare`` builds a request and ``parse``
+reduces a reply to a small :class:`Parsed` answer; neither does I/O, and a key goes only in the
+headers or query parameters of the request. :class:`HttpxTransport` is the only code that touches
+the network: HTTPS to the source's own host, no redirects or proxies, a deadline, a size cap, and
+no exception text that could hold a URL."""
 
 from __future__ import annotations
 
@@ -180,7 +163,7 @@ class VirusTotal:
 
 
 def _domain_fields(attributes: Mapping[str, Any], now: datetime) -> dict[str, Any]:
-    """What a domain's answer adds to the counts (AR2c, D-168, D-174): whether VirusTotal ranks it
+    """What a domain's answer adds to the counts: whether VirusTotal ranks it
     among the popular sites (a web-popularity list, a rank from the last year: see
     :func:`facts.popularity`; the other lists are kept as ``ranks`` for display), who registered
     it, and where it points (its name servers and A records, from ``last_dns_records``). ``ranked``
@@ -250,7 +233,7 @@ class Shodan:
 
 
 class InternetDB:
-    """Shodan's free InternetDB (AR2c, D-168): ``GET https://internetdb.shodan.io/{ip}``, no key,
+    """Shodan's free InternetDB: ``GET https://internetdb.shodan.io/{ip}``, no key,
     for the ``shodan`` source when no key with host access is set. It answers the address's open
     ports, host names, CPEs (software), tags and known CVEs, nothing more: no organisation, no
     network. A 404 is "no record". The same limits as Shodan's host lookup apply."""

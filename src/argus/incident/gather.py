@@ -1,15 +1,10 @@
-"""What the incident report is written from (AR7, D-190): one case's stored facts, read from ARGUS's
-own database in bounded statements and held in plain, frozen records.
+"""What the incident report is written from: one case's stored facts, read from ARGUS's own
+database in bounded statements and held in plain, frozen records.
 
-Nothing here asks the SIEM, Kibana or a model anything, and nothing is written. The counts that the
-report states (alerts a day, alerts a rule) are exact aggregates in SQL; the alert documents
-themselves are a bounded sample (the first and the newest of the case), because a case can hold
-thousands of alerts and a report needs their fields, not all of them. What was cut is recorded in
-:attr:`CaseFacts.limits` and said in the report.
-
-:func:`gather` reads; :mod:`argus.incident.build` is the pure function from these records to the
-report, so the whole writer is testable without a database.
-"""
+Nothing here asks the SIEM, Kibana or a model, and nothing is written. The counts the report states
+are exact aggregates in SQL; the alert documents are a bounded sample (the first and the newest of
+the case), and what was cut is recorded in :attr:`CaseFacts.limits` and said in the report.
+:func:`gather` reads; :mod:`argus.incident.build` is the pure function from these records."""
 
 from __future__ import annotations
 
@@ -84,7 +79,7 @@ class MemberRow:
 
 @dataclass(frozen=True)
 class DayRule:
-    day: str  # an IST day
+    day: str  # a local day
     rule: str
     alerts: int
     first: datetime
@@ -148,7 +143,7 @@ class AssessmentRow:
     confidence: float | None
     reasons: Sequence[Any]
     at: datetime | None
-    shared: bool = False  # a run on a pattern's other investigation (AR2)
+    shared: bool = False  # a run on a pattern's other investigation
 
 
 @dataclass(frozen=True)
@@ -194,12 +189,10 @@ class CaseFacts:
     actions: tuple[ActionRow, ...]
     advice: frozenset[str]  # the responder's facts of the case (c2_indicator, ...)
     served: frozenset[str] = frozenset()  # paths a web check showed served
-    order: int = 1  # the case's rank among the cases created that IST day (the incident id's nn)
+    order: int = 1  # the case's rank among the cases created that local day (the incident id's nn)
     limits: tuple[str, ...] = field(default_factory=tuple)
-    users: Users | None = None  # who signed in from the case's devices (AR6), when it is on
+    users: Users | None = None  # who signed in from the case's devices, when it is on
 
-
-# ----------------------------------------------------------------------------- statements
 
 _CASE = text(
     "SELECT id, number, title, state, severity, version, cause, created_at, opened_at,"
@@ -430,9 +423,9 @@ class Signal:
 
 async def signals(conn: AsyncConnection, case_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, Signal]:
     """A cheap signal for each case: it changes when what the report says changes **in kind**,
-    and not for each alert (D-205). An ongoing case grows all day; its report must not become a
+    and not for each alert. An ongoing case grows all day; its report must not become a
     new version every 30 minutes for that alone. So the alert count is a bucket (the log base 2 of
-    it: a new version when the case doubles) and the last event is its IST day (a new version each
+    it: a new version when the case doubles) and the last event is its local day (a new version each
     day the activity goes on); beyond those, the signal changes with a new or removed indicator
     (and its role), device, evidence flag or threat-list hit, a person's review or decision, a
     notice, reminder, action or outside answer, a new kind of proposal, and the case's own state.
@@ -455,7 +448,7 @@ _MEMBERS_OF = (
 )
 # a case's actor addresses that are IPv4 (the SSO logs' source.ip), cast with a guard: a value that
 # is not a plain address must not fail the statement
-# a finished day is final this long after its end (``signins.final_after``'s default, D-224)
+# a finished day is final this long after its end (``signins.final_after``'s default)
 FINAL_SECONDS = int(FINAL_AFTER.total_seconds())
 _OCTET = "(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
 _ACTOR_ADDRESSES = (
@@ -467,7 +460,7 @@ _SIGNALS = (
     # the case itself (not its version: that moves with every new activity)
     "SELECT c.id, concat_ws('|', c.state, c.severity, md5(c.title), c.opened_at, c.notified_at,"  # noqa: S608
     " c.blocked_at, c.cause_assessment_id,"
-    # how big and how long: the alert count's bucket, the members, the IST day of the last event
+    # how big and how long: the alert count's bucket, the members, the local day of the last event
     f" (SELECT concat_ws(',', count(*), {_bucket('sum(i.alert_count)')},"
     f"   (max(i.last_event_at) AT TIME ZONE {ZONE_MARK})::date) {_MEMBERS_OF}),"
     # the indicators and their roles (a new device, server or indicator, a changed role)
@@ -512,7 +505,7 @@ _SIGNALS = (
     " (SELECT concat_ws(',', count(*), max(o.fetched_at))"
     "  FROM outside_lookups o JOIN case_indicators x ON x.kind = o.kind AND x.value = o.indicator"
     "  WHERE x.case_id = c.id AND x.removed_at IS NULL),"
-    # AR6: who signed in from the case's devices. Null (so absent from the signal) while nothing
+    # who signed in from the case's devices. Null (so absent from the signal) while nothing
     # was looked up; else the lookups by state (a day made final counts once) and a hash of the
     # accounts per address and day, not of their counts: a new account or a lookup that completes
     # makes a new report, more sign-ins of the same account do not.

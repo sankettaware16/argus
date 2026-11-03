@@ -1,34 +1,9 @@
-"""Agents as Markdown files (Q-H1, plan §7.6): ``config/agents/<name>.md``, read strictly and
-checked against what code allows (``argus.agent.registry``) when a process starts.
-
-A file is a header between two ``---`` lines, then the instructions::
-
-    ---
-    name: investigator
-    kind: coordinator
-    version: coordinator@3
-    ...
-    ---
-    You are the lead security analyst ...
-    {tools}
-    ...
-
-The header is a strict subset of YAML: plain decimal numbers, text, lists and one level of
-mapping (``budget``); no anchors, aliases, tags, merge keys, duplicate keys or other implicit
-types (``yes``, ``null``, dates, ``0x10`` are text, which no field accepts). The instructions
-are plain text with ``{tools}`` exactly once, where ARGUS writes one line per tool the agent
-may use; they are what the model is given, byte for byte. The file is printable ASCII (no
-tab, carriage return, control or other character: a look-alike letter or a blank-looking
-one could hide text from the person approving a prompt), no line ends with a space, and it
-ends with one newline.
-
-Each file is refused, with the reason, when it names an agent code does not bind, changes a
-bound kind, task or output, widens a bound set or cap, carries a version code has not pinned,
-differs from its pin by a byte (the file, or the instructions with its tools' lines in), or
-is not the enabled version (an agent may also be off). A coordinator loads with the
-specialists its file names, and only their files decide whether it runs; ``survey`` gives
-every agent's own state. Nothing here sends anything anywhere.
-"""
+"""Agents as Markdown files (``config/agents/<name>.md``), read strictly and checked against what
+code allows (``argus.agent.registry``) when a process starts. A file is a YAML-subset header
+between two ``---`` lines, then printable-ASCII instructions with ``{tools}`` exactly once. It is
+refused, with the reason, when it names an unbound agent, widens a bound, carries an unpinned
+version, differs from its pin by a byte or is not the enabled version. Nothing here sends
+anything anywhere."""
 
 from __future__ import annotations
 
@@ -70,8 +45,7 @@ FENCE = "---"
 TOOLS = "{tools}"
 # The words a pin's hash is made in: the prompt a model reads carries the site's words (a tool's
 # line says "a campus host"), but what is approved is the template, so the hash is taken with
-# these fixed words, the ones the pins were made with (only the tools' lines have any, and they
-# name no more than the word for the own network), whatever the site is.
+# these fixed words (only the tools' lines have any), whatever the site is.
 PIN_WORDS = site.SiteSettings(own_network_noun="campus")
 PLACEHOLDER = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
 VERSION = re.compile(r"([a-z]+)@[1-9][0-9]{0,5}")  # <kind>@<number>
@@ -222,7 +196,6 @@ class Agents:
         return MappingProxyType({name: self.by_name[name] for name in lead.specialists})
 
     def takes(self, trigger: Trigger) -> bool:
-        """The coordinator may be started by ``trigger``."""
         return trigger in self.coordinator.triggers
 
     def summary(self) -> str:
@@ -260,7 +233,6 @@ def _read(path: Path) -> bytes:
 
 
 def _lines(name: str, data: bytes) -> list[str]:
-    """The file's lines, once every rule about characters holds."""
     if len(data) > MAX_BYTES:
         raise AgentError(f"{name}: larger than {MAX_BYTES // 1024} KiB")
     if data.startswith(b"\xef\xbb\xbf"):
@@ -571,15 +543,11 @@ def load(
     pins: Mapping[str, Mapping[str, Pin]] | None = PINS,
     enabled: Mapping[str, str | None] | None = ENABLED,
 ) -> Agents:
-    """The ``coordinator`` and the specialists its file names, from ``directory``
-    (``DIRECTORY``), checked: each file on its own, then its pin (unless ``pins`` is None),
-    then that it is the enabled version (unless ``enabled`` is None: an evaluation's view of
-    a pinned version not switched on), then that each specialist is one. Raises AgentError
-    with the first reason found.
-
-    Only this family's files decide: another bound agent that is off, refused or missing
-    (``survey`` gives its state) never refuses it. A file code binds no agent to is refused
-    (a stray file in the directory is someone's mistake to see)."""
+    """The ``coordinator`` and the specialists its file names, from ``directory``, checked: each
+    file on its own, then its pin (unless ``pins`` is None), then that it is the enabled version
+    (unless ``enabled`` is None), then that each specialist is one. Raises AgentError with the
+    first reason found. Only this family's files decide: another agent that is off, refused or
+    missing (``survey`` gives its state) never refuses it; a file code binds no agent to is."""
     found = _files(DIRECTORY if directory is None else directory)
     _unbound(found, bindings)
     lead = read(_file(found, coordinator), bindings)

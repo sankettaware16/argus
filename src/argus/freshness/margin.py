@@ -1,19 +1,10 @@
-"""The margin for late logs, derived from each source's lag distribution (Q-F1, DQ19).
+"""The margin for late logs, derived from each source's lag distribution.
 
-Two distributions say how late a source's events arrive:
-
-- **document delays**, ``event.ingested - @timestamp`` of log documents (the captured corpus:
-  ``data/corpus/<day>/ancestors.jsonl.gz`` and ``context.jsonl.gz``, one search hit a line);
-- **reading lags**, ``at - event_at`` of the freshness lane's readings (``argus freshness
-  export``, one reading a line): how far behind the clock the newest arrived event was.
-
-A source's margin is the larger of the two distributions' ``quantile`` (0.999 by default),
-times ``factor`` (1.5), never below ``floor`` (2 minutes: Elasticsearch's refresh and the
-lane's own timing), rounded up to a whole ``step`` (1 minute). A source with fewer than
-``min_n`` values in total gets no margin (it never gets a verified zero) and the reason.
-Negative delays (clocks ahead of the ingest node) count as 0. Pure: the script
-``scripts/derive_margin.py`` reads the files, and the lead records the result by a decision
-(``freshness.margins``).
+Two distributions say how late a source's events arrive: **document delays** (``event.ingested -
+@timestamp`` of log documents) and **reading lags** (``at - event_at`` of the freshness lane's
+readings). A source's margin is the larger of the two distributions' ``quantile`` times ``factor``,
+never below ``floor``, rounded up to a whole ``step``. A source with fewer than ``min_n`` values
+gets no margin and the reason. Pure: ``scripts/derive_margin.py`` reads the files.
 """
 
 from __future__ import annotations
@@ -30,7 +21,7 @@ QUANTILE = 0.999
 FACTOR = 1.5
 FLOOR = timedelta(minutes=2)
 STEP = timedelta(minutes=1)
-MIN_N = 10_000  # review F8: 1,000 let one 4-hour straggler vanish behind p99.9
+MIN_N = 10_000  # fewer values let one long straggler vanish behind p99.9
 MIN_DOCUMENTS = 1000  # and the margin rests on documents' delays, never on readings alone
 CEILING = timedelta(hours=6)  # freshness.margins' largest value
 

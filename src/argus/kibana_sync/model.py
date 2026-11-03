@@ -1,9 +1,9 @@
-"""Kibana's answers as records, and what the read-back keeps (Q-D3). Pure.
+"""Kibana's answers as records, and what the read-back keeps. Pure.
 
-Every case comes through Q-D2's strict answer check (``models.check_case``) first; a field the
+Every case comes through the strict answer check (``models.check_case``) first; a field the
 read-back needs that is missing or of the wrong type is an ``AnswerMismatchError``, never a
 guess. People's text (titles, comments) is kept as untrusted text: shown escaped, never an
-attestation, never model input (plan §7.1, §3 rule 14).
+attestation, never model input.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ ARGUS_CASE_TAG = re.compile(
 TEXT_KEPT = 2_000  # characters of a person's comment or title kept in a finding
 # Control characters (except tab, newline and carriage return) and lone surrogates: Kibana
 # accepts them in a comment, title or tag; Postgres refuses NUL, and a lone surrogate cannot be
-# encoded as UTF-8 or as a jsonb escape, so one such text would fail every cycle (review D3-R1).
+# encoded as UTF-8 or as a jsonb escape, so one such text would fail every cycle.
 _UNSAFE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff]")
 
 
@@ -41,7 +41,7 @@ class Severity(StrEnum):
 
 
 class Kind(StrEnum):
-    """The reconciliation's findings (plan §7.1's table); the database's list (0030)."""
+    """The reconciliation's findings (the database keeps the same list)."""
 
     PERSON_EDITED = "person_edited"
     PERSON_DELETED = "person_deleted"
@@ -245,7 +245,7 @@ class Mirror:
     argus_actions: Mapping[str, int] = field(default_factory=dict)
     paused_reason: str | None = None
     # ARGUS actions no sent write explained, by kind: already alarmed, so a later explained
-    # action of the same kind is not taken for one of them (review D3-R7)
+    # action of the same kind is not taken for one of them
     unexplained: Mapping[str, int] = field(default_factory=dict)
 
     @property
@@ -258,8 +258,8 @@ class SentWrite:
     """An outbox row of the case that was sent to Kibana at least once (``sent_count``), or one
     of the case team's steps (``by``: its Kibana user)."""
 
-    op: str  # create, update, comment, close (Q-C1); attach once Q-D4 plans attachments;
-    # the case team's also title, description and edit_comment (D-270)
+    op: str  # create, update, comment, close, attach;
+    # the case team's also title, description and edit_comment
     fields: frozenset[str]  # what an update or close changes: status, severity, argus_tags
     sent_count: int
     by: str = ""  # who sent it when not the service user (a case-team user)

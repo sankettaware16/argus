@@ -1,4 +1,4 @@
-"""``argus collect ...``: run the collector, or one of its jobs by hand (R5, D-050)."""
+"""``argus collect ...``: run the collector, or one of its jobs by hand."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from argus.gateway.service import build_gateway, probe
 log = logging.getLogger("argus.collector")
 
 collect_app = typer.Typer(
-    no_args_is_help=True, help="The collector: the SIEM's alerts into the store (R5)."
+    no_args_is_help=True, help="The collector: the SIEM's alerts into the store."
 )
 
 
@@ -44,7 +44,7 @@ async def _with_collector[T](
     async def fresh_probe() -> Any:
         last_probe[:] = [datetime.now(UTC)]
         lag = None
-        if settings.freshness.mode == "on":  # the trip wire's input (Q-F1, DQ19)
+        if settings.freshness.mode == "on":  # the trip wire's input
             from argus.freshness.reader import current_lags
 
             try:
@@ -55,7 +55,7 @@ async def _with_collector[T](
 
     async def keep_fresh() -> None:
         """Long manual runs probe at most once a minute, so the health state never goes stale
-        (D-049) in the middle of a backfill or reconciliation."""
+        in the middle of a backfill or reconciliation."""
         if not last_probe or datetime.now(UTC) - last_probe[0] >= timedelta(minutes=1):
             await fresh_probe()
 

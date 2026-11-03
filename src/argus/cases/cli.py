@@ -1,12 +1,9 @@
-"""``argus case ...`` and ``argus audit ...`` (Q-C1): the case record at the terminal.
+"""``argus case ...`` and ``argus audit ...``: the case record at the terminal.
 
 Changes are made as a named person (``--as <username>``, audited as ``user:<id>`` with
-``via: cli``) holding a local account's capabilities: everything but approving. Approvals are
-recorded only by the web's own login with a fresh step-up (Q-C3, Q-B3), never here. Nothing
-here sends anything to Kibana; Kibana writes wait in the outbox for the writer (Q-D4).
-
-``argus case backfill`` (DQ4 (i)) is a dry run unless ``--apply``; ``argus case sync`` applies
-the same rules to new verdicts and proposals.
+``via: cli``) holding a local account's capabilities: everything but approving, which only the web's
+login records. Nothing here sends anything to Kibana. ``argus case backfill`` is a dry run unless
+``--apply``; ``argus case sync`` applies the same rules to new verdicts and proposals.
 """
 
 from __future__ import annotations
@@ -81,8 +78,8 @@ from argus.outside.eligible import Eligibility
 from argus.outside.service import view_of
 from argus.responder.machine import ist_day
 
-case_app = typer.Typer(no_args_is_help=True, help="Cases: ARGUS's record of real problems (Q-C1).")
-audit_app = typer.Typer(no_args_is_help=True, help="The audit trail's hash chain (Q-C1).")
+case_app = typer.Typer(no_args_is_help=True, help="Cases: ARGUS's record of real problems.")
+audit_app = typer.Typer(no_args_is_help=True, help="The audit trail's hash chain.")
 
 As = Annotated[str, typer.Option("--as", help="the person acting: an ARGUS username")]
 Version = Annotated[
@@ -339,10 +336,10 @@ def case_contain(
     config: ConfigOption = None,
 ) -> None:
     """Contain a case (a person who may manage cases). Needs your attestation and a verified
-    quiet window from the still-active watch (Q-C2). "72 hours" means the three whole UTC days
+    quiet window from the still-active watch. "72 hours" means the three whole UTC days
     before today. What was read: ARGUS's own alerts on each of them and, for each address of the
     case that can be checked in the proxy logs, the logs 01:40-22:59 UTC on each of the three
-    days (with Q-F1's verified zeros); the nightly seam and today are covered by the alerts
+    days (with verified zeros); the nightly seam and today are covered by the alerts
     only, and a case with no such address rests on the alerts alone (the verdict says so).
     Without that evidence the case stays where it is, and the reason is shown."""
 
@@ -442,7 +439,7 @@ def case_split(
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
-    """Move investigations out of a case, into a new case or an existing one, in one step (D-211).
+    """Move investigations out of a case, into a new case or an existing one, in one step.
     For a suggested case that holds two devices that are separate problems: record the owner's
     notice on the case that holds only the notified one. The actor indicators only the moved
     investigations carried go with them; C2 and other indicators stay on this case and are copied
@@ -535,7 +532,7 @@ def case_retitle(
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
-    """Rename a case, or make ARGUS's titles current (D-230).
+    """Rename a case, or make ARGUS's titles current.
 
     `argus case retitle 7 --title "..." --as asha --reason "..."` is a person's title: ARGUS never
     changes it afterwards. `argus case retitle --all [--dry-run]` makes the title of every case
@@ -611,7 +608,7 @@ def case_notify(
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
-    """Record that the device's owner (or its department, hostel or lab) was told (AR4b, D-169).
+    """Record that the device's owner (or the team that looks after it) was told.
     The case stays open and watched, leaves the work queues, and ARGUS counts its alerts instead of
     raising them; it speaks again only when something changes, suggests telling the owner again
     after 7 days and network-side action after 21 (`argus case blocklist`). Recordable more than
@@ -647,7 +644,7 @@ def case_withdraw_notice(
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
-    """Withdraw a notice that was recorded by mistake (D-181). The case is not notified any more
+    """Withdraw a notice that was recorded by mistake. The case is not notified any more
     and ARGUS stops absorbing its device's alerts; what it already decided known stays decided,
     and the notice rows stay as the record of what was said. Record the notice again if it was
     true."""
@@ -671,7 +668,7 @@ def case_block(
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
-    """Record that the case's servers or domains were blocked at the network (AR4b, D-169). The
+    """Record that the case's servers or domains were blocked at the network. The
     status line then reads "blocked at the network; the device is still infected"."""
     when = _moment(at)
 
@@ -700,7 +697,7 @@ def case_blocklist(
     fmt: Annotated[str, typer.Option("--format", help="text (an e-mail) or csv")] = "text",
     config: ConfigOption = None,
 ) -> None:
-    """The case's ready block list (AR4b, D-169): its domains, registered domains and addresses
+    """The case's ready block list: its domains, registered domains and addresses
     with the outside evidence ARGUS holds, for the head of cybersecurity. Shared infrastructure is
     left out. Nothing is asked of an outside source."""
     if fmt not in ("text", "csv"):
@@ -737,7 +734,7 @@ def case_report(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The case's incident report (AR7, D-190): summary, verdict, timeline, actors, assets, evidence
+    """The case's incident report: summary, verdict, timeline, actors, assets, evidence
     with the query behind each line, hypotheses, indicators and actions. Written from ARGUS's own
     database only (no request to the SIEM or Kibana, no model); stored as the next version when the
     evidence changed (``--dry-run`` only shows it). ``--pdf`` and ``--csv`` write the files the
@@ -810,7 +807,7 @@ def case_report(
 
 
 known_app = typer.Typer(
-    no_args_is_help=True, help="Cases whose owner was told: the known infection (AR4b, D-169)."
+    no_args_is_help=True, help="Cases whose owner was told: the known infection."
 )
 case_app.add_typer(known_app, name="known")
 
@@ -1008,8 +1005,8 @@ def case_backfill(
     ] = opener.BACKFILL_FROM.strftime("%Y-%m-%d"),
     config: ConfigOption = None,
 ) -> None:
-    """DQ4 (i): cases for past verdicts and proposals, back to 2026-10-14 (the PS1Bot verdicts)
-    and over history.window, at most 20 new cases an hour. A dry run unless --apply."""
+    """Cases for past verdicts and proposals, back to a fixed start date and over history.window,
+    at most 20 new cases an hour. A dry run unless --apply."""
     try:
         start = datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError:
@@ -1023,7 +1020,7 @@ def case_sync(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="only say what it would do")] = False,
     config: ConfigOption = None,
 ) -> None:
-    """Open, link or record cases for new true-positive verdicts and proposals (DQ4)."""
+    """Open, link or record cases for new true-positive verdicts and proposals."""
     _opener(config, apply=not dry_run, window=None, part="opener")
 
 
@@ -1039,8 +1036,8 @@ def case_suggest(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="only say what it would do")] = False,
     config: ConfigOption = None,
 ) -> None:
-    """Suggest cases from evidence across the last 72 hours of unreviewed investigations (AR2b,
-    AR2c): campaigns (several campus devices reaching one flagged destination or one operator's
+    """Suggest cases from evidence across the last 72 hours of unreviewed investigations:
+    campaigns (several internal devices reaching one flagged destination or one operator's
     domains, from the stored names and the outside answers already cached; nothing is asked), a
     host in Needs attention seen by several rules or on several days, actors that hit the same
     rare targets. A suggested case is suspected: a person confirms or dismisses it. The
@@ -1053,7 +1050,7 @@ def case_suggest(
         engine = engine_for(settings)
         try:
             found: tuple[Campaign, ...] = ()
-            if assets is not None:  # the campus view needs the asset map
+            if assets is not None:  # the internal view needs the asset map
                 try:
                     privacy = Privacy.build(load_policy(), assets, settings.site.own_networks)
                 except PrivacyConfigError as exc:
@@ -1129,11 +1126,9 @@ def audit_head(config: ConfigOption = None) -> None:
         typer.echo(f"{name}  {seq}  {head}")
 
 
-# ---------------------------------------------------------------------------- approvals (Q-C3)
-
 approvals_app = typer.Typer(
     no_args_is_help=True,
-    help="Closure approvals: signing keys, ARGUS's proposals, send-time checks (Q-C3).",
+    help="Closure approvals: signing keys, ARGUS's proposals, send-time checks.",
 )
 KeyOption = Annotated[
     list[Path],
@@ -1147,7 +1142,7 @@ def approvals_keygen(
     path: Annotated[Path, typer.Argument(help="the new key file (refused if it exists)")],
 ) -> None:
     """A new approval signing key (mode 0600). The web signs with it; the writer is given the
-    same file to verify (root-owned credentials once Q-A5's service users exist)."""
+    same file to verify (root-owned credentials under custody)."""
     key = signing.new_key()
     try:
         signing.write_key(path, key)
@@ -1176,7 +1171,7 @@ def approvals_check_send(
     config: ConfigOption = None,
 ) -> None:
     """The send-time checks of every closure write waiting in the outbox (nothing is sent to
-    Kibana: the writer is Q-D4's). With ``--apply`` each verdict is applied to the row: let go,
+    Kibana: the writer does that). With ``--apply`` each verdict is applied to the row: let go,
     held back for a re-confirmation, refused or skipped."""
     verifier = _verifier(key)
 
@@ -1260,8 +1255,8 @@ def approvals_apply(config: ConfigOption = None) -> None:
 
 @approvals_app.command("ledger")
 def approvals_ledger(config: ConfigOption = None) -> None:
-    """The autonomy ledger (DQ14): what people did with ARGUS's proposals, class by class, and
-    the approvals that expired unsent. Nothing closes on its own in Phase 3."""
+    """The autonomy ledger: what people did with ARGUS's proposals, class by class, and
+    the approvals that expired unsent. Nothing closes on its own."""
 
     async def use(conn: AsyncConnection, _: Settings) -> autonomy.Ledger:
         return await autonomy.ledger(conn)
@@ -1282,11 +1277,7 @@ def approvals_ledger(config: ConfigOption = None) -> None:
         typer.echo("  still needs: " + "; ".join(line.missing()))
 
 
-# --------------------------------------------------------------------------- the watch (Q-C2)
-
-watch_app = typer.Typer(
-    no_args_is_help=True, help="The daily still-active watch of open cases (Q-C2)."
-)
+watch_app = typer.Typer(no_args_is_help=True, help="The daily still-active watch of open cases.")
 case_app.add_typer(watch_app, name="watch")
 
 
@@ -1473,7 +1464,7 @@ def case_actions(
     config: ConfigOption = None,
 ) -> None:
     """What ARGUS advises for a case, who was asked, what was reported done, and whether the case
-    then went quiet. Advice only: nothing is executed (Phase 6 is the first that may act), and
+    then went quiet. Advice only: nothing is executed, and
     no model is asked. A person's "done" is an attestation."""
     from argus.responder import store
     from argus.responder.machine import ActionRefused
@@ -1565,7 +1556,7 @@ def case_actions_sync(config: ConfigOption = None) -> None:
         typer.echo(_shown(line))
 
 
-# AR8: the case team (docs/runbooks/kibana-case-team.md)
+#  the case team (docs/runbooks/kibana-case-team.md)
 from argus.caseteam.cli import team_app  # noqa: E402
 
 case_app.add_typer(team_app, name="team")

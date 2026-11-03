@@ -1,36 +1,13 @@
-"""What was advised, asked and done about a case (Q-H2, plan §5 and §7.7).
+"""What was advised, asked and done about a case.
 
-``case_actions`` holds one row for each (case, catalogue action): the advice ARGUS records
-(``recommended``), a person's ``requested`` (the owner was asked) and ``reported_done`` (an
-attestation: ARGUS cannot see the action), and ARGUS's own answer after it (``verified``, or
-``not_verified`` with the reason and the last sign of activity). Nothing is executed: Phase 6 is
-the first that may act. The catalogue is ``config/actions.yaml``; its action ids are checked by
-the loader, not here, so the table never needs a migration when an action is added.
-
-What the database refuses whoever asks (``argus_case_action_guard``, the owner's function, ENABLE
-ALWAYS like the other guards):
-
-* the edges: recommended -> requested | reported_done; requested -> reported_done; reported_done
-  -> verified | not_verified; verified -> not_verified (activity came back); not_verified ->
-  reported_done (a person tried again) or not_verified again (a newer reason). Nothing else, and
-  the identity of a row (case, action, family, owner) never changes;
-* a person's new attestation clears the earlier verdict, so an old "not verified" never sits
-  beside a newer "done"; ``updated_at`` is the database's own time;
-* from the web's login (checked by ``current_user``, as 0042 does): only a person's
-  ``requested`` or ``reported_done``, never ARGUS's recommendation or verdict, and a new row
-  carries only its own state's columns (a ``requested`` row holds no report or attestation, a
-  ``reported_done`` row no request). ``requested_by`` and ``reported_by`` are ``user:<id>`` for
-  everybody (a CHECK), so the web cannot sign in ARGUS's name;
-* from the web's login, a report dated within 10 minutes of the database's clock (``reported_at``
-  starts the three whole days a verdict waits for, and orders ARGUS's verdicts: a date a century
-  ahead would block every verdict, a date days back would let quiet days count at once).
-
-``argus_runtime`` reads the table and writes the named columns, with no DELETE. The web's role
-reads it and writes only the person's columns: it may INSERT a row already ``requested`` or
-``reported_done`` (a page can show a catalogue action ARGUS has not yet recorded) and UPDATE
-those columns; the verdict columns are ARGUS's.
-
-The role name is written out, not imported (see 0003).
+``case_actions`` holds one row for each (case, catalogue action): ARGUS's advice
+(``recommended``), a person's ``requested`` and ``reported_done`` (an attestation) and ARGUS's own
+answer after it (``verified`` or ``not_verified``). Nothing is executed by ARGUS. The owner's
+guard function ``argus_case_action_guard`` holds the edges and the identity of a row, clears an
+earlier verdict on a new attestation, and limits the web's login to a person's ``requested`` /
+``reported_done`` (``requested_by`` and ``reported_by`` are ``user:<id>``) with a report date
+within 10 minutes of the database's clock. The runtime reads the table and writes the named
+columns, with no DELETE.
 
 Revision ID: 0044
 Revises: 0043
@@ -43,7 +20,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0044"
-down_revision: str | None = "0043"  # Q-H4's 0043_notices publishes first
+down_revision: str | None = "0043"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,8 +1,8 @@
-"""``config/grouping.yaml``: per-rule group-key fields where a rule declares none (plan §7.1).
+"""``config/grouping.yaml``: per-rule group-key fields where a rule declares none.
 
 The key fields of an alert come from, in order: the rule's declared
 ``alert_suppression.group_by``, a threshold rule's ``threshold.field``, this file, and finally
-``[source.ip, destination.ip]``. R6 adds its bucket settings here.
+``[source.ip, destination.ip]``.
 """
 
 from __future__ import annotations

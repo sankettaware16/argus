@@ -1,30 +1,14 @@
-"""Who was behind an address (AR6, D-216): the probable user(s), from stored SSO sign-ins. Pure.
+"""Who was behind an address: the probable user(s), from stored SSO sign-ins. Pure.
 
-For one address and one investigation window (the first alert minus ``pad`` to the last alert plus
-``pad``), over the days the window touches, the answer is one of five states:
-
-* ``likely``: exactly one account had successful sign-ins in the window, no day of the window is a
-  shared one, and every day was read completely;
-* ``possible``: two accounts (up to ``shared_accounts - 1``), listed by successful sign-ins and then
-  by nearness to the alerts; when single accounts differ from day to day the address changed hands
-  and that is said;
-* ``shared``: a day of the window had ``shared_accounts`` accounts with a successful sign-in or
-  more (or accounts that were not all listed), or that many different accounts signed in over the
-  window: a lab or a NAT, no guess is made and only counts are given. Accounts with only failed
-  sign-ins are no crowd (D-227);
-* ``none_seen``: every day was read completely and no account had a successful sign-in in the
-  window;
-* ``unknown``: some day was not looked up yet, the lookup was incomplete (or some sign-ins had no
-  account name, D-223), or the logs are no longer kept: ARGUS says which, and lists the accounts of
-  the days it could read as "so far".
-
-The hourly buckets clip an account to the window: an account counts only when it had an event in an
-hour the window touches. Whether a sign-in succeeded is known for the day, not for the hour, so an
-account with successes that day and events in the window's hours counts as signed in.
-
-Nothing here reads a database or a clock (``now`` and ``today`` are passed in), and no sentence it
-builds leaves the module with an account name unless the caller asked for names.
-"""
+For one address and one investigation window (first alert minus ``pad`` to last alert plus ``pad``)
+the answer is one of five states: ``likely`` (exactly one account with successful sign-ins, no
+shared day, every day read completely), ``possible`` (two accounts up to ``shared_accounts - 1``),
+``shared`` (a day or the window had ``shared_accounts`` accounts or more: a lab or a NAT, only
+counts are given; accounts with only failed sign-ins are no crowd), ``none_seen`` (every day read
+completely, no successful sign-in), ``unknown`` (a day not looked up yet, an incomplete lookup, or
+logs no longer kept: the accounts of the days read are listed as "so far"). Hourly buckets clip an
+account to the window. Nothing here reads a database or a clock, and no sentence leaves with an
+account name unless the caller asked for names."""
 
 from __future__ import annotations
 
@@ -72,7 +56,7 @@ class Account:
 @dataclass(frozen=True)
 class Gap:
     """A day that cannot be used. ``unnamed``: for an incomplete day, the sign-in events that had
-    no account name (D-223); its named accounts are still listed as "so far"."""
+    no account name; its named accounts are still listed as "so far"."""
 
     day: date
     why: GapWhy
@@ -264,9 +248,6 @@ def attribute(
     )
 
 
-# --------------------------------------------------------------------------- words
-
-
 def _day_words(days: Iterable[date]) -> str:
     return ", ".join(ist_date(m.day_start(d)).rsplit(" ", 1)[0] for d in days)
 
@@ -331,9 +312,6 @@ def sentence(att: Attribution, *, names: bool = True) -> str:
     return f"Not known: {gap_words(att.gaps)}.{so_far}"
 
 
-# --------------------------------------------------------------------------- the timeline
-
-
 @dataclass(frozen=True)
 class Entry:
     """One account's sign-ins from one address on one day, for a timeline: context, not an alert."""
@@ -382,7 +360,7 @@ def _clock(at: datetime) -> str:
 
 
 def span_words(first: datetime, last: datetime) -> str:
-    """``26 Oct 2026, 9:10 AM to 5:40 PM IST`` (one IST day) or both ends in full."""
+    """``26 Oct 2026, 9:10 AM to 5:40 PM IST`` (one local day) or both ends in full."""
     zone = site.zone()
     if first.astimezone(zone).date() == last.astimezone(zone).date():
         day = ist_date(first)

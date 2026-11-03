@@ -21,7 +21,7 @@ from argus.install.answers import InitError
 
 # What docker compose and `argus db bootstrap` need (docker-compose.yml, .env.example,
 # argus.db.roles): the logins' names and the server, then the passwords made here. The web's own
-# login (Q-A2) gets one too; the writer's (Q-D4) does not: writes stay off.
+# login gets one too; the case writer's does not: writes stay off.
 ENV_DEFAULTS: dict[str, str] = {
     "ARGUS_DATABASE__OWNER_USER": "argus",
     "ARGUS_DATABASE__USER": "argus_app",

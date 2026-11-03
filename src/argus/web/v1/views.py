@@ -30,9 +30,6 @@ AI_KINDS = frozenset({"proposed_tp", "proposed_other", "no_proposal", "working",
 LIST_CAP = 500  # items of any stored list kept (the pages show fewer)
 
 
-# --------------------------------------------------------------------------- reading JSON
-
-
 def _dict(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
@@ -95,9 +92,6 @@ def _key_fields(pairs: Iterable[Any]) -> list[m.KeyField]:
     return out
 
 
-# --------------------------------------------------------------------------- investigations
-
-
 def ai_verdict(found: Mapping[str, Any] | None) -> m.AiVerdictOut | None:
     if not found:
         return None
@@ -119,7 +113,7 @@ def _known(s: queries.Summary) -> m.KnownRefOut | None:
     if s.known_outcome not in ("known", "changed"):
         return None
     # a case that ended (or whose notice was withdrawn) keeps what it decided known: frozen, so
-    # ``notified_at`` is None then (D-181)
+    # ``notified_at`` is None then
     return m.KnownRefOut(
         case_id=s.known_case_id,
         case_number=s.known_case,
@@ -390,9 +384,6 @@ def alerts(rows: Sequence[Mapping[str, Any]], total: int, columns: list[str]) ->
             cells={k: _text(v) for k, v in _dict(a.get("cols")).items()},
         ))  # fmt: skip
     return m.AlertsOut(total=total, columns=columns, items=items)
-
-
-# --------------------------------------------------------------------------- the other pages
 
 
 def proposal_groups(groups: Sequence[assessed.Group]) -> list[m.ProposalGroupOut]:

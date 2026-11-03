@@ -1,12 +1,9 @@
-"""The proxy module of the generic pack (R12, D-060): what squid's logs say around an
-investigation, for any rule that reads them (the alert names its indices; no rule list).
+"""The proxy module of the generic pack: what the proxy logs say around an investigation.
 
-Two bounded aggregations over the investigation's hours (± 1 h, at most 24 h, never past
-the ingest margin): one internal host's traffic (destinations, bytes, status and action mix,
-a 10-minute timeline) and one outside destination's prevalence (how many internal hosts,
-which URLs). Both are heavy (an aggregation on a log index): budgeted, deferred like every
-remote task, and sent only with ``enrichment.proxy_aggregations`` on, after their own first
-run (D-069).
+Two bounded aggregations over the investigation's hours (± 1 h, at most 24 h, never past the
+ingest margin): one internal host's traffic and one outside destination's prevalence. Both are
+heavy: budgeted, deferred like every remote task, and sent only with
+``enrichment.proxy_aggregations`` on, after their own first run.
 """
 
 from __future__ import annotations
@@ -45,9 +42,9 @@ from argus.site import (
 )
 
 SLOT = timedelta(minutes=10)
-MARGIN = timedelta(minutes=15)  # ingest: never read the last minutes (plan §7.4)
+MARGIN = timedelta(minutes=15)  # ingest: never read the last minutes
 MAX_WINDOW = timedelta(hours=24)
-AGG_DAYS = 1  # daily indices one aggregation may read (D-067)
+AGG_DAYS = 1  # daily indices one aggregation may read
 INTERNAL = frozenset({"asset", "campus", "internal"})
 
 
@@ -191,7 +188,7 @@ def window(facts: Mapping[str, Any], now: datetime) -> tuple[datetime, datetime]
     start, end = start - timedelta(hours=1), end + timedelta(hours=2)
     end = min(end, (now - MARGIN).replace(minute=0, second=0, microsecond=0))
     start = max(start, end - MAX_WINDOW)
-    # One daily index only: an aggregation never spans two days of squid (D-022, D-067).
+    # One daily index only: an aggregation never spans two days of squid.
     # Near midnight the end is cut back first; the hours before it are kept where possible.
     while end > start and _days(start, end) > AGG_DAYS:
         if _days(end - timedelta(hours=1), end) > AGG_DAYS:
@@ -215,7 +212,7 @@ def tasks(
     indices: Sequence[str] | None = None,
 ) -> list[TaskSpec]:
     """The host's and the destination's aggregation, each once per investigation: a request
-    an earlier version made is planned again as it was (its answer is reused, D-070). With
+    an earlier version made is planned again as it was (its answer is reused). With
     several proxy families, the one the rule's ``indices`` name is read."""
     before = earlier or {}
     if "proxy.host" in before or "proxy.destination" in before:

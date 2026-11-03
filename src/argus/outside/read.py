@@ -1,10 +1,7 @@
-"""Reading the outside cache for investigations (AR3, D-165): no request is ever made here.
-
-An investigation's external indicators are its address and domain entities that the cache holds
-an answer for; only external indicators are ever looked up, so no campus identifier can match. A
-name also has the answer for its registered parent (AR2c, D-168): the family look-up asks about the
-parent of many names once, and what it finds is true of every name under it.
-"""
+"""Reading the outside cache for investigations: no request is ever made here. An investigation's
+external indicators are its address and domain entities the cache holds an answer for; a name
+also has the answer for its registered parent (the family look-up asks about the parent once, and
+what it finds is true of every name under it)."""
 
 from __future__ import annotations
 
@@ -30,7 +27,7 @@ class View:
     description) or ``clean_window`` (everything else; None: ``window``), and VirusTotal's
     ``threshold`` engines calling an indicator malicious make it a detection. ``parent_ok``: whether
     the answer for a registered parent may be read as true of the names under it (eligible, not
-    shared infrastructure: D-174); None checks nothing more."""
+    shared infrastructure); None checks nothing more."""
 
     window: timedelta
     threshold: int
@@ -100,12 +97,10 @@ async def _parent_rows(
     since: datetime,
     parent_ok: Callable[[str], bool] | None = None,
 ) -> list[Any]:
-    """The cached answers for the registered parents of the domain names the investigations
-    hold, as rows of the same shape as ``_FACTS``'s (a name that is its own parent adds nothing:
-    the exact match found it). A parent's answer is true of the names under it only when it is of
-    the current shape (as the campaign analysis reads it), says in so many words that no
-    web-popularity list ranks the parent (a popular site flagged by a few engines is a false
-    positive far more often than a campaign; an answer that does not say is not read as rare) and
+    """The cached answers for the registered parents of the domain names the investigations hold,
+    as rows of the same shape as ``_FACTS``'s. A parent's answer is true of the names under it
+    only when it is of the current shape, says that no web-popularity list ranks the parent (a
+    popular site flagged by a few engines is a false positive far more often than a campaign) and
     ``parent_ok`` lets the parent be read for (shared infrastructure and ineligible names are
     not)."""
     held: dict[uuid.UUID, set[str]] = {}

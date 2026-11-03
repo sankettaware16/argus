@@ -1,30 +1,11 @@
-"""Keyed, prefix- and class-preserving IP pseudonymization for test fixtures (R2, D-030).
+"""Keyed, prefix- and class-preserving IP pseudonymization for test fixtures.
 
 The map is a Crypto-PAn style permutation: output bit *i* is input bit *i* XOR a keyed PRF of the
-input's first *i* bits. Two addresses that share a *k*-bit prefix therefore map to addresses that
-share exactly a *k*-bit prefix. Every address belongs to exactly one region, decided by the fixed
-table below (never by the interpreter's ``is_global``, which changed between Python 3.12 patch
-releases):
-
-* **Keep regions** (unspecified, loopback, link-local, multicast, reserved) are left unchanged:
-  they identify nothing.
-* **Site prefixes** (the campus's public allocations, from the fixture policy) move to a
-  same-length block inside the benchmarking space 198.18.0.0/15 (IPv6: 2001:2::/48); the host
-  bits are permuted prefix-preservingly within the block.
-* **The site space itself** is refused (IPMapError): a one-to-one map has no place left for a real
-  address there, because the site prefixes take its images.
-* **Class regions** (RFC 1918, CGNAT, IPv6 ULA) and **special-purpose blocks** (documentation,
-  6to4, NAT64, Teredo, ...) keep their leading bits: private stays private and in the same range.
-* **Other (public) addresses** are permuted and *cycle-walked* until the result is again public:
-  IPv4, IPv6 inside 2000::/3 and other IPv6 each walk from and to their own set, so each walk is
-  a bijection.
-
-Each permutation is re-keyed (a counter in its PRF domain) until it fixes no address it maps, so
-no class or public address is ever its own pseudonym.
-
-Consequences used by the tests: class and region survive; common-prefix length survives for any
-two addresses in the same class region or site prefix; for a network ``N`` inside one class or site
-region, ``x in N  <=>  map(x) in map_network(N)``.
+input's first *i* bits, so addresses sharing a *k*-bit prefix map to addresses sharing exactly a
+*k*-bit prefix. Keep regions (loopback, multicast ...) are unchanged; site prefixes move into the
+benchmarking space 198.18.0.0/15; class regions (RFC 1918, CGNAT, ULA) and special-purpose blocks
+keep their leading bits; other public addresses are cycle-walked until public again. No address is
+its own pseudonym.
 """
 
 from __future__ import annotations
@@ -324,7 +305,7 @@ class IPMapper:
         Exact for any orbit size: an orbit of prefixes with two members wholly accepted (or with
         no member that holds an accepted address) cannot have such a descendant, since every
         descendant orbit holds a descendant of each member. So only orbits along the borders of
-        the refused blocks are followed (the search of round 3's FXI-01)."""
+        the refused blocks are followed."""
         found: list[list[int]] = []
         stack: list[tuple[int, list[int]]] = [(keep, [start])]
         for _ in range(_FIXED_POINT_SEARCH):

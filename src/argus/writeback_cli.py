@@ -1,20 +1,9 @@
-"""``argus writeback ...`` (R17 v2, Q-D5, D-061): plan and diff locally; a real run sends alert
-status changes to Kibana. It is refused until the user switches write-back on, the alert
-writer's key is installed, WA is switched on at the host, and a person at a terminal types the
-confirmation. Run it in the writer's account (``sudo argus-owner --as writer writeback run``):
-only that login holds the alert writer's key and may move the outbox rows.
-
-* ``plan [--older]``: new decisions and approved closures become planned changes (local). With
-  ``--older``, a person's reviews made without an alert-write check are planned too, as rows only
-  an operator's run can send.
-* ``diff``: what a run would change, per status (local).
-* ``run [--operator NAME] [--limit N]``: send. ``--operator`` asks for that person's own ELK
-  password (``getpass``), checks it live through the identity lane and, if it shows the
-  alert-status privileges, lets the run send the rows that need an operator.
-
-Exit codes: 0 done; 1 the run stopped (a pause, a health state, a refusal by the lane); 2 refused
-before anything was sent.
-"""
+"""``argus writeback ...``: plan and diff locally; a real run sends alert status changes to Kibana.
+It is refused until write-back is switched on, the alert writer's key is installed, WA is switched
+on at the host and a person at a terminal types the confirmation; run it in the writer's account
+(``sudo argus-owner --as writer writeback run``). Subcommands: ``plan [--older]``, ``diff``,
+``run [--operator NAME] [--limit N]``. Exit codes: 0 done; 1 the run stopped; 2 refused before
+anything was sent."""
 
 from __future__ import annotations
 
@@ -39,7 +28,7 @@ from argus.observability.redaction import register_secret
 from argus.writeback_sender import AlertSender, Operator, operator_of, problems_of
 from argus.writer.cli import _engine as writer_engine
 
-writeback_app = typer.Typer(no_args_is_help=True, help="Write reviews back to Kibana (R17 v2).")
+writeback_app = typer.Typer(no_args_is_help=True, help="Write reviews back to Kibana.")
 CONFIRM = "WA"
 CHECK_DEADLINE = timedelta(seconds=20)
 
@@ -94,7 +83,7 @@ def writeback_run(
     config: ConfigOption = None,
 ) -> None:
     """Send the planned changes. Needs writeback.enabled, WA switched on, the alert writer's
-    key, and a person at the terminal who types the confirmation (D-061)."""
+    key, and a person at the terminal who types the confirmation."""
     settings = load(config)
     terminal = _human_at_a_terminal()
     try:

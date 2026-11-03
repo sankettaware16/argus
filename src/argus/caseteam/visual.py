@@ -1,16 +1,9 @@
-"""The Visualiser's comment, "Incident at a glance" (AR10, D-250): a plain numbers row that always
-renders, and live Kibana charts under it (:mod:`argus.caseteam.lens`) over the alerts tagged with
-the incident ID. Posted by ``argus-visualiser``, right after the evidence comment and before the
-queries; pure, like the rest of the rendering.
-
-The numbers and the charts' choices come from :func:`argus.incident.glance.glance_of`, the same
-data the one-page dashboard (:mod:`argus.incident.dashboard`) is drawn from, so the comment, the
-dashboard and the PDF cannot disagree. If Kibana does not draw a chart, the numbers row and the
-dashboard in the Files tab still say the same.
-
-A comment never exceeds Kibana's limit: charts are dropped from the end until it fits, the numbers
-row never. No name of a person is in it (an actor of kind ``user`` is not drawn).
-"""
+"""The Visualiser's comment, "Incident at a glance": a plain numbers row that always renders, and
+live Kibana charts under it (:mod:`argus.caseteam.lens`) over the alerts tagged with the incident
+ID. Posted by ``argus-visualiser`` right after the evidence comment; pure. The numbers and charts
+come from :func:`argus.incident.glance.glance_of`, the same data as the one-page dashboard, so they
+cannot disagree. Charts are dropped from the end until the comment fits Kibana's limit, the numbers
+row never; no name of a person is in it."""
 
 from __future__ import annotations
 

@@ -1,31 +1,8 @@
-"""The one place ARGUS asks an outside source (AR3, D-165).
-
-:class:`Outside` is shared by the investigator's tools and the prefetch; the pages never use it.
-A lookup is, in this order:
-
-1. **refused** unless the indicator is external (``eligible``: never a campus or private address
-   or name) and the source takes that kind;
-2. **off** when the source has no key (``outside.<source>_api_key``), except Shodan, which with
-   no key asks its free InternetDB (``outside.shodan_internetdb``, AR2c, D-168);
-3. **cached** when the same indicator was answered lately (a detection and a server's
-   description inside ``outside.cache_window``, 7 days; "no record" and every other answer inside
-   ``outside.clean_cache_window``, a day, so a fresh server is looked at again): no request, no
-   ledger row;
-4. **retry later** when the indicator got no usable answer lately (``outside.error_backoff``,
-   6 hours; an error is never an answer, and it is remembered in this process only);
-5. **blocked** when a 429 stopped the source and the stop has not ended, or a limit (a second,
-   a minute, a day, a month) or the prefetch's own daily budget has no room: the answer says
-   when it has;
-6. otherwise one request, reserved in the ledger first, sent through the transport, the reply
-   reduced to a small answer, cached and the ledger row finished. A 429 stops the source (for the
-   reply's Retry-After, which may be 0; else an hour for VirusTotal unless today's ledger shows its
-   daily limit used, 10 minutes for Shodan, the rest of the month for Censys); a refused key stops
-   it for an hour.
-
-One lookup of a source at a time in this process (the free Censys tier allows one). Nothing here
-logs or stores a key, and no log line holds an indicator: the ledger has the source, the kind,
-the outcome, the status and the size of the answer.
-"""
+"""The one place ARGUS asks an outside source: :class:`Outside`, shared by the investigator's tools
+and the prefetch. A lookup is refused unless the indicator is external, off without a key, served
+from the cache when recent (no request), skipped after a recent error, blocked by a 429 stop or a
+limit, and otherwise one request: reserved in the ledger first, sent through the transport,
+reduced to a small answer and cached. Nothing here logs or stores a key or an indicator."""
 
 from __future__ import annotations
 
@@ -131,9 +108,9 @@ class Outside:
         return min(self.settings.clean_cache_window, self.window)
 
     def parent_ok(self, parent: str) -> bool:
-        """Whether the answer for a registered parent may be read as true of the names under it
-        (D-174): eligible, and given ``parent_ok`` at construction (the shared-infrastructure list)
-        not a name many customers share."""
+        """Whether the answer for a registered parent may be read as true of the names under it:
+        eligible, and not a name many customers share (the ``parent_ok`` given at construction:
+        the shared-infrastructure list)."""
         return self.eligibility.check("domain", parent) is None and (
             self._parent_ok is None or self._parent_ok(parent)
         )
@@ -317,7 +294,7 @@ class Outside:
 def view_of(settings: OutsideSettings, parent_ok: Callable[[str], bool] | None = None) -> View:
     """How the cache is read under these settings (the pages, the flags and the investigator
     all read it alike). ``parent_ok``: whether the answer for a registered parent may be read as
-    true of the names under it (D-174)."""
+    true of the names under it."""
     return View(settings.cache_window, settings.flag_threshold,
                 min(settings.clean_cache_window, settings.cache_window), parent_ok)  # fmt: skip
 

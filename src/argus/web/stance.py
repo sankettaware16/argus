@@ -1,17 +1,10 @@
-"""ARGUS's stance on an investigation (AR4, D-182): what its page's top card and the queue's lines
-say, in the order a person wants it.
-
-* a **recommendation**: a proposal of its own (the AI investigator's before the decision engine's),
-  else the proposal the pattern's run made on another investigation of the same pattern and day
-  (AR2: display only, never accepted for this one);
-* else a **reading**: a run that proposed nothing but left its best reading (AR1), its own or the
-  pattern's;
-* else nothing.
-
-Reading only. The bulk readers take the investigations of a list and answer in a few statements,
-whatever the number. ``lean`` is the cheap one for patterns, which list thousands of members: it
-keeps no reasons and no run, only what the recommendation needs.
-"""
+"""ARGUS's stance on an investigation: what its page's top card and the queue's lines say, in the
+order a person wants it: a **recommendation** (a proposal of its own, the AI investigator's before
+the decision engine's, else the proposal the pattern's run made on another investigation of the
+same pattern and day: display only, never accepted for this one); else a **reading** (a run that
+proposed nothing but left its best reading); else nothing. Reading only. The bulk readers answer in
+a few statements whatever the number; ``lean`` keeps no reasons and no run, only what a pattern's
+recommendation needs."""
 
 from __future__ import annotations
 
@@ -118,7 +111,7 @@ async def pattern_sizes(
     conn: AsyncConnection, assessment_ids: Sequence[int]
 ) -> dict[int, tuple[int, int]]:
     """For each investigator run: how many investigations it stands for (its own and the others
-    of the same pattern and day) and their alerts: the size of the pattern (AR2)."""
+    of the same pattern and day) and their alerts: the size of the pattern."""
     if not assessment_ids:
         return {}
     return {

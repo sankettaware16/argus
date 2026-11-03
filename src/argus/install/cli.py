@@ -1,4 +1,4 @@
-"""``argus init``: set up ARGUS on this machine, in this checkout (P4-D2). Interactive, or
+"""``argus init``: set up ARGUS on this machine, in this checkout. Interactive, or
 scripted with ``--answers FILE``; see docs/install.md."""
 
 from __future__ import annotations

@@ -1,12 +1,8 @@
-"""The case team's seventh user, ``argus-visualiser`` (AR10, D-250).
+"""The case team's seventh user, ``argus-visualiser``.
 
-``case_team_steps.author`` was checked against the six users of AR8 (0053). The visualiser posts the
-"Incident at a glance" comment, so its name joins the list. No table is added and no grant changes:
-the writer's login already writes the steps. The lead-only and reporter-only checks stay as they
-were (the visualiser opens no case, touches no alert and uploads no file).
-
-Downgrading is refused while a step by the visualiser exists: the steps are the record of what was
-sent to Kibana.
+``case_team_steps.author`` was checked against the six original users (0053); the visualiser posts
+the "Incident at a glance" comment, so its name joins the list. No table is added and no grant
+changes. Downgrading is refused while a step by the visualiser exists.
 
 Revision ID: 0062
 Revises: 0061

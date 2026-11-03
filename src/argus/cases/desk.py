@@ -1,20 +1,10 @@
-"""The approval desk: what ``argus-web`` does when a person approves or rejects (plan §7.1,
-§7.2; Q-B3's approvals queue calls it).
+"""The approval desk: what ``argus-web`` does when a person approves or rejects.
 
-For each decision it (1) checks the person live through the identity seam (a denied check is
-recorded, which voids their earlier approvals, and nothing is decided); (2) reads the request
-and builds the decision's statement with the session's step-up and that check; (3) signs it;
-(4) records the decision through ``argus_approval_decide()``, which checks the step-up (this
-session's, within 5 minutes), the check (≤ 30 s, the approver capability, Kibana's
-``updateCase`` when the closure writes to Kibana) and the group rules again. A decision that
-completes a closure closes the case in the same transaction when the connection may (the
-runtime's), else ARGUS applies it (:meth:`argus.cases.service.CaseService.apply_approved`).
-
-Groups (≤ 20 benign, false-positive or no-impact closures): :func:`argus.cases.approvals.group`
-names the batch and its sample; the person approves the sample items one by one
-(:meth:`ApprovalDesk.decide` with the batch), then the rest (:meth:`ApprovalDesk.approve_rest`).
-The database refuses the rest before the sample.
-"""
+A decision (1) checks the person live (a denied check is recorded and voids their earlier
+approvals), (2) builds the statement with the session's step-up and that check, (3) signs it and
+(4) records it through ``argus_approval_decide()``, which checks everything again. A decision that
+completes a closure closes the case in the same transaction when the connection may, else ARGUS
+applies it. A group's sample is approved item by item first (``decide``), then the rest."""
 
 from __future__ import annotations
 
@@ -35,7 +25,7 @@ from argus.cases.signing import Signer
 @dataclass(frozen=True)
 class SessionProof:
     """The approver's web session: the raw token (the cookie; the database hashes it), whose it
-    is, and when its person last confirmed their password (Q-A1's ``/stepup``)."""
+    is, and when its person last confirmed their password (``/stepup``)."""
 
     token: str
     user_id: int
@@ -89,7 +79,7 @@ class ApprovalDesk:
         self.identity = identity_provider
         self.signer = signer
         self.apply = apply
-        self.quiet_windows = quiet_windows  # what proves a case quiet (Q-C2's finder)
+        self.quiet_windows = quiet_windows  # what proves a case quiet
 
     async def check(self, user_id: int, purpose: identity.Purpose = "approval") -> LiveCheck:
         """A live check of the person for an approval (or, with ``purpose="request"``, for a

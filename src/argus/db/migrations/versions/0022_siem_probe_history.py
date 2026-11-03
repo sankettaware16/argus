@@ -1,9 +1,7 @@
-"""The health probe's readings, one row per probe (Q-A2), for the budget's re-measurement (Q-A3)
+"""The health probe's readings, one row per probe, for the budget's re-measurement
 
-The collector probes the SIEM every minute (node stats and index blocks, D-021); until now only the
-resulting health memory was kept. Each probe's readings are now stored as well, from what the
-probe already read: no request is added. The runtime role (the collector, and any command that
-probes) appends; nothing updates or deletes a reading.
+Each probe's readings are stored as well as the resulting health memory, from what the probe
+already read: no request is added. The runtime role appends; nothing updates or deletes a reading.
 
 Revision ID: 0022
 Revises: 0021

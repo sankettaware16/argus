@@ -1,21 +1,10 @@
-"""The identity lane's own reachability and overload gate (Q-E1, plan §5 and §7.2).
+"""The identity lane's own reachability and overload gate.
 
-The identity lane is never gated on the SIEM's health state, on a STOP that ARGUS's own key
-caused, or on a stale probe: a person's sign-in has nothing to do with the reader key. It is
-gated on what its own requests see instead:
-
-- **unreachable:** two requests in a row that could not connect within ``FAILURE_WINDOW``;
-- **overloaded:** an answer that says the SIEM is overloaded (429, 503, a rejected execution or
-  a tripped circuit breaker), at once.
-
-Either opens the gate for a cool-down (30 s, 2 min, 5 min, then 15 min while it keeps
-happening); meanwhile every check answers "unavailable" without a request. After the
-cool-down one trial request at a time may go; any answer from the SIEM that is not an overload
-closes the gate (a 401 is an answer: the SIEM is reachable). The escalation falls back to the
-first step after ``RESET_AFTER`` without a trip.
-
-Pure: (state, now) in, (decision, state) out. The store keeps the state (``siem_state`` row
-``identity``), so every ARGUS process shares it.
+Never gated on the SIEM's health state, a STOP caused by ARGUS's own key, or a stale probe; gated
+on what its own requests see: two connection failures in a row (unreachable) or an overload answer.
+Either opens the gate for a growing cool-down (30 s, 2 min, 5 min, then 15 min); after it one trial
+request at a time may go, and any answer that is not an overload closes the gate. Pure: (state,
+now) in, (decision, state) out; the store keeps the state so every process shares it.
 """
 
 from __future__ import annotations

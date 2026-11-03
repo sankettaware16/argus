@@ -1,8 +1,6 @@
-# The responder's catalogue (Q-H2, plan §7.7): what ARGUS may advise about a confirmed case.
-# Advice only: nothing here is executed (Phase 6 is the first that may act). The wording is for
-# RAs and TAs: plain words, no commands, no links. DRAFT until the owners and the wording are
-# reviewed (the Q-H2 gate); the responder agent that may rank and phrase these stays off until
-# then and may only name actions listed here.
+# The responder's catalogue: what ARGUS may advise about a confirmed case. Advice only: nothing
+# here is executed. The wording is for analysts: plain words, no commands, no links. The responder
+# agent that may rank and phrase these may only name actions listed here.
 #
 # families:   a kind of true-positive incident. `when` lists facts (argus.responder.facts.FACTS)
 #             that must all hold for a case; a `scope: rule` family belongs to no case.
@@ -11,7 +9,7 @@
 #               template: a read template whose stored answers ARGUS reads (proxy.contact,
 #                         web.path_outcomes); nothing is asked of the SIEM to verify;
 #               local:    alerts (ARGUS's own stored alerts, through the still-active watch);
-#               not_verifiable: why no check can tell in Phase 3.
+#               not_verifiable: why no check can tell.
 # Unknown keys, an unknown owner, fact or template, and a write are errors.
 version: 1
 

@@ -1,20 +1,9 @@
-"""Approval requests and decisions (plan §7.1, §7.9): only through migration 0026's functions,
-which ``argus_approvals`` may call and ARGUS's runtime role may not.
-
-The approver is the user of a live web session, never a parameter: the caller hands in the
-session's raw token and the database hashes it (the stored hashes are readable, so they prove
-nothing), and a session idle for more than 12 hours is refused. A person cannot approve their
-own request; two different people for ``remediated_unverified`` and ``risk_accepted``; nobody
-approves twice; racing approvers get one success and a conflict. Every request and decision is
-in the audit trail's hash chain, written by the same functions. The alert set an approval
-covers is the database's own count and digest of the case's alerts (:func:`alert_digest`), so
-a case of any size can be closed.
-
-Q-C3 (migration 0030): a decision needs the session's step-up within 5 minutes, a live check of
-the approver at most 30 seconds old and the web's signature over its statement
-(:func:`statement`), all stored with it; only approvals of people not revoked since count.
-ARGUS proposes closures and asks for re-confirmations (:func:`propose`), never approves.
-"""
+"""Approval requests and decisions, only through the database functions that ``argus_approvals``
+may call. The approver is the user of a live web session, never a parameter; nobody approves their
+own request or twice, and ``remediated_unverified`` and ``risk_accepted`` need two people. A
+decision carries a step-up within 5 minutes, a live check at most 30 seconds old and the web's
+signature over its :func:`statement`; approvals of people revoked since do not count. ARGUS
+proposes closures (:func:`propose`) but never approves."""
 
 from __future__ import annotations
 
@@ -36,25 +25,25 @@ from argus.cases.signing import STATEMENT_VERSION, iso
 
 Decision = Literal["approved", "rejected"]
 Status = Literal["approved", "rejected", "pending"]
-STEP_UP_VALID = timedelta(minutes=5)  # plan §7.1: a step-up of the same session within 5 minutes
-CHECK_FRESH = timedelta(seconds=30)  # plan §7.2: a change waits for a check at most 30 s old
-GROUP_LIMIT = 20  # plan §7.1: benign, false-positive and no-impact closures, ≤ 20 a group
+STEP_UP_VALID = timedelta(minutes=5)  # a step-up of the same session within 5 minutes
+CHECK_FRESH = timedelta(seconds=30)  # a change waits for a check at most 30 s old
+GROUP_LIMIT = 20  # benign, false-positive and no-impact closures, ≤ 20 a group
 GROUP_REASONS: frozenset[str] = frozenset(
     {"attempt_no_impact", "rule_false_positive", "benign_expected", "benign_policy"}
 )
-# What ARGUS itself may propose (each with positive evidence; plan §7.1's closure table). A case
-# whose owner was told and that went quiet is proposed as "stopped after notice" (D-169).
+# What ARGUS itself may propose (each with positive evidence). A case
+# whose owner was told and that went quiet is proposed as "stopped after notice".
 PROPOSE_REASONS: frozenset[str] = frozenset(
     {"remediated_verified", "stopped_after_notice", *GROUP_REASONS}
 )
-# An approval counts only while its approver is not revoked since they gave it (0030): the
+# An approval counts only while its approver is not revoked since they gave it: the
 # account enabled and no identity check denied them afterwards. ``d`` is approval_decisions.
 NOT_REVOKED = (
     "NOT EXISTS (SELECT 1 FROM users u WHERE u.id = d.approver_user_id AND u.disabled)"
     " AND NOT EXISTS (SELECT 1 FROM identity_checks c WHERE c.user_id = d.approver_user_id"
     " AND c.outcome = 'denied' AND c.recorded_at >= d.decided_at)"
 )
-# DQ8 (a), D-110: Kibana writes happen daily 02:30-17:30 UTC (08:00-23:00 IST).
+# Kibana writes happen daily 02:30-17:30 UTC (the write window).
 WRITE_WINDOW = (time(2, 30, tzinfo=UTC), time(17, 30, tzinfo=UTC))
 MAX_VALIDITY = timedelta(hours=72)
 _CODES = {
@@ -94,7 +83,7 @@ class ApprovalError(Exception):
 
 def alert_digest(alert_ids: Iterable[str]) -> str:
     """The alert set as the database binds it to an approval: sha256 of the distinct ids,
-    sorted by code point, one per line (Q-C3 compares it again at send time)."""
+    sorted by code point, one per line (it is compared again at send time)."""
     return hashlib.sha256("\n".join(sorted(set(alert_ids))).encode()).hexdigest()
 
 
@@ -103,7 +92,7 @@ def required_approvals(reason: Reason | None) -> int:
 
 
 def expires_at(now: datetime) -> datetime:
-    """The end of the first write window that starts after ``now`` (DQ12 (a)): an evening
+    """The end of the first write window that starts after ``now``: an evening
     approval goes out the next day; never more than 72 hours."""
     start, end = WRITE_WINDOW
     day = now.astimezone(UTC).date()
@@ -159,7 +148,7 @@ async def request(
 
 @dataclass(frozen=True)
 class Signed:
-    """What the web adds to a decision (Q-C3): the session's step-up it relied on, its live
+    """What the web adds to a decision: the session's step-up it relied on, its live
     check of the approver (:meth:`argus.cases.identity.LiveCheck.snapshot`), its signature over
     the decision's :func:`statement`, and the group with its sample, if any."""
 
@@ -239,7 +228,7 @@ class RequestRecord:
     proposed_by: str | None
     requested_at: datetime
     expires_at: datetime
-    requester_check: dict[str, Any] | None = None  # the requester's live check (0030)
+    requester_check: dict[str, Any] | None = None  # the requester's live check
 
 
 @dataclass(frozen=True)

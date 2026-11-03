@@ -1,13 +1,10 @@
-"""The report@2 contract (Q-F2, plan §7.3): frozen, no unknown fields, every list a tuple.
+"""The report@2 contract: frozen, no unknown fields, every list a tuple.
 
-Sentences are ARGUS's wording, but a module's sentence may quote a value (a listed
-indicator, a field name), and ``Value.text``, ``Cite.quote``, a step's ``text`` and
-``Summary.text`` (the model's explanation) are untrusted: a page shows every text as
-untrusted text (escaped, control and bidi characters made visible, never a link). Times are
-UTC; pages show India time. ``from_logs`` marks everything derived from log content, so a
+Sentences are ARGUS's wording but may quote a value; ``Value.text``, ``Cite.quote``, a step's
+``text`` and ``Summary.text`` (the model's explanation) are untrusted, and a page shows every text
+as untrusted text. Times are UTC. ``from_logs`` marks everything derived from log content, so a
 person without log access in ELK sees "Hidden: needs log access in ELK." instead
-(``render.hide_logs``).
-"""
+(``render.hide_logs``)."""
 
 from __future__ import annotations
 
@@ -63,7 +60,7 @@ class Provenance(_Model):
     exact: bool = True  # the total was exact, not a lower bound
     server_ms: int | None = None
     result_hash: str | None = None
-    watermark: datetime | None = None  # the source's ingest watermark (Q-F1), when measured
+    watermark: datetime | None = None  # the source's ingest watermark, when measured
     collected_at: datetime | None = None
     version: int | None = None  # the investigation version of the evidence row
     reused_from_version: int | None = None
@@ -122,7 +119,7 @@ class Gap(_Model):
     what: str
     why: str
     who: str
-    floor: bool = False  # it blocks a benign proposal (P4's floor)
+    floor: bool = False  # it blocks a benign proposal (the floor)
     eids: tuple[str, ...] = ()
     from_logs: bool = False
 

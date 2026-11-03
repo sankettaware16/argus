@@ -1,31 +1,13 @@
-"""ELK sign-in: who an account is, ELK sessions, devices, break-glass (Q-E2, plan §7.2)
+"""ELK sign-in: who an account is, ELK sessions, devices, break-glass
 
-``users`` keeps its ids and every row; an account now says what it is (``kind``: a person, a
-service identity such as ``argus-assistant``, or the break-glass account), where it signs in
-(``realm``: ``local``, or ``native`` once it is linked to an ELK account), its exact ELK
-username (``elk_username``, 1 to 507 characters; ``username`` stays ARGUS's own 2 to 32
-character handle), the ``argus_uid`` behind it, and its password hash is optional: a person who
-first signed in through ELK has none. A hash is never dropped before the person's ELK sign-in
-has worked (``ck_users_password_or_elk``): that is the rollback to local mode. A new
-``argus_uid`` behind a known name is a new person: the old row is frozen (``frozen_at``,
-disabled) and its approvals stop counting.
-
-``user_sessions`` gains the ELK session's state: its mode, the capability snapshot and when it
-was checked, the encrypted credential (AES-256-GCM under a key from the web's secret and the
-session's token: neither alone decrypts it), when ARGUS last could not verify the person and
-why, and how the session ended. ``user_devices`` holds the hashes of device cookies from earlier
-good sign-ins; ``break_glass`` the one emergency window (at most 4 hours, one open at a time).
-``review_events.kibana_ok`` records whether a review was made under a live ELK check that
-showed the alert-status privileges (a review counts for write-back only then).
-
-The approval functions' session test also excludes service identities, the break-glass account
-and sessions ARGUS could not verify.
-
-The web's login may update ``siem_state`` (the identity lane's gate, and the gateway state of
-its security-index check) but only the rows of the identity lane and of that gateway
-(``identity``, ``health``, ``budget``, ``breaker``, ``lanes``): a row trigger refuses its changes
-to the Kibana rows (``argus_web_state_rows``). Downgrading ends the open ELK and break-glass
-sessions: the old code would read them as local sessions.
+``users`` says what an account is (``kind``), where it signs in (``realm``), its exact ELK username
+and ``argus_uid``; its password hash is optional, and is never dropped before the person's ELK
+sign-in has worked. A new ``argus_uid`` behind a known name is a new person: the old row is frozen.
+``user_sessions`` gains the ELK session's state (capability snapshot, encrypted credential, why it
+could not be verified); ``user_devices`` holds device-cookie hashes; ``break_glass`` the one
+emergency window. ``review_events.kibana_ok`` records whether a review was made under a live ELK
+check that showed the alert-status privileges. The web's login may update only the identity lane's
+and the gateway's ``siem_state`` rows (``argus_web_state_rows``). Downgrading ends ELK sessions.
 
 Revision ID: 0036
 Revises: 0035

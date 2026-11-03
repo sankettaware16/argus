@@ -1,4 +1,4 @@
-"""From what ``argus discover`` read to a proposed ``site`` section (P4-D1): pure, so the same
+"""From what ``argus discover`` read to a proposed ``site`` section: pure, so the same
 inputs give the same proposal and the tests need no Elasticsearch.
 
 ``Inputs`` holds the answers (None where a read was not made or failed, with the reason among

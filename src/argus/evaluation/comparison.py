@@ -1,11 +1,11 @@
-"""The privacy comparison (P2, D-078), run through the LLM gateway (P5).
+"""The privacy comparison, run through the LLM gateway.
 
 Every answered gold item is rendered by each arm and assessed by one pinned model with one
 prompt, at low priority (an evaluation never uses up the day). The person's labels are read
 from the database and never sent. Answers are kept in a file under ``data/`` keyed by arm,
 item, prompt, model tier and the exact text sent, so a run that stops (a budget, a cut)
 resumes where it was, and a changed rendering is asked again. ``A-real`` is refused here:
-it needs the user's second confirmation (D-078) and its own path.
+it needs the user's second confirmation and its own path.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class Run:
 
 def _key(arm: str, case: GoldCase, sent: str, prompt: str, tier: Tier, model: str = "") -> str:
     """The cached answer's key: the arm, the item, the prompt, the tier, the provider and
-    model (``provider/model``, Q-G1: a different model is a different answer) and the text."""
+    model (``provider/model``: a different model is a different answer) and the text."""
     digest = hashlib.sha256(sent.encode()).hexdigest()[:16]
     pinned = f"|{model}" if model else ""
     return f"{arm}|{case.investigation_id}|{prompt}|{tier.value}{pinned}|{digest}"
@@ -166,7 +166,7 @@ async def run(
 
 
 def report(cases: Sequence[GoldCase], result: Run, reference: str = "A-fake") -> list[str]:
-    """The comparison table and the decision of D-078, in plain lines."""
+    """The comparison table and the decision, in plain lines."""
     gold = {str(c.investigation_id): c.label for c in cases}
     lines = [f"items with a person's answer: {len(gold)}; calls this run: {result.calls}"
              f" (${result.cost_usd:.4f})"]  # fmt: skip

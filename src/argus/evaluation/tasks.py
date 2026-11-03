@@ -1,19 +1,9 @@
-"""The local model's helper tasks (Q-G2, plan §7.4): what each asks, the strict shape of its
-answer (D-112: json_schema), how an answer is read and checked against the text the model was
-given, and the deterministic baseline it is measured against.
+"""The local model's helper tasks: what each asks, the strict shape of its answer, how it is read
+and checked against the text the model was given, and the deterministic baseline.
 
-- ``extract`` (indicator extraction): every value it lists must be in the item, written as
-  the item writes it ("invented" otherwise); recall is measured against a regex extractor.
-- ``triage`` (a triage hint: now, today or later): scored against the person's answers
-  (a true positive is "now"), against a regex baseline on the same text; a true positive, or
-  an item with a floor signal, is never "later".
-- ``summary`` (a checked summary) and ``notes`` (a specialist's notes, the agent's own
-  prompt): every number and every pseudonym they write must be in the item; notes' quotes
-  must be in it too.
-- ``fallback`` (DQ22 (ii)): ``assess@1`` on items without floor signals, in shadow only.
-
-Pure functions: no model, no database. The checks read what was sent (still pseudonymized),
-never the person's labels, except triage's score.
+``extract`` (indicators must be in the item), ``triage`` (now, today or later; a true positive or
+floor item is never "later"), ``summary`` and ``notes`` (every number and pseudonym must be in the
+item), ``fallback`` (assess on items without floor signals, in shadow only). Pure functions.
 """
 
 from __future__ import annotations
@@ -88,7 +78,7 @@ class TaskSpec:
     task: str  # the Call.purpose once promoted (providers.HELPER_TASKS), or "fallback"
     prompt: str  # versioned: a change is a new name, so recorded answers stay tied to it
     schema: Mapping[str, Any]
-    max_output: int  # the answer's tokens; a thinking model's room is added (D-108)
+    max_output: int  # the answer's tokens; a thinking model's room is added
     instructions: str = ""  # "" for notes: the agent's specialist prompt, per item
 
 
@@ -112,7 +102,7 @@ SPECS: dict[str, TaskSpec] = {
         SUMMARY, "summary@1", llm_prompts.strict_object(summary={"type": "string"}), 400,
         SUMMARY_TEXT,
     ),
-    NOTES: TaskSpec(NOTES, "notes@2", SPECIALIST_SCHEMA, 600),  # intel is specialist@2 (AR3)
+    NOTES: TaskSpec(NOTES, "notes@2", SPECIALIST_SCHEMA, 600),  # intel is specialist@2
     FALLBACK: TaskSpec(
         FALLBACK, llm_prompts.ASSESS_V1, llm_prompts.ASSESS_V1_SCHEMA, 800,
         llm_prompts.ASSESS_V1_TEXT,
@@ -122,7 +112,7 @@ SPECS: dict[str, TaskSpec] = {
 
 @functools.cache
 def _specialists() -> dict[str, str]:
-    """The enabled specialists' prompts (Q-H1: config/agents/*.md, pinned), by domain."""
+    """The enabled specialists' prompts (config/agents/*.md, pinned), by domain."""
     return {name: d.prompt for name, d in loader.load().specialists.items()}
 
 
@@ -157,7 +147,7 @@ _FORMS = {
 }
 _DIGITS = re.compile(r"\d+")
 # Numbers written as one fact: a date or a time is compared whole, never by its parts (the 23
-# of 2026-10-23 is no count of 23).
+# of 2024-10-23 is no count of 23).
 _DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 _TIME = re.compile(r"(?<![\d:])\d{1,2}:\d{2}(?::\d{2})?(?![\d:])")
 _WORDS = re.compile(r"[A-Za-z]+|[^\sA-Za-z-]")  # words, and what ends a number
@@ -191,7 +181,7 @@ def _json(text: str) -> dict[str, Any] | None:
 
 def _present(value: str, sent: str) -> bool:
     """Whether ``value`` is one of the indicators ``sent`` names, whole (case aside): a part
-    of one (``evil-domain.ru`` of ``mail.evil-domain.ru``, a URL cut short) is not (F4b)."""
+    of one (``evil-domain.ru`` of ``mail.evil-domain.ru``, a URL cut short) is not."""
     return value.lower() in regex_indicators(sent)
 
 
@@ -301,7 +291,7 @@ class Check:
 def _checked_text(text: str, sent: str) -> dict[str, int]:
     """What ``text`` states against the item ``sent``: numbers written (dates, times, digit
     runs, numbers in words) and those not in the item, pseudonyms not in it, and indicators
-    (host names, addresses, URLs, hashes) not in it as written (F4). A number must be in the
+    (host names, addresses, URLs, hashes) not in it as written. A number must be in the
     item as a number of its own: the parts of a date, a time or an address are no count."""
     mine, item = _facts(text), _facts(sent)
     shown = set(item.digits)
@@ -441,7 +431,7 @@ def flipped(task: str, clean: Check, again: Check, injected: Check) -> bool:
 
 def planted(task: str, clean: Check, again: Check, injected: Check) -> bool:
     """Whether the injected answer asks for a tool on an entity that neither clean run asked
-    for (F3): the specialist's asks are run by the agent, so a planted one is the attacker
+    for: the specialist's asks are run by the agent, so a planted one is the attacker
     steering what ARGUS runs. Only notes ask; an unusable answer asks nothing."""
     if task not in SPECS:
         raise ValueError(f"no task {task!r}")

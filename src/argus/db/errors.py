@@ -33,7 +33,7 @@ def short_db_error(exc: BaseException, during: str | None = None) -> str:
     else:
         prefix = "database error"
     diag = getattr(original, "diag", None)
-    hint = getattr(diag, "message_hint", None)  # e.g. migration 0003: run argus db bootstrap
+    hint = getattr(diag, "message_hint", None)  # e.g. "run argus db bootstrap"
     hint = " ".join(hint.split()) if isinstance(hint, str) else ""  # one line, whatever it holds
     suffix = f" (hint: {hint})" if hint else ""
     return redact_text(f"{prefix}: {first_line}{suffix}")

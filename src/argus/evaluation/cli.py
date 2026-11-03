@@ -1,4 +1,4 @@
-"""``argus gold ...``: store the chosen gold set and show its progress (P2, D-080)."""
+"""``argus gold ...``: store the chosen gold set and show its progress."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from argus.evaluation import measures as qg2
 from argus.evaluation import store
 from argus.gateway.cli import ConfigOption, engine_for, load
 
-gold_app = typer.Typer(no_args_is_help=True, help="The gold set: the answer key (P2).")
+gold_app = typer.Typer(no_args_is_help=True, help="The gold set: the answer key.")
 MANIFEST = Path("data/gold/candidates-v1.json")
 
 
@@ -89,7 +89,7 @@ def gold_score(
     config: ConfigOption = None,
 ) -> None:
     """Score a decision-maker against the person's answers: ARGUS's own pre-filled
-    suggestions (the baseline), or the decision engine (P4) at each item's gold dossier."""
+    suggestions (the baseline), or the decision engine at each item's gold dossier."""
     from datetime import UTC, datetime
 
     from sqlalchemy import text
@@ -159,7 +159,7 @@ def gold_compare(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The privacy comparison (D-078): every answered gold item through each arm, one pinned
+    """The privacy comparison: every answered gold item through each arm, one pinned
     model, low priority; then the scores and the decision. The labels are never sent."""
     from argus.assess.cli import _privacy
     from argus.evaluation import comparison
@@ -223,26 +223,22 @@ def gold_agent(
     repeat: Annotated[
         int,
         typer.Option(
-            help="A repeat of the same run, kept apart (Q-G2: 1 for the cloud's repeat).",
+            help="A repeat of the same run, kept apart (1 for the cloud's repeat).",
             min=0,
             max=9,
         ),
     ] = 0,
     attacks: Annotated[
         bool,
-        typer.Option(
-            help="With --inject: every payload in turn, small-model attacks included (Q-G2)."
-        ),
+        typer.Option(help="With --inject: every payload in turn, small-model attacks included."),
     ] = False,
     measures: Annotated[
         Path | None,
-        typer.Option(
-            help="Also write the ladder's measure under this folder (Q-G2: data/gate/q-g2)."
-        ),
+        typer.Option(help="Also write the ladder's measure under this folder."),
     ] = None,
     config: ConfigOption = None,
 ) -> None:
-    """The investigation agent (P6) on every answered gold item, scored against the person's
+    """The investigation agent on every answered gold item, scored against the person's
     answers. Without --tools no evidence is asked of the SIEM (the frozen dossier only)."""
     from datetime import UTC, datetime
 
@@ -260,7 +256,7 @@ def gold_agent(
     settings = load(config)
     tools = tools and not inject
     try:
-        agents = loader.load()  # the pinned, enabled files (Q-H1)
+        agents = loader.load()  # the pinned, enabled files
     except loader.AgentError as exc:
         typer.echo(f"error: the investigation agent is refused: {exc}", err=True)
         raise typer.Exit(1) from None
@@ -288,7 +284,7 @@ def gold_agent(
         siem = siem_gateway(settings.siem, engine)[0] if tools else None
         try:
             fetch, snapshots = service.evidence(engine, siem, packs, clock)
-            fetch = agent_eval.outside_siem_pause(fetch, clock)  # never 00:00-01:30 UTC
+            fetch = agent_eval.outside_siem_pause(fetch, clock)  # never in the quiet hours
             if not tools:
 
                 async def fetch(inv: Any, version: int, spec: TaskSpec) -> Any:
@@ -298,9 +294,9 @@ def gold_agent(
                             "row_count": None, "truncated": False, "result_hash": None}  # fmt: skip
 
             gateway = build_gateway(engine, llm, transport)
-            # an evaluation: the pinned, enabled files (Q-H1); the providers' "evaluate"
+            # an evaluation: the pinned, enabled files; the providers' "evaluate"
             # allowlists, low priority, overnight, and the wall clock of the pinned provider's
-            # timeout (Q-G1)
+            # timeout
             agent = Agent(privacy, gateway.complete, packs, fetch, snapshots, privacy.classifier,
                           agents=agents, purpose=EVALUATE, priority=budget.Priority.LOW,
                           provider_timeout_s=llm.providers[0].timeout_s)  # fmt: skip
@@ -350,7 +346,7 @@ def gold_agent(
 
 
 def _licensed(llm: Any) -> None:
-    """Evaluation calls to a campus model wait for its licence's confirmation (Q-G2)."""
+    """Evaluation calls to a local model wait for its licence's confirmation."""
     why = qg2.require_licence(llm)
     if why is not None:
         typer.echo(f"error: {why}", err=True)
@@ -386,7 +382,7 @@ def gold_task(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """A helper task (Q-G2) on its gold set, checked against the text each item sent:
+    """A helper task on its gold set, checked against the text each item sent:
     triage and the fallback on the answered gold items, the others on a frozen set of
     items. Evaluation calls (low priority, overnight); resumable; writes the ladder's
     measure. The labels are never sent."""
@@ -459,7 +455,7 @@ def gold_ladder(
     measures: Annotated[Path, typer.Option(help="The measures' folder.")] = qg2.ROOT,
     config: ConfigOption = None,
 ) -> None:
-    """The evaluation ladder (Q-G2, plan §7.4): how far the model got on each task, rung by
+    """The evaluation ladder: how far the model got on each task, rung by
     rung, from what has been measured. It promotes nothing: a promotion is a person's
     decision. Writes the report as JSON beside the measures."""
     from argus.evaluation import ladder, tasks
@@ -473,7 +469,7 @@ def gold_ladder(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from None
     if other is not None and (cloud == provider or other.providers[0].trust is not Trust.CLOUD):
-        # F6: the model compared with itself, or with another campus model, proves nothing
+        # the model compared with itself, or with another local model, proves nothing
         typer.echo(f"error: --cloud must name a cloud provider other than {provider}, not"
                    f" {cloud}", err=True)  # fmt: skip
         raise typer.Exit(1)

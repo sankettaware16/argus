@@ -1,24 +1,10 @@
-"""The case writer's own grants (Q-D4 review R8): the writer's login stops being a member of
-``argus_runtime``.
+"""The case writer's own grants: the writer's login stops being a member of ``argus_runtime``.
 
-Migration 0037 gave the writer the runtime's grants by membership, so its login could also do
-everything the runtime can: re-enable a disabled user, change capabilities, set a session's
-step-up, lift a mirror pause. The approvals' send-time checks rely on those facts. The group role
-``argus_writer`` now holds exactly what the writer needs, the way ``argus_web`` does (see
-``argus.db.roles.WRITER_GRANTS``, which ``argus doctor`` checks against every table):
-
-* SELECT on what it reads: the cases and their events and members, the approvals and the
-  identity checks that its send-time checks read, the people, the alerts it attaches, the
-  mirror, the lane's health and switches;
-* INSERT on the audit trail, the findings and the lane's request ledger; UPDATE of the lane's
-  state (the same columns as the runtime);
-* SELECT on its own five tables (0037 gave INSERT and UPDATE columns; the runtime read them);
-* EXECUTE on the functions of the send-time check (0030): the two that move a closure write and
-  the one that asks a person to re-confirm an approval that no longer holds.
-
-``argus db bootstrap`` takes the writer's login out of ``argus_runtime`` (it is repaired like
-any other membership), and ``argus doctor`` reports a login that still belongs to it. The role
-names are written out, not imported (see 0003).
+Membership gave the writer's login everything the runtime can do (re-enable a disabled user,
+change capabilities, lift a mirror pause), which the approvals' send-time checks rely on nobody
+doing. The group role ``argus_writer`` now holds exactly what the writer needs
+(``argus.db.roles.WRITER_GRANTS``, checked by ``argus doctor`` against every table), and ``argus
+db bootstrap`` takes the login out of ``argus_runtime``.
 
 Revision ID: 0038
 Revises: 0037

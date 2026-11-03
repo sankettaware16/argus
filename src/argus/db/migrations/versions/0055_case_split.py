@@ -1,32 +1,11 @@
-"""A person splits a case (D-211): investigations move out of it, and can come back.
+"""A person splits a case: investigations move out of it, and can come back.
 
-A suggested case can group two devices that are separate incidents, and recording the owner's
-notice (AR4b) on such a case would make its fingerprint absorb the second device's alerts. Nothing
-could remove a member (only a merge did, and it closes the case), and indicators could only grow.
-``argus case split`` moves chosen investigations, with the actor indicators only they carried, into
-a new case or an existing one, in one transaction.
-
-* ``case_events.kind`` gains ``unlinked``: the source case's event for a split. It keeps the state
-  (the case guard needs no change: it checks versions and edges, and the kind's own CHECK allows a
-  same-state event that is neither a creation, a closure nor a reopening).
-* **A removed row can come back.** ``case_members`` is keyed by (case, investigation) and
-  ``case_indicators`` by (case, kind, value), so an investigation or an indicator removed from a
-  case and added to it again (a split undone; a device that returns) would have hit the key. The
-  service now revives the row (the new link or role, version and person, ``removed_*`` cleared);
-  the history of the first stay is in the case's events, which are append-only. Both
-  ``argus_runtime`` and the web's role (a person's Link from a page can revive a row) get UPDATE on
-  the columns it sets (the removal columns of ``case_members`` they had already).
-* The web's trigger ``argus_web_case_writes`` also fires on UPDATE of ``case_members`` and
-  ``case_indicators``: it refuses a row the web sets to an ``added_by`` that is not a ``user:``
-  actor, whether the row is inserted or revived (an update that leaves ``added_by`` alone, such as
-  a removal, passes as before).
-
-Downgrading is refused while a case event is an ``unlinked``: the case events are append-only. The
-revived rows stay as they are (the older code never reads their history); the grants and the
-trigger go back to 0042's.
-
-The role names are written out, not imported (see 0003). ``WEB_GRANTS`` is what the doctor and the
-tests compare with ``roles.API_GRANTS``.
+A suggested case can group two devices that are separate incidents. ``argus case split`` moves
+chosen investigations, with the actor indicators only they carried, into a new or existing case.
+``case_events.kind`` gains ``unlinked``. A removed member or indicator that is added again has its
+row revived (the runtime and the web get UPDATE on the columns that sets), and the web's trigger
+``argus_web_case_writes`` also fires on UPDATE of those tables. Downgrading is refused while a
+case event is an ``unlinked``.
 
 Revision ID: 0055
 Revises: 0054

@@ -1,11 +1,10 @@
-"""The freshness lane's one template (Q-F1): a source's newest document by ingest time.
+"""The freshness lane's one template: a source's newest document by ingest time.
 
-Like ``health.freshness`` (R4's probe-cost template, kept for its tests) but a light search on
+Like ``health.freshness`` (the probe-cost template, kept for its tests) but a light search on
 the freshness lane: it obeys every kill switch (``freshness`` and the global one), the
 breaker, the SIEM's health (NORMAL, CAUTION at half, DEGRADED at a tenth, never STOP) and the
-quiet hours, and spends the lane's own budget (plan §7.8 as D-131 set it: 100 ms a minute,
-3 minutes a day). Its timeout is 1 s: a timeout is charged whole, and 5 s would black the
-lane out for most of an hour (review F3).
+quiet hours, and spends the lane's own budget (100 ms a minute, 3 minutes a day). Its timeout
+is 1 s: a timeout is charged whole, and 5 s would black the lane out for most of an hour.
 """
 
 from __future__ import annotations
@@ -49,7 +48,7 @@ class Watermark(Template):
     sort_fields = frozenset({"event.ingested"})
     return_fields = frozenset({"@timestamp", "event.ingested"})
     max_size = 1
-    timeout = timedelta(seconds=1)  # charged whole on a timeout: keep the lane alive (F3)
+    timeout = timedelta(seconds=1)  # charged whole on a timeout: keep the lane alive
     LOOKBACK: ClassVar[timedelta] = timedelta(minutes=15)
 
     def build(self, params: Params) -> RequestPlan:
@@ -61,7 +60,7 @@ class Watermark(Template):
             "_source": ["@timestamp", "event.ingested"],
             "sort": [{"event.ingested": {"order": "desc"}}],
             # ``lte`` now: a document with a future ingest time (a skewed clock) would stay
-            # the newest hit and freeze the watermark (review F9)
+            # the newest hit and freeze the watermark
             "query": {"range": {"event.ingested": {"gte": iso(start), "lte": iso(params.now)}}},
         }
         return RequestPlan(self.spec(), body=body, window=Window(params.source, start, params.now))

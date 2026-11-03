@@ -1,14 +1,9 @@
 """Alembic environment for ARGUS.
 
-Two entry paths:
-* ``argus db ...`` / tests pass an open connection in ``config.attributes["connection"]``
-  (see ``argus.db.migrate``) so migrations run inside the caller's transaction, which already
-  holds the migration lock.
-* the plain ``alembic`` CLI builds its own engine from ARGUS settings (as the schema owner)
-  and takes the same lock.
-
-Only the tables ARGUS's models declare are compared (``include_name``), so autogenerate never
-proposes dropping other tables that share the database.
+``argus db ...`` and tests pass an open connection in ``config.attributes["connection"]`` so
+migrations run inside the caller's transaction (which already holds the migration lock); the plain
+``alembic`` CLI builds its own engine as the schema owner and takes the same lock. Only the tables
+ARGUS's models declare are compared, so autogenerate never proposes dropping others.
 """
 
 from __future__ import annotations
@@ -40,7 +35,7 @@ async def run_async_migrations() -> None:
     from argus.config import load_settings
     from argus.db.engine import create_engine
 
-    engine = create_engine(load_settings().database, role="owner")  # migrations: D-029
+    engine = create_engine(load_settings().database, role="owner")  # migrations run as the owner
     try:
         async with engine.connect() as connection:
             await migrate.lock_migrations(connection)

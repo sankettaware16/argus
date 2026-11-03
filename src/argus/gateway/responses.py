@@ -1,5 +1,5 @@
-"""Reading the SIEM's answers (plan §5.3): HTTP errors become typed errors, and a search answer
-that is not complete is never data (D-023: unknown is not negative).
+"""Reading the SIEM's answers: HTTP errors become typed errors, and a search answer
+that is not complete is never data (unknown is not negative).
 
 Error bodies are read for their ``type`` names only; Elasticsearch's ``reason`` texts can quote
 the query, so they are never kept.

@@ -1,14 +1,9 @@
-"""The SIEM's health state machine (plan §5.1, D-021).
+"""The SIEM's health state machine.
 
-Probe readings in, NORMAL / CAUTION / DEGRADED / STOP out. Each condition has an entry test
-and a looser stay test (hysteresis): gauges leave ``margin`` below their threshold, counters
-(search rejections, breaker trips, a search queue) leave after ``clean_probes`` quiet probes.
-After DEGRADED or STOP the budget comes back slowly: a quarter, then half, then all of it.
-A memory that no probe has refreshed for a while is not trusted (D-023: unknown is not
-healthy): ``effective`` makes it DEGRADED after ``stale_degraded`` and STOP after
-``stale_stop``, and DEGRADED if the SIEM was never probed.
-
-Pure: (memory, readings, now) in, memory out. The probe job keeps the memory in Postgres.
+Probe readings in, NORMAL / CAUTION / DEGRADED / STOP out. Each condition has an entry test and a
+looser stay test (hysteresis); after DEGRADED or STOP the budget comes back slowly (a quarter,
+then half, then all). A memory no probe has refreshed for a while is not trusted (unknown is not
+healthy): ``effective`` makes it DEGRADED, then STOP. Pure: (memory, readings, now) in, memory out.
 """
 
 from __future__ import annotations
@@ -38,10 +33,9 @@ LEVEL = {
 BY_LEVEL = {level: state for state, level in LEVEL.items()}
 SCALE = {HealthState.NORMAL: 1.0, HealthState.CAUTION: 0.5, HealthState.DEGRADED: 0.1}
 
-# Which work each state allows (D-021; the Phase 3 lanes from plan §7.8): investigation,
-# measurement and every write only in NORMAL; freshness and Kibana reads also in CAUTION (half
-# the share) and DEGRADED (a tenth); identity checks in every state (DQ9 (b): STOP does not
-# block sign-in), on their own lane.
+# Which work each state allows: investigation, measurement and every write only in NORMAL;
+# freshness and Kibana reads also in CAUTION (half the share) and DEGRADED (a tenth);
+# identity checks in every state (STOP does not block sign-in), on their own lane.
 _NORMAL_ONLY = frozenset(
     {
         Purpose.BACKFILL,
@@ -76,7 +70,7 @@ class HealthConfig:
     disk_degraded: float = 90.0
     disk_stop: float = 95.0
     heap_caution: float = 85.0  # used until a measured p90 baseline exists
-    load_caution: float = 16.0  # 1-minute load; the SIEM has 16 cores since 2026-10-12
+    load_caution: float = 16.0  # 1-minute load (about the SIEM's core count)
     ingest_lag_degraded: timedelta = timedelta(minutes=15)
     margin: float = 5.0  # percentage points below a threshold to leave it
     load_margin: float = 0.9  # leave a load condition below 90% of its threshold
@@ -103,7 +97,7 @@ class Readings:
     write_rejected: int | None = None  # cumulative; chronic on the SIEM, recorded only
     blocked_indices: tuple[str, ...] = ()  # read_only_allow_delete on a target index
     ingest_lag: Mapping[str, timedelta] = field(default_factory=dict)
-    stale_rules: int | None = None  # rules not run for > 3x their interval (R9)
+    stale_rules: int | None = None  # rules not run for > 3x their interval
 
 
 @dataclass(frozen=True)
@@ -172,10 +166,9 @@ def evaluate(
         condition(name, level, name in fired, any(name in probe for probe in recent))
 
     heap_limit = baselines.heap_p90 if baselines.heap_p90 is not None else config.heap_caution
-    # Late sources (DQ19 (a), per source with the trip wire; supersedes D-021's per-source
-    # rule): one late source affects only its own "nothing found" results (Q-F1); two or
-    # more, or one with rising search rejections, a search queue or heap over its limit,
-    # still mean DEGRADED.
+    # Late sources (per source with the trip wire): one late source affects only its own
+    # "nothing found" results; two or more, or one with rising search rejections, a search
+    # queue or heap over its limit, still mean DEGRADED.
     heap_now = readings.heap_percent
     pressed = bool({"search_rejections", "search_queue"} & set(fired)) or (
         heap_now is not None and heap_now > heap_limit
@@ -268,7 +261,7 @@ def allowed(state: HealthState, purpose: Purpose) -> bool:
 def readings_from_node_stats(payload: Any, at: datetime) -> Readings:
     """Readings from ``GET _nodes/_local/stats/fs,jvm,os,thread_pool,breaker``; missing parts
     are None. An answer without exactly one node, with a failed node, or without disk, heap,
-    load and the search counters is a failed probe: unknown is not healthy (D-023)."""
+    load and the search counters is a failed probe (unknown is not healthy)."""
     summary = payload.get("_nodes") if isinstance(payload, Mapping) else None
     failed = summary.get("failed") if isinstance(summary, Mapping) else None
     if failed != 0 or isinstance(failed, bool):

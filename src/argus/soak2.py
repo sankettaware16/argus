@@ -1,6 +1,6 @@
-"""The Phase 2 soak report (P9, D-092): each exit criterion judged from the store over the
-soak's window. What the store cannot show (the privacy sweep, a person's own time) is named
-as such, never assumed."""
+"""The second soak report: each exit criterion judged from the store over the soak's window.
+What the store cannot show (the privacy sweep, a person's own time) is named as such, never
+assumed."""
 
 from __future__ import annotations
 

@@ -1,11 +1,9 @@
-"""Waves and "Check more" (Q-F3, plan §7.3): the queue and the record of the deterministic wave
-and of a person's request for one more check.
+"""Waves and "Check more": the queue and the record of the wave and of a person's extra check
 
-``investigation_checks``: one row per request, a queue and its result in one (like
-``assessments``). The runtime role reads, adds and updates the state columns of rows; the web's
-role (the "Check more" button's endpoint, Q-B3) reads rows and adds a ``queued`` request with the
-columns a person's request has. Rows go with their investigation (``ON DELETE CASCADE``: the
-retention purge and ``argus db regroup`` need no other handling).
+``investigation_checks``: one row per request, a queue and its result in one (like ``assessments``).
+The runtime role reads, adds and updates the state columns; the web's role reads rows and adds a
+``queued`` request with the columns a person's request has. Rows go with their investigation
+(``ON DELETE CASCADE``).
 
 Revision ID: 0039
 Revises: 0038

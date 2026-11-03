@@ -1,17 +1,9 @@
-"""The egress validator (P1; plan §2.2, D-076): the last check on the exact bytes of a request
-before it leaves, and on a model's answer before it is used.
-
-``check(payload, campus, ordinary=...)`` blocks a request that holds any identifier
-``argus.llm.detect`` finds, in clear or encoded. A JSON payload (a provider's body) is
-checked as bytes and then string by string, once decoded (JSON escapes hide nothing). In a
-text, each quoted string is untrusted: there no word is exempt from being a name.
-``ordinary`` (ARGUS's own template words) is exempt only outside quotes. Any error inside
-the check blocks too (fail closed). A ``Verdict`` holds kinds only, never a value or an
-excerpt, so it can be stored and logged (P5's ledger).
-
-``foreign(answer, items, about)`` lists the pseudonyms in a text that belong to no item of
-the request, or to an item other than ``about`` (plan §5.2).
-"""
+"""The egress validator: the last check on the exact bytes of a request before it leaves, and on
+a model's answer before it is used. ``check(payload, campus, ordinary=...)`` blocks a request
+holding any identifier ``argus.llm.detect`` finds, in clear or encoded; quoted strings are
+untrusted (no word is exempt), ``ordinary`` words are exempt only outside quotes, and any error
+blocks (fail closed). A ``Verdict`` holds kinds only. ``foreign(answer, items, about)`` lists
+pseudonyms that belong to no item of the request or to an item other than ``about``."""
 
 from __future__ import annotations
 
@@ -24,7 +16,7 @@ from typing import Any
 
 from argus.llm.detect import TOKEN, Campus, find
 
-MAX_BYTES = 128 * 1024  # requests are at most 60,000 characters; anything bigger is refused
+MAX_BYTES = 128 * 1024  # requests are at most 60,000 characters
 QUOTED = re.compile(r'"(?:[^"\\\n]|\\.){0,4000}"')
 
 

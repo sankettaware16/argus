@@ -1,6 +1,6 @@
-"""ARGUS's own prompt text and how answers are read (P5/P6). Prompts are versioned: a change
-is a new name, so recorded answers and scores stay tied to the text that produced them.
-Nothing here is specific to one rule."""
+"""ARGUS's own prompt text and how answers are read. Prompts are versioned: a change is a new
+name, so recorded answers and scores stay tied to the text that produced them. Nothing here is
+specific to one rule."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ OUTCOMES = (
 )  # fmt: skip
 ASSESS_V1 = "assess@1"
 # The prompt as a template: ``{a_kind}`` and ``{noun}`` are the site's words (``PROMPTS`` reads
-# it through them; the text for a university is the one assess@1 was written with).
+# it through them).
 ASSESS_V1_TEXT = """\
 You are a first-line security analyst for {a_kind} network. You receive one alert
 investigation (an item) that ARGUS built from the SIEM's alerts and logs. Internal names and
@@ -52,8 +52,8 @@ def strings(most: int) -> dict[str, Any]:
     return {"type": "array", "items": {"type": "string"}, "maxItems": most}
 
 
-# The answers' shapes, sent as response_format json_schema (strict) to providers that take
-# one (D-112: the local model keeps the asked shape only so); the parsers stay as lenient.
+# The answers' shapes, sent as response_format json_schema (strict) to providers that take one
+# (a local model keeps the asked shape only so); the parsers stay lenient.
 PING_SCHEMA = strict_object(ok={"type": "boolean"})
 ASSESS_V1_SCHEMA = strict_object(
     outcome={"type": "string", "enum": list(OUTCOMES)},

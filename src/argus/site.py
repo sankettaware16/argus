@@ -1,31 +1,9 @@
-"""The site profile (D-238, P4-D1): everything about one organisation's Elastic that is not code.
-
-ARGUS is one code base for many sites. What differs between them (which indices hold which
-logs, what their fields are called, the Kibana space, the version and licence it may write
-against) lives in the ``site`` section of the settings; ``argus discover`` proposes it from a
-fresh Elastic and the neutral defaults here work on one that has nothing configured yet:
-no log family is read until one is configured, the alerts come from the Security alerts
-index of the ``default`` space, and any Elastic 8.x or 9.x is accepted.
-
-The models are plain pydantic (no settings machinery) so the gateway, the evidence modules and
-the settings can all import them. The loaded section is made the process's active site once
-(``activate``, called by ``load_settings``); everything that needs a family, a field or the
-alerts index asks ``active()``. Tests set it with ``using``.
-
-**Families.** A log family is a role (what the logs are: ``proxy``, ``web``, ``dns``, ``auth``
-(sign-ins), ``mail`` or ``other``), a pattern, the event time field and the names of the fields
-the evidence modules use. A pattern that ends in ``*`` is a daily family: the indices are
-``<prefix>YYYY.MM.DD`` and a request names the days it needs. A pattern without ``*`` is one
-data stream (or alias): a request names it and the time range selects the data. The family's
-``name`` (the source key in stored evidence, the freshness readings and the ledger) defaults to
-its role; give it when a role has two families or when an existing install already uses
-another key.
-
-**Fields.** ``fields`` maps a field role to the name the evidence modules query in that
-family; a role left out has the ECS name. A text field with a ``.keyword`` sub-field is written
-with the suffix (``url.domain.keyword``): that is the name a term or an aggregation needs, and
-the name without the suffix is what a document returns.
-"""
+"""The site profile: everything about one organisation's Elastic that is not code. Log families
+(role, pattern, time field, field names), the Kibana space, versions, licence, time zone and
+words live in the ``site`` section of the settings; ``argus discover`` proposes it, and the
+neutral defaults work on an Elastic with nothing configured. The loaded section becomes the
+process's active site (``activate``, called by ``load_settings``); everything else asks
+``active()``. Tests use ``using``."""
 
 from __future__ import annotations
 
@@ -661,7 +639,7 @@ TI_MODES: Final = ("mirror", "lookup")  # one complete bounded read, or per valu
 
 
 class TiSource(_Model):
-    """One threat-intel source (D-293): an index or index pattern, how its documents are written
+    """One threat-intel source: an index or index pattern, how its documents are written
     (``schema``: ``ecs`` = ECS ``threat.indicator.*`` as Elastic's Threat Intel integration
     writes it, ``ioc`` = ``ioc_type`` / ``ioc_value`` / ``intel_source`` rows) and how ARGUS
     reads it (``mode``: ``mirror`` = the whole index in one complete bounded read, kept in
@@ -783,7 +761,7 @@ class SiteSettings(_Model):
     ti_sources: tuple[TiSource, ...] = Field(default=(), max_length=MAX_TI_SOURCES)
     """The threat-intel sources ARGUS may read, each an index (or index pattern) with its schema
     and mode; the self-test requires ``read`` on each. None by default: a site without one has
-    threat intel off, and ARGUS says so wherever it reports intel (D-293)."""
+    threat intel off, and ARGUS says so wherever it reports intel."""
     elastic_versions: VersionSpec = ">=8.0,<10"
     """Elasticsearch versions ARGUS is run against (the self-test refuses others)."""
     kibana_versions: VersionSpec = ">=8.0,<10"
@@ -842,7 +820,6 @@ class SiteSettings(_Model):
     # ---- the alerts index
 
     def alerts_index_of(self, space: str) -> str:
-        """The alerts index (alias) of a Kibana space."""
         return self.alerts_index.replace("{space}", space)
 
     def alerts_backing_of(self, space: str) -> str:
@@ -951,7 +928,6 @@ def using(site: SiteSettings) -> Iterator[SiteSettings]:
 
 
 def zone() -> ZoneInfo:
-    """The zone people read times and days in (``site.timezone``)."""
     return ZoneInfo(_ACTIVE.timezone)
 
 
@@ -1005,7 +981,6 @@ def zone_label(moment: datetime | None = None) -> str:
 
 
 def incident_prefix() -> str:
-    """The prefix of incident case ids (``ACME-IR``; ``IR`` by default)."""
     return _ACTIVE.incident_id_prefix
 
 
@@ -1099,17 +1074,12 @@ _SAY = re.compile(
 
 
 def say(text: str) -> str:
-    """``text`` with the site's words put in for the tokens a module writes its sentences with
-    (so a sentence that is data, in a table at the top of a module, still follows the site):
-    ``{own:host}`` campus host, ``{a_own:host}`` / ``{A_own:host}`` a / A campus host, ``{the}`` /
-    ``{The}`` the campus / The campus, ``{noun}`` / ``{Noun}`` campus / Campus, ``{Own:sites}``
-    Campus sites, ``{where}`` the word as given ("on campus", "on your network"), and
-    ``{source:proxy}`` the name of the site's family of that role (squid), ``{team}`` and ``{org}``
-    the organisation's team and name, ``{kind}`` / ``{a_kind}`` / ``{Kind}`` what kind it is
-    (university / a university / University), ``{units}`` (``{units2}``: its first two) and
-    ``{reviewers}`` its words for who an owner is told through and who reads the reports,
-    ``{logs}`` the log patterns it grants, ``{quiet}`` the quiet hours as in "between 00:00 and
-    01:30 UTC". Text without a token is returned as it is."""
+    """``text`` with the site's words put in for the tokens a module writes its sentences with, so
+    a sentence held as data still follows the site: ``{own:host}`` / ``{a_own:host}`` (a campus
+    host), ``{the}``, ``{noun}``, ``{where}`` (the word as given), ``{source:proxy}`` (the name of
+    the site's family of that role), ``{team}``, ``{org}``, ``{kind}``, ``{units}``,
+    ``{reviewers}``, ``{logs}`` and ``{quiet}``; capitalised forms start a sentence. Text without
+    a token is returned as it is."""
 
     def put(match: re.Match[str]) -> str:
         kind, arg = match[1], match[2] or ""
@@ -1233,8 +1203,8 @@ def rule_families(
 ) -> tuple[LogFamily, ...]:
     """The log families a rule reads, from its own indices (``kibana.alert.rule.indices``), in
     the site's order. An entry may list indices (``a,b``), and a name may be a pattern: a family
-    counts when the pattern covers one of its indices (``acme-logs-*`` reads them all,
-    Q-F3 review R7), or when it is a whole word of the name (``logs-squid.access-default``).
+    counts when the pattern covers one of its indices (``acme-logs-*`` reads them all), or when it
+    is a whole word of the name (``logs-squid.access-default``).
     ``-pattern`` leaves out what it covers, as Elasticsearch reads it. ``known``: the family
     names to consider (default: the watched ones, the families the investigation can name)."""
     profile = active()
@@ -1342,7 +1312,6 @@ def value_limit(indices: Iterable[str], field: str) -> int | None:
 
 
 def fields_of(source: str) -> Fields:
-    """The field names of the family ``source`` (a source key)."""
     family = active().family(source)
     if family is None:
         raise SiteError(f"{source[:40]} is not a log family of this site")

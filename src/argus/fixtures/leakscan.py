@@ -1,24 +1,11 @@
-"""Prove that no original identifier survives in fixture files (R2 gate, D-030, D-041).
+"""Prove that no original identifier survives in fixture files.
 
 The denylist comes from the raw sources (harvested identifiers, the asset map, policy extras).
-
-* **Files** are read by content, not by name: gzip, bzip2, xz and zip (also nested, with a size
-  cap) are decompressed; UTF-8, UTF-16 and UTF-32 (with or without a BOM) are decoded; JSON, JSON
-  Lines and plain text are split into strings (duplicate JSON keys kept). A file that cannot be
-  read completely (a corrupt stream, binary content, an unknown compressor) is reported as
-  unscannable: never passed.
-* **Strings** are scanned as stored and in decoded views. Each view decodes to a fixed point
-  (URL with and without ``+``, HTML entities, ``\\x``/``\\u``/``\\U``/octal/``\\t`` escapes), and
-  single decoders also unwrap base64 and hex payloads and JSON embedded anywhere in a string, each
-  inner string separately, under a size budget.
-* **Names** are found by a word index: set lookups between ASCII word boundaries, leftmost-longest,
-  tried only where some name starts with the word found there. All-capital short codes (EE, META)
-  match in their own case only; every other name in any case; a name with edge punctuation
-  (``LAB-PC07$``) also matches without it.
-* **Addresses** are compared in canonical form, so another spelling of a denylisted address is
-  found too (upper-case or expanded IPv6, zero-padded, dashed, ``_``-separated, integer or hex
-  IPv4 in a URL, reverse DNS for IPv4 and IPv6, IPv4 inside NAT64, 6to4 and Teredo); any address
-  inside a site prefix is a leak by definition (site pseudonyms always move to the site space).
+Files are read by content (gzip, bzip2, xz, zip, nested; UTF-8/16/32; JSON, JSON Lines, text); one
+that cannot be read completely is reported as unscannable, never passed. Strings are scanned as
+stored and in decoded views (URL, HTML, escapes, base64, hex, embedded JSON). Names are found by a
+word index (short all-capital codes match in their own case only); addresses are compared in
+canonical form, and any address inside a site prefix is a leak by definition.
 """
 
 from __future__ import annotations
@@ -164,7 +151,7 @@ class LeakScanner:
         return hits
 
     def _phrase_hits(self, text: str) -> list[str]:
-        """Phrases tried only where their first word starts (also glued: CampusUniversity)."""
+        """Phrases tried only where their first word starts (also glued: ExampleUniversity)."""
         hits = []
         lowered = text.lower()
         aligned = len(lowered) == len(text)

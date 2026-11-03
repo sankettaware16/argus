@@ -1,14 +1,9 @@
-"""Record/replay at the gateway boundary (plan §10, D-048).
+"""Record/replay at the gateway boundary.
 
-A cassette is a JSON file of answers keyed by the request: template and version (from the
-opaque id), method, path (which names the indices), URL parameters and the body without its
-``timeout`` (that follows the caller's deadline). Replay is strict: a request the cassette does
-not hold raises ``CassetteMissError`` and is never sent anywhere. Recording wraps a real
-transport (es-local, or the SIEM inside a human-issued live session); a template's version bump
-changes every key, so its cassettes must be recorded again.
-
-Recordings from es-local or the SIEM hold production data: they are written under ``data/``
-(never committed) unless they were sanitized and leak-checked first (R2's toolkit).
+A cassette is a JSON file of answers keyed by the request (template and version, method, path,
+URL parameters, body without its ``timeout``). Replay is strict: a request the cassette does not
+hold raises ``CassetteMissError`` and is never sent. Recordings of real data are written under
+``data/`` (never committed) unless sanitized and leak-checked first.
 """
 
 from __future__ import annotations

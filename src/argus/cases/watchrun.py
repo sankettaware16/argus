@@ -1,34 +1,12 @@
-"""The still-active watch at work (Q-C2, plan §5 and §7.1): the daily run, the quiet-window
-finder, and the status a person reads. The rules are :mod:`argus.cases.watch` (pure) and
-:mod:`argus.cases.membership`; this module reads and writes the database and, in mode ``on``,
-asks the SIEM through an :class:`Asker`.
-
-A run (:func:`run`), in this order, for every watched case (confirmed and not closed, or closed
-as remediated within the last 14 days):
-
-1. **Membership** (one transaction under the opener's lock): investigations that strongly match
-   a case's actors or indicators and alerted after its reference time join it: an open or
-   assigned case is linked, a contained one returns to open ("new activity", a W2 state tag
-   through the outbox, never silent), activity after a closure opens a suspected case that
-   follows it (or, with nothing to open one with, notes it on the closed case). A match through
-   shared infrastructure, or one that ties between cases, joins nothing and is suggested.
-   Joining is for investigations in no case; **activity** is wider: every investigation that
-   matches a case counts for it, in a case or not (:func:`scan`).
-2. **ARGUS's own alerts**, per finished UTC day: active, quiet (the collector saw everything)
-   or unverified. Local: nothing is sent to the SIEM.
-3. **The proxy logs** (mode ``on``): for each address of the case and day not yet decided, one
-   ``proxy.contact`` request, the oldest unanswered first (in the investigation lane; at most
-   ``cap_for`` questions a case a day, 6 to 20; a day ARGUS's alerts already show active is not
-   asked), verified by Q-F1; ``proxy.pair`` describes the rhythm when contact was seen. What was
-   cut off or refused stays *not checked* with the reason, and is asked again by the next run:
-   nothing is silently skipped.
-4. **Reactions** to contact seen in the logs after containment or closure, as in 1.
-
-Every step is idempotent: answers are keyed by case, day, source and address, and a decided
-one is never replaced, so a second run adds nothing and any order of days gives the same cases.
-One run at a time (a session lock on a connection of its own); one case's failure is a problem
-in the report, and the other cases and the run's audit row go on.
-"""
+"""The still-active watch at work: the daily run, the quiet-window finder and the status a person
+reads (rules: :mod:`argus.cases.watch`, :mod:`argus.cases.membership`). A run (:func:`run`) covers
+every watched case in this order: (1) membership, under the opener's lock: investigations that
+strongly match join an open case, move a contained one back to open, or open a suspected case that
+follows a closed one; (2) ARGUS's own alerts per finished UTC day; (3) the proxy logs in mode ``on``
+(one ``proxy.contact`` request per address and day, oldest first, within the cap; what was cut off
+stays *not checked* and is asked again); (4) reactions to contact seen after containment or closure.
+Every step is idempotent (answers are keyed by case, day, source and address and never replaced);
+one run at a time; one case's failure is a problem in the report."""
 
 from __future__ import annotations
 
@@ -78,9 +56,6 @@ RUN_LEVEL = frozenset(
 )  # fmt: skip
 
 
-# --------------------------------------------------------------------------- asking the SIEM
-
-
 @dataclass(frozen=True)
 class Answer:
     """What asking the SIEM came to: the answer, or the reason it was not asked (a code of
@@ -98,7 +73,7 @@ class Asker(Protocol):
 
 
 class GatewayAsker:
-    """Asks through the Elastic Gateway in the investigation lane (plan §7.8): NORMAL health
+    """Asks through the Elastic Gateway in the investigation lane: NORMAL health
     only, never in the quiet hours (checked again whenever the gateway waits), the template's
     own prevalence gate and daily cap (:func:`argus.context.batch1.admit`), the lane's server
     time and heavy-request allowance, and the ``investigation`` kill switch."""
@@ -173,9 +148,6 @@ class GatewayAsker:
         return Answer(asked_at, body=result.body, sent=True)
 
 
-# --------------------------------------------------------------------------- a run
-
-
 @dataclass(frozen=True)
 class Context:
     """What a run needs. ``asker`` None is mode ``local``: ARGUS's own alerts only."""
@@ -186,7 +158,7 @@ class Context:
     history: timedelta
     asker: Asker | None = None
     pair: bool = False  # proxy.pair is switched on (describes the rhythm of contact seen)
-    # the notified cases' rules (AR4b): which asset-map site types are campus-managed machines
+    # the notified cases' rules: which asset-map site types are organisation-managed machines
     rules: known.Rules = field(default_factory=known.Rules)
 
     def is_campus(self, value: str) -> bool:
@@ -195,7 +167,8 @@ class Context:
 
 def context_for(settings: Any, asker: Asker | None = None) -> Context:
     """A run's context from the settings: the asset map's classes, the shared-infrastructure
-    list, Q-F1's policy (``freshness.*``), ``history.window`` and whether ``proxy.pair`` is on."""
+    list, the freshness policy (``freshness.*``), ``history.window`` and whether ``proxy.pair``
+    is on."""
     return Context(
         IpClassifier(load_asset_map(settings.assets.map_path), settings.site.own_networks),
         membership.load_shared(),
@@ -286,9 +259,6 @@ async def reference_time(conn: AsyncConnection, case: WatchedCase) -> datetime:
         if at is not None:
             return at
     return case.opened_at
-
-
-# --------------------------------------------------------------------------- membership scan
 
 
 @dataclass(frozen=True)
@@ -450,7 +420,7 @@ def _members(hits: Sequence[Hit]) -> tuple[Member, ...]:
 
 def _marks(hits: Sequence[Hit]) -> tuple[Indicator, ...]:
     """A joined investigation's own actors become indicators when it joined through a c2 or
-    another indicator (the PS1Bot hosts reaching one C2); never more than its actors."""
+    another indicator (hosts reaching one C2); never more than its actors."""
     marks: dict[tuple[str, str], Indicator] = {}
     for hit in hits:
         if hit.match.link != "actor":
@@ -597,8 +567,6 @@ def _own_marks(hits: Sequence[Hit]) -> tuple[Indicator, ...]:
             )
     return tuple(marks.values())
 
-
-# --------------------------------------------------------------------------- the alerts check
 
 _ALERT_DAYS = text(
     "SELECT (COALESCE(a.event_time, a.detected_at) AT TIME ZONE 'UTC')::date AS day,"
@@ -754,9 +722,6 @@ async def alerts_check(
     return active
 
 
-# --------------------------------------------------------------------------- the logs check
-
-
 async def _decided(
     conn: AsyncConnection, case_id: uuid.UUID, first: date
 ) -> dict[tuple[date, str, str, int], str]:
@@ -797,7 +762,7 @@ async def case_indicators(conn: AsyncConnection, case_id: uuid.UUID) -> list[tup
 async def verify_zero(
     conn: AsyncConnection, ctx: Context, params: beacon.ContactParams, asked_at: datetime
 ) -> Check:
-    """Q-F1's verdict for a ``proxy.contact`` search that found nothing: the search was whole,
+    """The verdict for a ``proxy.contact`` search that found nothing: the search was whole,
     and the readings prove the proxy logs complete across its window, from before it was sent."""
     row = {
         "template": beacon.ProxyContact.name,
@@ -971,9 +936,6 @@ async def _describe(
                   asked_at=answer.asked_at, sent=1, today=today)  # fmt: skip
 
 
-# --------------------------------------------------------------------------- reactions
-
-
 async def react(
     engine: AsyncEngine,
     case: WatchedCase,
@@ -1028,9 +990,6 @@ async def _noted(conn: AsyncConnection, case_id: uuid.UUID) -> bool:
         )
     ).first()
     return found is not None
-
-
-# --------------------------------------------------------------------------- the run
 
 
 async def run(
@@ -1157,9 +1116,6 @@ async def _watch_case(
                 f"quiet for 72 hours: a person may contain it (with their attestation): "
                 f"{window.reason}"
             )
-
-
-# --------------------------------------------------------------------------- reading it back
 
 
 async def rows(conn: AsyncConnection, case_id: uuid.UUID, since: date) -> list[watch.Row]:

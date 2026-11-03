@@ -1,6 +1,5 @@
-"""Making a report (Q-H3): the period, the sections, the text. Reads ARGUS's database only, in
-one read-only snapshot, so the sections agree with each other; asks no model and no SIEM, so a
-report is made on time whatever the providers and the SIEM are doing."""
+"""Making a report: the period, the sections, the text. Reads ARGUS's database only, in one
+read-only snapshot so the sections agree with each other; asks no model and no SIEM."""
 
 from __future__ import annotations
 
@@ -49,7 +48,7 @@ def default_days(kind: Kind, now: datetime) -> list[date]:
 
 
 def _stamped(section: Section, as_at: datetime) -> Section:
-    """A figure of what is waiting says in its definition the moment it is as at (IST)."""
+    """A figure of what is waiting says in its definition the moment it is as at (local time)."""
     when = ist12(as_at)
     return section.model_copy(
         update={
@@ -84,9 +83,8 @@ async def build(
     builders: Sequence[Builder] = BUILDERS,
 ) -> Numbers:
     """The numbers of the report that ends with ``last_day``. A section that cannot be read is
-    in the report as a note saying so (the others stand): a report is never held back, and one
-    made with such a section is kept as made (a stored report is never rewritten; the CLI
-    warns, and the next period's report is whole again)."""
+    in the report as a note saying so and the others stand: a report is never held back, and a
+    stored report is never rewritten."""
     window = window_for(kind, last_day, as_at)
     sections: list[Section] = []
     for builder in builders:

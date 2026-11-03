@@ -19,7 +19,7 @@ class RefusedError(GatewayError):
 
 
 class TemplateRejectedError(RefusedError):
-    """The final request breaks the query contract (plan §5.3)."""
+    """The final request breaks the query contract."""
 
     reason = "template_rejected"
 
@@ -66,8 +66,8 @@ class DeadlinePassedError(RefusedError):
 
 
 class LaneBusyError(DeadlinePassedError):
-    """The budget frees up only after the caller's deadline, and nothing was sent (Q-F3 review
-    R1): not a timeout of the work but a debt of the lane, which pays down at ``retry_at``. A
+    """The budget frees up only after the caller's deadline, and nothing was sent:
+    not a timeout of the work but a debt of the lane, which pays down at ``retry_at``. A
     caller that can wait puts the work back and tries again then; it is a
     ``DeadlinePassedError`` for every caller that does not tell the two apart."""
 
@@ -114,7 +114,7 @@ class OverloadedError(ResponseError):
 
 
 class AuthFailedError(ResponseError):
-    """401/403: the API key is missing, expired, revoked or lacks a privilege. the SIEM goes to
+    """401/403: the API key is missing, expired, revoked or lacks a privilege. The SIEM goes to
     STOP for ARGUS until an operator acts."""
 
     reason = "auth_failed"

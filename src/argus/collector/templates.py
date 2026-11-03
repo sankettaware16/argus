@@ -1,5 +1,5 @@
-"""The collector's own alert reads besides ``alerts.ids`` and ``alerts.mget`` (D-050): counts
-per (hour, rule) for reconciliation, and the workflow status of alerts that are not ``open``."""
+"""The collector's own alert reads besides ``alerts.ids`` and ``alerts.mget``: counts per
+(hour, rule) for reconciliation, and the workflow status of alerts that are not ``open``."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ class AlertCounts(Template):
                         "field": "@timestamp",
                         "fixed_interval": "1h",
                         # Elasticsearch drops a bucket that does not end by max: max is
-                        # the end itself (1 ms less loses the last hour, found on the SIEM)
+                        # the end itself (1 ms less loses the last hour)
                         "hard_bounds": {"min": iso(params.start), "max": iso(end)},
                     },
                     "aggs": {"rules": {"terms": {"field": RULE_FIELD, "size": self.RULES}}},

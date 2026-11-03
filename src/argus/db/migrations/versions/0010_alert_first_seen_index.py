@@ -1,4 +1,4 @@
-"""The incremental rules refresh (R9, D-057): an index on alert_records.first_seen_at, and
+"""The incremental rules refresh: an index on alert_records.first_seen_at, and
 its cursor ('rules_refresh') in collector_cursors
 
 Revision ID: 0010

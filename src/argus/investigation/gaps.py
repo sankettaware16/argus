@@ -1,17 +1,10 @@
-"""Finding the gaps in a dossier, ranked (Q-F3, plan §7.3 point 2). Pure: the same dossier,
-rule profile and decision always give the same list, in the same order.
+"""Finding the gaps in a dossier, ranked. Pure: the same inputs always give the same list.
 
-What is unknown, most important first: **unknown floor signals** (what blocks a benign
-proposal), **deferred note steps** (a question the rule's note asks that no check answered),
-**unknown steps** (a field the step names is in no alert: the rows behind a threshold or
-ES|QL alert, the events before an event alert), **unknown signals**, **low confidence** (the
-assessor's), **conflicts** (a threat and a calming signal at once) and **scope after a
-verified true positive** (who else, and whether it goes on).
-
-A gap says which templates could answer it (``closers``, by what they answer and by the log
-sources the rule's own indices name, never by the rule's name: D-058, D-060), which of those
-were already asked and answered (``exhausted``), and, when none can be asked, why
-(``blocker``). A gap with a blocker is shown and never asked about.
+Most important first: unknown floor signals (what blocks a benign proposal), deferred note steps,
+unknown steps, unknown signals, low confidence, conflicts (a threat and a calming signal) and scope
+after a verified true positive. A gap says which templates could answer it (``closers``, found by
+what they answer and the rule's own indices, never its name), which were already asked
+(``exhausted``) and, when none can be asked, why (``blocker``).
 """
 
 from __future__ import annotations
@@ -27,7 +20,7 @@ from argus.investigation import catalogue
 from argus.report import facts as fx
 
 LOW = 0.6  # an assessor's confidence below this is a gap
-VERIFIED = 0.8  # a true positive this sure (or a person's) is verified (plan §7.3, agent@2)
+VERIFIED = 0.8  # a true positive this sure (or a person's) is verified
 # Why a signal is unknown and asking again can change it: nothing was asked, or the SIEM did
 # not answer in time, was busy, or the logs had not arrived. Every other reason stays whatever
 # the check says (a zero from the logs, a cut answer, a stale list, a field no alert has).

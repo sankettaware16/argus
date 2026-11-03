@@ -1,16 +1,10 @@
-"""Two proxy templates of batch 1 (Q-F4, plan §5 WS-F, §7.3): one host to one destination
-over time (``proxy.pair``, the PS1Bot detector: period, jitter, last beat) and who reached one
-destination when (``proxy.contact``: first and last contact per host in a day, for Q-C2's
-still-active watch).
+"""Two proxy templates of batch 1: one host to one destination over time (``proxy.pair``: period,
+jitter, last beat) and who reached one destination when (``proxy.contact``: first and last contact
+per host in a day, for the still-active watch).
 
-Both are aggregations on squid's logs, so heavy: one daily index, a 10 s timeout, at most 361
-buckets, an answer that fits the 16 KiB snapshot (the date histogram's text keys are left out
-with ``filter_path``). Field names are the captured squid mapping's: ``source.ip`` and
-``destination.ip`` are ``ip``, ``destination.bytes`` is ``long``.
-
-What the answers mean follows D-023: a count from the logs is known when positive, and a zero
-or a "not regular" is never negative until ARGUS measures how far ingest has got (Q-F1); a
-missing hour of logs also looks like a pause.
+Both are aggregations on the proxy logs, so heavy: one daily index, a 10 s timeout, at most 361
+buckets, an answer within the 16 KiB snapshot. A count from the logs is known when positive; a
+zero or a "not regular" is never negative until ARGUS measures how far ingest has got.
 """
 
 from __future__ import annotations
@@ -50,9 +44,9 @@ WATCHED_HOSTS = 10  # hosts a contact check may be limited to
 MIN_GAPS = 5  # beats - 1 needed to call a cadence regular
 REGULAR_SHARE = 0.8  # of the gaps within one bucket of the typical gap
 # The largest chance that traffic with no rhythm (busy buckets at random, at any rate) shows
-# gaps this regular: a cadence is called only below it (review F4-R1).
+# gaps this regular: a cadence is called only below it.
 ALPHA = 1e-9
-TIMEOUT = timedelta(seconds=10)  # heavy templates (plan §7.3)
+TIMEOUT = timedelta(seconds=10)  # heavy templates
 
 
 def _between(start: datetime, end: datetime, source: str | None = None) -> dict[str, Any]:
@@ -86,7 +80,7 @@ class PairParams(SourcedParams):
 
 @register
 class ProxyPair(Template):
-    """One campus host's requests to one destination over time, in 1- or 2-minute buckets."""
+    """One internal host's requests to one destination over time, in 1- or 2-minute buckets."""
 
     name = "proxy.pair"
     version = 1
@@ -208,7 +202,7 @@ class ProxyContact(Template):
             "aggs": {
                 "requests": {"value_count": {"field": f.time}},
                 # over every host, not only the listed ones: the newest contact may be a quiet
-                # host's (review F4-R5)
+                # host's
                 "first": {"min": {"field": f.time}},
                 "last": {"max": {"field": f.time}},
                 "host_count": {"cardinality": {"field": f("client_ip")}},
@@ -364,7 +358,7 @@ def read_pair(
         ("pair.period_s", None if got.period is None else int(got.period.total_seconds())),
         ("pair.jitter_s", None if got.jitter is None else int(got.jitter.total_seconds())),
         ("pair.last_beat", None if got.last is None else iso(got.last)),
-        # Not regular, or not active: never negative from the logs alone (D-023).
+        # Not regular, or not active: never negative from the logs alone.
         ("pair.still_active", True if got.still_active else None),
     )
     out = [from_logs(derived("pair.beats", version, refs, _const(got.beats), counts=True))]

@@ -1,4 +1,4 @@
-"""R2 fixture toolkit: sanitize real SIEM documents into shareable fixtures and prove no leak."""
+"""Fixture toolkit: sanitize real SIEM documents into shareable fixtures and prove no leak."""
 
 from argus.fixtures.ipmap import IPMapError, IPMapper
 from argus.fixtures.leakscan import Leak, LeakScanner

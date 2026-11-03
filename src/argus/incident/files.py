@@ -1,20 +1,12 @@
-"""The report's files (AR7, D-190): the incident report as a PDF, and the indicators and the
-affected devices as CSV, in the layout and columns of the hand-made case's files
-(the reference case's: ``..._DNS_Beaconing_Incident_Report.pdf``, ``..._indicators.csv``,
-``..._affected_devices.csv``). AR8 sends them to the Kibana case's Files tab; a person downloads
-them from the case page.
+"""The report's files: the incident report as a PDF, and the indicators and the affected devices
+as CSV, in the layout of a hand-made incident case's files. The case team sends them to the Kibana
+case's Files tab; a person downloads them from the case page.
 
-Rendered from the stored report only, by code: no model, no database, no network. The same report
-gives the same PDF (reportlab's ``invariant`` mode fixes its dates and ids). Every value goes in as
-text: XML-escaped in the PDF, neutralised in the CSV (a cell that starts with ``=``, ``+``, ``-``
-or ``@`` is prefixed so a spreadsheet never reads it as a formula) and the CSV begins with a UTF-8
-byte order mark, as the block list does.
-
-The PDF library is reportlab (pure Python, BSD): the hand-made report was made with it, and nothing
-else in ARGUS writes a PDF. Its font is DejaVu Sans when the machine has it (the hand-made report's
-font), else the Bitstream Vera that reportlab ships; a character the font lacks is shown as ``?``
-rather than as a box.
-"""
+Rendered from the stored report only, by code; the same report gives the same PDF (reportlab's
+``invariant`` mode). Every value goes in as text: XML-escaped in the PDF, neutralised in the CSV (a
+cell starting with ``=``, ``+``, ``-`` or ``@`` is prefixed so a spreadsheet never reads it as a
+formula), and the CSV begins with a UTF-8 byte order mark. The font is DejaVu Sans when the machine
+has it, else the Bitstream Vera that reportlab ships; a missing character is shown as ``?``."""
 
 from __future__ import annotations
 
@@ -71,7 +63,7 @@ def pdf_name(report: m.IncidentReport) -> str:
 
 
 def dashboard_name(report: m.IncidentReport) -> str:
-    """AR10: the one-page picture dashboard, also the PDF's second part."""
+    """The one-page picture dashboard, also the PDF's second part."""
     return f"{report.header.incident_id}_dashboard.pdf"
 
 
@@ -88,11 +80,8 @@ def accounts_name(report: m.IncidentReport) -> str:
 
 
 def has_accounts(report: m.IncidentReport) -> bool:
-    """Whether the report names an account that signed in from a device (AR6)."""
+    """Whether the report names an account that signed in from a device."""
     return any(d.accounts for d in report.users.devices)
-
-
-# ----------------------------------------------------------------------------- CSV
 
 
 def _csv(columns: Sequence[str], rows: Sequence[Sequence[object]]) -> str:
@@ -114,7 +103,7 @@ def indicators_csv(report: m.IncidentReport) -> str:
 
 
 def affected_csv(report: m.IncidentReport) -> str:
-    """One row for each affected device (a campus address): the name it reached, the days with
+    """One row for each affected device (an internal address): the name it reached, the days with
     an alert and the first and last day, in IST."""
     return _csv(
         AFFECTED_COLUMNS,
@@ -133,7 +122,7 @@ def affected_csv(report: m.IncidentReport) -> str:
 
 
 def accounts_csv(report: m.IncidentReport) -> str:
-    """One row for each account that signed in from an affected device (AR6, D-216): the probable
+    """One row for each account that signed in from an affected device: the probable
     users of a device, or those seen so far, with the device's state ("likely", "possible", ...),
     the sign-ins and failures, the first and last time (IST) and the browser. Personal data: the
     files route gives it only to an account that may read the logs. A lead, not proof."""
@@ -147,9 +136,6 @@ def accounts_csv(report: m.IncidentReport) -> str:
                 )
             )  # fmt: skip
     return _csv(ACCOUNT_COLUMNS, rows)
-
-
-# ----------------------------------------------------------------------------- fonts
 
 
 @lru_cache(maxsize=1)
@@ -192,9 +178,6 @@ def _shown(text: str, mono: bool = False) -> str:
         else:
             out.append(ch)
     return "".join(out)
-
-
-# ----------------------------------------------------------------------------- PDF pieces
 
 
 def _styles() -> Styles:
@@ -269,9 +252,6 @@ def _code(text: str, st: Styles) -> Paragraph:
 
 def _opt(at: Any, fmt: Any, empty: str = "-") -> str:
     return empty if at is None else str(fmt(at))
-
-
-# ----------------------------------------------------------------------------- PDF sections
 
 
 def _head(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
@@ -440,7 +420,7 @@ def _assets(report: m.IncidentReport, st: Styles) -> list[Any]:
 
 
 def _accounts(report: m.IncidentReport, st: Styles) -> list[Any]:
-    """Accounts that signed in from the affected devices: a lead, not proof (AR6, D-216)."""
+    """Accounts that signed in from the affected devices: a lead, not proof."""
     users = report.users
     if not users.devices:
         return []
@@ -553,8 +533,8 @@ def pdf(report: m.IncidentReport) -> bytes:
 
 
 def bundle(report: m.IncidentReport) -> dict[str, bytes]:
-    """The files by name: the PDF, the one-page dashboard (AR10), the indicators CSV and the
-    affected devices CSV, and the accounts CSV when the report names an account (AR6)."""
+    """The files by name: the PDF, the one-page dashboard, the indicators CSV and the
+    affected devices CSV, and the accounts CSV when the report names an account."""
     from argus.incident import dashboard
 
     made = {

@@ -1,4 +1,4 @@
-"""``argus worker ...``: run the context graph on the job queue (R8, D-054), see how it is
+"""``argus worker ...``: run the context graph on the job queue, see how it is
 doing, prune old checkpoints, and measure capacity against the load budget."""
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ FIRST_RUN_NAMES = frozenset(
     {"proxy.pair", "proxy.contact", "dns.host_domains", "web.path_outcomes", "logs.source_events"}
 )
 worker_app = typer.Typer(
-    no_args_is_help=True, help="The worker: dossiers for the queued investigations (R8)."
+    no_args_is_help=True, help="The worker: dossiers for the queued investigations."
 )
 log = logging.getLogger("argus.worker")
 # The checkpoint saver talks psycopg directly (its pool), not through SQLAlchemy.
@@ -277,7 +277,7 @@ def worker_capacity(
     config: ConfigOption = None,
 ) -> None:
     """Replay the stored alerts' job stream through the real budget code for each per-run
-    request profile, with an outage at the busiest time (plan §11). Reads only the local
+    request profile, with an outage at the busiest time. Reads only the local
     database; no SIEM request."""
     settings = load(config)
     names = profile or list(capacity.PROFILES)
@@ -300,7 +300,7 @@ def worker_capacity(
     if not changes:
         typer.echo("no stored alerts to replay")
         raise typer.Exit(1)
-    rows = capacity_rows(  # the collector's lane (Q-D2): the collector and enrichment share it
+    rows = capacity_rows(  # the collector's lane: the collector and enrichment share it
         changes, names, timedelta(hours=outage_hours), collector_config(settings.siem)
     )
     first, last = min(changes)[0], max(changes)[0]
@@ -322,7 +322,7 @@ def worker_capacity(
 async def queue_rederive(engine: AsyncEngine, pack: str) -> int:
     """Queue a job for each investigation whose newest dossier is not from ``pack`` (or that
     has none); one already queued or running is left as it is. An investigation whose raw
-    alerts or evidence snapshots the retention purge removed (Q-A4) keeps the dossier it has:
+    alerts or evidence snapshots the retention purge removed keeps the dossier it has:
     a re-derivation would read what is no longer there."""
     async with engine.begin() as conn:
         rows = await conn.execute(
@@ -347,7 +347,7 @@ async def queue_rederive(engine: AsyncEngine, pack: str) -> int:
 @worker_app.command("rederive")
 def worker_rederive(config: ConfigOption = None) -> None:
     """Queue the investigations whose dossier came from an older pack (or none): the worker
-    writes a new dossier for each with the current pack (no SIEM request in Phase 1)."""
+    writes a new dossier for each with the current pack (no SIEM request)."""
     settings = load(config)
 
     async def use() -> int:
@@ -364,7 +364,7 @@ def worker_rederive(config: ConfigOption = None) -> None:
 
 
 def _log_check(config: ConfigOption, part: str, session: str | None) -> None:
-    """Run one part of the log templates' first production run (D-069)."""
+    """Run one part of the log templates' first production run."""
     from argus.context import live_check
     from argus.gateway.errors import GatewayError
     from argus.gateway.gateway import LiveLimits
@@ -411,14 +411,14 @@ def worker_live_check(
     session: Annotated[str, typer.Option(help="from `argus live start`")],
     config: ConfigOption = None,
 ) -> None:
-    """The web follow-up template's first live run (D-069), inside a live-test session: one
+    """The web follow-up template's first live run, inside a live-test session: one
     search over 15 minutes of nginx, at most 10 rows. Read-only."""
     _log_check(config, "web", session)
 
 
 @worker_app.command("proxy-check")
 def worker_proxy_check(config: ConfigOption = None) -> None:
-    """The proxy aggregations' first production run (D-069): live tests never aggregate, so
+    """The proxy aggregations' first production run: live tests never aggregate, so
     this is a one-off job you confirm here, under the normal budget and health gate: one
     proxy.host and one proxy.destination aggregation over one hour of squid. Read-only."""
     import secrets
@@ -442,7 +442,7 @@ def worker_template_check(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """A batch-1 template's first production run (Q-F4): one read-only request about the
+    """A batch-1 template's first production run: one read-only request about the
     newest stored alerts' subjects, which you confirm here, under the normal budget, health
     gate and the template's own rules. Passed within its limit, you may switch it on
     (enrichment.templates); over it, it stays off. --dry-run prints the exact request."""

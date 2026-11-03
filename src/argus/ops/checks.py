@@ -1,12 +1,9 @@
-"""``argus doctor``'s platform checks (Q-A2): certificates and keys that expire, where the write
-keys are, the local model's tunnel, the service units, the backups, the frontend's toolchain and
-build, the threat-intel feeds' freshness and the probe readings. Read-only, local only: no
-request reaches the SIEM, and the only connection made off this process is a TLS handshake with
-the local model's tunnel on this machine's loopback.
-
-Each check is a plain function over explicit paths (what the tests call); the registered checks
-at the end give them the real ones.
-"""
+"""``argus doctor``'s platform checks: certificates and keys that expire, where the write keys
+are, the local model's tunnel, the service units, the backups, the frontend's toolchain and build,
+the threat-intel feeds' freshness and the probe readings. Read-only and local: no request reaches
+the SIEM; the only connection made is a TLS handshake with the local model's tunnel on this
+machine's loopback. Each check is a plain function over explicit paths (what the tests call); the
+registered checks at the end give them the real ones."""
 
 from __future__ import annotations
 
@@ -35,21 +32,20 @@ from argus.web import spa
 # deploy/local-llm/setup-argus-side.sh: TUNNEL_PORT and CERT_FILE (a test keeps them equal)
 LOCAL_LLM_PORT = 18443
 LOCAL_LLM_CERT = Path("data/tls/local-llm.crt")
-# The keys that can change Kibana or the alerts: R17's writer, the Kibana lane's cases and alert
-# writers (Q-D2) and the case team's six users (AR8). Each belongs to the writer's own credential
-# (Q-A5), nowhere else.
+# The keys that can change Kibana or the alerts: the case writer, the Kibana lane's cases and alert
+# writers and the case team's users. Each belongs to the writer's own credential, nowhere else.
 WRITE_KEYS = {
     "siem.writer_api_key": "ARGUS_SIEM__WRITER_API_KEY",
     "kibana.cases_writer_api_key": "ARGUS_KIBANA__CASES_WRITER_API_KEY",
     "kibana.alert_writer_api_key": "ARGUS_KIBANA__ALERT_WRITER_API_KEY",
-    # the case team's users (AR8, D-195; the visualiser AR10): the same rule, one key each
+    # the case team's users: the same rule, one key each
     "case_team.lead_api_key": "ARGUS_CASE_TEAM__LEAD_API_KEY",
     "case_team.evidence_api_key": "ARGUS_CASE_TEAM__EVIDENCE_API_KEY",
     "case_team.intel_api_key": "ARGUS_CASE_TEAM__INTEL_API_KEY",
     "case_team.responder_api_key": "ARGUS_CASE_TEAM__RESPONDER_API_KEY",
     "case_team.hunter_api_key": "ARGUS_CASE_TEAM__HUNTER_API_KEY",
     "case_team.reporter_api_key": "ARGUS_CASE_TEAM__REPORTER_API_KEY",
-    "case_team.visualiser_api_key": "ARGUS_CASE_TEAM__VISUALISER_API_KEY",  # AR10, optional
+    "case_team.visualiser_api_key": "ARGUS_CASE_TEAM__VISUALISER_API_KEY",  # optional
 }
 PROBES_STALE = timedelta(minutes=15)
 NOTICES_LATE = timedelta(hours=1)  # the timer runs every 10 minutes: an hour without a pass is late
@@ -58,9 +54,6 @@ PROC = Path("/proc")
 
 def _now() -> datetime:
     return datetime.now(UTC)
-
-
-# --------------------------------------------------------------------------- certificates
 
 
 def certificate_result(name: str, path: Path, now: datetime, renew: str) -> CheckResult:
@@ -84,8 +77,8 @@ def web_certificate(
     settings: Settings, repo: Path = REPO, system_unit: Path | None = None
 ) -> tuple[Path | None, str, int]:
     """The certificate the web serves, where that was found and the web's port:
-    ``web.tls_cert``; else, under custody (Q-A5), the system unit's; else the user unit's
-    environment (its template rendered for this installation, D-295) when this checkout is the
+    ``web.tls_cert``; else, under custody, the system unit's; else the user unit's
+    environment (its template rendered for this installation) when this checkout is the
     one the unit runs (the production web)."""
     if settings.web.tls_cert is not None:
         return settings.web.tls_cert, "web.tls_cert", settings.web.port
@@ -130,8 +123,8 @@ def _unit_params(settings: Settings) -> units.UnitParams:
 async def web_certificate_checks(
     settings: Settings, now: datetime, repo: Path = REPO, wait_s: float = 3.0
 ) -> list[CheckResult]:
-    """Its expiry, and the alarm when it is no longer the pinned one (plan Q-A2): browsers then
-    warn, and a person must never type a password past a certificate warning (§3 rule 8). The
+    """Its expiry, and the alarm when it is no longer the pinned one: browsers then
+    warn, and a person must never type a password past a certificate warning. The
     certificate the web serves on this machine is compared too, when the web is up."""
     path, source, port = web_certificate(settings, repo)
     if path is None:
@@ -176,9 +169,6 @@ async def web_certificate_checks(
     else:
         results.append(CheckResult("web certificate pin", True, f"unchanged ({pin[:16]}...)"))
     return results
-
-
-# --------------------------------------------------------------------------- keys
 
 
 def key_expiry_results(settings: Settings, now: datetime) -> list[CheckResult]:
@@ -395,10 +385,10 @@ def write_key_problems(
     me: int | None = None,
     environ_now: dict[str, str] | None = None,
 ) -> list[str]:
-    """Where a write key is that it must not be (plan §3 rule 11): the shared ``.env`` every
+    """Where a write key is that it must not be: the shared ``.env`` every
     ARGUS process loads, the YAML file, a unit file or drop-in and the files it loads, or the
     environment of any process of this user. Names are matched as ARGUS reads them (in any
-    case), and the key's value is looked for under any name. Until Q-A5 gives the writer its
+    case), and the key's value is looked for under any name. Until the writer is given its
     own credential there is no right place, so any is wrong. Names places and processes, never
     a value."""
     problems: list[str] = []
@@ -464,13 +454,10 @@ def write_key_result(problems: list[str], configured: bool) -> CheckResult:
     return CheckResult("write keys", True, "none anywhere (writes are off, D-109)")
 
 
-# --------------------------------------------------------------------------- the local model
-
-
 async def tunnel_result(
     cert: Path, port: int = LOCAL_LLM_PORT, host: str = "127.0.0.1", wait_s: float = 3.0
 ) -> CheckResult:
-    """The local model's tunnel (D-108): up, and serving the certificate the import stored."""
+    """The local model's tunnel: up, and serving the certificate the import stored."""
     stored = _stored_fingerprint(cert)
     if stored is None:
         return CheckResult("local model tunnel", True, "the local model is not set up (D-108)")
@@ -505,9 +492,6 @@ def _stored_fingerprint(cert: Path) -> str | ValueError | None:
         return certs.read_cert(cert).sha256
     except ValueError as exc:
         return exc
-
-
-# --------------------------------------------------------------------------- units
 
 
 def unit_results(
@@ -581,12 +565,10 @@ def unit_results(
     return results + flagged
 
 
-# --------------------------------------------------------------------------- deployed code
-
 # What a running service holds in memory is the code it started with, but it re-reads files from
 # the tree it runs from (the web re-reads the built page and the templates, a late import takes
 # the new module, a new ``argus.yaml`` is read by any ``load_settings``): a checkout that changed
-# under a running service is a mixed old/new process until it restarts (P4-D1 part 2 review F1).
+# under a running service is a mixed old/new process until it restarts.
 CODE_ROOTS = ("src/argus", "config")
 _NOT_CODE = {"__pycache__", ".pytest_cache", ".mypy_cache"}
 
@@ -674,9 +656,6 @@ def deployed_code_result(
     return CheckResult(
         name, True, f"{len(started)} running services started after the code last changed"
     )
-
-
-# --------------------------------------------------------------------------- backups
 
 
 def backup_results(base: Path, now: datetime) -> list[CheckResult]:
@@ -769,9 +748,6 @@ def _parse(value: object) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-# --------------------------------------------------------------------------- the frontend
-
-
 def toolchain_result(directory: Path | None = None) -> CheckResult:
     chain = frontend.toolchain(directory)
     where = directory or frontend.node_dir()
@@ -788,7 +764,7 @@ def toolchain_result(directory: Path | None = None) -> CheckResult:
 
 
 def build_result(frontend_dir: Path, build_dir: Path) -> CheckResult:
-    """Whether the committed build (DQ25) is the build of the current ``frontend/``."""
+    """Whether the committed build is the build of the current ``frontend/``."""
     if not (frontend_dir / "package.json").is_file():
         return CheckResult("frontend build", True, "no frontend yet (Q-B1)")
     made = frontend.read_manifest(build_dir)
@@ -817,7 +793,7 @@ def build_result(frontend_dir: Path, build_dir: Path) -> CheckResult:
 def served_result(served: Path, package: Path) -> CheckResult:
     """Whether /app has a page to serve from ``served`` (``web.spa_dir``, else the package's
     build): an index.html that names its build, and, for another folder (a deploy copy), the
-    package's build copied whole: the same manifest (Q-B1 review F9)."""
+    package's build copied whole: the same manifest."""
     index = spa.Build(served).index()
     if index is None:
         return CheckResult(
@@ -834,9 +810,6 @@ def served_result(served: Path, package: Path) -> CheckResult:
                 f"{served} is not a copy of the package's build: copy it again (web.spa_dir)",
             )
     return CheckResult("frontend served", True, f"/app serves build {index.build} from {served}")
-
-
-# --------------------------------------------------------------------------- stored data
 
 
 async def stored_results(settings: Settings, now: datetime) -> list[CheckResult]:
@@ -917,11 +890,8 @@ async def stored_results(settings: Settings, now: datetime) -> list[CheckResult]
     return results
 
 
-# --------------------------------------------------------------------------- the case watch
-
-
 def shared_result(path: Path | None = None) -> CheckResult:
-    """Q-C2: the shared-infrastructure list loads (a missing, invalid or empty list would switch
+    """The shared-infrastructure list loads (a missing, invalid or empty list would switch
     the content-delivery and cloud rule off)."""
     from argus.cases import membership
 
@@ -937,7 +907,7 @@ def shared_result(path: Path | None = None) -> CheckResult:
 
 
 async def watch_results(settings: Settings, now: datetime) -> list[CheckResult]:
-    """Q-C2: the still-active watch ran lately. Off is a state; otherwise its audit row
+    """The still-active watch ran lately. Off is a state; otherwise its audit row
     (``watch.run``) must be less than 36 hours old, else the daily run is not happening and
     "not checked within 24 hours" depends on a run that does not take place."""
     from argus.cases import watch, watchrun
@@ -964,11 +934,8 @@ async def watch_results(settings: Settings, now: datetime) -> list[CheckResult]:
     return [CheckResult(name, True, detail, warn=late)]
 
 
-# --------------------------------------------------------------------------- the notices
-
-
 async def notices_results(settings: Settings, now: datetime) -> list[CheckResult]:
-    """Q-H4: notices are off (a state, by the user's choice), or switched on with a coherent relay
+    """Notices are off (a state, by choice), or switched on with a coherent relay
     and at least one recipient, and a pass has run in the last hour. WARN when switched on with
     no recipient (nothing is sent), links that point to the loopback, or sends that failed;
     FAIL when switched on with an incomplete relay."""
@@ -1043,9 +1010,6 @@ async def notices_results(settings: Settings, now: datetime) -> list[CheckResult
         detail += f"; the relay failed {failed} message(s) in the last hour"
         warn = True
     return [CheckResult(name, True, detail, warn=warn)]
-
-
-# --------------------------------------------------------------------------- registered
 
 
 # Each registered on its own: a check that breaks shows as one crashed line, never hiding the
@@ -1146,7 +1110,7 @@ async def notices_check(settings: Settings) -> list[CheckResult]:
 
 
 def _yaml_files(config_file: Path | None) -> list[Path]:
-    """The config file and the YAML files read beside it (local.yaml, site.yaml; D-294)."""
+    """The config file and the YAML files read beside it (local.yaml, site.yaml)."""
     if config_file is None:
         return []
     from argus.config.settings import LOCAL_FILE, SITE_FILE

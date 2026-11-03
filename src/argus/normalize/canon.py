@@ -1,4 +1,4 @@
-"""Canonical field values for group keys, entities and fingerprints (plan §7.1).
+"""Canonical field values for group keys, entities and fingerprints.
 
 IPs go through :mod:`ipaddress` (IPv4-mapped IPv6 unwrapped), domains are lowercased, IDNA
 encoded and lose a trailing dot, ports become integers, arrays are sorted and made unique, and

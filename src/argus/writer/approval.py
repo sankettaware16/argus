@@ -1,14 +1,10 @@
-"""Whether an approval still stands when the writer is about to act on it (Q-D4).
+"""Whether an approval still stands when the writer is about to act on it.
 
-Q-C3's send-time check covers a closure write (:mod:`argus.cases.sendcheck`). A resend of a
-write in doubt and a compensating write have approvals of their own, and the writer checks
-them the same way: every approving decision carries the web's valid signature over its stored
-statement (anything else is tampering: refused), the approver is not revoked since (account
-enabled, no denied identity check), had a good live check within 12 hours from the provider
-that checked them for the approval, whose newest check still shows ``approve`` and the Kibana
-privilege that write needs, is not the person who asked (their checks, an alias that shows only
-in a later one included: the send-time check's rule) and two approvals are two different people.
-"""
+The send-time check of a closure write is :mod:`argus.cases.sendcheck`. A resend of a write in
+doubt and a compensating write have approvals of their own, checked the same way: every approving
+decision carries the web's valid signature, the approver is not revoked since and had a good live
+check within 12 hours that still shows ``approve`` and the Kibana privilege the write needs, is not
+the person who asked, and two approvals are two different people."""
 
 from __future__ import annotations
 
@@ -26,7 +22,7 @@ CREATE_CASE, CREATE_COMMENT = "createCase", "createComment"
 
 
 def privilege_for(op: str, write_class: str) -> str:
-    """The Kibana privilege an approver must hold for a write (Q-C3 F6): ``createCase`` for a
+    """The Kibana privilege an approver must hold for a write: ``createCase`` for a
     create, ``createComment`` for another W1 write, ``updateCase`` for W2 and W3."""
     if write_class == "W1":
         return CREATE_CASE if op == "create" else CREATE_COMMENT
@@ -77,8 +73,8 @@ async def problem(
 async def _doubt(
     conn: AsyncConnection, decision: DecisionRecord, now: datetime, privilege: str
 ) -> str | None:
-    """Why this approver no longer counts, or None (as Q-C3's, for the privilege this write
-    needs)."""
+    """Why this approver no longer counts, or None (as in the send-time check, for the privilege
+    this write needs)."""
     provider = (decision.identity_check or {}).get("provider")
     row = (
         await conn.execute(

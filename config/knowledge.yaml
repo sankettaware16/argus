@@ -1,5 +1,5 @@
-# Knowledge seeds (D-057): typed items reviewers' knowledge starts from. Empty in Phase 1;
-# reviewers add items in the Inbox from R15 on. A benign_pattern always needs expires_at.
+# Knowledge seeds: typed items the reviewers' knowledge starts from. Empty by default; reviewers
+# add items in the Inbox. A benign_pattern always needs expires_at.
 # Example:
 #   - key: lab-scanner-10-8-1-5
 #     kind: benign_pattern

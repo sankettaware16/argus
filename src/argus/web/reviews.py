@@ -1,4 +1,4 @@
-"""Recording a review (plan §9.3, D-052). A review names the latest review its author saw and
+"""Recording a review. A review names the latest review its author saw and
 the investigation version they looked at; if either moved meanwhile, it is a conflict (409)
 and nothing is written. The investigation row lock serializes reviewers."""
 
@@ -59,7 +59,7 @@ async def add_review(
         raise ValueError(f"a note has at most {NOTE_LIMIT} characters")
     if action == "note" and not note:
         raise ValueError("a note needs text")
-    if action == "reviewed" and outcome is None:  # a decision is a label (D-067)
+    if action == "reviewed" and outcome is None:  # a decision is a label
         raise ValueError("choose an outcome to mark it reviewed")
     row = (
         await conn.execute(

@@ -1,23 +1,15 @@
-"""When a case is posted to Kibana (AR8, D-195): one pure function, so the rule is the same in the
-pass, the preview, the API and the tests.
+"""When a case is posted to Kibana: one pure function, so the rule is the same in the pass, the
+preview, the API and the tests.
 
-1. **Posting is off by default** (``case_team.post``): then nothing is written to the SIEM, whatever
-   else is true; the decision still says what it would do (a dry run).
-2. **A case is opened** when (a) a person confirmed its report in ARGUS **and the outcome they
-   confirmed is a true positive and the confirm is on the newest report version** (a benign or
-   inconclusive confirm never opens a case, and a report that changed since needs a new
-   confirm; a newer version that differs only in the accounts section, ``core`` equal, is the
-   same report to the person, D-225), or (b) ARGUS's own verdict is a true positive with a
-   confidence of at least ``auto_min_confidence`` and the case is suggested or open. A person's
-   rejection stops both.
-   At most ``per_day`` cases a day (IST).
-   A case already in Kibana is never opened again: a newer report is an *update*, as new
-   comments (D-195 point 4); a notified case (AR4b) that has not changed since the notice is
-   never posted again, and one that did change is posted as a new comment on the existing case.
-3. **The canary:** the first ``canary`` cases need a person's approval of that case before
-   anything is sent.
-4. **A sequence that was started is finished** (resumed) whatever the caps say: half a case is
-   worse than an extra one, and the caps and the approval already let it begin.
+1. **Posting is off by default** (``case_team.post``): nothing is written, but the decision still
+   says what it would do (a dry run).
+2. **A case is opened** when a person confirmed its report as a true positive on the newest version
+   (a newer version differing only in the accounts section counts as the same), or ARGUS's own
+   verdict is a true positive with at least ``auto_min_confidence`` on a suggested or open case. A
+   person's rejection stops both. At most ``per_day`` cases a day. A case already in Kibana is never
+   opened again: a newer report is an *update*.
+3. **The canary:** the first ``canary`` cases need a person's approval before anything is sent.
+4. **A sequence that was started is finished** whatever the caps say.
 """
 
 from __future__ import annotations
@@ -28,7 +20,7 @@ from typing import Literal
 
 from argus.incident import model as m
 
-OPENABLE = ("suspected", "open", "assigned")  # suggested or open (AR2b, AR4)
+OPENABLE = ("suspected", "open", "assigned")  # suggested or open
 UPDATABLE = ("suspected", "open", "assigned", "contained")
 Action = Literal["none", "open", "update", "resume"]
 Person = Literal["confirmed", "rejected"]
@@ -47,7 +39,7 @@ class Facts:
     last_version: int | None  # the report version the newest finished generation posted
     last_round_at: datetime | None
     in_progress: bool  # a generation was started and is not finished
-    opened_today: int  # cases opened today (IST) by the case team
+    opened_today: int  # cases opened today (local day) by the case team
     opened_total: int  # cases ever opened
     approved: bool  # a valid approval of exactly the plan generation 1 would be
     has_news: bool  # an update plan would hold at least one step
@@ -58,10 +50,10 @@ class Facts:
     min_update_gap: timedelta
     person_outcome: str | None = None  # the outcome that decision confirmed (or holds instead)
     person_version: int | None = None  # the report version that decision was made on
-    core: str | None = None  # the newest report's hash without its accounts (D-225)
+    core: str | None = None  # the newest report's hash without its accounts
     person_core: str | None = None  # the same for the report version that decision was made on
     auto: bool = True  # ARGUS's own verdict may open a case (``case_team.auto``)
-    edits_only: bool = False  # the update plan only corrects the title (D-236): no new round
+    edits_only: bool = False  # the update plan only corrects the title: no new round
 
 
 @dataclass(frozen=True)
@@ -80,7 +72,7 @@ class Decision:
 
 def person_route(f: Facts) -> str | None:
     """A person's confirm of a true positive opens a case while the newest report still says true
-    positive (D-229). A confirm puts the person's verdict into the report, and an ongoing case gets
+    positive. A confirm puts the person's verdict into the report, and an ongoing case gets
     new alerts and evidence: both make new versions, which reach Kibana as updates, never as a
     reason to confirm again. A newer verdict that is not a true positive, or a rejection, needs a
     person again. Benign and inconclusive confirms never open one."""

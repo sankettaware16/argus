@@ -1,5 +1,4 @@
-"""``argus soak ...``: the Phase 1 soak's samples and exit report (R16), the Phase 2 report (P9)
-and the Phase 3 gate (P4-A1); local store only."""
+"""``argus soak ...``: the soak's samples and exit reports; local store only."""
 
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.cli import ConfigOption, engine_for, load
 
 soak_app = typer.Typer(
-    no_args_is_help=True, help="The soak: samples, exit reports and the Phase 3 gate (R16, P4-A1)."
+    no_args_is_help=True, help="The soak: samples, exit reports and the exit gate."
 )
 
 
@@ -59,7 +58,7 @@ def soak_report(config: ConfigOption = None) -> None:
         typer.echo(f"{item['result']:<8} {item['criterion']}: {item['why']}")
 
 
-SOAK2_START = "2026-10-16T15:25:00+00:00"  # D-092
+SOAK2_START = "2026-10-16T15:25:00+00:00"
 
 
 @soak_app.command("phase2")
@@ -68,8 +67,8 @@ def soak_phase2(
     end: Annotated[str | None, typer.Option(help="Window end (ISO time; default now).")] = None,
     config: ConfigOption = None,
 ) -> None:
-    """The Phase 2 soak report (P9, D-092): each exit criterion judged from the store; also
-    written to data/gate/p9/soak-report.txt."""
+    """The second soak report: each exit criterion judged from the store; also written to
+    data/gate/p9/soak-report.txt."""
     from pathlib import Path
 
     from argus import soak2
@@ -121,9 +120,9 @@ def soak_phase3(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The Phase 3 exit gate (docs/phase-3-exit.md), each of its 11 lines judged from the store:
-    PASS, FAIL, PENDING (not enough data yet) or OPEN (only a person can say), with the numbers
-    and their n. Read-only; sends nothing to the SIEM. Exit 1 if a line FAILs."""
+    """The exit gate, each of its 11 lines judged from the store: PASS, FAIL, PENDING (not enough
+    data yet) or OPEN (only a person can say), with the numbers and their n. Read-only; sends
+    nothing to the SIEM. Exit 1 if a line FAILs."""
     from argus.soakgate import render, run
     from argus.soakgate.model import Report
 

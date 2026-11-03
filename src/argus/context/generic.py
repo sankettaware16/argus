@@ -1,12 +1,12 @@
-"""The generic pack (R10, D-058): every investigation's dossier, from what ARGUS stores.
+"""The generic pack: every investigation's dossier, from what ARGUS stores.
 
-* the rule's own note (R9's registry) becomes steps, each with an outcome (``notes``);
+* the rule's own note (the rules registry) becomes steps, each with an outcome (``notes``);
 * field facts: for the fields the steps name and a base set, the distinct values and their
   counts over the investigation's alerts (at most ``ALERTS`` read, newest first);
-* the asset map's view of every IP shown (asset, campus, internal, public);
+* the asset map's view of every IP shown (asset, organisation prefix, internal, public);
 * the stub pack's signals, and counts of the steps by outcome.
 
-No the SIEM request: the steps that need one say which pack will answer them.
+No SIEM request: the steps that need one say which pack will answer them.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ BASE_FIELDS = (
 )
 IP_FIELDS = ("source.ip", "destination.ip", "client.ip", "server.ip", "host.ip")
 # The log templates an investigation asks once: later runs plan the same request again, so
-# its stored answer is reused, never asked again (D-070).
+# its stored answer is reused, never asked again.
 LOG_TEMPLATES = ("proxy.host", "proxy.destination", "web.followups")
 
 
@@ -99,24 +99,17 @@ def _stand_in(path: str, flat: Sequence[str]) -> str | None:
     if parents:
         both = [k for k in found if parents[-1] in _words(k)]
         # A common word alone says nothing (`service_name` is no `dns.question.name`): then the
-        # segment before it must be named too (found reviewing, 2026-10-14).
+        # segment before it must be named too.
         found = both if both or leaf in GENERIC_LEAVES else found
     return found[0] if found else None
 
 
 class GenericPack(Pack):
-    """Phase 1's pack for every rule (R10): the note's steps and what the alerts answer."""
+    """The pack for every rule: the note's steps and what the alerts answer."""
 
     name = "generic"
-    # 2: stand-ins for the fields of aggregating rules; 3: the TI module (R11); 4: proxy (R12);
-    # 5: web (R13) and proxy heuristics (R14); 6: the R11-R14 review (D-063): TI clean only
-    # from every source fresh, log zeros unknown, stand-ins by whole words, hashes and URLs; 7: web
-    # and proxy facts only where their source is read; 8: related investigations without the
-    # reporting device's host name (D-066); 9: the TI mirror is filled after the user's live check
-    # (D-068): every dossier is derived again with it, locally; 10: log requests once per
-    # investigation (D-070); 11: the looked-up threat-intel source refreshed by the user and every
-    # investigation's indicators looked up once (D-071); 12: stand-ins for common words need their
-    # parent segment too (D-072)
+    # Bump the version whenever the dossier the pack derives changes: every dossier is then
+    # derived again, locally.
     version = 12
     family = "generic"
     budget: ClassVar[Mapping[CostClass, int]] = {
@@ -136,7 +129,7 @@ class GenericPack(Pack):
     ) -> None:
         self.classifier = classifier
         self.now = clock or (lambda: datetime.now(UTC))  # tests pass the worker's clock
-        # Remote evidence only after the user's live checks (D-056): reference.ti_sync and
+        # Remote evidence only after a person's live checks: reference.ti_sync and
         # enrichment.log_queries.
         self.remote_ti = remote_ti
         self.log_queries = log_queries
@@ -194,7 +187,7 @@ class GenericPack(Pack):
             )
         }
         return {
-            "earlier_logs": earlier,  # asked once per investigation, then reused (D-070)
+            "earlier_logs": earlier,  # asked once per investigation, then reused
             "note_hash": notes.note_hash(note) if note else None,
             "has_note": bool(note),
             "steps": [
@@ -247,7 +240,7 @@ class GenericPack(Pack):
         source = fields.get("source.ip", {}).get("top", [])
         owner = any(ips.get(v, {}).get("asset") for v, _ in source)
         answers = {**web.answers(pack.get("web", {}), derived), **proxy.answers(derived)}
-        for step, sentence in batch1.answers(derived).items():  # Q-F3: the wave's answers
+        for step, sentence in batch1.answers(derived).items():  # the wave's answers
             answers[step] = f"{answers[step]} {sentence}" if step in answers else sentence
         told = intel.sentence(pack.get("ti", {}), derived)
         if told:
@@ -297,7 +290,7 @@ class GenericPack(Pack):
         snapshots: Mapping[str, Any],
     ) -> list[SignalValue]:
         ti = (context.get("pack") or {}).get("ti", {})
-        # The wave's and "Check more"'s batch-1 answers (Q-F3) are read by batch1.signals
+        # The wave's and "Check more"'s batch-1 answers are read by batch1.signals
         # alone: the intel module cites every reference it is given, so a failed batch-1
         # check must not make a threat-list reading unknown. Without them nothing changes.
         own = {k: r for k, r in evidence.items() if not batch1.is_batch1(r)}

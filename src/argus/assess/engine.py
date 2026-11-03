@@ -1,30 +1,9 @@
-"""The deterministic decision engine (P4; plan §2.3, §3, §5.3, D-085): decides only what human
-labels clearly support, and never proposes benign while any floor signal is present or
-unknown.
-
-**Keys** are learned from people's labels (never the assistant's, never the gold set's
-*test* part, which is what the engine is scored on):
-- ``("steps", rule, step outcomes)``: the rule's steps answered the same way;
-- ``("field", rule, field, value)``: a value of a field the rule's own steps name, when the
-  investigation has few values of it (``FEW``), not its grouping key.
-A key decides only with at least ``MIN_SUPPORT`` labels, at least ``MIN_AGREEMENT`` of them
-alike, its newest label within ``MAX_AGE``, and (for a benign outcome) no true positive
-among them. Keys that match one investigation and disagree never decide.
-
-**The floor** (§2.3) always wins over a benign key. It is engaged by any of:
-- a threat-list hit;
-- a detection by outside threat intel (AR3: VirusTotal engines flag an external indicator the
-  item holds, ``body["outside"]``);
-- successes after an attack;
-- a regular beacon;
-- a destination few campus hosts reach;
-- remote-admin, P2P or anonymizer ports;
-- high or critical severity;
-- an entity seen for the first time;
-- a volume spike against the same rule and key's recent days;
-- and by any of these not known (D-023: unknown is never negative).
-A true-positive key is not stopped by the floor.
-"""
+"""The deterministic decision engine: decides only what people's labels clearly support, and
+never proposes benign while a floor signal is present or unknown. Keys are learned from people's
+labels (never the assistant's or the gold test set's): ``("steps", rule, outcomes)`` and
+``("field", rule, field, value)``. A key decides with at least ``MIN_SUPPORT`` agreeing labels,
+a recent newest label and, for benign, no true positive. The floor (a threat-list hit, an outside
+detection, a beacon, risky ports, severity, a first sighting, a spike) always beats a benign key."""
 
 from __future__ import annotations
 
@@ -54,7 +33,7 @@ FEW = 3
 SPIKE = 3.0  # alerts above this many times the recent median of the same rule and key
 SPIKE_DAYS = 5
 BEACON = 0.3  # proxy.regularity below this is regular, like a beacon
-RARE = 1  # a destination reached by at most this many campus hosts
+RARE = 1  # a destination reached by at most this many internal hosts
 POSITIVE = "true_positive"
 Key = tuple[str, ...]
 
@@ -82,7 +61,6 @@ def _key_fields(body: Mapping[str, Any]) -> set[str]:
 
 
 def keys(body: Mapping[str, Any]) -> list[Key]:
-    """The keys an investigation matches."""
     rule = _rule(body)
     steps = [s for s in ((body.get("report") or {}).get("steps") or []) if isinstance(s, Mapping)]
     out: list[Key] = []
@@ -106,8 +84,6 @@ class Label:
 
 @dataclass
 class Learned:
-    """Every key's labels."""
-
     by_key: dict[Key, list[Label]] = field(default_factory=lambda: defaultdict(list))
 
     def add(self, body: Mapping[str, Any], label: Label) -> None:
@@ -283,14 +259,14 @@ async def spike(conn: AsyncConnection, investigation_id: uuid.UUID) -> bool | No
 
 
 class Engine:
-    """The assessor (P3's protocol): learns once, then decides each investigation."""
+    """The assessor: learns once, then decides each investigation."""
 
     name = NAME
 
     def __init__(self, learned: Learned, now: datetime, view: View | None = None) -> None:
         self.learned = learned
         self.now = now
-        self.view = view  # the outside cache (AR3): a detection there blocks a benign key
+        self.view = view  # the outside cache: a detection there blocks a benign key
         self.stamp = f"{NAME}#{learned.fingerprint()}"
 
     async def assess(
@@ -315,7 +291,7 @@ class Engine:
 
 
 def describe(learned: Learned, now: datetime) -> Iterable[tuple[Key, int, str | None]]:
-    """Every key with its support and what it may decide (for the gate report)."""
+    """Every key with its support and what it may decide."""
     for key in sorted(learned.by_key):
         labels = learned.by_key[key]
         yield key, len(labels), qualified(labels, now)

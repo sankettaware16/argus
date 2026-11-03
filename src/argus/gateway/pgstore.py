@@ -1,4 +1,4 @@
-"""The gateway's shared state in Postgres (D-048, migration 0004).
+"""The gateway's shared state in Postgres.
 
 Each state machine (health memory, budget, breaker) is one JSON row of ``siem_state``; every
 change is a read-modify-write under ``SELECT ... FOR UPDATE``, so all ARGUS processes share one
@@ -280,7 +280,7 @@ class PgStore:
         self, cost: CostClass, now: datetime, scale: float, lease_id: str
     ) -> budget_core.Admission:
         """The collector's lane (and probes): both budget rows, for the rules across lanes
-        (heavy queries one at a time, D-022's concurrency shared by every lane)."""
+        (heavy queries one at a time, the concurrency limit shared by every lane)."""
 
         def change(
             budget: budget_core.BudgetState, lanes: LaneStates
@@ -328,7 +328,7 @@ class PgStore:
     async def lane_fill(
         self, lane: Lane, *, actor: str, now: datetime, scale: float, health: str, reason: str
     ) -> tuple[float, float]:
-        """A person tops one lane's bucket up to its capacity (``lanes.fill``, D-243); audited in
+        """A person tops one lane's bucket up to its capacity (``lanes.fill``); audited in
         the same transaction with who, when, what it held and what it holds. Writes ARGUS's own
         database only. Returns (before, after) in milliseconds of server time."""
         async with self.sessions() as session, session.begin():
@@ -546,7 +546,7 @@ class PgStore:
             )
 
     async def record_probe(self, readings: Readings, memory: HealthMemory) -> None:
-        """One probe's readings and the state it led to (migration 0022, Q-A2), for the
+        """One probe's readings and the state it led to, for the
         budget's re-measurement: what the probe read anyway, so no request is added."""
         async with self.engine.begin() as conn:
             await conn.execute(
@@ -561,7 +561,7 @@ class PgStore:
                 probe_row(readings, memory),
             )
 
-    # ---------------------------------------------------------------- read back (Q-A3)
+    # ---------------------------------------------------------------- read back
 
     async def requests_since(
         self, since: datetime, until: datetime | None = None
@@ -698,7 +698,7 @@ def _probe(row: Any) -> ProbeRow:
     )
 
 
-_MAX_COUNTER = (1 << 63) - 1  # every counter column of siem_probes is a bigint (QA2-R5)
+_MAX_COUNTER = (1 << 63) - 1  # every counter column of siem_probes is a bigint
 
 
 def _gauge(value: float | None, high: float | None) -> float | None:

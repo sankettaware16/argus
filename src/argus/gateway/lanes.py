@@ -1,49 +1,12 @@
-"""Lane budgets (plan §7.8, Q-D2): D-022's ceiling divided into lanes, each a sub-allowance.
+"""Lane budgets: the load ceiling divided into lanes, each a sub-allowance.
 
-Every request to the SIEM spends one lane's share: its own server-time bucket (refilled each
-minute, burst one minute's share, except the Kibana write lane's 60 s while the SIEM is healthy,
-D-235), its own daily cap and heavy queries a day, its own
-concurrency. A lane spends only its own share, so a debt (a slow search, a timeout charged its
-whole timeout) slows only that lane: a Kibana call that hangs never delays the collector.
-
-| Lane | Purposes | a minute | a day | heavy a day |
-|---|---|---|---|---|
-| collector | collect, backfill, reconcile, enrich; measure (below) | 1,800 ms | 40 min | 1,600 |
-| investigation | investigate | 400 ms | 6 min | 300 |
-| freshness | freshness | 100 ms | 3 min | 0 |
-| kibana_read | kibana_read, selftest of Kibana's keys | 200 ms | 4 min | 0 |
-| kibana_write | kibana_write, writeback | 200 ms | 3 min | 0 |
-| identity | identity | 300 ms (6 light checks) | 2 min | 0 |
-| measurement | none yet | 0 (closed) | 2 min | 100 |
-
-The lanes add up to the ceiling (3,000 ms a minute, 60 min and 2,000 heavy a day), and
-``LanePlan`` refuses a plan whose lanes add up to more, or a lane that would run more requests
-at once than the ceiling. Measurement and reserve has no minute share of its own in §7.8, so its
-lane is closed until a decision gives it one, and Q-A3's measuring session (``measure``, a
-person's session in NORMAL that holds all of ARGUS to 3 s a minute itself) spends the
-collector's lane, the original budget it was built and approved on, until the decision that
-adopts the lanes from its measurements says otherwise; the measurement lane's day and heavy
-shares stay reserved meanwhile. Rules across lanes: **D-022's concurrency
-is one pool** (``shared_wait``): at most ``ceiling.concurrency`` (2) requests at once in all,
-health probes included, and the lanes other than the collector's together hold at most all but
-one of them, so a hanging Kibana call or identity check never takes the collector's last slot;
-heavy queries run one at a time and at most ``heavy_per_minute`` a minute overall; health probes
-spend their own allowance (``budget.py``) in the collector's bucket. The identity lane keeps
-§7.8's 6 checks a minute whatever its settings say (fewer may be set, never more).
-
-**The API** (what Q-F1, Q-E1 and the Kibana lane use):
-
-- ``Lane``, ``lane_of(purpose)``: the lane a ``Purpose`` spends. A caller of ``Gateway.run``
-  only picks its purpose (Q-F1: ``Purpose.FRESHNESS``); the gateway does the rest.
-- ``LanePlan`` (from settings: ``service.lane_plan``) and ``LaneSpec``: the allowances.
-- ``admit`` / ``settle``: pure, (states, plan, lane, ...) → (admission, states), exactly like
-  ``budget.admit`` / ``budget.settle`` for one bucket, which they use per lane.
-- The stores (``MemoryStore``, ``PgStore``) keep the states and expose ``lane_admit`` and
-  ``lane_settle``; ``LaneGate`` (gateway.py) wraps them for a client that is not the
-  gateway, such as Q-E1's identity checks with a person's credential.
-
-The collector's lane is the original budget (the ``budget`` state, ``budget_admit``): its
-behaviour and stored form are unchanged, only its allowance comes from its lane.
+Every request to the SIEM spends one lane's share: its own server-time bucket, daily cap, heavy
+queries a day and concurrency, so a debt (a slow search, a timeout charged whole) slows only that
+lane. Lanes: collector (collect, backfill, reconcile, enrich, measure), investigation, freshness,
+kibana_read, kibana_write, identity and measurement (closed until adopted). ``LanePlan`` refuses
+lanes that add up to more than the ceiling. Across lanes the concurrency is one pool
+(``shared_wait``), heavy queries run one at a time, and health probes spend their own allowance.
+``lane_of`` maps a purpose to its lane; ``admit`` / ``settle`` are pure, like the one-bucket ones.
 """
 
 from __future__ import annotations
@@ -82,7 +45,7 @@ LANE_OF: Mapping[Purpose, Lane | None] = MappingProxyType(
         Purpose.WRITEBACK: Lane.KIBANA_WRITE,
         Purpose.INVESTIGATE: Lane.INVESTIGATION,
         Purpose.FRESHNESS: Lane.FRESHNESS,
-        Purpose.MEASURE: Lane.COLLECTOR,  # Q-A3's session, until the lanes are adopted
+        Purpose.MEASURE: Lane.COLLECTOR,  # the measuring session, until the lanes are adopted
         Purpose.IDENTITY: Lane.IDENTITY,
         Purpose.KIBANA_READ: Lane.KIBANA_READ,
         Purpose.KIBANA_WRITE: Lane.KIBANA_WRITE,
@@ -104,10 +67,10 @@ class LaneSpec:
     per_day_ms: int
     heavy_per_day: int = 0
     concurrency: int = 1
-    per_minute_requests: int | None = None  # identity: checks a minute (plan §7.8: 6)
+    per_minute_requests: int | None = None  # identity: checks a minute (6)
     # the bucket's capacity at full scale (NORMAL health): server time that may be spent at once.
     # None: a minute's share. It is not a share: the refill and the day's cap are unchanged and it
-    # does not count toward the lanes' per-minute sum (D-235)
+    # does not count toward the lanes' per-minute sum
     burst_ms: int | None = None
 
     def __post_init__(self) -> None:
@@ -121,9 +84,9 @@ class LaneSpec:
             raise ValueError("a lane's request rate is at least 1 a minute")
 
 
-# plan §7.8's table as parts of the ceiling: (a minute, a day, heavy a day, concurrency). At
-# D-022's ceiling (3,000 ms, 60 min, 2,000 heavy) they are the table's numbers exactly; under
-# another ceiling (a test's, or Q-A3's) every lane keeps its proportion.
+# The lanes' table as parts of the ceiling: (a minute, a day, heavy a day, concurrency). At
+# the default ceiling (3,000 ms, 60 min, 2,000 heavy) they are the table's numbers exactly; under
+# another ceiling (a test's, or a measured one) every lane keeps its proportion.
 SHARES: Mapping[Lane, tuple[int, int, int, int]] = MappingProxyType(
     {
         Lane.COLLECTOR: (1_800, 40, 1_600, 2),
@@ -136,14 +99,14 @@ SHARES: Mapping[Lane, tuple[int, int, int, int]] = MappingProxyType(
     }
 )
 SHARE_TOTALS = (3_000, 60, 2_000)
-# Lanes whose bucket may hold more than a minute's share at NORMAL (D-235): the Kibana
+# Lanes whose bucket may hold more than a minute's share at NORMAL: the Kibana
 # write lane may spend 60 s of server time at once, so a case of ~45 s posts in one or two runs.
 BURSTS: Mapping[Lane, int] = MappingProxyType({Lane.KIBANA_WRITE: 60_000})
-IDENTITY_CHECKS_PER_MINUTE = 6  # plan §7.8
+IDENTITY_CHECKS_PER_MINUTE = 6
 
 
 def proportional(ceiling: BudgetConfig) -> dict[Lane, LaneSpec]:
-    """§7.8's lanes for ``ceiling``: each lane's part of it, rounded down (so the lanes never
+    """The lanes for ``ceiling``: each lane's part of it, rounded down (so the lanes never
     add up to more than the ceiling)."""
     minute, day, heavy = SHARE_TOTALS
     out: dict[Lane, LaneSpec] = {}
@@ -167,10 +130,10 @@ DEFAULT_LANES: Mapping[Lane, LaneSpec] = MappingProxyType(proportional(BudgetCon
 
 @dataclass(frozen=True)
 class LanePlan:
-    """The ceiling (D-022, ``BudgetConfig``) and every lane's share of it."""
+    """The ceiling (``BudgetConfig``) and every lane's share of it."""
 
     ceiling: BudgetConfig = field(default_factory=BudgetConfig)
-    lanes: Mapping[Lane, LaneSpec] | None = None  # None: §7.8's proportions of the ceiling
+    lanes: Mapping[Lane, LaneSpec] | None = None  # None: the proportions of the ceiling
 
     def __post_init__(self) -> None:
         if self.lanes is None:
@@ -256,7 +219,7 @@ def _live_heavy(state: BudgetState, now: datetime) -> tuple[int, tuple[datetime,
 def shared_wait(
     buckets: Mapping[Lane, BudgetState], lane: Lane, now: datetime, ceiling: BudgetConfig
 ) -> Admission | None:
-    """D-022's concurrency across every lane (``buckets`` holds each lane's bucket, the
+    """The concurrency limit across every lane (``buckets`` holds each lane's bucket, the
     collector's included): a WAIT if ``ceiling.concurrency`` requests run now, or if ``lane`` is
     not the collector's and the other lanes already hold all but one slot (the collector's own,
     kept for it whatever they do); else None. Health probes hold leases in the collector's
@@ -306,8 +269,8 @@ def admit(
 ) -> tuple[Admission, LaneStates]:
     """Admit one request of ``lane`` (not the collector's: its bucket is ``budget_admit``).
     ``collector`` is the collector's bucket, for the rules across lanes. ``kept`` is how many
-    of a rate-limited lane's requests a minute this request must leave to others (Q-E1: a
-    sign-in leaves two to the re-checks of open sessions, §7.8); a request may always take at
+    of a rate-limited lane's requests a minute this request must leave to others (a
+    sign-in leaves two to the re-checks of open sessions); a request may always take at
     least one a minute."""
     if kept < 0:
         raise ValueError("a request keeps no fewer than zero checks for others")
@@ -335,7 +298,7 @@ def admit(
             retry_at = sorted(starts)[len(starts) - limit] + MINUTE  # one of the limit frees
             return Admission(Verdict.WAIT, "request_rate", retry_at=retry_at), states
     if kept > 0 and spec.per_minute_requests is not None and starts:
-        # the kept requests need server time too (Q-E1 review E1-1): this request may not
+        # the kept requests need server time too: this request may not
         # leave the lane's bucket with less than ``kept`` light calls' worth, else the kept
         # starts are unusable; it waits for the refill, never past the minute it would take.
         # Only rate-limited lanes keep anything, and a request may always take the minute's
@@ -379,7 +342,7 @@ def settle(
 def fill(
     states: LaneStates, plan: LanePlan, lane: Lane, now: datetime, *, scale: float
 ) -> tuple[float, float, LaneStates]:
-    """A person's top-up of one lane's bucket to its capacity (D-243): returns the server time the
+    """A person's top-up of one lane's bucket to its capacity: returns the server time the
     bucket held (after bringing it to ``now``), what it holds now, and the new states. Only at
     full scale (the SIEM NORMAL, no slow start: the burst exists only then), never for the
     collector's lane (the original budget) or a closed one, never over a debt (a slow call's
@@ -411,7 +374,7 @@ def collector_wait(
     ceiling: BudgetConfig,
 ) -> Admission | None:
     """The rules across lanes seen from the collector's lane (``budget_admit``, probes
-    included): heavy queries one at a time, then D-022's shared concurrency."""
+    included): heavy queries one at a time, then the shared concurrency limit."""
     everyone = {**states.buckets, Lane.COLLECTOR: collector}
     if cost is CostClass.HEAVY:
         waiting = heavy_elsewhere(everyone, Lane.COLLECTOR, now, config)

@@ -1,31 +1,15 @@
-"""Rendering an incident report into the Kibana case (AR8, D-157, D-158): pure functions of the
-stored report (``incident-report@1``) and nothing else.
+"""Rendering an incident report into the Kibana case: pure functions of the stored report.
 
-The case is the hand-made reference case (docs/runbooks/kibana-incident-case.md):
-
-* **the description**: the summary, the verdict with its confidence, a facts table and what is
-  not part of the incident;
-* **one comment for each part**, by the user that owns it: Evidence with its hypotheses and
-  Affected devices (``argus-evidence``), Threat intel (``argus-intel``, only when an outside
-  answer exists), Recommended actions (``argus-responder``), Queries (``argus-hunter``, code
-  only), the files' listing (``argus-reporter``), and the verdict (``argus-lead``, last).
-
-How the words are made. Counts, times and lists are filled in by code from the report's fields.
-A **sentence** (the report's own wording of a verified fact) has the address, domain or URL it
-names written plain in a code span, and the rest escaped for Kibana's Markdown (D-237: only what
-Kibana honours a backslash before is escaped, nothing else, so no backslash shows), so nothing in
-it acts as Markdown, HTML, a link or a mention. A **value** (an indicator, a host, a path, a user
-agent) is cleaned and fenced in a code span no backtick in it can close, written plain. A
-**query** is code in a fence (a person pastes it, untagged) and links only to the Discover address
-ARGUS built. Kibana's reader is not CommonMark (D-244): no code span is ever inside bold (it finds
-the end of ``**`` by raw scan), every table row is built by :func:`row` (a pipe in a value in a
-cell is U+2223, since a pipe in a code span still ends the cell), and code spans that touch are
-one. Every finished text then goes through :mod:`argus.caseteam.guard`.
-
-A comment never exceeds Kibana's limit: a part is made of **units** (an evidence line, a table
-row, a query) that are never cut, and a part that does not fit is split between units into
-numbered comments ("Evidence (2 of 3)"), each with its table head again.
-"""
+The case has a description (summary, verdict, facts table) and one comment for each part, by the
+user that owns it (evidence and devices, threat intel when an outside answer exists, recommended
+actions, queries, the files' listing, the verdict last). Counts, times and lists are filled in by
+code. A **sentence** has the address, domain or URL it names written plain in a code span and the
+rest escaped for Kibana's Markdown; a **value** is cleaned and fenced in a code span no backtick
+can close; a **query** is code in a fence. Kibana's reader is not CommonMark: no code span is
+ever inside bold, a pipe in a table cell value is U+2223, and spans that touch are one. Every
+finished text then goes through :mod:`argus.caseteam.guard`. A comment never exceeds Kibana's
+limit: a part is made of units that are never cut and is split between units into numbered
+comments."""
 
 from __future__ import annotations
 
@@ -68,7 +52,7 @@ _URL = re.compile(r"\b[A-Za-z][A-Za-z0-9+.-]*://[^\s]+")
 _IPV4 = re.compile(r"(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d])")
 _DOMAIN = re.compile(r"\b(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,24}\b")
 # a path as one token: from a "/" that starts a word (or follows an opening bracket or quote) to
-# the next space; an address or a domain keeps the path that follows it (D-244)
+# the next space; an address or a domain keeps the path that follows it
 _PATH = re.compile(r"(?<![^\s(\[{\"'])/[^\s]*")
 _TAIL = r"(?:/[^\s]*)?"
 _ADDRESS = re.compile(
@@ -107,13 +91,10 @@ class Part:
     outro: tuple[str, ...] = ()
 
 
-# --------------------------------------------------------------------------- safe pieces
-
-
 def say(text: object, limit: int = SENTENCE) -> str:
     """A sentence of the report: cleaned, with each URL, address, domain and path it names
-    written plain in a code span (nothing acts inside one; D-237), and the rest escaped for
-    Kibana's Markdown. Fenced words that touch are one code span (D-244)."""
+    written plain in a code span (nothing acts inside one), and the rest escaped for
+    Kibana's Markdown. Fenced words that touch are one code span."""
     text_ = clean(text, limit * 2)
     if _UNDERLINE.fullmatch(text_):
         return fence(text_, limit)
@@ -160,7 +141,7 @@ def cell(markup: str) -> str:
     protects, a pipe inside a code span included, and ``\\|`` is an escaped backslash and then a
     pipe. So a pipe in plain text is escaped once (text from :func:`say` or :func:`escape` has
     its pipes escaped already: an escaped pair is left alone), and a pipe inside a value in a code
-    span becomes the look-alike U+2223 (a backslash would show in the code; D-244)."""
+    span becomes the look-alike U+2223 (a backslash would show in the code)."""
     out: list[str] = []
     i, n = 0, len(markup)
     while i < n:
@@ -191,7 +172,7 @@ def row(*cells: object) -> str:
 def bold(markup: str) -> str:
     """``**markup**`` unless it holds a code span. Kibana's parser looks for the ``**`` that
     closes bold by scanning the raw characters, code spans included, so a value that contains
-    ``**`` could cut the bold short and leave the rest as live Markdown (D-244): a fence is
+    ``**`` could cut the bold short and leave the rest as live Markdown: a fence is
     never put inside bold."""
     return markup if "`" in markup else f"**{markup}**"
 
@@ -205,7 +186,7 @@ def code_block(code: str, limit: int = 4_000) -> str:
     """A fenced block whose fence no backtick in the code can close. Lines are kept (a pasted
     ES|QL pipeline reads better); control and invisible characters are not. The fence has no
     language tag: Kibana highlights a tagged one with a registry that throws on a language it
-    does not know (D-244)."""
+    does not know."""
     lines = [clean(line, limit) for line in code.replace("\r", "").split("\n")]
     body = "\n".join(line for line in lines if line)[:limit] or "(empty)"
     longest = max((len(r) for r in re.findall(r"`+", body)), default=0)
@@ -286,9 +267,6 @@ def link_target(url: str) -> str | None:
 
 def argus_link(ctx: Context, case_id: str) -> str:
     return f"[Open this case in ARGUS]({link(ctx.link_base, case_id)})"
-
-
-# --------------------------------------------------------------------------- the parts
 
 
 def _asked(values: Sequence[str], shown: int = 3) -> str:
@@ -376,14 +354,14 @@ def actors_head() -> tuple[str, str]:
 def table_units(title: str, head: tuple[str, str], rows: Sequence[str]) -> list[str]:
     """A titled table as units, one for each row: the first carries the title and the head, so a
     comment that begins at a later row repeats the head (:func:`head_for`) and no table is ever
-    cut in the middle of a row or a code span (D-246)."""
+    cut in the middle of a row or a code span."""
     if not rows:
         return []
     return [f"\n### {title}\n{head[0]}\n{head[1]}\n{rows[0]}", *rows[1:]]
 
 
 def targets_units(report: m.IncidentReport) -> list[str]:
-    """The campus sites and hosts the outside actors went against (D-240), one unit a row."""
+    """The internal sites and hosts the outside actors went against, one unit a row."""
     rows: list[str] = []
     for t in report.targets:
         kind = t.kind if t.label is None else f"{t.kind} ({say(t.label, 80)})"
@@ -409,7 +387,7 @@ def targets_units(report: m.IncidentReport) -> list[str]:
 
 def actors_units(report: m.IncidentReport) -> list[str]:
     """The outside actors: address, alerts, first and last, whether a local threat list names it,
-    what outside services say, and whether it got successful answers (D-240), one unit a row."""
+    what outside services say, and whether it got successful answers, one unit a row."""
     rows: list[str] = []
     for a in report.actors:
         if a.inside or a.kind != "ip":
@@ -437,9 +415,9 @@ def actors_units(report: m.IncidentReport) -> list[str]:
 
 
 def devices_part(report: m.IncidentReport) -> Part:
-    """The comment about who and what was affected. Campus devices get the hand-made case's table;
-    a case of outside addresses against campus servers lists the campus targets and the outside
-    actors instead (D-240): there is no affected *device* to list."""
+    """The comment about who and what was affected. Internal devices get the hand-made case's
+    table; a case of outside addresses against internal servers lists the internal targets and the
+    outside actors instead: there is no affected *device* to list."""
     devices = [a for a in report.assets if a.kind == "device"]
     others = [a for a in report.assets if a.kind != "device"]
     outside = any(not a.inside and a.kind == "ip" for a in report.actors)
@@ -498,8 +476,8 @@ def devices_part(report: m.IncidentReport) -> Part:
 
 
 def accounts_part(report: m.IncidentReport) -> Part | None:
-    """The accounts that signed in from the affected devices (AR6, D-216): the table the
-    escalation to the CISO needs ("accounts affected"), posted by ``argus-evidence``. A lead and not
+    """The accounts that signed in from the affected devices: the table an
+    escalation report needs ("accounts affected"), posted by ``argus-evidence``. A lead and not
     proof, and personal data: the Kibana case is the team's. None when the report names no account
     and no device state, and then nothing is posted."""
     users = report.users
@@ -639,8 +617,6 @@ def parts_of(report: m.IncidentReport, ctx: Context) -> list[Part]:
     return [*out, actions_part(report), queries_part(report, ctx)]
 
 
-# --------------------------------------------------------------------------- comments
-
 _ALIGN = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 
 
@@ -728,9 +704,6 @@ def unit_hashes(part: Part) -> tuple[str, ...]:
     return tuple(unit_hash(u) for u in part.units)
 
 
-# --------------------------------------------------------------------------- the lead's parts
-
-
 def title_of(report: m.IncidentReport) -> str:
     """The case's title, within Kibana's 160 characters (counted as Kibana counts them): one line
     of plain characters, never blank (the incident ID stands in)."""
@@ -766,13 +739,13 @@ def alert_tags_of(report: m.IncidentReport) -> tuple[str, ...]:
 
 def case_words(report: m.IncidentReport) -> str:
     """The ARGUS case's number, its state, how it began and whether a person confirmed the report
-    (``opened_in`` says it as the case's record and the reviews do, D-229)."""
+    (``opened_in`` says it as the case's record and the reviews do)."""
     h = report.header
     return escape(f"{h.case_number} ({h.case_state}; {h.opened_in})", 200)
 
 
 def affected_words(report: m.IncidentReport) -> str:
-    """Who and what was affected, in words: campus devices, the campus sites and hosts attacked
+    """Who and what was affected, in words: internal devices, the internal sites and hosts attacked
     and the outside addresses that attacked them; the assets' count when nothing else is known."""
     devices = sum(1 for a in report.assets if a.kind == "device")
     listed = sum(1 for a in report.actors if not a.inside and a.kind == "ip")
@@ -897,7 +870,7 @@ def files_comment(
             f" (written {escape(ist_moment(report.meta.as_at))}).",
             "| File | What it is | Size | SHA-256 (start) |\n|---|---|---|---|\n" + "\n".join(rows),
             "The PDF is the full report."
-            + (  # AR10
+            + (
                 " The dashboard is its one-page picture."
                 if any(what.startswith("Dashboard") for _, what, _, _ in files)
                 else ""

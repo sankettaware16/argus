@@ -1,17 +1,8 @@
-"""What every route declares, and checks (Q-A1): a session, a CSRF token for a change, and a
-capability. A route's ``Need`` is both its declaration and its check, so a declared
-capability cannot drift from the enforced one; the route test (tests/integration/web/
-test_routes_declared.py) fails when a route has none.
-
-In ELK mode (Q-E2) a change also waits for the person's access to be checked in ELK unless the
-last check is at most 30 seconds old (``argus.web.elk``).
-
-Each kind of route answers a refusal its own way (``Surface``): a classic page or form sends a
-signed-out person to the sign-in page and shows an error page otherwise; the classic JSON API
-answers ``{"detail": ...}`` as it always did; ``/api/v1`` answers ``ErrorOut {detail, code}``.
-
-No ``from __future__ import annotations`` here: FastAPI reads a callable object's parameter
-annotations as written, and cannot resolve them from strings (an instance has no globals)."""
+"""What every route declares, and checks: a session, a CSRF token for a change, and a capability.
+A route's ``Need`` is both its declaration and its check, so they cannot drift. In ELK mode a change
+also waits for the person's access to be checked in ELK unless the last check is at most 30 seconds
+old. Each kind of route answers a refusal its own way (``Surface``). No ``from __future__ import
+annotations`` here: FastAPI reads a callable object's parameter annotations as written."""
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -149,9 +140,9 @@ def forbidden(reviewer: auth.Reviewer, capability: Capability, surface: Surface)
 
 async def audit_refusal(request: Request, refusal: Refusal) -> None:
     """A refused action, recorded for the Reporter's count of rejected unauthorized actions
-    (plan §7.7). The app's Refusal handler calls it after the request's own transaction has
-    been rolled back and its connection returned: a request never holds two pooled
-    connections, so refusals at once cannot exhaust the pool (Q-A1 review F1)."""
+    . The app's Refusal handler calls it after the request's own transaction has
+     been rolled back and its connection returned: a request never holds two pooled
+     connections, so refusals at once cannot exhaust the pool."""
     reviewer, capability = refusal.reviewer, refusal.capability
     if not refusal.audited or reviewer is None or capability is None:
         return

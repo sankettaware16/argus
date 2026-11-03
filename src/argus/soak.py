@@ -1,11 +1,8 @@
-"""The soak (R16, plan §12): hourly samples of how ARGUS is doing, and the exit report.
-
-A sample reads only the local store (no SIEM request): alerts and investigations, the job
-queue, dossier coverage, open gaps, the server time ARGUS spent on the SIEM today (the request
-ledger), overload responses, the last reconciliation. The report judges the Phase 1 exit
-criteria that ARGUS can judge from those samples over the soak (72 h) and names the ones
-that need a person.
-"""
+"""The soak: hourly samples of how ARGUS is doing, and the exit report. A sample reads only the
+local store (no SIEM request): alerts and investigations, the job queue, dossier coverage, open
+gaps, the server time spent on the SIEM today, overload responses and the last reconciliation. The
+report judges the exit criteria ARGUS can judge from the samples over the soak (72 h) and names
+the ones that need a person."""
 
 from __future__ import annotations
 
@@ -18,9 +15,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 SOAK = timedelta(hours=72)
-LABELS = 30  # reviewer labels per rule, or all of its investigations if it has fewer (D-067)
-ASSISTANT = "argus-assistant"  # the assistant's account: its labels count, attributed (D-071)
-DAY_CAP_MS = 3_600_000  # D-022: 60 min of the SIEM server time a day
+LABELS = 30  # reviewer labels per rule, or all of its investigations if it has fewer
+ASSISTANT = "argus-assistant"  # the assistant's account: its labels count, attributed
+DAY_CAP_MS = 3_600_000  # 60 min of the SIEM server time a day
 
 _SAMPLE = """
 SELECT
@@ -79,7 +76,7 @@ async def sample(conn: AsyncConnection, now: datetime) -> dict[str, Any]:
 def judge(
     samples: Sequence[tuple[datetime, dict[str, Any]]], now: datetime
 ) -> list[dict[str, str]]:
-    """The exit criteria, each PASS, FAIL or PENDING with a reason (plan §12)."""
+    """The exit criteria, each PASS, FAIL or PENDING with a reason."""
     out: list[dict[str, str]] = []
     if not samples:
         return [{"criterion": "soak", "result": "PENDING", "why": "no samples yet"}]
@@ -174,9 +171,9 @@ TOKEN_CHARS = 4  # characters per token, for the digest's size
 
 
 async def measurements(conn: AsyncConnection) -> list[dict[str, str]]:
-    """Exit criterion 5's measurements for Phase 2 (plan §12), from the newest dossier of
-    every investigation: how often every signal is known, decision patterns per day (Phase 2
-    asks a model once per undecided pattern), the digest's size."""
+    """Measurements for the exit criteria, from the newest dossier of every investigation: how
+    often every signal is known, decision patterns per day (a model is asked once per undecided
+    pattern), the digest's size."""
     rows = (
         await conn.execute(
             text(
@@ -242,9 +239,8 @@ def measure(rows: Sequence[Any]) -> list[dict[str, str]]:
 
 
 async def labels(conn: AsyncConnection) -> dict[str, str]:
-    """Exit criterion 5 (plan §12, D-067, D-071): every rule has ``LABELS`` investigations
-    decided with an outcome, or all of them if it has fewer; how many by people and how many
-    by the assistant (the user delegated reviews to it, 2026-10-14)."""
+    """Every rule has ``LABELS`` investigations decided with an outcome, or all of them if it has
+    fewer; how many by people and how many by the assistant."""
     rows = (
         await conn.execute(
             text(

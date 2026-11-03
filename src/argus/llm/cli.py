@@ -1,5 +1,5 @@
-"""``argus llm ...``: the LLM gateway's budgets, ledger and kill switch (P5, D-086); the
-providers' probes and alarms (Q-G1)."""
+"""``argus llm ...``: the LLM gateway's budgets, ledger and kill switch; the providers' probes
+and alarms."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ PING_TEXT = "Connection test from ARGUS. Reply in JSON."
 
 
 def ping_call(request: Request, tier: Tier) -> Call:
-    """`argus llm ping`'s call: a fixed test text, high priority, a strict schema (D-112)."""
+    """`argus llm ping`'s call: a fixed test text, high priority, a strict schema."""
     return Call(request, PING_INSTRUCTIONS, "ping", tier, budget.Priority.HIGH, max_output=200,
                 schema=PING_SCHEMA)  # fmt: skip
 
@@ -133,7 +133,7 @@ def llm_status(config: ConfigOption = None) -> None:
 
 def _switch(stopped: bool, reason: str | None, config: Any) -> None:
     settings = load(config)
-    # a stop runs as the runtime login; a resume only as the owner (migration 0027, Q-A5)
+    # a stop runs as the runtime login; a resume only as the owner
     db = engine_for(settings) if stopped else owner_engine_for(settings, "llm resume")
 
     async def use() -> bool:
@@ -285,18 +285,15 @@ def llm_probe(
 
 @llm_app.command("drill")
 def llm_drill(
-    provider: Annotated[str, typer.Option(help="The provider (the campus machine).")] = "local",
-    measures: Annotated[Path, typer.Option(help="The measures' folder (Q-G2).")] = Path(
-        "data/gate/q-g2"
-    ),
+    provider: Annotated[str, typer.Option(help="The provider (a self-hosted model).")] = "local",
+    measures: Annotated[Path, typer.Option(help="The measures' folder.")] = Path("data/gate/q-g2"),
     config: ConfigOption = None,
 ) -> None:
-    """The robustness drill and the hardening check (Q-G2): synthetic calls only (no campus
-    data), each fault made on ARGUS's side (the port, the deadline, the model, the certificate,
-    the key, a held slot, an over-long prompt); each must defer within an hour (the overflow:
-    no proposal), never answer, never benign. Runs on its own in-memory state: it raises no
-    alarm in ARGUS's shared state. Writes the ladder's measure; exit 1 unless every case and
-    check passed."""
+    """The robustness drill and the hardening check: synthetic calls only (no site data), each
+    fault made on ARGUS's side (the port, the deadline, the model, the certificate, the key, a
+    held slot, an over-long prompt); each must defer within an hour (the overflow: no proposal),
+    never answer, never benign. Runs on its own in-memory state: it raises no alarm in ARGUS's
+    shared state. Writes the ladder's measure; exit 1 unless every case and check passed."""
     from argus.evaluation import ladder, robustness
     from argus.evaluation import measures as qg2
 
@@ -340,7 +337,7 @@ def llm_shadow(
     ] = False,
     config: ConfigOption = None,
 ) -> None:
-    """The model answers live items for one helper task in shadow (Q-G2): evaluation calls
+    """The model answers live items for one helper task in shadow: evaluation calls
     (low priority, overnight, the evaluation budget), stored in llm_shadow and never shown.
     Resumable: items already answered by this model are skipped."""
     from argus.evaluation import measures as qg2
@@ -352,7 +349,7 @@ def llm_shadow(
         raise typer.Exit(1)
     settings = load(config)
     privacy = _privacy(settings)
-    try:  # live items are campus data: a disabled provider only when asked (Q-G1, 13)
+    try:  # live items are real data: a disabled provider only when asked
         llm = pinned(load_config(), provider, allow_disabled=allow_disabled)
     except ValueError as exc:
         typer.echo(f"error: {exc}", err=True)
@@ -362,7 +359,7 @@ def llm_shadow(
         typer.echo(f"error: {why}", err=True)
         raise typer.Exit(1)
     if settings.web.database_role != "api":
-        # F8: the shadow is never shown; the runtime login the web uses until then may read it
+        # the shadow is never shown; the runtime login the web uses until then may read it
         typer.echo("error: shadow answers are never shown, and the web logs in as"
                    f" {settings.database.user}, which may read llm_shadow: give the web its own"
                    " login first (Q-A2: ARGUS_DATABASE__API_PASSWORD, `argus db bootstrap`,"

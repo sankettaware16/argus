@@ -1,4 +1,4 @@
-"""A browser string in words a person reads (AR6, D-216): "Chrome on Windows", "Safari on iPhone".
+"""A browser string in words a person reads: "Chrome on Windows", "Safari on iPhone".
 
 A small pure parser with no dependency. It reads the product tokens a browser puts in its
 ``User-Agent`` in the order that tells them apart (Edge, Opera and Chrome all say "Chrome" and

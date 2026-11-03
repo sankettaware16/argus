@@ -1,5 +1,5 @@
-"""How ``argus init`` comes to trust the SIEM's and Kibana's certificates (D-033 pins a CA file;
-D-296): a CA file the person gives, copied into ``data/certs/``; or the CA the server presents,
+"""How ``argus init`` comes to trust the SIEM's and Kibana's certificates (a CA file is pinned):
+a CA file the person gives, copied into ``data/certs/``; or the CA the server presents,
 shown with its SHA-256 fingerprint for the person to confirm (an answers file gives the expected
 fingerprint, and a mismatch stops); or a public CA, when the certificate verifies against the
 system's bundle (certifi's, else /etc/ssl/certs), whose root that verified it is pinned. Each

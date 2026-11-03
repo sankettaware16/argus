@@ -1,6 +1,6 @@
-"""``argus rules ...`` and ``argus ti ...``: the rules registry and threat intelligence (R9,
-D-057). Everything reads the local store except ``ti sync`` (only with ``reference.ti_sync``
-on) and ``ti check`` (only inside a human-issued live-test session, D-056)."""
+"""``argus rules ...`` and ``argus ti ...``: the rules registry and threat intelligence.
+Everything reads the local store except ``ti sync`` (only with ``reference.ti_sync`` on) and
+``ti check`` (only inside a human-issued live-test session)."""
 
 from __future__ import annotations
 
@@ -37,8 +37,8 @@ FAILURES: tuple[type[Exception], ...] = (
     ConfigError,
     store.IncompleteAnswer,
 )
-rules_app = typer.Typer(no_args_is_help=True, help="The rules registry (R9).")
-ti_app = typer.Typer(no_args_is_help=True, help="Threat intelligence (R9).")
+rules_app = typer.Typer(no_args_is_help=True, help="The rules registry.")
+ti_app = typer.Typer(no_args_is_help=True, help="Threat intelligence.")
 ABSENT = "192.0.2.1"  # TEST-NET-1 (RFC 5737): in no feed
 NO_SOURCES = "no threat-intel source is configured (site.ti_sources): threat intel is off"
 
@@ -214,7 +214,7 @@ def ti_check(
     session: Annotated[str, typer.Option(help="from `argus live start`")],
     config: ConfigOption = None,
 ) -> None:
-    """The R9 live check, inside a live-test session (about 3 requests per source, size ≤ 10,
+    """The live check, inside a live-test session (about 3 requests per source, size ≤ 10,
     read-only): each source's newest indicator, 10 documents of each mirror normalised, and a
     lookup of one known value of each looked-up source and one absent IP. Stores nothing."""
     settings = load(config)
@@ -292,7 +292,7 @@ def ti_check(
         typer.echo(line)
 
 
-knowledge_app = typer.Typer(no_args_is_help=True, help="The knowledge store (R9).")
+knowledge_app = typer.Typer(no_args_is_help=True, help="The knowledge store.")
 
 
 @knowledge_app.command("load")

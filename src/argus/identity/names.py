@@ -1,15 +1,8 @@
-"""What is refused before any request is sent (plan §7.2, step 2; DQ15 (a)).
+"""What is refused before any request is sent.
 
-- **Names:** Elasticsearch's reserved users, ARGUS's service accounts (``argus``, the Kibana
-  lane's ``kibana.service_user`` and any name in ``identity.refused_names``), and anything that
-  is not a name Elasticsearch could hold: ELK usernames are 1-507 printable ASCII characters
-  without leading or trailing whitespace, and a ``:`` cannot travel in a Basic credential. The
-  comparison ignores case, so ``Elastic`` is refused as ``elastic`` is (refusing a name ELK
-  would tell apart costs nothing; letting one through could cost a check as a reserved user).
-- **Passwords:** fewer than 10 characters (ELK accepts 6; ARGUS's rule is 10, §3 rule 8), or
-  more than 1,024 (no password manager makes one; it bounds the work).
-
-Nothing here looks at the SIEM, so a refusal costs no request and no lane budget.
+Names: Elasticsearch's reserved users, ARGUS's service accounts and anything that is not a name
+Elasticsearch could hold (compared ignoring case). Passwords: fewer than 10 or more than 1,024
+characters. Nothing here looks at the SIEM, so a refusal costs no request and no lane budget.
 """
 
 from __future__ import annotations
@@ -31,7 +24,7 @@ RESERVED = frozenset(
         "remote_monitoring_user",
     }
 )
-SERVICE = frozenset({"argus"})  # ARGUS's own identity (kibana-identities.md)
+SERVICE = frozenset({"argus"})  # ARGUS's own identity
 MIN_PASSWORD = 10
 MAX_PASSWORD = 1_024
 MAX_NAME = 507  # Elasticsearch's limit for a native username
@@ -103,7 +96,7 @@ def password_refusal(password: SecretStr) -> str | None:
     if length > MAX_PASSWORD:
         return Reason.LONG_PASSWORD
     try:  # a Basic header carries UTF-8: a text that cannot encode (lone surrogates) is
-        password.get_secret_value().encode("utf-8")  # no password (review E1-7)
+        password.get_secret_value().encode("utf-8")  # no password
     except UnicodeEncodeError:
         return Reason.NOT_A_PASSWORD
     return None

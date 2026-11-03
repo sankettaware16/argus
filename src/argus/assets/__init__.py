@@ -1,4 +1,4 @@
-"""Campus asset map (import, longest-prefix match) and IP classification (R3)."""
+"""Asset map (import, longest-prefix match) and IP classification."""
 
 from argus.assets.assetmap import AssetEntry, AssetMap, AssetMapError, AssetMatch, parse_asset_map
 from argus.assets.classify import AssetLookup, IpClass, IpClassification, IpClassifier

@@ -1,4 +1,4 @@
-"""Charts as inline SVG, drawn on the server (D-103). No script, and no style attribute (the
+"""Charts as inline SVG, drawn on the server. No script, and no style attribute (the
 CSP allows neither): shapes are SVG attributes, and colours come from the stylesheet's classes,
 so light and dark follow the system like the rest of the Inbox. Every chart has a text
 alternative, and its numbers are on the page as a table."""

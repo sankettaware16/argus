@@ -1,16 +1,9 @@
-"""Raise by evidence (AR2b, D-160, D-164, D-165, D-168): an investigation whose newest dossier
-carries a threat-list hit, a detection by outside threat intel (its destination, or the registered
-parent of a name it holds) or a tie to one (same operator as a flagged destination), and another
-generic flag is in Needs attention whatever the rule's severity; any flag puts it first in the
-investigator's queue.
-
-The flags are the evidence's own, from generic signals only (``evaluation.gold.flags``: a
-threat-list hit, successful answers after an attack, a regular beacon-like rhythm, remote-admin,
-P2P or anonymizer ports), never a rule's name. :func:`evaluate` reads the newest dossier of every
-unreviewed investigation it has not read yet and stores the flags (``investigation_raises``); the
-pages and the investigator's queue read that table. A raise is a reason to look, never a verdict:
-nothing is closed, proposed or written to Kibana from it.
-"""
+"""Raise by evidence: an investigation whose newest dossier carries a threat-list hit, an outside
+detection or a tie to one (same operator as a flagged destination), together with another generic
+flag, is in Needs attention whatever the rule's severity; any flag puts it first in the
+investigator's queue. :func:`evaluate` reads each unreviewed investigation's newest dossier once
+and stores the flags (``investigation_raises``). A raise is a reason to look, never a verdict:
+nothing is closed, proposed or written to Kibana from it."""
 
 from __future__ import annotations
 
@@ -36,14 +29,13 @@ HORIZON = timedelta(days=3)  # how far back an investigation's last alert may be
 BATCH = 1000  # dossiers read in one pass (the rest wait for the next pass)
 PREFIX = "ARGUS raised it: "
 THREAT_LIST = "on a threat list"
-OUTSIDE = outside.FLAG  # "flagged by outside threat intel" (AR3, D-165)
-# AR2c (D-168): set by ``argus.campaigns``, not by a dossier's signals
+OUTSIDE = outside.FLAG  # "flagged by outside threat intel"
+# set by ``argus.campaigns``, not by a dossier's signals
 OPERATOR = "same operator as a flagged destination"  # raises like a detection
-CAMPAIGN = "many campus devices reach one rare domain"  # one flag more, raises nothing alone
+CAMPAIGN = "many campus devices reach one rare domain"  # raises nothing alone
 STRONG = (THREAT_LIST, OUTSIDE, OPERATOR)  # the flags that, with another flag, raise
-# replayed on 21 to 27 Oct: any flag raised 552 investigations a day and the beacon flag alone 302;
-# a threat-list hit with another flag, 19 (D-164). An outside detection counts as a hit (D-165),
-# and so does a tie to the operator of one (D-168).
+# Any single flag raised too many investigations, so a threat-list hit (an outside detection
+# counts as one, and so does a tie to the operator of one) needs another flag.
 MIN_FLAGS = 2
 
 _UNREAD = """
@@ -195,7 +187,7 @@ async def add_flag(
     horizon: timedelta = HORIZON,
 ) -> int:  # fmt: skip
     """Add ``flag`` to the stored flags of the unreviewed investigations in ``ids`` (current
-    version, last alert within ``horizon``) that lack it: how a campaign's flags (D-168) reach the
+    version, last alert within ``horizon``) that lack it: how a campaign's flags reach the
     investigations of its families. Returns how many were changed."""
     if not ids:
         return 0

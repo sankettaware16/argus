@@ -1,4 +1,4 @@
-"""The web module of the generic pack (R13, D-060): what an attack on the hosted sites tried,
+"""The web module of the generic pack: what an attack on the hosted sites tried,
 from the alerts (decoded paths, the NAXSI rule's class, scanner user agents, path
 categories, sites), and whether the client then got a successful answer (nginx's logs, one
 bounded search, only with ``enrichment.log_queries`` on). For any rule that reads nginx's
@@ -116,7 +116,7 @@ class FollowParams(SourcedParams):
     ip: str = Field(min_length=2, max_length=45)
     start: datetime
     end: datetime
-    size: int = Field(default=ROWS, ge=1, le=ROWS)  # a live test reads at most 10 (D-068)
+    size: int = Field(default=ROWS, ge=1, le=ROWS)  # a live test reads at most 10
 
 
 @register
@@ -225,7 +225,7 @@ def tasks(
     earlier: Mapping[str, Mapping[str, Any]] | None = None,
     indices: Sequence[str] | None = None,
 ) -> list[TaskSpec]:
-    """The client's follow-up search, once per investigation (D-070). With several web
+    """The client's follow-up search, once per investigation. With several web
     families, the one the rule's ``indices`` name is read."""
     before = (earlier or {}).get(WebFollowups.name)
     if before is not None:

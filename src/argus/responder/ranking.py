@@ -1,23 +1,9 @@
-"""What the responder agent may change about the advice (Q-H2, plan §7.7): its order and its
-words, never its content. Built off: nothing calls a model while ``ENABLED["responder"]`` is
-None (``argus.agent.registry``), and the deterministic advice (:func:`argus.responder.store.
-actions_for`) is the whole of Phase 3 until the user has reviewed the owners and the wording.
-
-When it is switched on, :func:`accept` is the only door for its answer (``ranking@1``: a list of
-``{"action": <id>, "say": <sentence>}``). The answer is taken only whole and only as follows:
-
-* every ``action`` is one of the options given (the catalogue's ids for this case), at most once;
-  an id it was not given, a repeat, another key, a wrong type or an answer of the wrong shape
-  refuses the whole answer, and the deterministic order stands;
-* options it left out keep their place after the ones it ranked (it cannot drop an action);
-* a sentence is words only: letters, spaces, commas, apostrophes and hyphens, ending in a full
-  stop at most, and **every word of it is a word of that action's own catalogue wording** (its
-  title and text) or one of a short fixed list of function words (:data:`FUNCTION_WORDS`, with
-  no negation and no modal). Any other word, a digit, an address, a file name, a link, a command
-  or any markup refuses that sentence (the catalogue's own wording stands for that action). So
-  the agent can reorder and re-join what the catalogue says, but add neither a step, a
-  command nor an identifier.
-"""
+"""What the responder agent may change about the advice: its order and its words, never its
+content. Built off (``ENABLED["responder"]`` is None), so the deterministic advice stands. When
+on, :func:`accept` is the only door for its answer (``ranking@1``): taken whole or not at all,
+every action one that was given (once), omitted options keep their place after the ranked ones,
+and a sentence may use only words of that action's catalogue wording plus a short fixed list
+(:data:`FUNCTION_WORDS`): no digit, address, file name, link, command or markup."""
 
 from __future__ import annotations
 

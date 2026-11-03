@@ -1,22 +1,13 @@
-"""Writes in doubt (plan §7.1, "Unknown outcomes"): the looks, the "resend?" and the resend.
+"""Writes in doubt: the looks, the "resend?" and the resend.
 
-A write whose outcome is unknown is ``ambiguous``. It is looked for at 2, 5, 15 and 30 minutes
-(:func:`run_lookups`):
-
-* a **create** by the case's ``argus:case:<uuid>`` tag and ``reporters=argus``, each match
-  needing ``created_by`` = ``argus`` and the payload (title, severity, tags, description);
-* a **change** by re-reading the case and planning again: if nothing is left to do it landed;
-* a **comment** by the case's newest comments; an **attachment** by the alerts' case ids.
-
-One match is the write: it becomes ``verified`` (a created case's alerts and opening comment
-are then planned). Two matches for one create are a duplicate: flagged, the class paused, never
-deleted by ARGUS. A look that cannot be made (Kibana down, the lane's budget) is made again two
-minutes later; only looks that were made count. If the fourth finds nothing while Kibana
-answers, an outbox row gets the "resend?" mark for the approvals queue; a step, which has no
-approval for a resend, is closed as lost. A resend needs a person's complete, signed approval
-bound to the exact write (:func:`resend_payload`) and the row's send count; the writer looks
-once more first, and only then moves the row back to ``planned`` for one more send.
-"""
+A write whose outcome is unknown is ``ambiguous`` and looked for at 2, 5, 15 and 30 minutes
+(:func:`run_lookups`): a **create** by the case's ``argus:case:<uuid>`` tag and its payload, a
+**change** by re-reading the case and planning again (nothing left to do means it landed), a
+**comment** by the case's newest comments, an **attachment** by the alerts' case ids. One match is
+the write and it becomes ``verified``; two matches for one create are a duplicate (flagged, class
+paused, never deleted). If the fourth look finds nothing while Kibana answers, an outbox row gets
+the "resend?" mark and a step is closed as lost. A resend needs a person's complete, signed
+approval bound to the exact write and send count; the writer looks once more first."""
 
 from __future__ import annotations
 

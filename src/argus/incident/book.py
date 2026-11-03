@@ -1,11 +1,9 @@
-"""The facts of a report and the check that holds a sentence to them (AR7, D-190).
+"""The facts of a report and the check that holds a sentence to them.
 
-Every sentence of the report's narrative is **a fact's own sentence** (registered here with the
-figures it states, then said) or a short connective sentence that cites facts and adds no number.
-:class:`Book` numbers the facts in the order they are first said; :func:`uncovered` is the check
-a test (and the model's guardian, in a stricter form) applies: the numbers a sentence writes that
-none of the facts it cites writes.
-"""
+Every sentence of the narrative is **a fact's own sentence** (registered with the figures it
+states, then said) or a short connective sentence that cites facts and adds no number.
+:class:`Book` numbers the facts in the order they are first said; :func:`uncovered` finds the
+numbers a sentence writes that none of the facts it cites writes."""
 
 from __future__ import annotations
 

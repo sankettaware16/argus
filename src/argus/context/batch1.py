@@ -1,30 +1,12 @@
-"""Evidence templates, batch 1 (Q-F4, plan §5 WS-F, §7.3): the five templates' catalogue, the
-rules each request must pass before the gateway sees it, the builders that make their
-parameters from an investigation, and their first production runs.
+"""Evidence templates, batch 1: the five templates' catalogue, the rules each request must pass,
+the builders that make their parameters from an investigation, and their first production runs.
 
-The five: ``proxy.pair`` and ``proxy.contact`` (context/beacon.py), ``dns.host_domains``
-(context/dns.py), ``web.path_outcomes`` (context/paths.py), ``logs.source_events``
-(context/source_events.py).
-
-Before a request (``admit``), in this order, the first refusal wins and nothing is sent:
-
-1. the template is switched on (``enrichment.templates``), which happens only after its own
-   first production run passed within its limit (``FIRST_RUN_MS``; the user's run, D-056);
-2. not 00:00-01:30 UTC (index creation and ILM deletes: the SIEM's quiet hours);
-3. the SIEM is NORMAL (§7.3: these templates never run in CAUTION or worse);
-4. the prevalence gate: a value the template is keyed on that ARGUS sees in 50 or more
-   investigations within ``history.window`` (or, for a destination, with 25 or more campus
-   hosts) is "too common to query", because caps limit the answer, not the work; a path that
-   every site serves likewise;
-5. the template's own server time today, with the requests of it still in flight (each
-   reserved at its timeout), is under 90 s.
-
-Then the gateway's own checks follow (kill switch ``enrichment``, health, validator, budget,
-breaker). ``send`` is the one way a batch-1 request goes out: it admits, reserves, and hands
-the gateway ``send_check``, so NORMAL only and the quiet hours hold at every point the gateway
-waits or retries, not only at admission (review F4-R3). The lane: by default enrichment's
-(purpose ``enrich``, component ``enrichment``); the deterministic wave and "Check more" (Q-F3)
-pass the investigation lane's purpose, so they spend its 400 ms a minute and 300 heavy a day.
+The five: ``proxy.pair`` and ``proxy.contact`` (beacon.py), ``dns.host_domains`` (dns.py),
+``web.path_outcomes`` (paths.py), ``logs.source_events`` (source_events.py). Before a request
+(``admit``) the first refusal wins and nothing is sent: the template is switched on (after its
+first production run passed), not in the quiet hours, the SIEM is NORMAL, the prevalence gate (a
+value ARGUS sees in 50 or more investigations is too common to query), and the template's own
+daily server time is under 90 s. ``send`` is the one way a batch-1 request goes out.
 """
 
 from __future__ import annotations
@@ -62,7 +44,7 @@ TEMPLATES: dict[str, type[Template]] = {
     paths.WebPathOutcomes.name: paths.WebPathOutcomes,
     source_events.LogsSourceEvents.name: source_events.LogsSourceEvents,
 }
-# The first production run's limit, in server time (plan §5 Q-F4): over it, the template
+# The first production run's limit, in server time: over it, the template
 # stays off.
 FIRST_RUN_MS = {
     "proxy.pair": 10_000,
@@ -71,7 +53,7 @@ FIRST_RUN_MS = {
     "web.path_outcomes": 3_000,
     "logs.source_events": 3_000,
 }
-# What each template can close (plan §7.3 point 2): the gap detector (Q-F3) matches on these.
+# What each template can close: the gap detector matches on these.
 CLOSES = {
     "proxy.pair": ("beacon", "timeline", "still_active"),
     "proxy.contact": ("scope", "still_active"),
@@ -80,8 +62,8 @@ CLOSES = {
     "logs.source_events": ("source_events",),
 }
 # The field types the five templates rely on, per log source: the site's families' mappings
-# (``LogFamily.field_types``). A site's own captured mappings (data/corpus/<day>/mappings, where a
-# capture exists) are compared with them by a test. "text+keyword" is text with a ``.keyword``
+# (``LogFamily.field_types``). A site's own captured mappings (where a capture exists) are
+# compared with them by a test. "text+keyword" is text with a ``.keyword``
 # sub-field of the family's ``ignore_above``.
 TEMPLATE_ROLES = {
     "proxy.pair": (Role.PROXY,),
@@ -148,9 +130,9 @@ def mapping(source: str) -> dict[str, Any]:
     return {"date_detection": False, "properties": properties}
 
 
-DAILY_CAP_MS = 90_000  # a template's own server time a day (plan §7.3, proposed)
+DAILY_CAP_MS = 90_000  # a template's own server time a day
 INVESTIGATIONS_LIMIT = 50  # in history.window: above it a value is too common to query
-HOSTS_LIMIT = 25  # campus hosts that reached a destination
+HOSTS_LIMIT = 25  # internal hosts that reached a destination
 CO_ADDRESSES = 20_000  # addresses read beside a destination; that many is common anyway
 FIELD_VALUE_CHARS = 100  # the field facts' cap (generic.VALUE_CHARS): a value this long may be cut
 PURPOSE_COMPONENT = "enrichment"
@@ -189,9 +171,9 @@ class Key:
 
 def keys(name: str, params: Params) -> tuple[Key, ...]:
     """What the prevalence gate checks for a request. ``proxy.pair`` and the DNS template are
-    bounded by one campus host (a NAT or a resolver is a shared address); ``proxy.contact``
+    bounded by one internal host (a NAT or a resolver is a shared address); ``proxy.contact``
     by its destination, or, with watched hosts, by each of them (a NAT watched is as shared
-    as a NAT paired: review F4-R2); the path template by its client and its paths (the site
+    as a NAT paired); the path template by its client and its paths (the site
     bounds the rest); the source events are no aggregation (medium cost)."""
     if isinstance(params, beacon.PairParams):
         return (Key("host", params.host),)
@@ -226,7 +208,7 @@ async def prevalence(
     conn: AsyncConnection, key: Key, since: datetime, is_campus: Callable[[str], bool]
 ) -> Prevalence:
     """How common ``key`` is in ARGUS's own store: investigations naming it whose activity
-    reaches into ``since``, and (a destination) the campus addresses those investigations
+    reaches into ``since``, and (a destination) the internal addresses those investigations
     name. Paths are not entities: the gate judges them by ``COMMON_PATHS`` alone."""
     if key.kind == "path":
         return Prevalence(0, 0)
@@ -282,7 +264,7 @@ async def spent_today(conn: AsyncConnection, name: str, now: datetime) -> int:
 
 
 def private_or(classify: Callable[[str], str] | None) -> Callable[[str], bool]:
-    """Campus addresses: the asset map's classes when given, else private space."""
+    """Internal addresses: the asset map's classes when given, else private space."""
 
     def campus(value: str) -> bool:
         if classify is not None:
@@ -298,9 +280,8 @@ def private_or(classify: Callable[[str], str] | None) -> Callable[[str], bool]:
 class Reservations:
     """Server time of batch-1 requests in flight, per template and UTC day: each is reserved
     at its template's timeout when admitted and released once it finished (its real time is
-    then in the ledger), so requests admitted together cannot all pass the daily cap
-    (review F4-R3). Within one process; one lock per template makes admitting and reserving
-    one step."""
+    then in the ledger), so requests admitted together cannot all pass the daily cap. Within
+    one process; one lock per template makes admitting and reserving one step."""
 
     def __init__(self) -> None:
         self._held: dict[int, tuple[str, date, int]] = {}
@@ -359,7 +340,7 @@ async def admit(
 
 def send_check(state: GatewayState, health_config: HealthConfig | None = None) -> SendCheck:
     """The rules that must still hold when the gateway sends (after any wait, before a
-    retry): not 00:00-01:30 UTC, and the SIEM NORMAL. The gateway itself allows enrichment in
+    retry): not in the quiet hours, and the SIEM NORMAL. The gateway itself allows enrichment in
     CAUTION and knows no quiet hours."""
     config = health_config or HealthConfig()
 
@@ -392,7 +373,7 @@ async def send(
     """The one way a batch-1 request goes out: ``admit`` and the reservation as one step,
     then the gateway with ``send_check``; the reservation is released when it finished.
     ``purpose`` and ``component`` say whose lane it spends (default: enrichment's; the
-    deterministic wave and "Check more" pass the investigation lane, Q-F3).
+    deterministic wave and "Check more" pass the investigation lane).
     Raises the gateway's errors (a DeferredError when a rule stopped it on the way)."""
     name = type(task.template).name
     timeout_ms = int(type(task.template).timeout.total_seconds() * 1000)
@@ -447,7 +428,7 @@ def pair_task(
     now: datetime,
     indices: Sequence[str] | None = None,
 ) -> TaskSpec | Refusal:
-    """The investigation's first campus host and first public destination, over its hours
+    """The investigation's first internal host and first public destination, over its hours
     ± 1 h (at most 12 h, the newest kept), in one daily index, before the ingest margin; in the
     proxy family the rule's ``indices`` name (the site's first when it has several)."""
     hosts = [v for v in _top(fields, "source.ip") if ips.get(v, {}).get("class") in INTERNAL]
@@ -498,7 +479,7 @@ def contact_task(
 def dns_task(
     host: str, around: datetime, now: datetime, indices: Sequence[str] | None = None
 ) -> TaskSpec | Refusal:
-    """A campus host's lookups in the 2 hours around ``around`` (one daily index)."""
+    """An internal host's lookups in the 2 hours around ``around`` (one daily index)."""
     span = clamp(around - timedelta(hours=1), around + timedelta(hours=1), now, dns.LONGEST)
     if span is None:
         return Refusal("no_subject", "window")
@@ -527,13 +508,13 @@ def paths_task(
     indices: Sequence[str] | None = None,
 ) -> PathPlan:
     """Did the paths a client tried on a site succeed, from its first alert for 6 hours?
-    Paths every site serves, paths over the family's ``ignore_above`` (256 captured) and (from the
+    Paths every site serves, paths over the family's ``ignore_above`` and (from the
     field facts, whose values are cut at 100 characters) paths that may have been cut are left out,
     each with its reason: their outcome cannot be told."""
     keep: list[str] = []
     left: list[tuple[str, str]] = []
     source = source_param(Role.WEB, indices)
-    path_limit = paths.path_chars(source)  # what the family indexes (ignore_above, 256 captured)
+    path_limit = paths.path_chars(source)  # what the family indexes (ignore_above)
     for path in dict.fromkeys(tried):
         if path in paths.COMMON_PATHS:
             left.append((path, "too_common"))
@@ -617,7 +598,7 @@ def signals(
     version: int, evidence: Mapping[str, Mapping[str, Any]], snapshots: Mapping[str, Any]
 ) -> list[SignalValue]:
     """The signals of the batch-1 answers among ``evidence`` (references that carry their
-    ``params``: the wave's and "Check more"'s, Q-F3). A pack reads one subject per template:
+    ``params``: the wave's and "Check more"'s). A pack reads one subject per template:
     the first complete answer by task key, else the first by task key, so the same evidence
     always gives the same signals. A reference without readable parameters gives nothing."""
     by: dict[str, list[tuple[str, Mapping[str, Any], TaskSpec]]] = {}
@@ -648,9 +629,9 @@ Run = Callable[[Template, Params], Awaitable[Result]]
 
 
 async def subjects(conn: AsyncConnection) -> dict[str, Any]:
-    """What each first run asks about, from the newest stored alerts: a campus proxy host and
+    """What each first run asks about, from the newest stored alerts: an internal proxy host and
     a public destination (squid), the pair of both from one alert (they talked once at
-    least: review F4-R6), a web client with its site and paths (nginx), and the newest
+    least), a web client with its site and paths (nginx), and the newest
     threshold or ES|QL alert with its rule's indices."""
     found: dict[str, Any] = {"host": None, "destination": None, "pair": None, "web": None,
                              "alert": None}  # fmt: skip
@@ -735,7 +716,7 @@ def longest(now: datetime, length: timedelta) -> tuple[datetime, datetime] | Non
 
 def first_task(name: str, who: Mapping[str, Any], now: datetime) -> TaskSpec | Refusal:
     """The one request of a template's first run: as large as the template's production
-    builders make it (review F4-R4), so its server time says what production will cost:
+    builders make it, so its server time says what production will cost:
     ``proxy.pair`` 12 h, ``proxy.contact`` a whole day's index (01:00 to 22:59 UTC),
     ``dns.host_domains`` 2 h, ``web.path_outcomes`` 6 h, each the newest such window in one
     daily index; ``logs.source_events`` the newest threshold or ES|QL alert's own window."""
@@ -786,7 +767,7 @@ def first_task(name: str, who: Mapping[str, Any], now: datetime) -> TaskSpec | R
 
 def matched(body: Any) -> bool:
     """Whether an answer found anything at all: an empty answer costs little and measures
-    nothing (review F4-R6)."""
+    nothing."""
     if not isinstance(body, Mapping):
         return False
     aggs = body.get("aggregations")

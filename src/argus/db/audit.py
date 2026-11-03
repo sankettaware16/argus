@@ -1,20 +1,11 @@
 """Writing audit events.
 
 Every value is checked or cleaned *before* the session is touched, so a bad or hostile value can
-neither break the caller's transaction nor put a secret into the append-only table:
-
-* ``actor``, ``action`` and ``target_type`` are short names written by ARGUS code: 1-128 ASCII
-  letters, digits and ``_ . : @ / -``, starting with a letter or digit. Anything else (empty,
-  overlong, spaces, control characters, and any non-ASCII character, including the many that
-  render as nothing, such as U+3164 HANGUL FILLER) is an :class:`AuditError`, so a name can
-  neither show up blank in audit listings nor pass for another name.
-* ``target_id``, ``correlation_id`` and ``details`` may carry SIEM data. They are redacted, and NUL
-  and lone surrogates (which PostgreSQL cannot store) become U+FFFD. ``details`` is capped at
-  ``MAX_DETAILS_BYTES`` of UTF-8 JSON (an AuditError above that); the two ids are truncated to
-  ``MAX_ID_CHARS`` so the (target_type, target_id) index can always hold them.
-* Mapping keys in ``details`` are stored as JSON text (``1`` becomes ``"1"``, ``None`` becomes
-  ``"null"``). Keys that become equal are all stored, never silently dropped:
-  ``{1: "a", "1": "b"}`` is stored as ``{"1 (int)": "a", "1": "b"}``.
+neither break the caller's transaction nor put a secret into the append-only table. ``actor``,
+``action`` and ``target_type`` are short ASCII names written by ARGUS code (anything else is an
+:class:`AuditError`); ``target_id``, ``correlation_id`` and ``details`` may carry SIEM data, so
+they are redacted, cleaned of NUL and lone surrogates, and capped. Mapping keys in ``details`` are
+stored as JSON text; keys that become equal are all kept.
 """
 
 from __future__ import annotations

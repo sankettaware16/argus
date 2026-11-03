@@ -1,6 +1,6 @@
 """Collector alert store: alert records, cursors, reconciliation runs, coverage gaps
 
-R5 (D-050). Alerts are never deleted (one gone from the SIEM gets ``source_missing_at``), so the
+Alerts are never deleted (one gone from the SIEM gets ``source_missing_at``), so the
 runtime role may insert and update the columns that change, never delete. Reconciliation runs
 are append-only for it.
 

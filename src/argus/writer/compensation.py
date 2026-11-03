@@ -1,14 +1,11 @@
-"""Approved compensating writes (plan §3 rule 3, §7.1): the undo of a W2 or W3 write.
+"""Approved compensating writes: the undo of a W2 or W3 write.
 
-ARGUS cannot undo W1; W2 and W3 are undone by a write a person approved, read back like any
-other. :func:`build` is the one place that says what such a write is (an approval binds its
-hash; Q-B3's preview must use it): the fields the write changed, put back as the Kibana case
-had them before (the row's before-image), then a correcting comment. The comment the earlier
-write added stays. The writer acts on a complete, signed request of kind ``compensating`` for a
-verified row only when the request's payload is exactly what :func:`build` gives now, and plans
-two steps (:mod:`argus.writer.store`), which run in a W2 run when the case has nothing else in
-doubt.
-"""
+ARGUS cannot undo W1; W2 and W3 are undone by a write a person approved, read back like any other.
+:func:`build` is the one place that says what such a write is (an approval binds its hash): the
+fields the write changed, put back as the row's before-image had them, then a correcting comment.
+The writer acts only when a complete, signed ``compensating`` request's payload is exactly what
+:func:`build` gives now, and plans two steps that run in a W2 run when the case has nothing else in
+doubt."""
 
 from __future__ import annotations
 

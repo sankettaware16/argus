@@ -1,20 +1,10 @@
-"""One investigator run per pattern (AR2, D-150, D-160): coverage without a call for every
-investigation.
-
-Unreviewed investigations that look alike are one **pattern**: the Patterns page's key
-(``display.signature``: the rule, each step's outcome, a threat-list hit, the values the rule's
-own steps look at) per IST day, split when members differ in a generic flag (``gold.flags``). The
-investigator runs on one member of each pattern (raised ones first, then the highest severity,
-then the newest) and its reading or proposal is shown on the others as "same pattern as ...".
-
-A shared run is display only. The other members get no assessment, so nothing is scored, closed
-or written back from it; only the assessed investigation can be accepted. A pattern is covered
-for the day once a run that did not fail exists for it: members that arrive later attach to that
-run, even when the assessed investigation has since changed. Three failed runs end the day's
-tries for a pattern. An investigation that belongs to a notified case's known infection (AR4b,
-D-169) is never a candidate: the owner was told, ARGUS counts its alerts and spends no run on
-them. :func:`plan` is pure; :func:`schedule` reads the candidates and queues.
-"""
+"""One investigator run per pattern: coverage without a call for every investigation. Unreviewed
+investigations that look alike (the Patterns page's key per local day, split by generic flag) are
+one pattern; the investigator runs on its best member (raised first, then severity, then newest)
+and the others show its result as "same pattern as ...". A shared run is display only: nothing is
+scored, closed or written back from it. A pattern is covered for the day once a run that did
+not fail exists; three failed runs end the day's tries. :func:`plan` is pure, :func:`schedule`
+queues."""
 
 from __future__ import annotations
 
@@ -44,7 +34,7 @@ FETCH_WHEN_FULL = 500  # when the day's runs are all used, only to attach new me
 MAX_FAILED = 3  # failed runs after which a pattern waits for the next day
 PICKER_LOCK_KEY = int.from_bytes(b"ARGUSPCK", "big")  # one picker at a time (like the opener's)
 SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-Key = tuple[str, date]  # (the pattern's hash, its IST day)
+Key = tuple[str, date]  # (the pattern's hash, its local day)
 _EARLIEST = datetime.min.replace(tzinfo=UTC)
 
 
@@ -60,7 +50,7 @@ class Candidate:
     day: date
     severity: int
     last_event_at: datetime | None
-    raised: bool  # its evidence carries a flag, or it is in a case ARGUS suggested (AR2b)
+    raised: bool  # its evidence carries a flag, or it is in a case ARGUS suggested
 
     @property
     def key(self) -> Key:
@@ -109,7 +99,7 @@ def candidate(
 ) -> Candidate:
     """The candidate for an investigation and the parts of its dossier a pattern is made of.
     ``in_case``: it is in a case ARGUS suggested, or outside threat intel flags one of its
-    destinations (AR3): neither is part of the pattern's key."""
+    destinations: neither is part of the pattern's key."""
     from argus.web.queries import key_fields
 
     keys = [name for name, _ in key_fields(group_key)]
@@ -263,12 +253,8 @@ async def schedule(
     """Queue one run for each uncovered pattern of unreviewed investigations ``assessor`` has not
     read (at most ``limit`` now and ``per_day`` patterns today; raised first), and attach the
     other members of every pattern to its run. With ``after``, only where that assessor found no
-    decision on the same dossier; never an investigation in ``skip`` (the deterministic wave still
-    owes it its checks, Q-F3).
-
-    The picker holds a transaction-level advisory lock from its first read to the commit, so two
-    passes at once never pick two representatives for one pattern: the second waits, then finds
-    the first one's run and attaches its members to it."""
+    decision on the same dossier; never an investigation in ``skip``. An advisory lock held to the
+    commit keeps two passes at once from picking two representatives for one pattern."""
     await conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": PICKER_LOCK_KEY})
     budget = limit
     full = False

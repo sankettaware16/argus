@@ -1,15 +1,9 @@
-"""Threat intelligence in one typed shape (plan §6 R9, D-057).
+"""Threat intelligence in one typed shape.
 
-The sources are the site's (``site.ti_sources``, D-293): each an index with one of two
-schemas, ``ecs`` (ECS ``threat.indicator.*``) or ``ioc`` (``ioc_type`` / ``ioc_value`` /
-``intel_source``), read whole (``mirror``) or per value (``lookup``). Every document becomes
-``Indicator``s of its source (the source's id is its index); values are canonical (R3's IP and
-domain rules), so a lookup of ``10.0.0.1`` finds ``::ffff:10.0.0.1`` and ``Example.COM.``
-finds ``example.com``.
-
-A source is stale when its newest indicator is older than 7 days. An answer per value is a
-match (the indicators) or, per source, ``no_match{source, freshness, stale}``: a miss in a
-stale source is not "clean" (D-023).
+The sources are the site's (``site.ti_sources``): each an index with schema ``ecs`` or ``ioc``,
+read whole (``mirror``) or per value (``lookup``). Every document becomes ``Indicator``s of its
+source; values are canonical (so ``10.0.0.1`` finds ``::ffff:10.0.0.1``). A source is stale when
+its newest indicator is older than 7 days; a miss in a stale source is not "clean".
 """
 
 from __future__ import annotations
@@ -143,7 +137,7 @@ def _url(text: str) -> str | None:
     except ValueError:
         return None
     if not host or any(c.isspace() or not c.isprintable() for c in host):
-        return None  # no host has blanks or control characters (`@ 0` once became ` 0`)
+        return None  # no host has blanks or control characters
     scheme = parsed.scheme.lower()
     netloc = host if port is None or _DEFAULT_PORTS.get(scheme) == port else f"{host}:{port}"
     rebuilt = urlunsplit((scheme, netloc, parsed.path, parsed.query, ""))

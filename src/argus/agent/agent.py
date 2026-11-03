@@ -1,28 +1,9 @@
-"""The investigation agent (P6, docs/p6-design.md): an assessor for what the decision engine
-does not decide.
-
-Per round: render the item through the privacy layer; the coordinator answers, may consult
-up to two specialists on the same rendering and decide again with their notes; the asks of
-all of them go to the tool catalogue; the evidence that comes back joins the item through
-the pack's own signals and report, and the next round reads the new rendering. Bounded by
-rounds, tool calls, model calls and a wall clock. The final answer must cite only what the
-item says; a benign answer must clear the decision floor (P4). A reply that cannot be read gets
-one repair call and then the next provider (within the same bounds); an answer that is no
-proposal is kept as ARGUS's reading (``argus.agent.reading``), never as a proposal (AR1).
-
-The coordinator (``investigator``) and the specialists are Markdown files in
-``config/agents/`` (Q-H1), loaded and checked against code when the agent is made. Each ask
-carries the agent whose answer it came from, known by code and never by the answer; an ask
-for a catalogue tool outside that agent's own tools is refused, recorded for the reviewer and
-never sent to the SIEM.
-
-The two ``outside.*`` tools (AR3, D-165) ask outside threat intel (VirusTotal; Shodan, then
-Censys) through ``argus.outside``, only for an external indicator the local threat lists do not
-already list, answered from the 7-day cache when possible. Their answers join the item as its
-``outside`` facts (the model reads them, cites them, and a detection blocks a benign answer like
-a threat-list hit), and each is a plain sentence among the run's checks. Before the first round
-the item already holds whatever the cache knows of its external indicators.
-"""
+"""The investigation agent: an assessor for what the decision engine does not decide. Per round
+the item is rendered through the privacy layer, the coordinator answers (and may consult
+specialists), the asks go to the tool catalogue and the new evidence joins the item; bounded by
+rounds, tool and model calls and a wall clock. The final answer must cite only what the item says,
+and a benign one must clear the decision floor. An answer that is no proposal is kept as ARGUS's
+reading (``argus.agent.reading``). The agents are the files in ``config/agents/``."""
 
 from __future__ import annotations
 
@@ -59,8 +40,8 @@ from argus.outside.service import Outside
 from argus.outside.service import sentence as outside_sentence
 
 NAME = "agent@1"
-VERIFY = 3  # how answers are checked and repaired (AR1): part of what an evaluation depends on
-ROUTE = 2  # how a tier is chosen (D-098): the same
+VERIFY = 3  # how answers are checked and repaired: part of what an evaluation depends on
+ROUTE = 2  # how a tier is chosen: the same
 ITEM = "I1"
 # the answer's cap per tier: reasoning models spend part of it before they write anything
 MAX_OUTPUT = {Tier.SMALL: 1500, Tier.MEDIUM: 2000, Tier.LARGE: 4000}
@@ -71,11 +52,11 @@ REPAIR_CHARS = 4000  # how much of an unreadable reply a repair call is shown
 
 
 def limits_for(timeout_s: float, base: Limits = DEFAULT_LIMITS) -> Limits:
-    """The limits for providers whose calls may each take up to ``timeout_s`` (Q-G1): the wall
+    """The limits for providers whose calls may each take up to ``timeout_s``: the wall
     clock leaves room for the coordinator, a specialist and the coordinator again, so a slow
-    provider (the local model on a CPU) is not cut off after its first answer. Only the wall
+    provider (a slow local model) is not cut off after its first answer. Only the wall
     clock changes; the run's work stays within ``base`` (the Agent applies it after checking
-    its limits against the coordinator's budget, Q-H1)."""
+    its limits against the coordinator's budget)."""
     return replace(base, seconds=max(base.seconds, 3 * timeout_s))
 
 
@@ -160,8 +141,7 @@ def parse(text: str, specialists: Collection[str] = ()) -> Answer:
 
 def route(body: Mapping[str, Any], reasons: Sequence[str], request: Request) -> Tier:
     """Medium for any floor signal or cut untrusted text, small otherwise. The large model is
-    not used: on live alerts it was 65% of the cost for answers the medium one also gives
-    (D-098)."""
+    not used: it costs far more for answers the medium one also gives."""
     present = [r for r in reasons if "not known" not in r and "not checked" not in r]
     if present or request.truncated:
         return Tier.MEDIUM
@@ -214,7 +194,7 @@ def _in_order(words: Sequence[str], line: Sequence[str]) -> bool:
 
 def trusted(text: str) -> str:
     """``text`` without its quoted strings: what ARGUS itself wrote (an attacker's text in
-    an alert is always quoted, P1)."""
+    an alert is always quoted)."""
     return QUOTED.sub('""', text)
 
 
@@ -249,7 +229,6 @@ def _repair(schema: Mapping[str, Any], reply: str) -> str:
 
 
 def capped(tier: Tier, cap: Tier) -> Tier:
-    """``tier``, or ``cap`` when it is higher."""
     return min(tier, cap, key=TIERS.index)
 
 
@@ -267,7 +246,7 @@ class Trace:
     checks: list[dict[str, str]] = field(default_factory=list)  # tool, value, result, agent
     specialists: list[dict[str, str]] = field(default_factory=list)  # domain, notes
     answer: dict[str, Any] = field(default_factory=dict)  # the final answer, revealed
-    reading: dict[str, Any] = field(default_factory=dict)  # why it is no proposal (AR1)
+    reading: dict[str, Any] = field(default_factory=dict)  # why it is no proposal
     began: datetime | None = None
     started: float = 0.0  # the run's start on the monotonic clock
 
@@ -277,7 +256,7 @@ Snapshots = Callable[[uuid.UUID, int, list[str]], Awaitable[Mapping[str, Any]]]
 
 
 class Agent:
-    """The P3 assessor ``agent@1``: the ``investigator`` coordinator and its specialists, as
+    """The assessor ``agent@1``: the ``investigator`` coordinator and its specialists, as
     their files in ``config/agents/`` say and code allows (refused here, at start-up,
     otherwise: ``loader.AgentError``)."""
 
@@ -299,7 +278,7 @@ class Agent:
         purpose: str = "assess",  # "evaluate" for gold runs: the providers' allowlists
         priority: budget.Priority = budget.Priority.NORMAL,
         provider_timeout_s: float | None = None,  # a slow provider's: the wall clock follows it
-        outside: Outside | None = None,  # outside threat intel (AR3); None: its tools are refused
+        outside: Outside | None = None,  # outside threat intel; None: its tools are refused
     ) -> None:
         self.agents = agents if agents is not None else loader.load()
         lead = self.agents.coordinator
@@ -311,7 +290,7 @@ class Agent:
         over = [f.name for f in fields(Limits) if getattr(limits, f.name) > getattr(cap, f.name)]
         if over:
             raise ValueError(f"limits above the {lead.name}'s budget: {', '.join(over)}")
-        if provider_timeout_s is not None:  # only the wall clock, never the run's work (Q-G1)
+        if provider_timeout_s is not None:  # only the wall clock, never the run's work
             limits = limits_for(provider_timeout_s, limits)
         self.schemas = {name: schemas.of(d) for name, d in self.agents.by_name.items()}
         self.privacy = privacy
@@ -329,7 +308,6 @@ class Agent:
         self.last: Trace | None = None  # the latest run's trace (for evaluation reports)
 
     def takes(self, trigger: Trigger) -> bool:
-        """The investigator's file lets ``trigger`` start it."""
         return self.agents.takes(trigger)
 
     async def assess(
@@ -432,7 +410,7 @@ class Agent:
     def _read(
         self, kind: str, answer: Answer, request: Request, trace: Trace, blocked: Sequence[str] = ()
     ) -> None:
-        """Keep the answer as ARGUS's reading (AR1): why it is no proposal, and which of its
+        """Keep the answer as ARGUS's reading: why it is no proposal, and which of its
         cited facts are in the item. It changes nothing about the verdict."""
         missing = set(unverified(answer.cites, request.text))
         trace.reading = {"kind": kind, "checked": [c not in missing for c in answer.cites]}
@@ -474,13 +452,13 @@ class Agent:
         schema: Mapping[str, Any] | None = None,  # the lead's answer@1 unless given
     ) -> Answer | None:
         """The parsed answer, or None when no model could be asked. A reply that cannot be
-        read gets one repair call and then the next provider (AR1), within the run's limits;
+        read gets one repair call and then the next provider, within the run's limits;
         if none reads, the first reply's parse stands (no outcome)."""
         if trace.calls >= self.limits.calls:
             return None
         lead = schema is None
-        # the timeout is the provider's (config/llm.yaml), not a fixed one (Q-G1); the schema
-        # goes only to providers that take one (D-112)
+        # the timeout is the provider's (config/llm.yaml), not a fixed one; the schema
+        # goes only to providers that take one
         if schema is None:
             schema = self.schemas[self.agents.lead]
         call = Call(request, instructions, self.purpose, tier, self.priority,
@@ -699,7 +677,7 @@ class Agent:
         detail = (f"{trace.rounds} rounds, {trace.calls} model calls ({', '.join(trace.tiers)}),"
                   f" ${trace.cost_usd:.4f}; tools: {', '.join(trace.tools) or 'none'}")  # fmt: skip
         seconds = (self.clock() - trace.began).total_seconds() if trace.began else 0.0
-        report = {  # what the Inbox shows of the run (D-095); stored locally only
+        report = {  # what the Inbox shows of the run; stored locally only
             "kind": NAME,
             "answer": trace.answer,
             "checks": trace.checks,

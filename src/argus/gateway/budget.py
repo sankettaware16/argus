@@ -1,19 +1,10 @@
-"""The SIEM load budget (plan §5.2, D-022), counted in Elasticsearch server time (``took``).
+"""The SIEM load budget, counted in Elasticsearch server time (``took``).
 
-A token bucket of server time: it refills at ``took_per_minute_ms`` per minute up to
-``burst_ms``, both scaled by the health state. A bucket may have a larger ``burst_ms`` than a
-minute's share (the Kibana write lane's 60 s, D-235) that holds only at full scale (NORMAL, no
-slow start): below it the capacity is ``strained_burst_ms`` (a minute's share) scaled, so a
-cluster that is not healthy sees no burst. Admission reserves the cost class's estimate;
-settling the request returns the estimate and charges the real ``took`` (a request that timed
-out is charged its whole deadline), so a run of slow queries makes the next ones wait. On top:
-a daily cap, concurrency leases (global, and 1 for heavy queries), heavy queries per minute and
-per day, and a separate allowance of health probes, which run whatever the budget says.
-
-Pure: (state, request, now) in, (admission, state) out; the gateway keeps the state in Postgres
-so that every ARGUS process shares one budget. A lease expires (its process died) after
-``lease``; its estimate is charged to the day it expired in (remembered in ``expired``, so a
-late settle replaces the estimate with the real cost on that same day only).
+A token bucket refilled per minute up to ``burst_ms`` (both scaled by the health state); admission
+reserves the cost class's estimate and settling charges the real ``took`` (a timeout is charged its
+whole deadline). Also a daily cap, concurrency leases, heavy-query limits and a separate probe
+allowance. Pure: (state, request, now) in, (admission, state) out; the gateway keeps the state in
+Postgres so every ARGUS process shares one budget.
 """
 
 from __future__ import annotations

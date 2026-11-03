@@ -1,20 +1,10 @@
-"""The still-active watch and case membership (Q-C2, plan §5 and §7.1).
+"""The still-active watch and case membership.
 
-* ``case_watch_checks``: one answer of the daily watch for a case, a UTC day and a source
-  (ARGUS's own alerts, or the proxy logs through ``proxy.contact`` / ``proxy.pair``): active,
-  quiet, unverified, or not checked with the reason. A row is decided once: the trigger
-  ``argus_watch_check_guard`` lets only a ``not_checked`` row be replaced (by the next run's
-  answer) and holds the row's identity. ``requests`` and ``asked_on`` count SIEM requests a
-  case's checks sent on a day (a row holds at most 20, the most a case may ask in a day; the
-  sum for a case and day is the runner's: ``argus.cases.watch.cap_for``).
-* ``case_suggestions``: investigations that may belong to a case but are not joined: their
-  match is through a shared address or name, or ties between cases (a person decides).
-  Removed with the investigation by the retention purge (``ON DELETE CASCADE``).
-* ``cases.cause`` gains ``watch``: the suspected case ARGUS opens when activity follows a
-  closure (plan §7.1: a linked suspected case, never a silent reopen).
-
-``argus_runtime`` reads both tables and writes the columns the watch writes; the web's role gets
-nothing (nothing in the web shows them yet: Q-B3).
+``case_watch_checks``: one answer of the daily watch for a case, a UTC day and a source (active,
+quiet, unverified, or not checked with the reason); the trigger ``argus_watch_check_guard`` lets
+only a ``not_checked`` row be replaced. ``case_suggestions``: investigations that may belong to a
+case but are not joined (a person decides). ``cases.cause`` gains ``watch``. The runtime reads
+both tables and writes what the watch writes; the web's role gets nothing.
 
 Revision ID: 0041
 Revises: 0040
@@ -28,7 +18,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0041"
-down_revision: str | None = "0040"  # Q-F3's 0039 and 0040 come first
+down_revision: str | None = "0040"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

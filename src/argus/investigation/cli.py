@@ -1,5 +1,5 @@
-"""``argus investigation ...``: the gaps of a dossier, the deterministic wave and "Check more"
-(Q-F3). Everything here that can send a request to the SIEM says so first, asks for a typed
+"""``argus investigation ...``: the gaps of a dossier, the deterministic wave and "Check more".
+Everything here that can send a request to the SIEM says so first, asks for a typed
 confirmation word and spends the investigation lane; ``--dry-run`` and ``gaps`` send nothing."""
 
 from __future__ import annotations
@@ -350,7 +350,7 @@ def measure_cmd(
     ] = "test",
     config: ConfigOption = None,
 ) -> None:
-    """The gate's gold measurement: how often the decision engine cannot decide a gold item,
+    """The gold measurement: how often the decision engine cannot decide a gold item,
     before the wave and after it (paired, repeated), and that no true positive is proposed
     benign. Without --live nothing is sent: it shows the baseline and what a wave would ask.
     The decision engine learns the gold set's dev answers, so only the test split measures

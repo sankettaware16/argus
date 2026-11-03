@@ -1,12 +1,8 @@
-"""The database side of the outside lookups (AR3, D-165): the cache, the ledger and the limits.
-
-The cache (``outside_lookups``) holds the parsed answer of one (source, kind, indicator) and when
-it was fetched. The ledger (``outside_requests``) has a row per request: written *before* the
-request is sent (outcome ``reserved``, so a crash can only over-count) and finished after. The
-limits (a request per second, minute, day, month) are counted from the ledger under an advisory
-lock per source, so a restart or a second process cannot exceed them; a 429 writes ``stopped_until``
-and nothing is asked of that source before it. The ledger never holds a key or an indicator.
-"""
+"""The database side of the outside lookups: the cache (``outside_lookups``: the parsed answer for
+one source, kind and indicator, and when it was fetched), the ledger (``outside_requests``: a row
+per request, written *before* it is sent so a crash can only over-count) and the limits, counted
+from the ledger under an advisory lock per source; a 429 writes ``stopped_until``. The ledger
+never holds a key or an indicator."""
 
 # ruff: noqa: S608 - every statement is built from this module's constants; values are bound
 from __future__ import annotations

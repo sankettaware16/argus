@@ -1,17 +1,9 @@
-"""The capacity model (plan §11, D-054): does enrichment fit the SIEM's load budget?
+"""The capacity model: does enrichment fit the SIEM's load budget?
 
-A discrete-event simulation that drives the **real budget code** (``argus.gateway.budget``:
-token bucket, daily cap, concurrency, heavy limits) with:
-
-* a job stream replayed from stored alerts (when each investigation got a new alert) under
-  R6's rules: a new investigation runs at once, a changed one at most every 30 minutes, a
-  change during a run queues it again;
-* a per-run request profile (cost classes of the first run and of a re-run) with log-normal
-  server times per cost class, and the collector's own polling sharing the budget;
-* an optional outage (the SIEM unavailable: runs deferred with the worker's backoff), then the
-  health state's slow start (a quarter, then half, then all of the budget).
-
-Pure and seeded: the same inputs give the same report.
+A seeded discrete-event simulation that drives the **real budget code** (``argus.gateway.budget``)
+with a job stream replayed from stored alerts under the queue's rules, per-run request profiles
+with log-normal server times per cost class, the collector's own polling, and an optional outage
+followed by the health state's slow start. Pure: the same inputs give the same report.
 """
 
 from __future__ import annotations
@@ -344,7 +336,7 @@ def full_days(changes: Sequence[tuple[datetime, int]]) -> list[str]:
     return days
 
 
-# Assumptions until R10-R14 measure their templates on es-local and live (D-054): server time
+# Assumptions until the templates are measured on es-local and live: server time
 # per cost class (light from the request ledger: alert mget/ids; medium and heavy guessed for
 # filtered log searches and aggregations on one daily index) and per-run profiles to compare.
 _M, _H, _L, _P = CostClass.MEDIUM, CostClass.HEAVY, CostClass.LIGHT, CostClass.PROBE

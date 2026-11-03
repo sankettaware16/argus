@@ -1,15 +1,9 @@
-"""The case team can correct a case it posted (AR8, D-236): steps that edit in place.
+"""The case team can correct a case it posted: steps that edit in place.
 
-``case_team_steps.kind`` gains three kinds: ``retitle`` (the lead sets the Kibana case's title),
-``redescribe`` (the lead sets its description) and ``edit_comment`` (the user who wrote a comment
-rewrites it). The first two are the lead's alone, as an opening and an alert write are. A
-``redescribe`` and an ``edit_comment`` carry their new text in ``text_body``, a ``retitle`` carries
-its title in the payload. No table is added, so no grant changes: the writer's login moves the same
-columns of the same table.
-
-The three checks are written flat (no BETWEEN, no nesting), so a restore reads them back the same
-(D-234). Downgrading is refused while any step of a new kind exists: the steps are the only record
-of what the case team wrote to production.
+``case_team_steps.kind`` gains ``retitle`` and ``redescribe`` (the lead's alone) and
+``edit_comment`` (the user who wrote a comment rewrites it). No table is added, so no grant changes.
+The three checks are written flat so a restore reads them back the same. Downgrading is refused
+while any step of a new kind exists: the steps are the only record of what the case team wrote.
 
 Revision ID: 0061
 Revises: 0060

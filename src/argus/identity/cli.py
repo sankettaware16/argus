@@ -1,19 +1,12 @@
-"""``argus identity ...``: the identity lane at a terminal (Q-E1).
+"""``argus identity ...``: the identity lane at a terminal.
 
-- ``check --user NAME``: one ``_authenticate`` and one ``_has_privileges`` with that person's
-  own ELK account, the password read with ``getpass`` (never an argument, an environment
-  variable or a file, so it is never in the process table or the shell history). Prints who
-  the account is and what it may do in ARGUS, or why not. ``--dry-run`` prints the two
-  requests and sends nothing (no password asked). Plan §5: the first live run is the user's,
-  with their personal account, never ``elastic`` or a superuser.
-- ``map``: the capability map, in plain words (no request).
-- ``state``: the identity gate (open or closed, and why) and the ``identity`` switch.
-- ``link USER --elk NAME``, ``cutover status``, ``disable-local USER``, ``enable-local USER``: the
-  cutover from local passwords to ELK sign-in (Q-E3, ``argus.web.cutover``). Terminal commands
-  on ARGUS's own database; none of them sends a request to the SIEM.
-
-Exit codes: 0 the account may use ARGUS; 1 refused or denied; 2 a usage or configuration
-error; 3 ARGUS could not tell (the SIEM unreachable, overloaded, the lane stopped or busy).
+- ``check --user NAME``: one ``_authenticate`` and one ``_has_privileges`` with that person's own
+  ELK account (password read with ``getpass``, never an argument or a file); ``--dry-run`` sends
+  nothing. Use a personal account, never ``elastic`` or a superuser.
+- ``map``, ``state``: the capability map and the identity gate, without a request.
+- ``link``, ``cutover status``, ``disable-local``, ``enable-local``: the cutover from local
+  passwords to ELK sign-in, on ARGUS's own database. Exit codes: 0 allowed, 1 refused or denied,
+  2 usage or configuration, 3 could not tell.
 """
 
 from __future__ import annotations
@@ -47,11 +40,11 @@ from argus.observability.redaction import register_secret
 from argus.web.capabilities import LABELS, ordered
 
 identity_app = typer.Typer(
-    no_args_is_help=True, help="The identity lane: check an ELK account, the capability map (Q-E1)."
+    no_args_is_help=True, help="The identity lane: check an ELK account, the capability map."
 )
 cutover_app = typer.Typer(
     no_args_is_help=True,
-    help="Where each account stands on the way from local passwords to ELK sign-in (Q-E3).",
+    help="Where each account stands on the way from local passwords to ELK sign-in.",
 )
 identity_app.add_typer(cutover_app, name="cutover")
 CHECK_DEADLINE = timedelta(seconds=20)  # two calls, their admissions and the index check
@@ -193,7 +186,7 @@ def identity_state(config: ConfigOption = None) -> None:
         typer.echo(line)
 
 
-# --------------------------------------------------------------------------- the cutover (Q-E3)
+# --------------------------------------------------------------------------- the cutover
 
 
 def _in_db[T](settings: Settings, work: Callable[[AsyncConnection], Coroutine[Any, Any, T]]) -> T:

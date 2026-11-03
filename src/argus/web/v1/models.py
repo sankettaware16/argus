@@ -67,8 +67,6 @@ EntityKind = Literal["ip", "host", "domain", "user"]
 StepStatus = Literal["answered", "deferred", "manual", "unknown", "other"]
 ReadingKind = Literal["undecided", "citation", "benign_citation", "floor"]
 
-# --------------------------------------------------------------------------- the session
-
 
 class UserOut(Out):
     id: int
@@ -110,7 +108,7 @@ class SessionOut(Out):
     ``X-CSRF-Token`` on every change; keep it in memory only."""
 
     user: UserOut
-    mode: Literal["local", "elk"]  # a local password account, or an ELK sign-in (Q-E2)
+    mode: Literal["local", "elk"]  # a local password account, or an ELK sign-in
     break_glass: bool  # the emergency account (mode "local"): view and review only, never to Kibana
     unverified: UnverifiedOut | None  # set when ARGUS cannot confirm the person's access in ELK
     capabilities: list[CapabilityOut]
@@ -122,9 +120,6 @@ class SessionOut(Out):
     step_up_valid_until: datetime | None
     since: datetime | None  # when their previous session was last seen ("since your visit")
     site: SiteOut
-
-
-# --------------------------------------------------------------------------- investigations
 
 
 class KeyField(Out):
@@ -197,7 +192,7 @@ class InvestigationOut(Out):
     last_reviewer: str | None
     reasons: list[str]  # reasons to look, never verdicts
     ai: AiVerdictOut | None
-    known: KnownRefOut | None  # the notified case that counts it as a known infection (AR4b)
+    known: KnownRefOut | None  # the notified case that counts it as a known infection
 
 
 class InvestigationPage(Out):
@@ -264,7 +259,7 @@ class StepOut(Out):
 
 class AddressOut(Out):
     address: str
-    kind: str  # asset, campus, internal, public, special, invalid
+    kind: str  # asset, internal, internal, public, special, invalid
     asset: str | None
 
 
@@ -421,8 +416,7 @@ class SamePatternOut(Out):
     assessment: AssessmentOut
 
 
-# --------------------------------------------------------------------------- who used a device
-# AR6 (D-216): the probable users of a device, from the SSO sign-ins ARGUS kept. Account names are
+#  the probable users of a device, from the SSO sign-ins ARGUS kept. Account names are
 # personal data and untrusted text (they come from the logs): an account without ``see_logs`` gets
 # ``hidden`` true, counts and no name in any field. ``lead`` is the one wording the app puts above
 # every such card: a lead, not proof.
@@ -492,12 +486,12 @@ class InvestigationDetail(Out):
     assessments: list[AssessmentOut]  # each assessor's newest, the investigator first
     same_pattern: SamePatternOut | None = None  # when it has no investigator run of its own
     acceptable_assessment_id: int | None  # the current proposal, while not reviewed
-    stance: StanceOut  # what ARGUS thinks of it: a recommendation, a reading, or nothing (AR4)
+    stance: StanceOut  # what ARGUS thinks of it: a recommendation, a reading, or nothing
     ask_available: bool  # whether this server can ask the AI investigator
     gold: GoldItemOut | None
     reviews: list[ReviewOut]  # newest first
     alert_fields: list[FieldCount]  # the columns a reviewer can add to the alerts
-    signins: SigninsOut | None  # who used its devices (AR6); None: not set up on this server
+    signins: SigninsOut | None  # who used its devices; None: not set up on this server
 
 
 class EntityOut(Out):
@@ -530,9 +524,6 @@ class RawAlertOut(Out):
     raw: dict[str, Any]  # as the SIEM stored it
 
 
-# --------------------------------------------------------------------------- changes
-
-
 def _json_integer(value: Any) -> Any:
     """An integer as JSON Schema means it: never true or "1" (pydantic's lax mode would take
     both as 1)."""
@@ -555,8 +546,8 @@ Flag = Annotated[bool, BeforeValidator(_json_boolean)]
 CLEAN = r"^[^\x00]*$"  # Postgres stores no NUL: refused at the door (422), never a 500
 NoteText = Annotated[str, Field(min_length=1, max_length=4000, pattern=CLEAN)]
 # Words a person must have written (a case note, an attestation, a reason): at least one character
-# that is not whitespace as ``str.strip()`` sees it, which is what the server checks (Q-B3 review
-# R3-8: a text of only spaces matched the plain pattern and was refused 422). The class is the
+# that is not whitespace as ``str.strip()`` sees it, which is what the server checks (a text of
+# only spaces matched the plain pattern and was refused 422). The class is the
 # code points Python calls whitespace; a unit test keeps it equal. No look-ahead: pydantic's
 # regex engine has none.
 SPACE = r"\t-\r\x1c-\x20\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000"
@@ -625,9 +616,6 @@ class Accepted(Out):
 
 class AskOut(Out):
     result: Literal["queued", "exists"]  # exists: it has assessed what this shows already
-
-
-# --------------------------------------------------------------------------- proposals, patterns
 
 
 class ProposalOut(Out):
@@ -763,9 +751,6 @@ class PatternReviewIn(In):
 class PatternReviewOut(Out):
     reviewed: int
     changed: int  # changed since you looked: left as they are
-
-
-# --------------------------------------------------------------------------- browse, system
 
 
 class RuleOut(Out):
@@ -938,14 +923,11 @@ class GoldSetOut(Out):
     progress: GoldProgressOut
 
 
-# --------------------------------------------------------------------------- the dashboard
-
-
 class DashboardKpis(Out):
     investigations: int  # active in the span
     open: int
     attention: int  # new work
-    known: int  # what notified cases' known infections keep out of it (AR4b)
+    known: int  # what notified cases' known infections keep out of it
     follow_up: int
     incidents: int  # a person's verdict is true positive
     suspected: int  # ARGUS proposes true positive and nobody has decided yet
@@ -1071,9 +1053,6 @@ class ThreatTileOut(Out):
     could_not_tell: int  # a list was out of date, or the check did not run
     not_checked: int  # no dossier yet, or it holds no threat-list check
     listed: list[InvestigationBrief]  # the most urgent that are on a list, at most 5
-
-
-# --------------------------------------------------------------------------- reports (Q-H3)
 
 
 class ReportRowOut(Out):

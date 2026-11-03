@@ -1,1 +1,1 @@
-"""R6: the durable job queue (D-051)."""
+"""The durable job queue."""

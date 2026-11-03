@@ -1,4 +1,4 @@
-"""Putting the wave together from the settings (Q-F3): the gateway, the pack that reads the
+"""Putting the wave together from the settings: the gateway, the pack that reads the
 answers, the switches and the caps. Used by the assessment service (``argus assess run``, which
 runs a pass of the wave beside the decision engine) and by ``argus investigation ...``."""
 

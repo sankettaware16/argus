@@ -1,4 +1,4 @@
-"""R3 normalizer: Elasticsearch alert hits → typed, time-anchored, groupable alerts."""
+"""Normalizer: Elasticsearch alert hits → typed, time-anchored, groupable alerts."""
 
 from argus.normalize.grouping import GroupingConfig, load_grouping
 from argus.normalize.model import (

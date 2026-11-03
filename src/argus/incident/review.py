@@ -1,25 +1,13 @@
-"""A person's Confirm or Reject of an incident report (AR7, D-190).
+"""A person's Confirm or Reject of an incident report.
 
 The decision is recorded beside the version the person read (``incident_report_decisions``) and
-becomes a **label through the existing review path**: a review
-(:func:`argus.web.reviews.add_review`, the same function the Inbox's Confirm and a pattern
-review use) of each investigation of the case, so the decision engine learns from it and the
-gold set's own answer is saved where the member is a gold item and the person may answer
-gold. Nothing else is invented: no parallel label store, no new way to review.
-
-* **Confirm** says the report's verdict is right. It labels the members with that outcome, but
-  never overrides a person's own earlier review of a member (a different outcome stays).
-* **Reject** says it is wrong, names the outcome the person holds instead and why. The reason is
-  the review's note; it replaces the member's earlier review (the history keeps both).
-* Neither closes anything or asks anyone for an approval: closing a case stays a person's approval
-  (the case machine, W3).
-* A decision names the version of the report the person read: when ARGUS wrote a newer one
-  meanwhile the answer is a conflict and nothing is saved.
-
-The members labelled are the case's active investigations, the newest first, at most
-:data:`LABEL_CAP`; what is left is said. All of it is one transaction (the caller's): a failure
-anywhere leaves no label and no decision.
-"""
+becomes a **label through the existing review path** (:func:`argus.web.reviews.add_review`) for each
+investigation of the case, so the decision engine learns from it. **Confirm** says the verdict is
+right and never overrides a person's own earlier review of a member; **Reject** names the outcome
+the person holds instead and why (the review's note). Neither closes anything. A decision names the
+version the person read: if ARGUS wrote a newer one meanwhile it is a conflict and nothing is saved.
+The members labelled are the case's active investigations, newest first, at most
+:data:`LABEL_CAP`; it is all one transaction."""
 
 from __future__ import annotations
 

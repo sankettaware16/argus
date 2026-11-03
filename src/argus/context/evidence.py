@@ -1,4 +1,4 @@
-"""Evidence records and signals (plan §5.4, D-023, D-054): content-addressed task keys, what a
+"""Evidence records and signals: content-addressed task keys, what a
 gateway outcome means for one task, the order-independent fan-in, bounded snapshots, and the
 rule that a signal is never known (or 0, or false) on evidence that is not complete.
 
@@ -31,7 +31,7 @@ from argus.gateway.errors import (
     UnsupportedValueError,
 )
 
-# The task key's home is the gateway now (the ledger records it, Q-F2); re-exported here.
+# The task key's home is the gateway (the ledger records it); re-exported here.
 from argus.gateway.templates import task_key as task_key
 
 COMPLETE = frozenset({"ok", "empty"})
@@ -57,7 +57,7 @@ RUN_LEVEL: tuple[type[GatewayError], ...] = (
 )
 
 
-class SourceUnavailable(Exception):  # noqa: N818 - the plan's name (§8)
+class SourceUnavailable(Exception):  # noqa: N818 - the name the graph uses
     """The run cannot go on now (the SIEM or Postgres unavailable): the job is deferred, not
     failed, and does not use up an attempt."""
 
@@ -251,7 +251,7 @@ def derived(
     *,
     counts: bool = False,
 ) -> SignalValue:
-    """A signal from evidence (D-023). Any contributing evidence not ``ok``/``empty`` makes it
+    """A signal from evidence. Any contributing evidence not ``ok``/``empty`` makes it
     unknown, with that status as the reason. Evidence that is complete in status but partial
     in coverage (truncated rows, an inexact total, a coverage flag) makes it unknown too, except
     a positive count (``counts=True``), which stays known as a lower bound: "at least 5" is a
@@ -296,7 +296,7 @@ class Known:
 def from_logs(signal: SignalValue) -> SignalValue:
     """A count from a log search: 0 says nothing until ARGUS measures how far the source's
     ingest has got (a gap in ingest also answers 0), so it is unknown; a positive count
-    stands (D-023, D-063)."""
+    stands."""
     zero = (
         signal.status == "known"
         and isinstance(signal.value, int | float)

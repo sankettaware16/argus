@@ -1,24 +1,13 @@
-"""Live Kibana charts inside a case comment (AR10, D-250): the ``!{lens{...}}`` text the cases'
-Markdown plugin turns into a Lens visualisation, built and checked here.
+"""Live Kibana charts inside a case comment: the ``!{lens{...}}`` text the cases' Markdown plugin
+turns into a Lens visualisation, built and checked here.
 
-What Kibana 8.19 does with the text (read from its source, docs/ar10-visualiser.md): the plugin
-matches the prefix ``!{lens`` (6 characters), then scans **brace depth** over the rest of the
-paragraph, counting every ``{`` and ``}`` whatever the quotes around it, until the object closes,
-``JSON.parse``\\s what it collected and takes one more ``}``. A comment whose block is not
-``}``-balanced or not JSON fails to render. :func:`scan` does exactly that, and the unit tests
-hold every block ARGUS builds to it.
-
-A chart is **self-contained** (no saved data view that ARGUS would have to create in the team's
-space): the alerts index as an ad hoc data view (``state.adHocDataViews`` and
-``state.internalReferences``), and **only the case's alerts**: a phrase filter on
-``kibana.alert.workflow_tags`` = the incident ID, the tag the lead puts on every alert it attaches
-(D-195). A chart never searches the log indices.
-
-Every string in a block is plain (:data:`SAFE`: letters, digits, space and ``_ @ . : + / ( ) - $``):
-no brace, quote, backslash, backtick, bracket or angle bracket can be in it, so the brace scan is
-exact and the guardian (:mod:`argus.caseteam.guard`) can let a checked block through whole.
-Values from the report never enter a block except the incident ID, the space, and two times.
-"""
+Kibana 8.19's plugin matches the prefix ``!{lens``, then scans **brace depth** over the rest of
+the paragraph (every ``{`` and ``}``, whatever the quotes), ``JSON.parse``\\s what it collected
+and takes one more ``}``; a block that is not ``}``-balanced or not JSON fails to render.
+:func:`scan` does exactly that. A chart is **self-contained** (an ad hoc data view over the
+alerts index) and searches **only the case's alerts**, by a filter on the incident ID tag. Every
+string in a block is plain (:data:`SAFE`), so the brace scan is exact and the guardian can let a
+checked block through."""
 
 from __future__ import annotations
 
@@ -68,9 +57,6 @@ class Scope:
             "to": stamp(self.last + PAD),
             "mode": "absolute",
         }
-
-
-# --------------------------------------------------------------------------- the parts of a chart
 
 
 def _filters(scope: Scope) -> list[dict[str, Any]]:
@@ -289,9 +275,6 @@ def block(scope: Scope, attributes: Mapping[str, Any]) -> str:
         allow_nan=False,
     )
     return f"{PREFIX}{body}}}"
-
-
-# --------------------------------------------------------------------------- reading a block
 
 
 def scan(text: str) -> list[str]:

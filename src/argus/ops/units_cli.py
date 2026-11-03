@@ -1,5 +1,5 @@
-"""``argus units``: render ARGUS's systemd user units for this installation and install them
-(D-295). A dry run unless ``--apply``; nothing is ever enabled, started, stopped or restarted here
+"""``argus units``: render ARGUS's systemd user units for this installation and install them.
+A dry run unless ``--apply``; nothing is ever enabled, started, stopped or restarted here
 (``argus init --start`` enables the units an installation runs)."""
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import typer
 from argus.ops import units
 
 units_app = typer.Typer(
-    no_args_is_help=True, help="The systemd user units: render and install them (D-295)."
+    no_args_is_help=True, help="The systemd user units: render and install them."
 )
 
 ConfigOption = Annotated[

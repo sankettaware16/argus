@@ -1,15 +1,10 @@
-"""The identity lane's own transport (Q-E1): the only code that sends a person's credential.
+"""The identity lane's own transport: the only code that sends a person's credential.
 
-It is not the gateway's transport and holds no credential of its own: each call is given the
-person's ``Authorization`` header, which goes into that one request and nowhere else (never a
-client default, a log line, an exception or the ledger). Two routes only, ``GET
-/_security/_authenticate`` and ``POST /_security/user/_has_privileges``; HTTPS with the SIEM's
-pinned CA; no proxy or certificate settings from the environment; no redirects followed; 3 s
-to connect and 5 s for the whole exchange (plan §5); answers capped at 256 KB.
-
-Failures are the gateway's typed errors (``TimedOutError``, ``TransportFailedError``) with
-``reached`` saying whether the SIEM may have done any work, which decides what the lane is
-charged (no connection: nothing; a timeout: its whole timeout).
+It holds no credential of its own: each call is given the person's ``Authorization`` header, which
+goes into that one request and nowhere else (never a client default, a log line or the ledger).
+Two routes only (``_authenticate``, ``_has_privileges``); HTTPS with the pinned CA, no proxy, no
+redirects, 3 s to connect and 5 s in all, answers capped at 256 KB. Failures are the gateway's typed
+errors, with ``reached`` saying whether the SIEM may have done any work.
 """
 
 from __future__ import annotations

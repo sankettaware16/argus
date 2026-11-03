@@ -1,21 +1,12 @@
-"""A person's approval of a case's first sequence, the canary (AR8, D-195 point 3).
+"""A person's approval of a case's first sequence, the canary.
 
 The first ``case_team.canary`` cases need a person to approve *that case* before anything is
-written to Kibana. The approval binds the plan's hash (every step's author and exact request), so
-it covers exactly what the person was shown and nothing that changed afterwards; a new report
-version, a new alert or a different text is a new plan and needs a new approval.
-
-It reuses the closures' approval key (:mod:`argus.cases.signing`): ``argus-web`` signs the
-statement, ``argus-writer`` verifies it before the first request. The writer rebuilds the
-statement from the stored columns, so a row changed after signing, or a signature moved to
-another plan, fails. The approver is the user of a live web session with the ``approve``
-capability and a step-up within five minutes (the closures' rule); the approval expires with the
-write window it was given for (the closures' expiry), at most 72 hours.
-
-Not the closures' queue: its request and decision functions bind a case's alert set and a closing
-reason in the database (migrations 0026 and 0030), and extending them is a change to the audit
-chain's functions; this is a table of its own, append-only, with the same key (D-196).
-"""
+written to Kibana. The approval binds the plan's hash (every step's author and exact request), so a
+new report version, alert or text is a new plan and needs a new approval. It reuses the closures'
+approval key (:mod:`argus.cases.signing`): ``argus-web`` signs, ``argus-writer`` verifies before the
+first request. The approver has a live web session with ``approve`` and a step-up within five
+minutes; the approval expires with its write window (72 hours at most). Its table is its own,
+append-only."""
 
 from __future__ import annotations
 

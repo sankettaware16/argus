@@ -1,22 +1,11 @@
-"""Markdown-safe text for Kibana (plan §3 rule 13, DQ10 (a)): deterministic text only.
+"""Markdown-safe text for Kibana: deterministic text only.
 
-Everything the writer puts into a Kibana case is built here from fixed sentences and values:
-
-* a value that came from the logs or from a person is cleaned (control, bidirectional and
-  zero-width characters removed, one line, cut at 200 characters) and **fenced** in a code span
-  that no backtick in the value can close. An address, a domain or a URL is written plain inside
-  that span (a code span is as safe against a click as a defanged value and reads like the
-  hand-made case, D-237);
-* a person's name is escaped for Kibana's Markdown (see :func:`escape`: only what Kibana honours
-  a backslash before is escaped, so no Markdown, HTML, mention or autolink in it acts and no
-  backslash shows);
-* the only link is ARGUS's own, ``<web.public_url>/go/case/<uuid>``, from the configuration;
-* no text of a model, no text of a log line, no comment of a person.
-
-The same payload and context always give the same text, which is what lets the writer find its
-own comment again after an unknown outcome. A template or a parameter the renderer does not
-know is an error, never text.
-"""
+Everything the writer puts into a Kibana case is built here from fixed sentences and values: a
+value from the logs or a person is cleaned (control and zero-width characters removed, one line, cut
+at 200 characters) and **fenced** in a code span no backtick can close; a person's name is escaped
+for Kibana's Markdown; the only link is ARGUS's own; no text of a model, a log line or a person's
+comment. The same payload and context always give the same text, which is what lets the writer find
+its own comment again after an unknown outcome. An unknown template or parameter is an error."""
 
 from __future__ import annotations
 
@@ -43,13 +32,13 @@ _UNSAFE = re.compile(
     "\u200b-\u200f\u2028-\u202e\u2060-\u206f\u3164\ufe00-\ufe0f\ufeff\uffa0\ufff9-\ufffb"
     "\ud800-\udfff\U000e0000-\U000e007f\U000e0100-\U000e01ef]"
 )
-# Kibana 8.19's Markdown (EUI, legacy remark-parse with gfm) honours a backslash only before these
-# (D-237); before anything else it shows the backslash.
+# Kibana's Markdown (EUI, legacy remark-parse with gfm) honours a backslash only before these
+# characters; before anything else it shows the backslash.
 _ESCAPABLE = re.compile(r"([\\`*_{}\[\]()#+\-.!>~|])")
 # A whitespace-separated word that could act without a backslash: a URL, an address with a scheme,
 # ``www.``, a mail or ``@mention``, a script target (a colon cannot be escaped in Kibana). An
 # underscore is no boundary here: it is written ``\_`` and the guardian reads that as a space, so
-# ``_www.x`` must be fenced as ``www.x`` after a space is (D-244).
+# ``_www.x`` must be fenced as ``www.x`` after a space is.
 _ACTIVE = re.compile(
     r"://|(?<![A-Za-z0-9])www\.|(?<![A-Za-z0-9])(?:mailto|javascript|vbscript|data):|@",
     re.IGNORECASE,
@@ -145,7 +134,7 @@ def join(parts: Sequence[tuple[str, bool]], limit: int | None = None) -> str:
 
 
 def plain(text: str) -> str:
-    """Already-clean text made safe for Kibana's Markdown (D-237). Each word is escaped with a
+    """Already-clean text made safe for Kibana's Markdown. Each word is escaped with a
     backslash before the characters Kibana honours one before (see ``_ESCAPABLE``) and nothing
     else, since a backslash before any other character would show; ``&`` and ``<`` are written
     as the entities ``&amp;`` and ``&lt;`` (no HTML, no autolink bracket); and a word that could
@@ -192,7 +181,7 @@ def fence(value: object, limit: int = MAX_VALUE) -> str:
 
 def log_value(value: object) -> str:
     """A value from the logs or the case's indicators: cleaned and fenced. An address, a domain
-    or a URL is written plain in the code span, where nothing acts (D-237)."""
+    or a URL is written plain in the code span, where nothing acts."""
     return fence(value)
 
 

@@ -1,6 +1,6 @@
-# Display registry (plan §5.4, D-058): how each signal reads in the Inbox. Every signal a pack
+# Display registry: how each signal reads in the Inbox. Every signal a pack
 # emits needs an entry (a test checks); names ending in ".*" cover a family.
-# sentence: {value} is the signal's value; how_to_read: one plain line for TAs/RAs.
+# sentence: {value} is the signal's value; how_to_read: one plain line for analysts.
 alert_count:
   label: Alerts
   sentence: "{value} alerts"
@@ -113,7 +113,7 @@ nat.hint:
   label: Many users behind one address
   sentence: "{value}"
   how_to_read: Many different browsers or apps from one address; it may be a shared gateway, not one machine.
-# Q-F4: the evidence templates of batch 1 (context/beacon.py, dns.py, paths.py, source_events.py).
+# Evidence templates (context/beacon.py, dns.py, paths.py, source_events.py).
 pair.beats:
   label: Contacts over time
   sentence: "{value} time buckets in which the host reached the destination"

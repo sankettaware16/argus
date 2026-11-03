@@ -1,10 +1,10 @@
-"""The threat-intel module of the generic pack (R11, D-060).
+"""The threat-intel module of the generic pack.
 
 For an investigation's indicators (IPs that are not private or special, domains, URLs,
-hashes): what the TI sources say (R9, D-293: the site's mirror sources locally; its lookup
+hashes): what the TI sources say (the site's mirror sources locally; its lookup
 sources from the 24 h cache, or as a budgeted remote lookup once ``reference.ti_sync`` is on),
 which other investigations name a listed indicator, when each source host was last seen, and
-how regularly the alerts came. Never "clean" from a source that was not checked (D-023); a
+how regularly the alerts came. Never "clean" from a source that was not checked; a
 site with no source configured has threat intel off, and says so.
 """
 
@@ -47,7 +47,7 @@ def _values(
 ) -> tuple[list[tuple[str, str]], bool]:
     """The indicators to check, and whether the list was cut: more than ``MAX_VALUES``, a URL
     or hash field with more values than the facts show, values cut to the facts' length, or
-    alerts not all read. A cut list cannot be called clean (D-023)."""
+    alerts not all read. A cut list cannot be called clean."""
     found: list[tuple[str, str]] = []
     cut = False
     classify = classifier or IpClassifier(None)  # without the map private space is still known
@@ -211,7 +211,7 @@ def signals(
 ) -> list[SignalValue]:
     """``ti.listed`` counts the indicators any source lists (the stored answers and the live
     lookup); 0 is known only when every source was checked and fresh for every indicator and
-    the list was not cut (D-023)."""
+    the list was not cut."""
     answers = ti.get("answers", [])
     out = [
         local("ti.values", version, len(answers)),
@@ -226,7 +226,7 @@ def signals(
     values = [v for _, v in ti.get("values", [])]
     refs = list(evidence.values())
     keys = tuple(sorted(str(r["task_key"]) for r in refs))
-    if refs:  # a remote lookup ran: its matches count only from complete evidence (D-023)
+    if refs:  # a remote lookup ran: its matches count only from complete evidence
         out.append(
             derived(
                 "ti.listed_remote", version, refs,

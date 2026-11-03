@@ -1,33 +1,12 @@
-"""Closure approval: step-up, signatures, live checks, groups, ARGUS's proposals (Q-C3)
+"""Closure approval: step-up, signatures, live checks, groups, ARGUS's proposals
 
-What the database adds to 0026's approvals (plan §7.1, §7.2, §7.9):
-
-* **A decision needs this session's step-up within 5 minutes** (the one the web signed), a live
-  identity check of the approver at most 30 seconds old showing ``approve`` (and Kibana's
-  ``updateCase`` when the closure writes to Kibana), and the web's signature. The decision
-  stores all three; ``argus-writer`` verifies the signature before sending (argus.cases.
-  sendcheck). Group approvals (≤ 20 benign, false-positive or no-impact closures) need their
-  sample approved one by one first.
-* **Identity checks** (``identity_checks``, append-only): sign-ins, re-checks, step-ups and
-  approvals record their outcome through ``argus_identity_record()``. A denied check (a 401 or
-  403) voids the person's earlier approvals; a disabled account does too.
-* **Only valid approvals count**: the case guard, the outbox guard and the decide function count
-  an approval only while its approver is not revoked since they gave it.
-* **ARGUS proposes** closures (``argus_approval_propose()``, which the runtime may call) after
-  its own request event; it may also ask for a **re-confirmation** of a closure write whose
-  send-time check failed. ARGUS never approves: a proposal still needs a person.
-* **A request binds its requester's live check** (``requester_check``, at most 30 seconds old,
-  recorded as an identity check too), so one person behind two accounts never approves their
-  own request, nor re-confirms a closure they asked for (a re-confirmation's requester is its
-  closure's).
-* **An approval of an outbox row's write** (a resend, a compensating write, a re-confirmation)
-  needs the approver's own Kibana privilege for that write; a merge into a closed case is not
-  approved.
-* **A closure write leaves the outbox** (to ``approved`` or ``sending``) only while its case is
-  still closed by that approval and a complete, unexpired, signed approval (the closure's own
-  or a re-confirmation of one of this closure's writes) allows it. The runtime moves closure
-  writes only through ``argus_closure_write_move()`` (the send-time check's holds, releases,
-  refusals and skips, each audited); a write refused for a person stays until its case changes.
+What the database adds to 0026's approvals: a decision needs the session's step-up within 5
+minutes, a live identity check of the approver at most 30 seconds old showing ``approve``, and the
+web's signature (all stored); group approvals need their sample approved first. Identity checks are
+append-only and a denied check voids the person's earlier approvals. ARGUS may propose closures and
+re-confirmations (``argus_approval_propose()``) but never approves. A request binds its requester's
+live check, so one person behind two accounts never approves their own request. A closure write
+leaves the outbox only while its case is still closed by a valid, signed approval.
 
 Revision ID: 0030
 Revises: 0029
@@ -50,7 +29,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def _m0026() -> ModuleType:
-    """0026's text (frozen, approved as q-c1-approved): the guards are 0026's with the counts
+    """0026's text (frozen): the guards are 0026's with the counts
     and one rule changed, and the downgrade restores 0026's own."""
     path = Path(__file__).with_name("0026_cases_outbox_approvals_chain.py")
     spec = importlib.util.spec_from_file_location("argus_migration_0026", path)
@@ -68,7 +47,7 @@ def _swap(source: str, old: str, new: str) -> str:
 
 
 # An approval counts only while its approver is not revoked since they gave it: the account is
-# not disabled and no identity check denied them afterwards (plan §7.1: any 401 or 403 in a
+# not disabled and no identity check denied them afterwards (any 401 or 403 in a
 # sign-in, re-check or step-up voids their approvals).
 NOT_REVOKED = """NOT EXISTS (SELECT 1 FROM public.users u
                     WHERE u.id = d.approver_user_id AND u.disabled)
@@ -192,7 +171,7 @@ $$;
 
 # The approver is the person of the session (as in 0026); the step-up is that session's own,
 # within 5 minutes, and exactly the one the web signed; the identity check is the web's live
-# check of that person (Q-E1's provider), at most 30 seconds old.
+# check of that person, at most 30 seconds old.
 DECIDE = f"""
 CREATE FUNCTION argus_approval_decide(
     p_session_token text, p_request bigint, p_decision text, p_note text,
@@ -518,7 +497,7 @@ $$;
 # 0026's request function, which now also takes the requester's live check (as the decide
 # function takes the approver's): validated, stored with the request (and so signed with
 # every decision on it) and recorded as an identity check, so the decide function and the
-# send-time check can tell one person behind two accounts (plan §7.1).
+# send-time check can tell one person behind two accounts.
 REQUEST = """
 CREATE FUNCTION argus_approval_request(
     p_session_token text, p_case uuid, p_case_version integer, p_kind text, p_reason text,
@@ -684,8 +663,8 @@ LIVE_CHECK_FN = "argus_live_check_at(jsonb, bigint, text, text)"
 MOVE_FN = "argus_closure_write_move(bigint, text, text)"
 LOCK_FN = "argus_closure_write_lock(bigint)"
 
-# The web signs what it approves: it reads the request and the person's checks (Q-A2's
-# argus_web holds nothing else on the case tables; Q-B3 adds what its pages need).
+# The web signs what it approves: it reads the request and the person's checks (argus_web
+# holds nothing else on the case tables here; a later migration adds what its pages need).
 WEB_GRANTS = (
     "GRANT SELECT ON approval_requests TO argus_web",
     "GRANT SELECT ON approval_decisions TO argus_web",

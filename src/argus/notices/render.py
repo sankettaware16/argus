@@ -1,14 +1,10 @@
-"""The words of a notice (Q-H4): a subject and a body built from **fixed text and numbers only**.
+"""The words of a notice: a subject and a body built from **fixed text and numbers only**.
 
-A notice names its kind, a severity, a count and one link, and nothing else: never a host name,
-an address, a user name, a rule name or any other value from the logs or the case (the readers
-of an e-mail may not be allowed to see them, and e-mail is not private). The link is ARGUS's own
-(``<web address>/go/case/<uuid>`` and the like, built by :func:`link` from a checked web address
-and an id); what is behind it is shown to people who sign in.
-
-:func:`render` takes an :class:`~argus.notices.model.Intent` (kind, reason, severity, count and
-where the link leads): there is no argument a hostile value could travel in.
-"""
+A notice names its kind, a severity, a count and one link, and nothing else: never a host name, an
+address, a user name, a rule name or any other value from the logs or the case (e-mail is not
+private, and its readers may not be allowed to see them). The link is ARGUS's own, built by
+:func:`link` from a checked web address and an id. :func:`render` takes an
+:class:`~argus.notices.model.Intent`: there is no argument a hostile value could travel in."""
 
 from __future__ import annotations
 
@@ -22,7 +18,8 @@ from argus.site import Words
 
 BASE = re.compile(r"https?://[a-z0-9][a-z0-9.-]{0,252}(?::[0-9]{1,5})?")
 
-# Plain words for RAs and TAs: what happened, in one sentence, and what the count counts.
+# Plain words for readers who are not security specialists: what happened, in one sentence, and
+# what the count counts.
 SUBJECT: Mapping[str, str] = Words(
     {
         "case_active": "A confirmed case is still active",

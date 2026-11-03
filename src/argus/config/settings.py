@@ -1,30 +1,9 @@
-"""Typed ARGUS settings.
-
-Sources, highest priority first:
-1. keyword arguments passed to :func:`load_settings` (tests, CLI flags)
-2. systemd's credential directory ``$CREDENTIALS_DIRECTORY`` (secrets of a service in the
-   custody layout, from root-owned files by ``LoadCredential=``, Q-A5)
-3. environment variables ``ARGUS_<SECTION>__<KEY>`` (e.g. ``ARGUS_HISTORY__WINDOW=30d``)
-4. the ``.env`` file (secrets live here in the shared layout; gitignored; shared with docker
-   compose)
-5. the YAML config file (``config/argus.yaml`` or ``$ARGUS_CONFIG``)
-6. defaults below
-
-With ``custody.role`` set (each custody unit sets it), secrets come only from the credential
-directory, and each account may hold only its own (:data:`CUSTODY_SECRETS`): the owner's
-password never reaches a service, a writer key never reaches anything but the writer.
-
-Unknown names are rejected everywhere, so a typo such as ``histroy:`` or
-``ARGUS_HISTORY_WINDOW`` fails loudly instead of silently falling back to a default. Only
-variables without the ``ARGUS_`` prefix are ignored: the environment and ``.env`` are shared
-with other tools. Errors name each bad setting and where it was set, never its value
-(see :mod:`argus.config.sources`).
-
-ARGUS reads these sources itself, not through pydantic-settings, so pydantic-settings' own
-options (``Settings(_env_file=...)``, ``_secrets_dir`` and the like) are refused. Files are
-chosen only through :func:`load_settings`; ``Settings(...)`` built directly reads its keyword
-arguments and the environment.
-"""
+"""Typed ARGUS settings. Sources, highest priority first: keyword arguments to
+:func:`load_settings`, systemd's credential directory (``$CREDENTIALS_DIRECTORY``), environment
+variables ``ARGUS_<SECTION>__<KEY>``, the ``.env`` file, the YAML file (``config/argus.yaml`` or
+``$ARGUS_CONFIG``), then the defaults below. Unknown names are errors everywhere, and errors name
+the setting and where it was set, never its value (:mod:`argus.config.sources`). Under custody
+(``custody.role``) secrets come only from the credential directory (:data:`CUSTODY_SECRETS`)."""
 
 from __future__ import annotations
 
@@ -108,24 +87,24 @@ class HistorySettings(_Section):
     window: Annotated[Duration, bounded_duration(timedelta(hours=1), timedelta(days=365))] = (
         timedelta(days=5)
     )
-    """How far back ARGUS looks: backfill depth and entity-history lookback (D-005)."""
+    """How far back ARGUS looks: backfill depth and entity-history lookback."""
 
 
 class MemorySettings(_Section):
     window: Annotated[Duration, bounded_duration(timedelta(days=1), timedelta(days=3650))] = (
         timedelta(days=90)
     )
-    """How long ARGUS keeps alerts, entity facts and baselines locally (D-028): an
+    """How long ARGUS keeps alerts, entity facts and baselines locally: an
     investigation older than this, with its alerts, reviews and dossiers, is removed by the
-    purge (Q-A4) unless a hold keeps it. Never shorter than ``history.window`` in effect: the
+    purge unless a hold keeps it. Never shorter than ``history.window`` in effect: the
     purge keeps at least what the collector may read again."""
 
 
 class RetentionSettings(_Section):
-    """How long personal data is kept before the purge removes it (D-028, Q-A4). Each period
-    is at least ``history.window`` in effect, so the collector never reads back what the purge
-    took. Audit events and case records are not purged in Phase 3; open cases, pending
-    approvals and the gold set are held."""
+    """How long personal data is kept before the purge removes it. Each period is at least
+    ``history.window`` in effect, so the collector never reads back what the purge took. Audit
+    events and case records are not purged; open cases, pending approvals and the gold set are
+    held."""
 
     raw_source: Annotated[Duration, bounded_duration(timedelta(days=1), timedelta(days=365))] = (
         timedelta(days=30)
@@ -148,7 +127,7 @@ class RetentionSettings(_Section):
     reports this period and a root step sets it (docs/runbooks/retention.md)."""
     scheduled: bool = False
     """Whether ``argus purge run --apply --scheduled`` (argus-purge.timer) may delete: the
-    schedule is the user's approval, separate from the first purge (D-109). Off until then."""
+    schedule is a separate approval from the first purge. Off until then."""
 
 
 def _check_name(name: str) -> str:
@@ -172,8 +151,7 @@ _Name = Annotated[str, AfterValidator(_check_name)]
 
 
 def _check_host(host: str) -> str:
-    """No NUL: libpq would cut the host there. (Text that is not UTF-8 never gets this far: pydantic
-    refuses it while checking the length.)"""
+    """No NUL: libpq would cut the host there."""
     if "\x00" in host:
         raise ValueError("must not contain a NUL character")
     return host
@@ -203,11 +181,10 @@ _Password = Annotated[SecretStr | None, AfterValidator(_check_password)]
 
 
 DatabaseRole = Literal["app", "api", "owner", "writer"]
-"""Who connects (D-029): ``app`` is the runtime role ARGUS runs as; ``api`` the web's own login
-(Q-A2), used by ``argus web`` when ``web.database_role`` says so; ``writer`` the case writer's
-own login (Q-D4: the outbox moves only it may make and what it needs, no more of the
-runtime's); ``owner`` owns the
-schema and runs the ``argus db`` commands (bootstrap, migrations)."""
+"""Who connects: ``app`` is the runtime role ARGUS runs as; ``api`` the web's own login
+(used by ``argus web`` when ``web.database_role`` says so); ``writer`` the case writer's own
+login (it alone may make the outbox moves); ``owner`` owns the schema and runs the
+``argus db`` commands (bootstrap, migrations)."""
 
 
 class DatabaseSettings(_Section):
@@ -221,12 +198,12 @@ class DatabaseSettings(_Section):
     """Owns ARGUS's tables and runs ``argus db``; on the local Docker server, its superuser."""
     owner_password: _Password = None
     api_user: _Name = "argus_api"
-    """The web's own login (Q-A2): a member of ``argus_web`` only, with exactly the grants the
+    """The web's own login: a member of ``argus_web`` only, with exactly the grants the
     web needs. ``argus db bootstrap`` makes it once ``api_password`` is set."""
     api_password: _Password = None
     writer_user: _Name = "argus_writer_app"
-    """The case writer's own login (Q-D4): a member of ``argus_writer`` only (not of
-    ``argus_runtime``, review R8), the one login that may move Kibana outbox rows to sending,
+    """The case writer's own login: a member of ``argus_writer`` only (not of
+    ``argus_runtime``), the one login that may move Kibana outbox rows to sending,
     sent and verified. ``argus db bootstrap`` makes it once ``writer_password`` is set."""
     writer_password: _Password = None
     pool_size: int = Field(default=5, ge=1, le=50)
@@ -313,9 +290,9 @@ class DatabaseSettings(_Section):
 
 class AssetsSettings(_Section):
     map_path: Path = Path("data/assets/asset_map.yaml")
-    """The imported asset map (``argus assets import``, D-032); local only, never committed."""
+    """The imported asset map (``argus assets import``); local only, never committed."""
     campus_prefixes: tuple[IPv4Network | IPv6Network, ...] = ()
-    """Deprecated, the older name of ``site.own_networks`` (D-284): its networks join the
+    """Deprecated, the older name of ``site.own_networks``: its networks join the
     site's, so an install that sets this (the YAML, ``ARGUS_ASSETS__CAMPUS_PREFIXES``) goes on
     working; new ones set ``site.own_networks``."""
 
@@ -331,7 +308,7 @@ def _check_https_or_none(url: str | None) -> str | None:
 
 
 class SiemBudgetSettings(_Section):
-    """The load budget (D-022), counted in Elasticsearch server time."""
+    """The load budget, counted in Elasticsearch server time."""
 
     took_per_minute_ms: int = Field(default=3_000, ge=100, le=60_000)
     burst_ms: int = Field(default=3_000, ge=100, le=60_000)
@@ -344,7 +321,7 @@ class SiemBudgetSettings(_Section):
 
 
 class SiemHealthSettings(_Section):
-    """Starting thresholds of the health state machine (plan §5.1), calibrated at R4."""
+    """Starting thresholds of the health state machine."""
 
     disk_caution: float = Field(default=85.0, gt=0, lt=100)
     disk_degraded: float = Field(default=90.0, gt=0, lt=100)
@@ -363,7 +340,7 @@ class SiemHealthSettings(_Section):
 
 
 class LaneSettings(_Section):
-    """One lane's own allowance (plan §7.8), instead of its share of the ceiling."""
+    """One lane's own allowance, instead of its share of the ceiling."""
 
     per_minute_ms: int = Field(ge=0, le=60_000)
     per_day_ms: int = Field(ge=0, le=86_400_000)
@@ -375,9 +352,8 @@ class LaneSettings(_Section):
 
 
 class SiemLanesSettings(_Section):
-    """The lane budgets (plan §7.8, Q-D2): each lane a sub-allowance of the ceiling
-    (``siem.budget``). A lane left out keeps its share of §7.8's table scaled to the
-    ceiling; the lanes together never exceed it (checked)."""
+    """The lane budgets: each lane a sub-allowance of the ceiling (``siem.budget``). A lane left
+    out keeps its default share of the ceiling; the lanes together never exceed it (checked)."""
 
     collector: LaneSettings | None = None
     investigation: LaneSettings | None = None
@@ -389,29 +365,28 @@ class SiemLanesSettings(_Section):
 
 
 class SiemSettings(_Section):
-    """The production SIEM, reached only through the Elastic Gateway (R4, D-048). Which indices
-    it holds, the Kibana space and the versions are the ``site`` section (D-238)."""
+    """The production SIEM, reached only through the Elastic Gateway. Which indices
+    it holds, the Kibana space and the versions are the ``site`` section."""
 
     url: Annotated[str | None, AfterValidator(_check_https_or_none)] = None
     """The SIEM's Elasticsearch address (``https://host:9200``); none until it is set: ARGUS
     has no default address and sends nothing without one (``address``)."""
     ca_file: Path = Path("data/certs/siem-ca.crt")
-    """The SIEM's CA certificate, pinned (D-033)."""
+    """The SIEM's CA certificate, pinned."""
     api_key: SecretStr | None = None
     """The read-only ``argus_reader`` API key (encoded form); only in ``.env``."""
     api_key_expires: date | None = None
     """When ``api_key`` expires (UTC day), as its creation recorded it: ``argus doctor`` warns
-    30 days ahead (Q-A2). Elasticsearch is never asked: doctor sends no request."""
-    writer_api_key: SecretStr | None = None  # R17 write-back only (D-061); none until approved
+    30 days ahead. Elasticsearch is never asked: doctor sends no request."""
+    writer_api_key: SecretStr | None = None  # write-back only; none until approved
     writer_api_key_expires: date | None = None
-    """When ``writer_api_key`` expires (writer keys live 30 days, plan §7.9)."""
+    """When ``writer_api_key`` expires (writer keys live 30 days)."""
     budget: SiemBudgetSettings = SiemBudgetSettings()
     health: SiemHealthSettings = SiemHealthSettings()
     lanes: SiemLanesSettings = SiemLanesSettings()
 
     @property
     def shown_url(self) -> str:
-        """The address as a plan or a dry run prints it (nothing is sent)."""
         return self.url or "(siem.url is not set)"
 
     def address(self) -> str:
@@ -421,7 +396,7 @@ class SiemSettings(_Section):
         return self.url
 
     def ceiling(self) -> Any:
-        """D-022's ceiling as the gateway's budget takes it (``argus.gateway.budget``)."""
+        """The load ceiling as the gateway's budget takes it (``argus.gateway.budget``)."""
         from argus.gateway.budget import BudgetConfig  # light: no settings, no database
 
         b = self.budget
@@ -470,14 +445,13 @@ def _items(value: Any) -> Any:
 
 
 LOOPBACK = ("127.0.0.1", "localhost")  # IPv4: Starlette's host check cannot read [::1]
-# A host name or IPv4 address in links: what ``argus.notices.render`` writes into a link (its own
-# pattern is this one plus a scheme and a port).
+# A host name or IPv4 address in links: what ``argus.notices.render`` writes into a link.
 _LINK_HOST = r"[a-z0-9][a-z0-9.-]{0,252}"
 
 
 def _public_url(value: str | None) -> str | None:
-    """The address people's links use (``/go/...`` deep links; plan §7.1, DQ29): a scheme and a
-    host name with an optional port, nothing else; http only for the loopback."""
+    """The address people's links use (``/go/...`` deep links): a scheme and a host name with an
+    optional port, nothing else; http only for the loopback."""
     if value is None:
         return None
     from urllib.parse import urlsplit
@@ -506,10 +480,10 @@ def _public_url(value: str | None) -> str | None:
 
 
 class WebSettings(_Section):
-    """The Inbox (R7, D-052). The loopback by default; another address (D-104) only with TLS,
-    the host names browsers use, and the networks clients may come from. Sessions end after
-    ``session_idle`` without a person's request (background polls do not count) and
-    ``session_absolute`` after sign-in at most (plan §7.2, DQ17)."""
+    """The Inbox. The loopback by default; another address only with TLS, the host names
+    browsers use, and the networks clients may come from. Sessions end after ``session_idle``
+    without a person's request (background polls do not count) and ``session_absolute`` after
+    sign-in at most."""
 
     host: str = "127.0.0.1"
     port: int = Field(default=8765, ge=1024, le=65535)
@@ -519,8 +493,8 @@ class WebSettings(_Section):
     session_absolute: Annotated[
         Duration, bounded_duration(timedelta(minutes=10), timedelta(days=7))
     ] = timedelta(hours=8)
-    # the address in permanent links (``/go/case/<uuid>``): DQ29's host name once it has its
-    # certificate; without it, links use the first allowed host (or the loopback)
+    # the address in permanent links (``/go/case/<uuid>``); without it, links use the first
+    # allowed host (or the loopback)
     public_url: Annotated[str | None, AfterValidator(_public_url)] = None
     tls_cert: Path | None = None
     tls_key: Path | None = None
@@ -530,40 +504,37 @@ class WebSettings(_Section):
         tuple[IPv4Network | IPv6Network, ...], BeforeValidator(_items)
     ] = ()  # the clients allowed besides the loopback
     database_role: Literal["app", "api"] = "app"
-    """The login the web uses: ``api`` is its own (``database.api_user``, Q-A2), with only the
+    """The login the web uses: ``api`` is its own (``database.api_user``), with only the
     grants the web needs; ``app`` the runtime login every other ARGUS process uses."""
     classic: Literal["primary", "fallback"] = "primary"
-    """Which are the main pages (Q-B4, plan §7.5): ``primary`` serves the classic pages at their
-    addresses, as before; ``fallback`` is the switch to the app: a classic page's address leads
-    to the same page under ``/app`` (303); the classic pages stay for one gate as a read-only
-    fallback a person chooses at ``/classic`` (their forms are refused with a pointer to
-    ``/app``); a permanent link to an investigation opens it in the app. Off until the person
-    who approves the switch turns it on (``ARGUS_WEB__CLASSIC=fallback``); back to ``primary`` is
-    the whole rollback."""
+    """Which are the main pages: ``primary`` serves the classic pages at their addresses;
+    ``fallback`` leads a classic page's address to the same page under ``/app`` (303), keeps the
+    classic pages read-only at ``/classic`` (their forms are refused with a pointer to ``/app``)
+    and opens a permanent link to an investigation in the app. Back to ``primary`` is the whole
+    rollback."""
     spa_dir: Path | None = None
-    """The folder the app at ``/app`` is served from (Q-B1): by default the build committed in
-    the package (``argus/web/spa``, DQ25); another folder only for a test or a deploy copy."""
+    """The folder the app at ``/app`` is served from: by default the build committed in
+    the package (``argus/web/spa``); another folder only for a test or a deploy copy."""
     tls_pin_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     """The SHA-256 of the certificate the web serves (DER, lowercase hex). ``argus doctor``
-    fails when the certificate no longer matches it: browsers would warn, and a person must
-    never type a password past a certificate warning (plan §3 rule 8)."""
+    fails when the certificate no longer matches it: browsers would warn, and a person must never
+    type a password past a certificate warning."""
     elk_signin: bool = False
-    """ELK sign-in (Q-E2, plan §7.2): people sign in with their own ELK account, checked
-    against Elasticsearch. Off by default: local accounts stay, and switching it off again is
-    the one-gate rollback (each local password is kept until its person's ELK sign-in has
-    worked). Needs ``secret_file``, and TLS (or the loopback)."""
+    """ELK sign-in: people sign in with their own ELK account, checked against Elasticsearch.
+    Off by default: local accounts stay (each local password is kept until its person's ELK
+    sign-in has worked). Needs ``secret_file``, and TLS (or the loopback)."""
     secret_file: Path | None = None
     """The file holding the web's own secret (64 hex digits, mode 0600, ``argus sessions
-    keygen``): with a session's token it keys the encrypted copy of a person's ELK credential
-    (DQ16 (a)), and it keys the HMAC of the names in the audit trail of failed sign-ins. Read by
+    keygen``): with a session's token it keys the encrypted copy of a person's ELK credential,
+    and it keys the HMAC of the names in the audit trail of failed sign-ins. Read by
     ``argus-web`` alone."""
     approval_key_file: Path | None = None
     """The key that signs approvals (``argus approvals keygen``; 64 hex digits, mode 0600), read
     by ``argus-web`` alone (the writer verifies with its own copy, ``kibana.writer.approval_keys``).
-    Without it the approvals queue can be read but no decision is recorded (Q-B3)."""
+    Without it the approvals queue can be read but no decision is recorded."""
     failure_delay_s: float = Field(default=1.5, ge=0, le=10)
     """Seconds: every failed sign-in or step-up is answered this long after the request arrived,
-    so the time never shows whether a name exists (plan §7.2)."""
+    so the time never shows whether a name exists."""
     signin_delay_s: float = Field(default=1.0, ge=0, le=60)
     """Seconds: the first of the exponential waits between checks of one name from one client:
     after a second refusal the next check waits this long, then twice, four times as long (the
@@ -630,38 +601,21 @@ class WebSettings(_Section):
 
 
 class ReferenceSettings(_Section):
-    """Reference data (R9, D-057). The threat-intel sync reads the SIEM with templates whose
-    first live run is the user's (D-056): off until then."""
+    """Reference data. The threat-intel sync reads the SIEM with read templates; off by default."""
 
     ti_sync: bool = False
 
 
 class OutsideSettings(_Section):
-    """Outside threat intel (AR3, D-165): VirusTotal for the reputation of a public address or
-    name, Shodan and Censys for what a public server is. **A source without a key is off.** The
-    keys are the user's free personal ones, only in ``.env`` (``ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY``,
-    ``..._SHODAN_API_KEY``, ``..._CENSYS_API_KEY``; Censys's is a Platform personal access token).
-
-    Every limit is below its free plan's: VirusTotal's public API is 4 a minute and 500 a day
-    (docs.virustotal.com, "public vs premium API"; a value above is refused), Shodan's 1 a second
-    (host lookups cost no query credit; ARGUS never searches; a value above is refused), Censys's
-    free account has 100 credits a month and a host lookup costs 1 (docs.censys.com, "Credits for
-    Free and Starter users"; the budget is half of it, and a paid account may raise it).
-    A source that answers 429 is stopped for the rest of its window whatever these say.
-    ``cache_window``: a detection and a server's description are kept this long and the indicator
-    is never asked twice inside it. ``clean_cache_window``: every other answer (no record, or
-    VirusTotal's engines below the threshold) is kept this long only, so a fresh server nobody
-    flags yet is looked at again (at most ``cache_window``). ``error_backoff``: an indicator that
-    got no usable answer is not asked again for this long (kept in the running process).
-    ``flag_threshold``: VirusTotal engines that must call an indicator malicious before ARGUS
-    calls it flagged (the evidence flag, the safety floor). ``prefetch_*``: the daily look-up of
-    the external destinations of beacon-flagged investigations (D-164's link).
-    ``families_per_day`` (AR2c, D-168): VirusTotal requests a day for domain families (the parent
-    domain of a family of many names, then its first address: about half as many families), taken
-    from the same 400 as the prefetch's and the investigator's (so ``prefetch_per_day`` is 260:
-    40 + 260 leave 100 for the investigator); 0 switches the family look-ups off.
-    ``shodan_internetdb``: with no Shodan key, the ``shodan`` source asks Shodan's free
-    InternetDB (no key; ports, names, software, known CVEs) instead of being off."""
+    """Outside threat intel: VirusTotal for the reputation of a public address or name, Shodan and
+    Censys for what a public server is. **A source without a key is off.** The keys are free
+    personal ones, only in ``.env`` (``ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY``, ``..._SHODAN_API_KEY``,
+    ``..._CENSYS_API_KEY``). Every limit is below its free plan's (a larger value is refused), and
+    a source that answers 429 is stopped for the rest of its window. ``cache_window``,
+    ``clean_cache_window`` and ``error_backoff`` set how long answers are kept and failures not
+    retried; ``flag_threshold`` is the VirusTotal engines that make a detection; ``prefetch_*`` and
+    ``families_per_day`` budget the daily look-ups, which share VirusTotal's day with the
+    investigator; ``shodan_internetdb`` is the keyless fallback."""
 
     virustotal_api_key: SecretStr | None = None
     shodan_api_key: SecretStr | None = None
@@ -716,35 +670,31 @@ BatchTemplate = Literal[
 
 
 class EnrichmentSettings(_Section):
-    """Evidence from the SIEM's logs (R12 to R14, D-060). New log templates' first live run is the
-    user's (D-056): off until then."""
+    """Evidence from the SIEM's logs. Each template is off until switched on."""
 
-    log_queries: bool = False  # the web follow-up search (R13)
-    proxy_aggregations: bool = False  # the proxy aggregations (R12): their own run (D-069)
-    # Q-F4's evidence templates, batch 1: each one on only after its own first production run
-    # passed within its limit (plan §5 Q-F4); from YAML a list, from the environment a
-    # comma-separated string.
+    log_queries: bool = False  # the web follow-up search
+    proxy_aggregations: bool = False  # the proxy aggregations
+    # the evidence templates switched on; from YAML a list, from the environment a
+    # comma-separated string
     templates: Annotated[tuple[BatchTemplate, ...], BeforeValidator(_items)] = ()
 
 
 class InvestigationSettings(_Section):
-    """Deep investigation (Q-F3, plan §7.3). ``wave`` switches the deterministic wave on: for an
-    undecided investigation with a closable gap, ARGUS asks the ranked checks through the
-    investigation lane (400 ms a minute, 6 minutes and 300 heavy requests a day, NORMAL health
-    only) before any model is asked. Off until the first live wave, which is the user's. A
-    person's "Check more" runs whatever this says (each check still obeys the lane, the
-    switches and the templates' own first-run switches). The item caps bound one wave."""
+    """Deep investigation. ``wave`` switches the deterministic wave on: for an undecided
+    investigation with a closable gap, ARGUS asks the ranked checks through the investigation
+    lane (NORMAL health only) before any model is asked. A person's "Check more" runs whatever
+    this says (each check still obeys the lane and the switches). The item caps bound one wave."""
 
     wave: bool = False
-    wave_per_day: int = Field(default=120, ge=1, le=1_000)  # plan §7.3: 75 to 150 a day
+    wave_per_day: int = Field(default=120, ge=1, le=1_000)  # waves a day at most
     item_requests: int = Field(default=4, ge=1, le=12)  # requests one wave may send
     item_heavy: int = Field(default=2, ge=0, le=6)  # of them heavy (log aggregations)
     item_server_ms: int = Field(default=4_000, ge=100, le=20_000)  # SIEM time one wave may spend
 
 
 class KibanaSyncSettings(_Section):
-    """The read-back and reconciliation (Q-D3, ``argus kibana sync``): read-only, off by
-    default; it runs only while ``kibana.enabled`` is true as well (plan §5 Q-D3)."""
+    """The read-back and reconciliation (``argus kibana sync``): read-only, off by default; it
+    runs only while ``kibana.enabled`` is true as well."""
 
     enabled: bool = False
     normal: Annotated[Duration, bounded_duration(timedelta(minutes=2), timedelta(hours=2))] = (
@@ -768,7 +718,7 @@ class KibanaSyncSettings(_Section):
     ] = timedelta(hours=1)
     """People's cases holding ARGUS's alerts (``kibana.alert.case_ids``) and alert changes."""
     discovery_calls: int = Field(default=3, ge=0, le=20)
-    """Searches of 100 known alerts each per discovery (a rotating window, plan §7.1)."""
+    """Searches of 100 known alerts each per discovery (a rotating window)."""
     diff_calls: int = Field(default=5, ge=1, le=20)
     """Searches of 100 alerts each per discovery for the status changes of the alerts on
     ARGUS's cases: a rotating slice, so the load does not grow with the alerts a case holds."""
@@ -777,18 +727,18 @@ class KibanaSyncSettings(_Section):
     )
     """Kibana's clock (its Date header) further from ARGUS's than this raises an alarm."""
     team_cases: bool = True
-    """Read the case team's cases back as well as the service user's (P4-B1, D-270): one find
-    names every ARGUS identity as a reporter (``kibana.service_user`` and ``case_team.users()``),
-    so a person's edit, close, reopen or delete of a case-team case reaches ARGUS. Costs no extra
+    """Read the case team's cases back as well as the service user's: one find names every
+    ARGUS identity as a reporter (``kibana.service_user`` and ``case_team.users()``), so a
+    person's edit, close, reopen or delete of a case-team case reaches ARGUS. Costs no extra
     request per cycle; false for an installation without the case team."""
 
 
 class KibanaWriterSettings(_Section):
-    """The case writer (Q-D4, plan §7.1): which classes ``argus writer run`` sends on a schedule
-    (a class named here has finished its canary and ramp, and is switched on by a person), how
-    often it looks (at most every 10 minutes), and the approval keys it verifies closures,
-    resends and compensating writes with. Canaries and ramp steps run at the terminal
-    (``argus kibana run``) with the class name typed, whatever is set here."""
+    """The case writer: which classes ``argus writer run`` sends on a schedule (a class named
+    here has finished its canary and ramp, and is switched on by a person), how often it looks
+    (at most every 10 minutes), and the approval keys it verifies closures, resends and
+    compensating writes with. Canaries and ramp steps run at the terminal (``argus kibana run``)
+    with the class name typed, whatever is set here."""
 
     scheduled: Annotated[tuple[Literal["W1", "W2", "W3"], ...], BeforeValidator(_items)] = ()
     """Classes the service runs by itself; each must also be in ``kibana.write_classes``."""
@@ -797,58 +747,56 @@ class KibanaWriterSettings(_Section):
     )
     approval_keys: Annotated[tuple[Path, ...], BeforeValidator(_items)] = ()
     """The approval signing key files the writer verifies decisions with (``argus approvals
-    keygen``; under custody the credential ``approval-signing.key``, Q-C3)."""
+    keygen``; under custody the credential ``approval-signing.key``)."""
 
 
 class KibanaSettings(_Section):
-    """The Kibana lane (Q-D2): off by default; nothing is sent to Kibana while ``enabled`` is
-    false (the Kibana versions it writes to are ``site.kibana_versions``). Writes need their
-    class named in ``write_classes`` (none by default), the writer's key and a person present at
-    each class's canary (plan §7.1); under D-109 no write is made to the SIEM."""
+    """The Kibana lane: off by default; nothing is sent to Kibana while ``enabled`` is false (the
+    Kibana versions it writes to are ``site.kibana_versions``). Writes need their class named in
+    ``write_classes`` (none by default), the writer's key and a person present at each class's
+    canary."""
 
     enabled: bool = False
     url: Annotated[str | None, AfterValidator(_check_https_or_none)] = None
     """Kibana's address (``https://host:5601``); none until it is set (``address``)."""
     ca_file: Path = Path("data/certs/siem-ca.crt")
-    """The CA Kibana's certificate must chain to (DQ2 (a): the SIEM's CA, pinned)."""
+    """The CA Kibana's certificate must chain to (the SIEM's CA, pinned)."""
     base_path: str = Field(default="", pattern=r"^(/[a-z0-9_-]{1,32}){0,3}$")
-    """Kibana's ``server.basePath`` if the admin set one (Q1), e.g. ``/kibana``; else empty."""
+    """Kibana's ``server.basePath`` if one is set, e.g. ``/kibana``; else empty."""
     timeout: Annotated[Duration, bounded_duration(timedelta(seconds=1), timedelta(seconds=60))] = (
         timedelta(seconds=15)
     )
     reader_api_key: SecretStr | None = None
-    """Cases Read only (DQ3 (a)); in ``.env`` (ARGUS_KIBANA__READER_API_KEY)."""
+    """Cases Read only; in ``.env`` (ARGUS_KIBANA__READER_API_KEY)."""
     reader_api_key_expires: date | None = None
-    cases_writer_api_key: SecretStr | None = None  # W1-W3; the writer's own credential (Q-A5)
+    cases_writer_api_key: SecretStr | None = None  # W1-W3; the writer's own credential
     cases_writer_api_key_expires: date | None = None
-    alert_writer_api_key: SecretStr | None = None  # WA (Q-D5); the writer's own credential
+    alert_writer_api_key: SecretStr | None = None  # WA; the writer's own credential
     alert_writer_api_key_expires: date | None = None
     service_user: str = Field(default="argus", pattern=r"^[A-Za-z0-9_.@-]{1,64}$")
     """The ELK user that owns ARGUS's keys: every case ARGUS writes must show it as author."""
     write_classes: Annotated[
         tuple[Literal["W1", "W2", "W3", "WA", "WC"], ...], BeforeValidator(_items)
     ] = ()
-    """The write classes switched on at this host, each typed by name (plan §7.1): none. ``WC``
-    is the case team's (AR8, D-195); it also needs ``case_team.post`` and the six users' keys."""
+    """The write classes switched on at this host, each typed by name: none by default. ``WC``
+    is the case team's; it also needs ``case_team.post`` and the case team's keys."""
     write_window: tuple[str, str] = ("02:30", "17:30")
-    """UTC, DQ8 (a); never the site's quiet hours (``site.quiet_hours``, default 00:00-01:30).
-    It stays in UTC whatever the site's zone is."""
+    """UTC; never the site's quiet hours (``site.quiet_hours``). It stays in UTC whatever the
+    site's zone is."""
     accepted_residual: Annotated[tuple[str, ...], BeforeValidator(_items)] = ()
-    """Privileges a key holds beyond its profile that a decision accepted (DQ3's fallback
-    cases writer: api:rac, the alert updates, deleteCase); ``argus kibana selftest`` lists
-    them instead of failing."""
+    """Privileges a key holds beyond its profile that a person accepted (the fallback cases
+    writer's: api:rac, the alert updates, deleteCase); ``argus kibana selftest`` lists them
+    instead of failing."""
     sync: KibanaSyncSettings = KibanaSyncSettings()
-    """The read-back and reconciliation (Q-D3): off by default."""
+    """The read-back and reconciliation: off by default."""
     writer: KibanaWriterSettings = KibanaWriterSettings()
-    """The case writer (Q-D4): nothing runs on a schedule by default."""
+    """The case writer: nothing runs on a schedule by default."""
 
     @property
     def shown_url(self) -> str:
-        """The address as a plan or a dry run prints it (nothing is sent)."""
         return self.url or "(kibana.url is not set)"
 
     def address(self) -> str:
-        """Kibana's address; ConfigError when none is set (nothing is sent then)."""
         if self.url is None:
             raise ConfigError("kibana.url is not configured (kibana: url: in the settings file)")
         return self.url
@@ -884,21 +832,20 @@ class KibanaSettings(_Section):
 
 
 class WritebackSettings(_Section):
-    """Writing people's review results back to the alerts in Kibana (R17 v2, Q-D5, D-061,
-    D-110 DQ11 (a)): **off**. A real run also needs ``kibana.write_classes`` to name ``WA``, the
-    alert writer's key (``kibana.alert_writer_api_key``, with a recorded expiry) and a person at
-    a terminal who types the confirmation. The first run writes at most 5 alerts; after that a
-    call names ``batch`` alerts (5 until production numbers, at most 100), at least 60 s apart,
-    inside the lane's daily alert-mutation cap."""
+    """Writing people's review results back to the alerts in Kibana: **off**. A real run also
+    needs ``kibana.write_classes`` to name ``WA``, the alert writer's key
+    (``kibana.alert_writer_api_key``, with a recorded expiry) and a person at a terminal who types
+    the confirmation. The first run writes at most 5 alerts; after that a call names ``batch``
+    alerts (at most 100), at least 60 s apart, inside the lane's daily alert-mutation cap."""
 
     enabled: bool = False
     batch: Annotated[int, Field(ge=1, le=100)] = 5
-    """Alerts in one status call (a decision raises it past 5, after the first runs)."""
+    """Alerts in one status call."""
     run_limit: Annotated[int, Field(ge=1, le=1000)] = 50
     """Alerts one terminal run writes at most (a call every 60 s: 50 alerts take 10 minutes)."""
     f1_audited: bool = False
-    """The user's decision that the audit of Q-F1's "nothing found" passed: until then a benign
-    verdict resting on one waits (plan §10 DQ11)."""
+    """Set once the audit of the freshness "nothing found" answers has passed: until then a
+    benign verdict resting on one waits."""
 
 
 class LoggingSettings(_Section):
@@ -915,7 +862,7 @@ POSTGRES_IMAGE = (
 
 
 class BackupSettings(_Section):
-    """Backups of ARGUS's database (Q-A2): a nightly dump, a weekly restore drill and a dump
+    """Backups of ARGUS's database: a nightly dump, a weekly restore drill and a dump
     before every migration. Dumps hold production data: they stay under ``data/`` (mode 0600,
     never committed)."""
 
@@ -929,27 +876,27 @@ class BackupSettings(_Section):
     max_age: Annotated[Duration, bounded_duration(timedelta(days=8), timedelta(days=365))] = (
         timedelta(days=35)
     )
-    """No dump older than this is kept, whatever its kind (Q-A4): dumps hold the raw alerts and
-    snapshots the retention purge removes, on a disk without encryption (D-031). The one
+    """No dump older than this is kept, whatever its kind: dumps hold the raw alerts and
+    snapshots the retention purge removes, on a disk without encryption. The one
     exception is the newest dump a drill restored (or, while none was, the newest dump): a
     backup to restore from is never lost to its age. At least the weekly drill's cycle."""
     before_migration: bool = False
     """``argus db upgrade`` and ``downgrade`` dump the database first and stop if that fails
     (``--no-backup`` skips it, for a person who decides so). Switched on in production's own
     .env (``ARGUS_BACKUP__BEFORE_MIGRATION=true``), never in config/argus.yaml, which every
-    checkout and stream worktree loads (QA2-R1)."""
+    checkout and stream worktree loads."""
     tools: Literal["compose", "image"] = "image"
     """Where pg_dump and pg_restore run: ``image`` (the default) in a throwaway container of the
     pinned image on the host's network, with the owner's password from the environment;
     ``compose`` inside the db service's own container over its local socket. docker-compose.yml
     names its project ``argus``, so ``compose`` from any checkout reaches production's
-    container: only production's .env may choose it (QA2-R1)."""
+    container: only production's .env may choose it."""
     image: str = Field(default=POSTGRES_IMAGE, pattern=_PINNED_IMAGE)
     """The image for ``image``: pinned by digest, as docker-compose.yml pins the server's."""
 
 
 class SoakSettings(_Section):
-    """The soak gate (P4-A1): ``argus soak phase3 --write`` saves each report under ``dir`` as
+    """The soak gate: ``argus soak phase3 --write`` saves each report under ``dir`` as
     ``<UTC timestamp>.json``. The folder holds counts and labels only (never a name or a value
     from the logs); it stays under ``data/`` and is never committed."""
 
@@ -957,17 +904,17 @@ class SoakSettings(_Section):
 
 
 CustodyRole = Literal["svc", "web", "writer", "owner"]
-"""The accounts of the custody layout (Q-A5, plan §7.9): ``svc`` (system user ``argus-svc``:
-collector, worker, assessments, soak samples, Kibana read-back), ``web`` (``argus-web``),
-``writer`` (``argus-writer``: Kibana and alert writes) and ``owner`` (the owner's commands,
-started by root through ``argus-owner``: migrations, bootstrap, backups, resumes)."""
+"""The accounts of the custody layout: ``svc`` (system user ``argus-svc``: collector, worker,
+assessments, soak samples, Kibana read-back), ``web`` (``argus-web``), ``writer``
+(``argus-writer``: Kibana and alert writes) and ``owner`` (the owner's commands, started by
+root through ``argus-owner``: migrations, bootstrap, backups, resumes)."""
 
 # Which secret settings each account may hold. Every secret setting is named here (a test
 # fails otherwise), so a new one gets an owner before it can be configured under custody.
 CUSTODY_SECRETS: dict[str, frozenset[str]] = {
-    # the Kibana reader key (Cases Read only) is loaded only by argus-kibana-sync (Q-D3)
-    # the notices' relay password (Q-H4) is optional: a campus relay may need none
-    # the outside threat-intel keys (AR3, D-165) are optional: a source without a key is off
+    # the Kibana reader key (Cases Read only) is loaded only by argus-kibana-sync
+    # the notices' relay password is optional: a relay may need none
+    # the outside threat-intel keys are optional: a source without a key is off
     "svc": frozenset(
         {
             "database.password",
@@ -980,7 +927,7 @@ CUSTODY_SECRETS: dict[str, frozenset[str]] = {
         }
     ),
     "web": frozenset({"database.api_password"}),
-    # the writer's own database login (Q-D4); the Kibana writer keys (Q-D2) and the Kibana
+    # the writer's own database login; the Kibana writer keys and the Kibana
     # reader key its write runs check Kibana with
     "writer": frozenset(
         {
@@ -990,14 +937,14 @@ CUSTODY_SECRETS: dict[str, frozenset[str]] = {
             "kibana.reader_api_key",
             "kibana.cases_writer_api_key",
             "kibana.alert_writer_api_key",
-            # the case team's six users (AR8, D-159): written only through the writer
+            # the case team's users: written only through the writer
             "case_team.lead_api_key",
             "case_team.evidence_api_key",
             "case_team.intel_api_key",
             "case_team.responder_api_key",
             "case_team.hunter_api_key",
             "case_team.reporter_api_key",
-            "case_team.visualiser_api_key",  # AR10, D-250: optional (no key: no glance comment)
+            "case_team.visualiser_api_key",  # optional (no key: no glance comment)
         }
     ),
     # bootstrap sets the logins' passwords; operator commands that read the SIEM use the reader
@@ -1016,8 +963,8 @@ CUSTODY_SECRETS: dict[str, frozenset[str]] = {
 
 
 class IdentitySettings(_Section):
-    """The identity lane (Q-E1, plan §7.2): a person's own ELK credential checked against
-    the SIEM's Elasticsearch (``siem.url``, ``siem.ca_file``) on a lane of its own."""
+    """The identity lane: a person's own ELK credential checked against the SIEM's Elasticsearch
+    (``siem.url``, ``siem.ca_file``) on a lane of its own."""
 
     connect_timeout: Annotated[
         Duration, bounded_duration(timedelta(seconds=1), timedelta(seconds=3))
@@ -1025,17 +972,16 @@ class IdentitySettings(_Section):
     timeout: Annotated[Duration, bounded_duration(timedelta(seconds=1), timedelta(seconds=5))] = (
         timedelta(seconds=5)
     )
-    """The whole exchange of one check (plan §5: 3 s to connect, 5 s in all)."""
+    """The whole exchange of one check (3 s to connect, 5 s in all)."""
     admin_accounts: Literal["refuse", "without_custody"] = "refuse"
-    """DQ15: an account holding an admin privilege (``manage_security``, ``manage_api_key``,
-    ``grant_api_key``, ``manage_service_account``, ``manage``) is refused (a), or let in
-    without custody (b): ARGUS keeps no copy of its password. The user chooses at the cutover
-    (Q-E3, D-110). Superusers are refused either way."""
+    """An account holding an admin privilege (``manage_security``, ``manage_api_key``,
+    ``grant_api_key``, ``manage_service_account``, ``manage``) is refused, or let in without
+    custody: ARGUS keeps no copy of its password. Superusers are refused either way."""
     refused_names: Annotated[
         tuple[Annotated[str, Field(min_length=1, max_length=507)], ...], BeforeValidator(_items)
     ] = ()
-    """More names refused before any request, besides Elasticsearch's reserved users,
-    ``argus`` and ``kibana.service_user`` (the runbooks' test and canary accounts)."""
+    """More names refused before any request, besides Elasticsearch's reserved users, ``argus``
+    and ``kibana.service_user`` (test and canary accounts)."""
 
     @model_validator(mode="after")
     def _connect_within_total(self) -> IdentitySettings:
@@ -1045,7 +991,7 @@ class IdentitySettings(_Section):
 
 
 class CustodySettings(_Section):
-    """The custody layout (Q-A5): set by each system unit, never by a person."""
+    """The custody layout: set by each system unit, never by a person."""
 
     role: CustodyRole | None = None
     """The account this process runs as; None in the shared layout (every service a user
@@ -1068,10 +1014,10 @@ def _absolute(value: Path | None) -> Path | None:
 
 
 class UnitWebSettings(_Section):
-    """The environment ``argus-web.service`` is rendered with (D-295): what the web unit gives the
+    """The environment ``argus-web.service`` is rendered with: what the web unit gives the
     web on top of the settings files. A value left out drops its line from the unit (and the
     comment above a group whose lines all went). The values are checked as the web will read
-    them (D-104: another address than the loopback needs TLS, host names and networks)."""
+    them (another address than the loopback needs TLS, host names and networks)."""
 
     host: _UnitValue | None = None
     tls_cert: _UnitValue | None = None
@@ -1080,13 +1026,12 @@ class UnitWebSettings(_Section):
     """As written in the unit (a host name keeps its capitals there; the web lowers them)."""
     allowed_networks: Annotated[tuple[_UnitValue, ...], BeforeValidator(_items)] = ()
     classic: Literal["primary", "fallback"] | None = "fallback"
-    """``fallback``: people land on ``/app`` (AR4's step 40); left out, the classic pages are
-    the main ones."""
+    """``fallback``: people land on ``/app``; left out, the classic pages are the main ones."""
     public_url: _UnitValue | None = None
     approval_key_file: _UnitValue | None = None
     database_role: Literal["app", "api"] | None = None
     credentials: _UnitValue | None = None
-    """The web's ``CREDENTIALS_DIRECTORY``: a folder holding its own login's password (Q-A2)."""
+    """The web's ``CREDENTIALS_DIRECTORY``: a folder holding its own login's password."""
 
     @model_validator(mode="after")
     def _as_the_web_reads_it(self) -> UnitWebSettings:
@@ -1123,7 +1068,7 @@ class UnitWebSettings(_Section):
 
 
 class UnitsSettings(_Section):
-    """ARGUS's systemd user units as this installation renders them (D-295): the templates in
+    """ARGUS's systemd user units as this installation renders them: the templates in
     ``deploy/systemd`` with the checkout they run, the uv that starts them and the web's
     environment. ``argus units install`` writes them; ``argus doctor`` compares the installed
     copies with them byte for byte."""
@@ -1160,19 +1105,12 @@ _Margin = Annotated[Duration, bounded_duration(timedelta(seconds=10), timedelta(
 
 
 class FreshnessSettings(_Section):
-    """Watermarks and verified zeros (Q-F1, plan §7.3 point 1, DQ19). ``mode``: ``off`` (no
-    readings), ``shadow`` (the freshness lane reads each source's watermark, and the verdict a
-    log zero would get is stored, never used or shown), ``on`` (a log zero whose source the
-    readings prove complete becomes "nothing found, logs complete to <time>"; the switch-on is
-    the user's own approval after the shadow and its audit). Going back to ``shadow`` or
-    ``off`` makes every such zero "could not tell" again at its next derivation.
-
-    ``margins``: each source's margin for late logs, derived from its lag distribution
-    (``scripts/derive_margin.py``) and recorded by a decision; a source without one never
-    gets a verified zero. ``bridge``: the candidate way across the nightly 00:00-01:30 UTC
-    pause (DQ19 (i)): ``none`` (the pause is a gap) or ``edges`` (the readings just before
-    00:00 and just after 01:30 within the margin bridge it); measured in the shadow and
-    adopted only by a decision."""
+    """Watermarks and verified zeros. ``mode``: ``off`` (no readings), ``shadow`` (each source's
+    watermark is read and the verdict a log zero would get is stored, never used or shown) or
+    ``on`` (a log zero whose source the readings prove complete becomes "nothing found, logs
+    complete to <time>"). ``margins``: each source's margin for late logs (see
+    ``scripts/derive_margin.py``); a source without one never gets a verified zero. ``bridge``: how
+    the daily quiet hours are crossed, ``none`` (a gap) or ``edges``."""
 
     mode: Literal["off", "shadow", "on"] = "off"
     interval: Annotated[Duration, bounded_duration(timedelta(minutes=1), timedelta(hours=1))] = (
@@ -1182,7 +1120,7 @@ class FreshnessSettings(_Section):
         Duration, bounded_duration(timedelta(minutes=1), timedelta(hours=2))
     ] = timedelta(minutes=15)
     gap: Annotated[Duration, bounded_duration(timedelta(minutes=1), timedelta(minutes=10))] = (
-        timedelta(minutes=10)  # the plan's rule: no gap over 10 minutes (§7.3)
+        timedelta(minutes=10)  # no gap over 10 minutes
     )
     margins: dict[_LOG_SOURCE, _Margin] = Field(default_factory=dict)
     bridge: Literal["none", "edges"] = "none"
@@ -1199,23 +1137,12 @@ class FreshnessSettings(_Section):
 
 
 class CasesSettings(_Section):
-    """The case lifecycle's daily work (Q-C2, plan §7.1). ``watch``: ``off`` (the still-active
-    watch does not run), ``local`` (it checks ARGUS's own alerts only: no request reaches
-    the SIEM) or ``on`` (it also asks the proxy logs through ``proxy.contact``/``proxy.pair``,
-    one request per member address and daily index, 6 to 20 a case a day (one for each
-    address and two spare, ``argus.cases.watch.cap_for``), in the investigation lane). The logs
-    are a new kind of read on production: ``on`` is the lead's switch, after Q-F4's first runs.
-    Run by ``argus case watch run``, once a day.
-
-    ``suggest`` (AR2b, D-160): the assessment service (``argus assess run``) suggests a case from
-    evidence across investigations every 15 minutes (a host seen by several rules or on several
-    days, actors that hit the same rare targets): a suspected case that stays in ARGUS until a
-    person confirms it. It reads only ARGUS's own database.
-    ``offers_per_hour`` (D-174): offers of a new device's investigations to an open case an hour
-    (one offer for each device; a roaming device counts once for each address until AR4b).
-    ``retitle`` (D-230): the same service makes the titles ARGUS wrote itself again from each case's
-    facts every 15 minutes, and changes the ones that differ (a title a person wrote is never
-    changed); off, titles stay as they were opened."""
+    """The case lifecycle's daily work. ``watch``: ``off``, ``local`` (ARGUS's own alerts only: no
+    request reaches the SIEM) or ``on`` (also the proxy logs, in the investigation lane; run once a
+    day by ``argus case watch run``). ``suggest``: the assessment service suggests cases from
+    evidence across investigations every 15 minutes, for a person to confirm (local reads only).
+    ``offers_per_hour``: offers of a new device's investigations to an open case. ``retitle``:
+    ARGUS's own case titles are made again from the facts (a person's title is never changed)."""
 
     watch: Literal["off", "local", "on"] = "off"
     suggest: bool = True
@@ -1224,37 +1151,22 @@ class CasesSettings(_Section):
 
 
 class CampaignsSettings(_Section):
-    """Campaign analysis (AR2c, D-168, D-174): campus devices that reach the same rare domains.
-
-    ``resolvers``: the campus's recursive DNS resolvers (addresses or networks). A resolver asks
-    for every name its users ask for, so it is no device and must not make two campaigns one
-    through the devices behind it. **Set it** (the same addresses the DNS rule's alerts show as the
-    client of the campus's resolvers): the heuristic that used to guess them from how many
-    investigations hold an address is gone, because a device infected with a domain-generation
-    algorithm is in hundreds of investigations too."""
+    """Campaign analysis: devices that reach the same rare domains. ``resolvers``: the recursive
+    DNS resolvers (addresses or networks). A resolver asks for every name its users ask for, so it
+    is no device and must not join unrelated campaigns; set it to the addresses the DNS alerts show
+    as the client, since nothing guesses them."""
 
     resolvers: tuple[IPv4Network | IPv6Network, ...] = ()
 
 
 class NotifiedSettings(_Section):
-    """The known infection of a case whose owner was told (AR4b, D-169, D-176). Devices at IIT
-    Bombay are mostly personal: a true positive keeps alerting after the owner is told, so a
-    notified case is tracked quietly (its alerts are counted, not raised) and ARGUS speaks again
-    only on change. Every number here is a default of D-169; the days are counted from the notice.
-
-    ``renotify_days``: still active this long after the only notice, ARGUS suggests notifying
-    again. ``network_days``: still active this long, it suggests network-side action (the case's
-    block list). ``quiet_days``: no matching activity this long, it proposes closing the case as
-    "stopped after notice". ``active_days``: activity within this many days is "still active".
-    ``move_gap``, ``move_window`` and ``move_similarity``: the same indicators from a new campus
-    address that began between this long and that long after an old one went quiet, and are this
-    much alike (0 to 1), are the same device.
-    ``volume_factor``: traffic this many times the level at the notice (or at the last spoken
-    change) is a change (judged only when the evidence carries bytes, and a level of 0 is not
-    judged). ``managed_types``: the asset map's ``site.type`` values of
-    campus-managed machines (anything else, and a device the map does not know, is a personal
-    device). ``reopen_days``: how long after a "stopped" closure activity is a change again.
-    ``per_pass``: investigations one pass reads for one case."""
+    """The known infection of a case whose owner was told. Such a case is tracked quietly (its
+    alerts are counted, not raised) and ARGUS speaks again only on change; days count from the
+    notice. ``renotify_days`` and ``network_days``: still active this long, it suggests notifying
+    again / network-side action. ``quiet_days``: no activity this long, it proposes closing.
+    ``active_days``: what counts as still active. ``move_gap``, ``move_window`` and
+    ``move_similarity``: the same indicators from a new address are the same device.
+    ``volume_factor``, ``managed_types``, ``reopen_days``, ``per_pass``: see config/argus.yaml."""
 
     renotify_days: int = Field(default=7, ge=1, le=365)
     network_days: int = Field(default=21, ge=1, le=365)
@@ -1282,21 +1194,12 @@ class NotifiedSettings(_Section):
 
 
 class IncidentSettings(_Section):
-    """The incident report (AR7, D-190): ARGUS writes, for each suggested or open case, the
-    report the security team writes by hand (summary, verdict, timeline, actors, assets, evidence
-    with the query behind each line, hypotheses, indicators, actions), in ARGUS's own database;
-    a person confirms or rejects it. Everything it reads is ARGUS's own database: no request
-    reaches the SIEM or Kibana, and the queries it prints are text a person pastes or follows.
-
-    ``enabled``: the assessment pass writes reports. ``per_pass``: reports written in one pass
-    (a failure is said and never stops the pass); ``look``: cases examined in one pass for a
-    change (the least recently examined first); ``min_interval``: a case's report is not written
-    again sooner than this after the last one. ``prose``: let a model word the summary from
-    verified facts, through the LLM gateway and the citation checks (off: the deterministic text
-    is the whole report; on, any refusal leaves the deterministic text). ``kibana_url``: the
-    address people open Kibana at (default: ``kibana.url``). ``data_views``: ``source=id`` pairs
-    (``squid=...``, ``dns=...``, ``alerts=...``) that make a query's Discover link a KQL link on
-    that data view; a source without one links to the same query as ES|QL, which needs no id."""
+    """The incident report ARGUS writes for each suggested or open case from its own database
+    (summary, verdict, timeline, actors, assets, evidence with the query behind each line,
+    hypotheses, indicators, actions); a person confirms or rejects it. No request reaches the SIEM
+    or Kibana. ``per_pass``, ``look`` and ``min_interval`` bound the work; ``prose`` lets a model
+    word the summary from verified facts; ``kibana_url`` and ``data_views`` set where the evidence
+    links open."""
 
     enabled: bool = True
     per_pass: int = Field(default=5, ge=0, le=100)
@@ -1334,30 +1237,21 @@ class IncidentSettings(_Section):
 
 
 class CaseTeamSettings(_Section):
-    """The case team (AR8, D-158, D-195): seven Kibana users (``argus-lead``, ``argus-evidence``,
-    ``argus-intel``, ``argus-responder``, ``argus-hunter``, ``argus-reporter``, and the optional
-    ``argus-visualiser``) post the incident case of ``incident-report@1`` the way the hand-made
-    reference case was made.
+    """The case team: Kibana users (``argus-lead``, ``argus-evidence``, ``argus-intel``,
+    ``argus-responder``, ``argus-hunter``, ``argus-reporter`` and the optional ``argus-visualiser``)
+    post the incident case of ``incident-report@1``.
 
-    **``post`` is off.** While it is off, nothing is written to the SIEM: the whole rendering still
-    runs as a dry run (``argus case team preview <n>``, the API and the case page show exactly
-    what would be sent). With it on, a case is opened when a person confirmed its report, or when
-    ARGUS's verdict is a true positive of at least ``auto_min_confidence`` on a suggested or open
-    case; at most ``per_day`` cases a day (in the site's zone). The first ``canary`` cases need
-    a person's approval of that case before anything is sent. ``max_alerts`` caps the alerts
-    attached and tagged on one case (the newest first; the hand-made case held 317), sent
-    ``alerts_per_call`` (100, the hand-made case's size) at a time with ``alert_pause`` between
-    the calls. The
-    Kibana write lane's bucket (a 60 s burst while the SIEM is NORMAL, D-235) is what paces the
-    server time now, so the pause is only a short courtesy gap, 3 s (D-242). ``min_update_gap``: a
-    case gets at most one "Update" round in this time. ``look``: cases examined in one pass. The
-    keys are secrets (the environment or a credential only, never YAML, and, like every write key,
-    not in ``.env``): ``<user>_api_key``, all expiring on ``keys_expire``. The seventh user
-    (``visualiser``, AR10) is optional: without its key the "Incident at a glance" comment is
-    skipped and the rest of the case is posted as ever."""
+    **``post`` is off.** While it is off nothing is written to the SIEM: the rendering runs as a
+    dry run (``argus case team preview <n>``). With it on, a case is opened when a person confirmed
+    its report, or (``auto``) when ARGUS's verdict is a true positive of at least
+    ``auto_min_confidence``; at most ``per_day`` a day, and each of the first ``canary`` cases
+    needs a person's approval. ``max_alerts``, ``alerts_per_call`` and ``alert_pause`` bound the
+    alerts attached to a case. The keys are secrets (environment or credential only, never YAML or
+    ``.env``): ``<user>_api_key``, all expiring on ``keys_expire``; without the optional
+    ``visualiser`` key the "Incident at a glance" comment is skipped."""
 
     post: bool = False
-    auto: bool = True  # false: only a person's confirm opens a case (the user's choice, D-214)
+    auto: bool = True  # false: only a person's confirm opens a case
     auto_min_confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     per_day: int = Field(default=5, ge=0, le=50)
     canary: int = Field(default=1, ge=0, le=20)
@@ -1376,7 +1270,7 @@ class CaseTeamSettings(_Section):
     responder_api_key: SecretStr | None = None
     hunter_api_key: SecretStr | None = None
     reporter_api_key: SecretStr | None = None
-    visualiser_api_key: SecretStr | None = None  # AR10: optional, WC does not need it
+    visualiser_api_key: SecretStr | None = None  # optional; WC does not need it
     keys_expire: date | None = None
 
     def _by_user(self) -> dict[str, SecretStr | None]:
@@ -1391,7 +1285,6 @@ class CaseTeamSettings(_Section):
         }
 
     def keys(self) -> dict[str, SecretStr]:
-        """The installed keys by the Kibana user they belong to."""
         return {
             user: key for user, key in self._by_user().items() if key and key.get_secret_value()
         }
@@ -1420,23 +1313,11 @@ SIGNIN_ACTIONS = (
 
 
 class SigninsSettings(_Section):
-    """Who was behind an address (AR6, D-216): ARGUS reads the SSO sign-in logs
-    (``acme-logs-sso-*``) for the internal addresses of its investigations and keeps the
-    accounts that signed in from each address on each UTC day, because the logs themselves are kept
-    only a few days. **Off until the lead turns it on** (``docs/runbooks/signins.md``).
-
-    ``actions``: the sign-in events that identify a device's user (browser and interactive ones;
-    the LDAP proxy's, the service-to-service ones and the mail and SMS ones never do, so they are
-    not read). ``pad_hours``: an investigation's sign-ins are those from this long before its first
-    alert to this long after its last. ``shared_accounts``: an address with this many accounts on a
-    day is a shared one (a lab, a NAT): no one is guessed. ``batch``: addresses in one request (one
-    daily index, at most 200). ``max_requests_per_pass``: requests one pass of the assessment loop
-    may send; ``gap``: the least time between two requests. ``current_day_every``: a day not over is
-    looked up again no sooner than this. ``retention_days``: how many UTC days of SSO logs the
-    cluster keeps, today included (ILM); an older day is "logs no longer kept". ``keep_days``: how
-    long ARGUS keeps what it read (personal data). ``final_after``: a finished day is final once it
-    was looked up this long after its end (the logs of its last minutes have arrived); a day
-    looked up sooner is looked up once more after it (D-224)."""
+    """Who was behind an address: ARGUS reads the SSO sign-in logs for the internal addresses of
+    its investigations and keeps the accounts that signed in from each address on each UTC day,
+    because the logs themselves are kept only a few days. Off until switched on
+    (``docs/runbooks/signins.md``). The other settings (request batching and pacing, retention)
+    are described in config/argus.yaml."""
 
     enabled: bool = False
     actions: Annotated[tuple[str, ...], BeforeValidator(_items)] = SIGNIN_ACTIONS
@@ -1470,17 +1351,12 @@ class SigninsSettings(_Section):
 
 
 class NoticesSettings(_Section):
-    """Minimal notices (Q-H4, plan §7.7, DQ26): short e-mails that carry a link, a severity and a
-    count (never a host, address, user or rule name) to the people named in ``recipients``,
-    through the campus mail relay. **Off until the user approves the relay and the recipients:**
-    nothing is sent unless ``enabled`` is true and at least one recipient is named. Run by
-    ``argus notices run`` (every 10 minutes: ``argus-notices.timer``).
-
-    The relay's settings are flat (the environment reader knows ``ARGUS_NOTICES__<KEY>``, one
-    level): ``relay_host``, ``relay_port``, ``relay_starttls`` (the default; a login is sent
-    only over TLS or to the loopback) and ``relay_from``. ``password`` is a secret: the
-    environment or a credential only. ``web_url`` is the address the links point to (default:
-    ``web.public_url``, else the web's own address)."""
+    """Minimal notices: short e-mails that carry a link, a severity and a count (never a host,
+    address, user or rule name) to the people named in ``recipients``, through your mail relay.
+    Off until you approve the relay and the recipients; run by ``argus notices run``
+    (``argus-notices.timer``). The relay's settings are flat (``relay_host``, ``relay_port``,
+    ``relay_starttls``, ``relay_from``); ``password`` is a secret (environment or credential only);
+    ``web_url`` is the address the links point to (default ``web.public_url``)."""
 
     enabled: bool = False
     relay_host: str | None = None
@@ -1577,8 +1453,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _write_window_is_outside_the_quiet_hours(self) -> Settings:
-        """The Kibana write window never reaches into the site's quiet hours (default 00:00-01:30
-        UTC): the site and the window are separate sections, so this is checked here."""
+        """The Kibana write window never reaches into the site's quiet hours: the site and the
+        window are separate sections, so this is checked here."""
         start, end = (time.fromisoformat(part) for part in self.kibana.write_window)
         if self.site.quiet_hours.overlaps(start, end):
             raise ValidationError.from_exception_data(  # located at the setting, not at <root>
@@ -1599,7 +1475,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _own_networks_include_the_older_name(self) -> Settings:
-        """``assets.campus_prefixes`` is the older name of ``site.own_networks`` (D-284): the
+        """``assets.campus_prefixes`` is the older name of ``site.own_networks``: the
         networks it lists join the site's, after them, so code reads one list. (Done in place:
         a validator that returns another instance is ignored by ``__init__``.)"""
         extra = [n for n in self.assets.campus_prefixes if n not in self.site.own_networks]
@@ -1612,8 +1488,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _case_team_has_its_keys(self) -> Settings:
-        """The case team's class is switched on only with all six users' keys (AR8): a missing
-        key would stop a case half-way, so the host refuses to start with it."""
+        """The case team's class is switched on only with all its users' keys: a missing key would
+        stop a case half-way, so the host refuses to start with it."""
         if "WC" in self.kibana.write_classes:
             missing = sorted(
                 {
@@ -1677,13 +1553,11 @@ class Settings(BaseSettings):
 
     def secret_values(self) -> list[str]:
         """Every configured secret, for log redaction: each SecretStr setting, found by walking
-        the sections, so a secret added later is registered without anyone listing it here
-        (the writer key was missed when it was listed by hand, Q-A2)."""
+        the sections, so a secret added later is registered without anyone listing it."""
         return [secret.get_secret_value() for secret in _secrets(self) if secret.get_secret_value()]
 
 
 def secret_settings(model: type[BaseModel] | None = None) -> list[str]:
-    """The secret settings, as ``section.key``, in declaration order."""
     model = Settings if model is None else model
     names = []
     for name, info in model.model_fields.items():
@@ -1816,7 +1690,7 @@ LOCAL_FILE = "local.yaml"
 def local_file_layer(config_path: Path) -> Layer | None:
     """``local.yaml`` beside the config file, if there is one: this installation's own values
     (the SIEM's and Kibana's addresses, the key's expiry, the web's certificate pin), above the
-    config file and below .env and the environment (D-294). Any section may be in it; an unknown
+    config file and below .env and the environment. Any section may be in it; an unknown
     name is an error, as in the config file."""
     local_path = config_path.parent / LOCAL_FILE
     if local_path == config_path or not local_path.is_file():

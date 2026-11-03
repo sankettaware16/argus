@@ -1,47 +1,12 @@
-"""What opens a case (DQ4 (a), D-110): deterministic rules over verdicts and proposals, never
-model similarity.
+"""What opens a case: deterministic rules over verdicts and proposals, never model similarity.
 
-* **A person's true-positive verdict** opens a case when its investigation shows an impact or
-  campus-host signal: successful answers after an attack, a regular beacon, or a campus host in
-  contact with a threat-listed address. Other true positives are recorded as attempts (a person
-  may still open a case by hand).
-* **ARGUS's own true-positive proposals** with a floor signal make *suspected* cases, which
-  stay in ARGUS until a person confirms them. A person's verdict with an impact or campus-host
-  signal on an investigation that is in (or links to) a suspected case confirms that case: it
-  opens (plan §7.1, "new or suspected → open"), unless ARGUS suggested it from evidence (cause
-  ``raised``, D-160): that one a person confirms with Confirm, and a verdict on one of its
-  investigations is only recorded (D-162). The assistant's verdicts (D-071) are neither a
-  person's nor ARGUS's: they open and link nothing.
-* **Links:** an investigation joins an active case that shares an actor (a campus host, user or
-  attacker, never a shared egress address), a C2 (a threat-listed destination) or another
-  indicator (:mod:`argus.cases.membership`): only when one case holds the strongest match, and
-  never through a shared address (a content-delivery or cloud network, or a value in very many
-  investigations). Ambiguous and shared-only matches join nothing: they are suggested to the
-  cases (``case_suggestions``) and the investigation is opened or recorded on its own merits.
-  Only identity fields are
-  actors (:data:`HOST_FIELDS`, :data:`USER_FIELDS`, any ``*.ip``), and generic values such as
-  ``root`` or ``admin`` never are (:data:`GENERIC_ACTORS`): two people's incidents must not join
-  through a shared domain or account name. Joining a contained case is new activity (it
-  reopens). Matching a case closed in the last 14 days gives a new case that follows it; a
-  closed case is never reopened silently.
-* **A tie opens at most one case.** A person's verdict that matches several cases equally opens
-  one case on its own merits; a later investigation that ties the same cases (or the case that
-  tie opened) opens none: it is suggested to each of them. ARGUS's own proposals never open a
-  case on an ambiguous match.
-* Titles name the incident with its key values ("Beaconing to 176.65.139.158 from
-  10.198.36.230"), from values of a strict shape only (an IP address, a host or domain name, a
-  count, a name from the asset map: :mod:`argus.cases.naming`, D-230, which supersedes the rule
-  "never a value from the logs"). The title planned here comes from the one investigation;
-  :func:`run` makes it again from the facts of the database before the case opens
-  (:mod:`argus.cases.titling`).
-* At most :data:`MAX_NEW_PER_HOUR` new cases an hour; what is over waits for the next run.
-
-:func:`plan` is pure; :func:`run` loads the candidates, plans, and applies each decision in its
-own transaction (or only reports, for a dry run). Under the opener's lock each candidate is
-planned again against the cases as they are then, so runs that overlap (a sync during a
-backfill) still keep one case per actor. Each verdict or proposal is decided once
-(``case_openings``), so runs can repeat, overlap or crash and still open nothing twice.
-"""
+A person's true-positive verdict opens a case when its investigation shows an impact or
+internal-host signal; ARGUS's own proposals make *suspected* cases until a person confirms them.
+An investigation joins an active case that shares an actor, C2 or indicator
+(:mod:`argus.cases.membership`) only when one case holds the strongest match, never through a shared
+address; other matches are suggested, and a tie opens at most one case. Activity after a closure
+makes a new case that follows it. At most :data:`MAX_NEW_PER_HOUR` new cases an hour; each verdict
+or proposal is decided once (``case_openings``), so runs can repeat or overlap safely."""
 
 from __future__ import annotations
 
@@ -72,13 +37,13 @@ from argus.cases.model import SEVERITIES, Actor, Cause, Indicator, Member, Sever
 from argus.cases.service import CaseService
 
 MAX_NEW_PER_HOUR = 20
-WATCH_AFTER_CLOSURE = timedelta(days=14)  # DQ13: the watch lasts 14 days after closure
+WATCH_AFTER_CLOSURE = timedelta(days=14)  # the watch lasts 14 days after closure
 BEACON = 0.3  # proxy.regularity below this is a regular beacon (as the decision engine's floor)
 RARE = 1
 ASSISTANT = "argus-assistant"
 OPENER_LOCK_KEY = int.from_bytes(b"ARGUSOPN", "big")
 TIE_OPENED = "opened on its own merits after a tie between cases"  # in case_openings.reasons
-# DQ4 (i), D-111: the backfill reaches back to the PS1Bot verdicts, not only history.window.
+# The backfill reaches back to a fixed start, not only history.window.
 BACKFILL_FROM = datetime(2026, 10, 14, tzinfo=UTC)
 LINKABLE = frozenset({IpClass.ASSET, IpClass.INTERNAL, IpClass.PUBLIC})
 CAMPUS = frozenset({IpClass.ASSET, IpClass.INTERNAL, IpClass.CAMPUS})
@@ -112,13 +77,13 @@ class Candidate:
     rule_name: str | None
     severity: Severity
     actors: tuple[Indicator, ...]  # who acted, if linkable
-    campus_actor: bool  # an actor is a campus host
+    campus_actor: bool  # an actor is an internal host
     entities: frozenset[tuple[str, str]]  # (kind, value) the investigation involves
     listed: tuple[str, ...]  # its threat-listed values
     signals: Mapping[str, tuple[str, Any]] = field(default_factory=dict)  # name: (status, value)
     held_by: uuid.UUID | None = None  # the case it is in already (a closed one included)
     by_user_id: int | None = None  # the person whose verdict it is
-    campus_keys: frozenset[tuple[str, str]] = frozenset()  # the actors that are campus devices
+    campus_keys: frozenset[tuple[str, str]] = frozenset()  # the actors that are internal devices
 
 
 @dataclass
@@ -152,23 +117,20 @@ class Opening:
     suggested: tuple[membership.Suggested, ...] = ()  # cases it matches but does not join
 
 
-# --------------------------------------------------------------------------- signals
-
-
 def _known(candidate: Candidate, name: str) -> Any:
     status, value = candidate.signals.get(name, ("missing", None))
     return value if status == "known" else None
 
 
 def _no_impact() -> str:
-    """ "no impact or campus-host signal": the site's word joined to "host" with a hyphen, as a
+    """ "no impact or internal-host signal": the site's word joined to "host" with a hyphen, as a
     modifier ("host of your network" reads as it stands)."""
     phrase = site.say("{own:host}")
     return f"no impact or {phrase if ' of ' in phrase else phrase.replace(' ', '-')} signal"
 
 
 def impact(candidate: Candidate) -> list[str]:
-    """The impact or campus-host signals that make a person's verdict open a case."""
+    """The impact or internal-host signals that make a person's verdict open a case."""
     out = []
     if (_known(candidate, "web.successes_after") or 0) > 0:
         out.append("successful answers after the attack")
@@ -214,7 +176,7 @@ def reason_flags(reasons: Sequence[str]) -> frozenset[str]:
 
 
 def title_facts(candidate: Candidate, reasons: Sequence[str]) -> naming.Facts:
-    """What the title can say from the candidate alone: its rule, who acted (campus devices,
+    """What the title can say from the candidate alone: its rule, who acted (internal devices,
     outside addresses, accounts), the threat-listed values it reached, and the signals that made
     it a candidate (as the evidence flags' words)."""
     flags = reason_flags(reasons)
@@ -238,9 +200,6 @@ def title_facts(candidate: Candidate, reasons: Sequence[str]) -> naming.Facts:
 
 def _label(case: Indexed) -> str:
     return f"case {case.number}" if isinstance(case.ref, uuid.UUID) else f"case {case.ref}"
-
-
-# --------------------------------------------------------------------------- planning
 
 
 def _new_indicators(candidate: Candidate) -> tuple[Indicator, ...]:
@@ -371,9 +330,6 @@ def plan(
     return out
 
 
-# --------------------------------------------------------------------------- loading
-
-
 def _actors(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, ...], bool]:
     try:
         pairs = json.loads(group_key)
@@ -405,12 +361,12 @@ def _actors(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, 
 
 def actors_of(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, ...], bool]:
     """Who acted in an investigation (identity fields only, never a shared egress address or a
-    generic value) and whether one of them is a campus host."""
+    generic value) and whether one of them is an internal host."""
     return _actors(group_key, classifier)
 
 
 def is_campus_actor(group_key: str, classifier: IpClassifier) -> bool:
-    """Whether an investigation's group key names a campus host or address (the test
+    """Whether an investigation's group key names an internal host or address (the test
     :func:`observe` and :func:`candidates` make, without a query)."""
     return _actors(group_key, classifier)[1]
 
@@ -533,7 +489,7 @@ async def _candidate(conn: AsyncConnection, row: Any, classifier: IpClassifier) 
 
 @dataclass(frozen=True)
 class Observed:
-    """An investigation as membership sees it (Q-C2): who acted, what it involves, when."""
+    """An investigation as membership sees it: who acted, what it involves, when."""
 
     investigation_id: uuid.UUID
     rule_name: str | None
@@ -676,9 +632,6 @@ async def created_last_hour(conn: AsyncConnection) -> int:
     return count
 
 
-# --------------------------------------------------------------------------- applying
-
-
 @dataclass
 class Report:
     planned: list[Opening]
@@ -767,8 +720,8 @@ async def run(
 
 
 async def _titled(conn: AsyncConnection, opening: Opening, ctx: titling.Context) -> Opening:
-    """The opening with the title made from the database's facts (D-230): the investigation's
-    flags, threat-listed values, outside answers, campus sites and stored web checks."""
+    """The opening with the title made from the database's facts: the investigation's
+    flags, threat-listed values, outside answers, internal sites and stored web checks."""
     if opening.title is None or opening.decision not in ("opened", "suspected"):
         return opening
     title = await titling.for_members(

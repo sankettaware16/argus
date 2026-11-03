@@ -1,36 +1,15 @@
-"""ELK sessions (Q-E2, plan §7.2): keeping a signed-in person's access in step with ELK.
+"""ELK sessions: keeping a signed-in person's access in step with ELK.
 
-A session's capabilities are a **snapshot** of the last check of the person's own ELK account
-(``identity.verify``). One rule keeps it in step:
-
-* **pages come from the snapshot** and never wait: after 5 minutes a request starts a
-  background re-check (with the credential kept under DQ16 (a)); the page is served from the
-  snapshot anyway (D-103);
-* **every change** waits for a live check unless the snapshot is at most 30 seconds old; no
-  answer in 6 seconds and the change fails plainly (nothing is done);
-* a 401 or 403 from ELK **ends the session** and voids the person's approvals (an identity
-  check is recorded as denied, ``argus.cases.identity``). So reading stops within 5 minutes
-  plus one read, and changes within 30 seconds.
-
-**When ARGUS cannot verify** the person (``unverified_since`` on the session):
-
-* in a *verified the SIEM outage* (the SIEM unreachable, slow or its security index not usable) the
-  session keeps reading until its limit; reviews continue for 60 minutes, never written back
-  to Kibana; approvals and every other write wait; only break-glass signs in;
-* on *ARGUS's own refusal* (a switch, the lane's budget, a stop) a session reviews for
-  15 minutes (never written back), is then read-only, and ends after 60 minutes.
-
-Three people who were fine a minute ago failing with a 401 within two minutes also mean an
-outage, not three revocations: the third and later 401s are "unavailable", and nothing is
-counted. Only a 401 that the lane confirmed (its security-index check was good) is such a
-failure: a 403, or an answer showing the account lost its access, is ELK answering, and notes
-of suspected outages never count towards the next one. A session held this way is held for two
-minutes at most, however many others fail after it: then its next 401 is final (a batch
-revocation must not keep sessions open).
-
-An admin account (DQ15 (b)) has no custody, so it cannot be re-checked: its changes need a
-step-up (the password typed again) at most 30 seconds before.
-"""
+A session's capabilities are a **snapshot** of the last check of the person's own ELK account.
+Pages come from the snapshot and never wait (after 5 minutes a request starts a background
+re-check); every change waits for a live check unless the snapshot is at most 30 seconds old (no
+answer in 6 seconds and the change fails plainly); a 401 or 403 from ELK **ends the session** and
+voids the person's approvals. When ARGUS cannot verify the person (``unverified_since``): in a
+verified SIEM outage the session keeps reading and reviews continue for 60 minutes, never written
+back to Kibana, and only break-glass signs in; on ARGUS's own refusal a session reviews for 15
+minutes, is then read-only, and ends after 60. Several 401s within two minutes mean an outage, not
+revocations: a session is held at most two minutes. An admin account has no custody, so its changes
+need a step-up at most 30 seconds before."""
 
 from __future__ import annotations
 
@@ -162,8 +141,6 @@ class Elk:
         self._signins = asyncio.Semaphore(3)
         self._attempted: dict[str, datetime] = {}  # token hash -> when the last try began
 
-    # ------------------------------------------------------------------ one check
-
     async def probe(
         self,
         elk_username: str,
@@ -210,8 +187,6 @@ class Elk:
             bytes(sealed), token=token, token_hash=reviewer.token_hash,
             user_id=reviewer.user_id, elk_username=reviewer.elk_username,
         )  # fmt: skip
-
-    # ------------------------------------------------------------------ what a check does
 
     async def apply(
         self,
@@ -349,8 +324,6 @@ class Elk:
         )
         return int(others or 0) >= SUSPECT_PEOPLE - 1
 
-    # ------------------------------------------------------------------ reads
-
     async def after_load(
         self, conn: AsyncConnection, reviewer: auth.Reviewer, token: str
     ) -> auth.Reviewer | None:
@@ -413,8 +386,6 @@ class Elk:
         """Wait for the background re-checks in flight (tests, shutdown)."""
         while self.tasks:
             await asyncio.gather(*list(self.tasks), return_exceptions=True)
-
-    # ------------------------------------------------------------------ changes
 
     async def gate_change(
         self,
@@ -485,8 +456,6 @@ class Elk:
                     await self.apply(conn, reviewer, probe, "recheck")
 
         return persist
-
-    # ------------------------------------------------------------------ step-up
 
     async def step_up_probe(self, reviewer: auth.Reviewer, password: SecretStr) -> Probe:
         """The password typed at step-up, checked against ELK now."""

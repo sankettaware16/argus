@@ -1,21 +1,10 @@
-"""ARGUS's closure proposals (plan §7.1, §5 Q-C3): deterministic, each with positive evidence,
-and only ever a proposal: a person with the approver capability approves it (DQ12 (b)), and
-Phase 3 has no automatic closure (DQ14 (b): :mod:`argus.cases.autonomy` keeps the record a
-class would have to earn).
-
-A confirmed case is proposed for closure when, and only when:
-
-* **benign or false positive**: every member investigation's newest review is a person's
-  ``reviewed`` verdict made after the case was opened and at the investigation's current
-  version (new alerts since make it "changed since review", as the web shows it), all with one
-  outcome among
-  ``benign_expected``, ``benign_policy`` and ``rule_false_positive`` (the assistant's reviews
-  never count): that outcome is the reason;
-* **remediated, verified**: the case is contained and the still-active watch verifies a
-  72-hour quiet window (Q-C2 with Q-F1; until then never).
-
-A case with a request at its current version (a person's or ARGUS's) is not proposed again.
-"""
+"""ARGUS's closure proposals: deterministic, each with positive evidence, and only ever a proposal
+(a person with the approver capability approves it; there is no automatic closure). A confirmed
+case is proposed when every member investigation's newest review is a person's ``reviewed``
+verdict, made after the case opened and at the current version, with one outcome among
+``benign_expected``, ``benign_policy`` and ``rule_false_positive``, or when the case is contained
+and the still-active watch verifies a 72-hour quiet window. A case with a request at its current
+version is not proposed again."""
 
 from __future__ import annotations
 

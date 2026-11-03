@@ -1,12 +1,9 @@
-"""Running a helper task (Q-G2) on items: its gold set (``argus gold task``) or live items in
-shadow (``argus llm shadow``). Each item is rendered by the privacy layer exactly as for the
-investigation agent (P1, plan §3 rule 14), sent as an evaluation call (low priority,
-overnight, the evaluation budget) with the task's strict schema, and checked against the text
-it was sent (``tasks.check``). The person's labels are never sent.
+"""Running a helper task on items: its gold set (``argus gold task``) or live items in shadow.
 
-A gold-set run keeps its answers in a file under ``data/`` keyed by task prompt, item, kind
-(clean, again, injected), model and the exact text sent, so a run that stops resumes, and a
-changed rendering or model is asked again; it returns the ladder's measure (``TaskRun``).
+Each item is rendered by the privacy layer as for the investigation agent, sent as an evaluation
+call with the task's strict schema, and checked against the text it was sent (``tasks.check``).
+The person's labels are never sent. A gold-set run keeps its answers in a file under ``data/`` so a
+run that stops resumes; it returns the ladder's measure (``TaskRun``).
 """
 
 from __future__ import annotations
@@ -39,7 +36,7 @@ class TaskCase:
     pack: str
     dossier_hash: str
     body: Mapping[str, Any]
-    floor: bool  # the item has a floor signal (P4): never "later", never benign
+    floor: bool  # the item has a floor signal: never "later", never benign
     label: str | None = None  # the person's answer (gold items only): never sent
 
 
@@ -49,7 +46,7 @@ def call_for(spec: tasks.TaskSpec, body: Mapping[str, Any], request: Request) ->
 
 
 def render(privacy: Privacy, body: Mapping[str, Any]) -> Request | None:
-    """The item as the agent would send it; None if it cannot be sent (P1)."""
+    """The item as the agent would send it; None if it cannot be sent (privacy check)."""
     request = privacy.request([dict(body)])
     if request.failed or not request.items or not request.validate().allowed:
         return None
@@ -104,7 +101,7 @@ async def ask(
     clock: Callable[[], float],
 ) -> Asked | NoCapacity:
     """``call`` through the gateway, waiting out short deferrals; a long one comes back. A
-    call that reached the model and gave no usable answer comes back as one (F1: it counts
+    call that reached the model and gave no usable answer comes back as one (it counts
     as an unusable call, with its time and lease, never silently retried)."""
     while True:
         start = clock()
@@ -148,7 +145,7 @@ class Scored:
 
 def kinds(index: int, inject_: bool) -> list[tuple[str, str | None]]:
     """(kind, payload): the clean run, and with injection a second clean run and one payload
-    in rotation (item by item), so a run costs three calls an item, as Phase 2's test did."""
+    in rotation (item by item), so a run costs three calls an item."""
     if not inject_:
         return [("clean", None)]
     names = list(PAYLOADS)
@@ -175,8 +172,8 @@ async def run_task(
     for index, case in enumerate(cases):
         iid = str(case.investigation_id)
         got: dict[str, tasks.Check] = {}
-        # the injection test on the first items only (the ladder needs 30): a set of 250 items
-        # costs 322 calls instead of 750 at 150 a night
+        # the injection test on the first items only (the ladder needs 30), which keeps the
+        # number of calls well below three per item
         for kind, payload in kinds(index, inject_ and index < inject_items):
             body = case.body if payload is None else inject(dict(case.body), PAYLOADS[payload])
             request = render(privacy, body)
@@ -205,7 +202,7 @@ async def run_task(
             if isinstance(text, str):
                 check = tasks.check(spec.task, text, request.text, case.floor, case.label)
             if isinstance(text, str) or float(entry.get("lease_s") or 0) > 0:
-                # every call that reached the model, answered or not (F1)
+                # every call that reached the model, answered or not
                 out.latency.append((float(entry["seconds"]), float(entry["lease_s"])))
             out.calls += 1
             out.usable += check.usable
@@ -215,7 +212,7 @@ async def run_task(
                 out.sent[iid] = request.text
             if payload is not None and {"clean", "again"} <= set(got):
                 three = (got["clean"], got["again"], check)
-                if all(c.usable for c in three):  # F9: only judged items count
+                if all(c.usable for c in three):  # only judged items count
                     out.flips.setdefault(payload, []).append(
                         (tasks.flipped(spec.task, *three), tasks.planted(spec.task, *three))
                     )
@@ -271,5 +268,5 @@ def floor_of(body: Mapping[str, Any], first_seen: bool | None, spike: bool | Non
 
 
 def small_tier(body: Mapping[str, Any], floor: Sequence[str], request: Request) -> bool:
-    """Whether the agent would route the item to its small tier (DQ22 (ii)'s items)."""
+    """Whether the agent would route the item to its small tier (the fallback's items)."""
     return investigator.route(body, floor, request) is Tier.SMALL

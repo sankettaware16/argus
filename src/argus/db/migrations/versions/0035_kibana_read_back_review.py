@@ -1,17 +1,10 @@
-"""The Kibana read-back's review fixes (Q-D3, gate report "Review"): three columns and a kind
+"""The Kibana read-back's review fixes: three columns and a kind
 
-- ``kibana_mirror.kibana_case_id`` may be changed by the runtime role, once (review R2): a
-  case ARGUS recreates after a person deleted it is a second Kibana case for the same ARGUS
-  case, and the mirror keeps one row per ARGUS case (its primary key), so the row of the
-  deleted case is pointed at the new one. A trigger refuses the change for a row whose case
-  was not deleted (``deleted_at`` is set), so a bug cannot move a live mirror.
-- ``kibana_mirror.unexplained``: how many of ARGUS's actions on the case no sent write
-  explained, by kind, already alarmed (R7): a later action that a sent write does explain is
-  not taken for one of them.
-- ``kibana_sync_state.diff_cursor``: where the alert-status diff stopped, so each discovery
-  asks for a bounded slice of the alerts and the next one goes on (R8).
-- ``kibana_findings.kind`` may be ``person_deleted`` (R9): a person removed a comment or an
-  alert attachment.
+``kibana_mirror.kibana_case_id`` may be changed by the runtime role, once, to point at the new
+Kibana case after a person deleted the old one (a trigger refuses it for a live mirror);
+``kibana_mirror.unexplained`` counts ARGUS's actions no sent write explained;
+``kibana_sync_state.diff_cursor`` bounds each discovery's slice; ``kibana_findings.kind`` may be
+``person_deleted``.
 
 Revision ID: 0035
 Revises: 0034

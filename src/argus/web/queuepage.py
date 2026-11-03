@@ -1,25 +1,15 @@
-"""The case-first queue (AR4, D-161 point 4, D-182): what needs a person, in the order to do it.
+"""The case-first queue: what needs a person, in the order to do it.
 
-1. **ARGUS's open cases that need a person** (``casepages.WORK``, also the case list's ``queue``
-   view). A suggested case (nobody has confirmed it) and a case with a change since the owner was
-   told come first; then a case ARGUS or Kibana flagged or with a request waiting for an approver,
-   a confirmed case nobody owns yet, and a case someone owns that holds an investigation in
-   Needs attention (D-186: an owned case is not out of sight while it has new work). A notified
-   case that is still active with nothing changed is not work: it is a count
-   (``notified_cases``). Each case carries ARGUS's verdict or reading on its first investigation
-   to look at, its devices, and a sentence for why it is here.
-2. **Single investigations** in Needs attention that belong to no case that is still being worked,
-   in the queue's order (``queries`` ``queue`` sort: changed since a notice, raised by ARGUS's
-   evidence, follow-up, the rule's severity, the last alert). Every investigation in Needs
-   attention is a single or a member of a case here, and ``cases_total``, ``singles_total`` and
-   ``order_total`` count all of them, whatever the lists show.
-3. **The order "Next" walks**: the unreviewed investigations of the cases above, case by case,
-   then the single investigations. It is capped; ``order_total`` says how many the whole queue
-   holds.
+1. **ARGUS's open cases that need a person** (``casepages.WORK``): a suggested case and a case with
+   a change since the owner was told first; then one flagged or with a request waiting, a confirmed
+   case nobody owns, and an owned case holding an investigation in Needs attention. A notified case
+   that is still active with nothing changed is a count (``notified_cases``), not work.
+2. **Single investigations** in Needs attention that belong to no case still being worked, in the
+   queue's order; ``cases_total``, ``singles_total`` and ``order_total`` count all of them.
+3. **The order "Next" walks**: the unreviewed investigations of those cases, then the singles.
 
-The patterns ARGUS recommends closing are ``/patterns`` and the numbers of new and known work
-are ``/counts``: they are not repeated here. Reading only.
-"""
+Patterns to close are ``/patterns`` and the counts of new and known work ``/counts``. Reading
+only."""
 
 from __future__ import annotations
 

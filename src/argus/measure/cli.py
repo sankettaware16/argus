@@ -1,15 +1,15 @@
-"""``scripts/measure_capacity.py``: the load budget's re-measurement (Q-A3).
+"""``scripts/measure_capacity.py``: re-measure the SIEM load budget.
 
     uv run python scripts/measure_capacity.py [plan]          # dry run (the default): nothing sent
     uv run python scripts/measure_capacity.py run --live      # the session: a person, at a terminal
     uv run python scripts/measure_capacity.py verify data/measure/<UTC>/session.json
-    uv run python scripts/measure_capacity.py report [--since 2026-10-12] [--decision]
+    uv run python scripts/measure_capacity.py report [--since DATE] [--decision]
     uv run python scripts/measure_capacity.py kibana          # the local Kibana tier only
 
 ``run`` without ``--live`` is the dry run as well. A live run needs a terminal, a typed
-confirmation word, NORMAL health and the hours outside 00:00-01:30 UTC; it stops at the first
+confirmation word, NORMAL health and the hours outside the quiet hours; it stops at the first
 CAUTION signal (``argus.measure.session``). Nothing here writes to the SIEM or changes ARGUS's
-configuration: the lanes are proposed (``report --decision``) and adopted by a decision.
+configuration: the lanes are proposed (``report --decision``) and adopted by the operator.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ OUT = Path("data/measure")
 LOCK = 0x61726775_6D73
 DAY = timedelta(hours=24)
 # the collector probes every minute (collector.runner): a database without such a probe this
-# recently is not the one production's ARGUS writes to (review F8)
+# recently is not the one production's ARGUS writes to
 PRODUCTION_PROBE = timedelta(minutes=2)
 
 
@@ -149,7 +149,7 @@ async def plan_for(settings: Settings, engine: AsyncEngine, now: datetime) -> Pl
 
 
 def _store(settings: Settings, engine: AsyncEngine) -> PgStore:
-    """The store with the allowances every ARGUS process uses (Q-D2: the collector's lane,
+    """The store with the allowances every ARGUS process uses (the collector's lane,
     which the measuring session spends, and the lane plan), so the shared budget row is never
     refilled past the collector's share by this process."""
     return PgStore(engine, collector_config(settings.siem), lane_plan(settings.siem))
@@ -275,7 +275,7 @@ def save(report: SessionReport, out: Path) -> Path:
 
 VERIFIED = "SESSION VERIFIED"
 NOT_VERIFIED = "SESSION NOT VERIFIED"
-SO_FAR = "SESSION VERIFIED SO FAR"  # §7.8's 5 minutes after a busy minute have not passed
+SO_FAR = "SESSION VERIFIED SO FAR"  # the 5 minutes after a busy minute have not passed
 
 
 async def verify_stored(

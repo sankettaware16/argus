@@ -1,12 +1,11 @@
-# Fixture sanitization policy (R2, D-030). Tracked: contains no secrets and no identifiers. The
-# keyed pseudonyms come from data/keys/fixtures.key. The organisation's own names, ranges and
-# hosts (site_prefixes, campus_domains, literals, denylist_extra) go in the private overlay
-# config/fixtures.local.yaml beside this file: scripts/sanitize_fixtures.py lays its top-level
-# keys over these (D-294).
+# Fixture sanitization policy. Contains no secrets and no identifiers. The keyed pseudonyms come
+# from data/keys/fixtures.key. The organisation's own names, ranges and hosts (site_prefixes,
+# campus_domains, literals, denylist_extra) go in the private overlay config/fixtures.local.yaml
+# beside this file: scripts/sanitize_fixtures.py lays its top-level keys over these.
 version: 1
 
 # The organisation's public allocations: moved into the benchmarking space 198.18.0.0/15 in
-# fixtures, so they stay recognisably "site" addresses (the overlay lists them).
+# fixtures, so they stay recognisably the organisation's addresses.
 site_prefixes: []
 
 campus_domains: []
@@ -48,7 +47,7 @@ keep_domains:
   - example.org
 
 # Exact text replaced everywhere outside identifier fields (whole words, case-sensitive): the
-# organisation's names (the overlay lists them).
+# organisation's names.
 literals: {}
 
 # Fields whose whole value is an identifier (paths relative to the document's _source, at any
@@ -124,5 +123,5 @@ fields:
     - threat.enrichments.matched.id
 
 # Must never appear in fixtures (in addition to everything harvested from the raw sources): the
-# SIEM's hosts and other names (the overlay lists them).
+# SIEM's hosts and other names.
 denylist_extra: []

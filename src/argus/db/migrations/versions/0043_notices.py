@@ -1,16 +1,10 @@
-"""Minimal notices (Q-H4, plan §5 and §7.7, DQ26).
+"""Minimal notices.
 
-* ``notices``: what ARGUS remembers about each thing it may tell a person about, so that one
-  notice goes out per (kind, subject) until the thing is resolved or its severity rises, a
-  reminder at most once a day, one notice for an outage and one when it ends, and so that all of
-  this survives a restart. A row holds a kind, an opaque subject (a case's or an investigation's
-  id, or a fixed word), the severity and count now, when it was first and last seen, when it
-  ended, and the last notice that went out for it. It holds no host, address, user or rule name.
-  There is at most one live row (not resolved) per (kind, subject): a later occurrence of
-  something resolved is a new row.
-
-``argus_runtime`` reads the table and writes the columns the pass writes (it cannot delete a
-row: the table keeps the record of what went out); the web's role gets nothing.
+``notices``: what ARGUS remembers about each thing it may tell a person about (a kind, an opaque
+subject, severity, count, first and last seen, resolved, and the last notice sent), so one notice
+goes out per (kind, subject) until it is resolved or its severity rises. It holds no host,
+address, user or rule name. At most one live row per (kind, subject). The runtime reads it and
+writes the pass's columns (it cannot delete); the web's role gets nothing.
 
 Revision ID: 0043
 Revises: 0042
@@ -23,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0043"
-down_revision: str | None = "0042"  # Q-B3's web case access
+down_revision: str | None = "0042"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

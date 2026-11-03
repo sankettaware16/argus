@@ -1,20 +1,10 @@
-"""Who was behind an address (AR6, D-216): the SSO sign-ins of the internal addresses of ARGUS's
-investigations, kept per address and UTC day.
+"""Who was behind an address: SSO sign-ins per internal address and UTC day
 
-* ``signin_sightings``: one account's sign-ins from one address on one day: first and last event,
-  the events and how many succeeded or failed, the UTC hours with an event, and the commonest
-  browser strings. Keyed by (address, day, user_name). The usernames are personal data: the web
-  reads them (and shows them only to people with the ``see_logs`` capability), no model ever does.
-* ``signin_lookups``: that ARGUS asked about an address on a day, when, and whether the answer was
-  whole (``complete``) or why not (``reason``): so "looked, none seen", "not looked yet",
-  "incomplete" and "logs no longer kept" are different things. Keyed by (address, day).
-
-Neither table is derived from grouping (``argus regroup`` leaves them): the sign-in logs last five
-days at the SIEM, and these rows are the only copy then. ``argus_runtime`` writes both and prunes
-what is older than ``signins.keep_days``; the web's role reads both.
-
-The role names are written out, not imported (see 0003). ``WEB_GRANTS`` is what the doctor and the
-tests compare with ``roles.API_GRANTS``.
+``signin_sightings``: one account's sign-ins from one address on one day (first and last event,
+counts, hours, commonest browsers); the usernames are personal data, shown only to people with
+``see_logs`` and never given to a model. ``signin_lookups``: that ARGUS asked about an address on a
+day, and whether the answer was whole, so "looked, none seen", "not looked yet" and "incomplete"
+differ. Neither is derived from grouping; the runtime prunes by ``signins.keep_days``.
 
 Revision ID: 0056
 Revises: 0055

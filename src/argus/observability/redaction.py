@@ -1,22 +1,11 @@
 """Secret redaction for anything that leaves the process as text (logs, audit details, errors).
 
-Three layers, applied in order:
-1. **Key names** — values under keys like ``password``, ``api_key``, ``accessToken``, ``passWord``
-   or ``ARGUS_DATABASE__PASSWORD`` are masked: in mappings, in named tuples, and in the fields
-   of dataclasses and pydantic models. Fields are only used where the class shows them through
-   its generated repr; a class with its own ``__repr__`` is redacted through that repr, so a
-   value it hides stays hidden.
-2. **Registered secret values** — exact secrets loaded from config are masked wherever they
-   appear, also in their repr-, ascii-, bytes-, JSON- and URL-escaped forms.
-3. **Shapes** — credentials embedded in text: URL userinfo, ``Authorization`` schemes,
-   ``key=value`` / ``"key": "value"`` / ``('key', 'value')`` pairs (list values included),
-   cookies, PEM private keys and well-known provider key formats.
-
-Redaction must never raise and never return the original secret: a value that cannot be
-redacted is replaced (only that value, not its neighbours). Log and alert text is
-attacker-controlled and logging is synchronous, so every text rule runs in time linear in its
-input: no nested or overlapping quantifiers, and possessive quantifiers where a rule must not
-backtrack.
+Three layers: **key names** (values under keys like ``password`` or ``api_key``, in mappings, named
+tuples, dataclasses and pydantic models), **registered secret values** (exact secrets loaded from
+config, in their escaped forms too) and **shapes** (URL userinfo, ``Authorization`` schemes,
+``key=value`` pairs, cookies, PEM keys, well-known provider key formats). Redaction must never
+raise and never return the original secret. Log and alert text is attacker-controlled, so every
+text rule runs in linear time: no nested quantifiers, possessive ones where it must not backtrack.
 """
 
 from __future__ import annotations
@@ -208,17 +197,12 @@ _TEXT_RULES: tuple[tuple[re.Pattern[str], _Replacement], ...] = (
         "SCRAM-SHA-256$" + MASK,
     ),
     # scheme://user:pw@host -> scheme://user:***@host; the user may be empty (redis://:pw@).
-    # As urllib splits it, the password runs to the last "@" before the first "/", "?" or "#"
-    # (https://u:pw@host?to=a@b.org keeps its host). One with an unencoded "/", "?" or "#"
-    # (SQLAlchemy accepts them) runs to the first "@" instead, unless the ":" is followed by a
-    # port and a "/" before that "@" (http://host:5601/app?q=user@example.org,
-    # http://host:5601?next=/app&to=a@b.org). Whitespace ends the URL, and so does a '"' that
-    # closes a quoted string (_URL_QUOTE); any other character, " < > { } | \ ^ ` included, can
-    # be in the password. So a password with a '"' right before one of , : ; ) ] } > ends the
-    # URL at that quote: it is printed, or masked only up to an "@" before the quote (D-038).
-    # A match starts at a "://" and stops before the next one (a password never contains
-    # "://"), so the rule runs in linear time, although both branches may scan the same run
-    # and the first one backtracks over it.
+    # The password runs to the last "@" before the first "/", "?" or "#" (as urllib splits it), or,
+    # when it holds an unencoded "/", "?" or "#", to the first "@" unless the ":" is followed by a
+    # port and a "/" before that "@". Whitespace ends the URL, and so does a '"' that closes a
+    # quoted string (_URL_QUOTE); any other character can be in the password. A password with a '"'
+    # right before one of , : ; ) ] } > ends the URL at that quote and is masked only up to an "@"
+    # before it. A match starts at a "://" and stops before the next one, so the rule is linear.
     (
         re.compile(
             rf"(?<=[A-Za-z0-9+.\-])(?P<pre>://[^:/\[\]\s\"]*+:)"
@@ -367,14 +351,10 @@ def redact(value: Any) -> Any:
 def distinct_keys(keys: Sequence[tuple[object, Any]]) -> list[Any]:
     """Output keys for a mapping's ``(original key, key as shown)`` pairs, without collisions.
 
-    Showing keys as text can make two of them equal: ``{b"a": 1, "a": 2}``, ``{1: x, "1": y}``
-    in a JSON log or the audit trail, or two keys whose secrets are masked. A dict would
-    silently keep only the last entry. Instead, a key keeps its text unless an earlier key
-    already took that name, or (for a key that was not a str) a str key shows the same text:
-    str keys keep theirs whenever they can. A renamed key gets its original type appended,
-    numbered if that name is taken too: ``"1 (int)"``, ``"a (bytes)"``, ``"token=*** (str)"``,
-    ``"1 (int 2)"``; a key whose text an earlier rename took is renamed in turn
-    (``{b"a": 1, "a": 2, b"a (bytes)": 3}`` shows ``"a (bytes) (bytes)"`` for the last).
+    Showing keys as text can make two of them equal (``{b"a": 1, "a": 2}``, ``{1: x, "1": y}``), and
+    a dict would keep only the last. A key keeps its text unless an earlier key took that name (str
+    keys keep theirs whenever they can); a renamed key gets its original type appended, numbered if
+    that is taken too: ``"1 (int)"``, ``"a (bytes)"``, ``"1 (int 2)"``.
     """
     reserved = {shown for original, shown in keys if isinstance(original, str)}
     taken: set[Any] = set()

@@ -1,22 +1,12 @@
-"""The switch to ``/app`` (Phase 3 plan §5 Q-B4, §7.5 "Migration"): with ``web.classic`` set to
-``fallback``, a classic page's address leads to the same page of the app, and the classic pages
-are a read-only fallback for one gate.
+"""The switch to ``/app``: with ``web.classic`` set to ``fallback``, a classic page's address leads
+to the same page of the app, and the classic pages are a read-only fallback.
 
-- **A classic page (GET, HEAD)** answers 303 to its page in ``/app``, keeping the query where the
-  app reads it the same way (the Inbox's view, sort, rule and entity; the dashboard's filters).
-  The target is made of fixed paths and a parsed UUID only: nothing of the request's text is
-  copied into the path.
-- **The fallback** is a choice of the person's browser: ``/classic`` sets a session cookie
-  (``argus_classic``) and the classic pages answer as they did, until the person opens ``/app``
-  (which clears it) or closes the browser. The cookie grants nothing; every page still checks the
-  session and its capability.
-- **A classic form (POST)** is refused with a plain page that points to the same action in
-  ``/app``, cookie or not: the app is the one place that changes anything (its changes show their
-  exact request first).
-- ``/access``, the sign-in, step-up and logout pages and the classic JSON API stay as they are.
-
-Pure functions: the app's middleware and routes call them (tests/unit/web/test_classic.py).
-"""
+A classic page (GET, HEAD) answers 303 to its page in ``/app``, built from fixed paths and a
+parsed UUID only. The fallback is the browser's choice: ``/classic`` sets a session cookie
+(``argus_classic``) and the classic pages answer as they did until the person opens ``/app``; the
+cookie grants nothing. A classic form (POST) is refused with a plain page pointing to the same
+action in ``/app``. ``/access``, the sign-in, step-up and logout pages and the classic JSON API
+stay. Pure functions: the app's middleware and routes call them."""
 
 from __future__ import annotations
 
@@ -45,7 +35,7 @@ QUERY_MAX = 4096
 # The routes take an investigation's id as one path segment and parse it with pydantic's UUID
 # validator (hyphenated, 32 hex digits, {braced}, urn:uuid:); the shapes below match the segment
 # the way the router does (``[^/]+``) and the id is parsed with that same validator, so no
-# spelling the route accepts slips past (review B4 finding 1).
+# spelling the route accepts slips past.
 _UUID = TypeAdapter(uuid.UUID)
 _SEGMENT = r"([^/]+)"
 _INVESTIGATION = re.compile(rf"/investigations/{_SEGMENT}(/report|/alerts/.+)?", re.DOTALL)

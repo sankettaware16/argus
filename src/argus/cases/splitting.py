@@ -1,22 +1,11 @@
-"""What a split takes with the investigations it moves (D-211): which of a case's indicators go
-with them. Read only; :meth:`argus.cases.service.CaseService.split` calls it under its locks and
-the machine (:class:`argus.cases.machine.Unlink`) checks what it says.
+"""What a split takes with the investigations it moves: which of a case's indicators go with them.
+Read only; :meth:`argus.cases.service.CaseService.split` calls it and the machine checks it.
 
-An investigation's **devices** are read as the case's own writers read them, never a new notion:
-
-* the actors of its grouping key (:func:`argus.cases.opener.actors_of`: identity fields only, no
-  generic value, no shared egress address), which is what membership matches by; and
-* the campus devices behind it that the suggester wrote as the actors of a campaign case
-  (:func:`argus.campaigns.load.hosts_for`: the key's campus addresses and host names, the
-  addresses a DNS rule lists as sources, and the campus addresses among its entities).
-
-An actor row of the source goes with the moved investigations when one of them has that device
-and no investigation that stays has it. A device both have stays on the source (and is also given
-to the target): the person is told, so a split that could not separate two devices is not silent.
-The C2 and indicator rows stay on the source whatever they touched (shared infrastructure is a
-fact of both cases); the target gets the ones its investigations touch, by the entities
-membership matches C2 and indicators by (:func:`argus.cases.membership.keys`).
-"""
+An investigation's devices are the actors of its grouping key (as membership matches) and the
+internal devices a campaign case holds as actors. An actor row goes with the moved investigations
+when one of them has that device and no investigation that stays has it; a device both have stays
+on the source and is also given to the target, and the person is told. C2 and indicator rows stay
+on the source; the target gets the ones its investigations touch."""
 
 from __future__ import annotations
 
@@ -40,7 +29,7 @@ Key = tuple[str, str]
 @dataclass(frozen=True)
 class Who:
     """An investigation's actors (what membership matches by) and its devices (those, and the
-    campus devices behind it that a campaign case holds as actors)."""
+    internal devices behind it that a campaign case holds as actors)."""
 
     actors: tuple[Indicator, ...] = ()
     devices: frozenset[Key] = frozenset()

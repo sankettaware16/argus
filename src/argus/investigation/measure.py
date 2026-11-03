@@ -1,27 +1,14 @@
-"""The gold measurement of the deterministic wave (Q-F3 gate): how often the decision engine
-cannot decide a gold item, before the wave and after it, paired item by item, repeated, and
-that no true positive is proposed benign.
+"""The gold measurement of the deterministic wave: how often the decision engine cannot decide a
+gold item before the wave and after it, paired item by item, and that no true positive is
+proposed benign.
 
-``compare`` is pure: the person's answers, the engine's outcome on each item's stored dossier
-(before) and on the dossier the wave leaves (after), one outcome or None (no decision) per
-item. The inconclusive rate carries its n and a 95 % interval; the pairs are counted
-(undecided before and decided after, the other way round, decided both ways) and the exact
-McNemar test judges whether the gains outnumber the losses. The wave asks only the items the
-engine could not decide, so an item decided before is never lost by construction: ``lost`` is
-0 and the test is then a sign test of the gains alone (the report says so). A true positive
-proposed benign in either arm is listed by id: it must be none (plan §6.2).
-
-The engine learns its keys from people's answers and from the gold set's **dev** answers
-(``decision.learn``), so a dev item is scored with keys learned from its own label: only the
-**test** split measures anything. ``measure`` therefore scores the test split by default,
-and a report is per split, with the dev block marked as a check on the code and not a measure.
-
-``measure`` runs it against the gold set. By default (a dry run) it sends nothing: it reports
-the engine's outcomes on the stored dossiers and, per item, what a wave would ask (the gaps it
-could close, the requests and the heavy ones among them). With ``live`` the wave is run for
-every undecided item through the investigation lane (the lead's, in NORMAL health, never in
-the quiet hours) and the engine decides again on the dossier it would leave, **without storing
-it**; the evidence it asks for is stored as any wave's is."""
+``compare`` is pure: the person's answers and the engine's outcome on each item before and after,
+with the inconclusive rate (n and a 95 % interval) and an exact McNemar test of gains against
+losses. The engine learns the gold set's **dev** answers, so only the **test** split measures
+anything (a report is per split, dev marked as a check on the code). ``measure`` runs it against
+the gold set; by default (a dry run) it sends nothing, with ``live`` it runs the wave through the
+investigation lane (NORMAL health, never in the quiet hours) and decides again **without storing**.
+"""
 
 from __future__ import annotations
 
@@ -69,7 +56,7 @@ class Comparison:
 
     @property
     def holds(self) -> bool:
-        """The gate's own condition: no true positive proposed benign, in either arm."""
+        """The condition that must hold: no true positive proposed benign, in either arm."""
         return not self.tp_benign_before and not (self.tp_benign_after or ())
 
 
@@ -259,7 +246,7 @@ def _block(m: Measured) -> list[str]:
 def report(m: Measured) -> list[str]:
     """The measurement as plain lines, per split (an item without a split, as a direct caller
     may build one, is reported alone). The dev split is marked: the engine learned those
-    answers, so it is a check on the code, not the gate's number."""
+    answers, so it is a check on the code, not the measure."""
     found = sorted({m.splits.get(k) for k in m.answers}, key=lambda x: (x != TEST, str(x)))
     if found in ([], [None]):
         out = _block(m)

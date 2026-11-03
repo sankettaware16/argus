@@ -1,38 +1,13 @@
-"""The owner was told: a true positive on a personal laptop that keeps alerting (AR4b, D-169).
+"""The owner was told: a true positive on a personal laptop that keeps alerting.
 
-A university's devices are mostly the students', researchers' and staff's own; the security team
-finds one and tells its owner, and cannot wipe or isolate it, so a reported true positive keeps
-alerting. This migration holds what ARGUS needs to track such a case quietly (D-176):
-
-* ``cases.notified_at``: the first time the device's owner was told (a person's record, a fact
-  on an open or assigned case, not a state: the lifecycle's edges are unchanged); cleared when
-  the case is contained or closed. ``cases.blocked_at``: the first network-side block recorded.
-  A CHECK holds that a notified case is open or assigned, a blocked one confirmed.
-* ``case_events.kind`` gains ``notified``, ``blocked`` and ``address_moved``; the closure reasons
-  of ``cases`` and ``approval_requests`` gain ``stopped_after_notice`` (no matching activity for
-  14 days after the notice: ARGUS proposes it, an approver decides), and the owner's function
-  ``argus_approval_propose`` may propose it (its text is 0030's with that reason added).
-* ``case_notices``: the record of what a person told and did: who was told, when, how, by whom
-  (``kind`` ``owner``), and the blocks put on the network (``kind`` ``block``). Append-only
-  (the owner's trigger, like the case events).
-* ``case_known_matches``: for an investigation of a notified case's device, what ARGUS decided at
-  one version of it: ``known`` (it belongs to the known infection: it leaves Needs attention and
-  the AI queue) or ``changed`` (something is new since the notice: ``why`` says what, and it is
-  in Needs attention). One row for each investigation, replaced as it gets a new version.
-* ``case_known_keys``: what the known infection already includes beyond the case's own devices
-  and indicators (evidence flags, destinations, domain families, university services, the data
-  volume), so that each change speaks once.
-* ``case_reminders``: ARGUS's two suggestions for a case that stays active after the notice
-  (notify again after 7 days, ask for network-side action after 21): never an alarm, shown on
-  the case; a person dismisses one.
-
-``argus_runtime`` writes what the pass and the terminal write; the web's role reads all of it and
-writes what a person records (the case row's two columns, a notice, a block) and dismisses.
-
-Downgrading is refused while a case event, closure or notice uses what this adds: the case events
-are append-only and a closed case keeps its reason.
-
-The role names are written out, not imported (see 0003).
+Many devices belong to students, researchers and staff; the security team tells the owner and cannot
+wipe or isolate it, so a reported true positive keeps alerting. This holds what ARGUS needs to track
+such a case quietly: ``cases.notified_at`` and ``blocked_at``, new ``case_events`` kinds and the
+closure reason ``stopped_after_notice``; ``case_notices`` (what a person told and did, append-only);
+``case_known_matches`` (what ARGUS decided about each investigation of the device: ``known`` or
+``changed``); ``case_known_keys`` (what the known infection already includes); ``case_reminders``
+(ARGUS's two suggestions for a case that stays active). Downgrading is refused while a case event,
+closure or notice uses what this adds.
 
 Revision ID: 0050
 Revises: 0049

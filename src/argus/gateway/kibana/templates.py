@@ -1,17 +1,10 @@
-"""The Kibana lane's templates (Q-D2): the only requests ARGUS can make to Kibana.
+"""The Kibana lane's templates: the only requests ARGUS can make to Kibana.
 
-A template names its endpoint (``paths.KEndpoint``), the key that sends it (Kibana's reader,
-the cases writer or the alert writer), its write classes (none: a read), a cost estimate (a
-Kibana call is charged max(round trip, estimate), plan §7.8), its parameter model, the URL
-parameters it may carry and the check of its answer. Writes build their body from a strict
-model (``models.py``); the validator re-reads the exact bytes against it before sending.
-
-Reads: ``kibana.status``, ``cases.find``, ``cases.get``, ``cases.user_actions``,
-``cases.comments``, ``cases.configure`` and the technical-preview ``cases.alerts`` and
-``alerts.cases`` (optional: Q-D3 relies on ``kibana.alert.case_ids`` and user actions first).
-Writes: ``cases.create``, ``cases.comment``, ``cases.attach_alerts`` (W1), ``cases.update``
-(W2), ``cases.close`` (W3), ``alerts.status`` (WA). A comment belongs to the class of the
-change it explains (W1, W2 or W3), which the write's context names.
+A template names its endpoint, the key that sends it (reader, cases writer, alert writer), its
+write classes (none for a read), a cost estimate, its parameter model, the URL parameters it may
+carry and the check of its answer. Reads: status, cases find/get, user actions, comments,
+configure and alerts. Writes: create, comment, attach alerts, update, close and alert status; a
+comment belongs to the class of the change it explains.
 """
 
 from __future__ import annotations
@@ -30,17 +23,17 @@ from argus.gateway.kibana.paths import KEndpoint, Target
 from argus.gateway.kibana.writes import WriteClass, WriteUnits
 from argus.gateway.templates import CostClass
 
-TIMEOUT = timedelta(seconds=15)  # plan §5 Q-D2; kibana.timeout sets it (KibanaGateway)
+TIMEOUT = timedelta(seconds=15)  # kibana.timeout sets it (KibanaGateway)
 MAX_PAGE_DEPTH = 10_000  # Kibana refuses paging past 10,000 documents
 
 
 class KeyRole(StrEnum):
-    """Which of ARGUS's Kibana keys sends a request (DQ3 (a))."""
+    """Which of ARGUS's Kibana keys sends a request."""
 
     READER = "reader"  # Cases Read only
     CASES = "cases"  # the cases writer (W1-W3)
     ALERTS = "alerts"  # the alert writer (WA)
-    TEAM = "team"  # the case team's six users (AR8): the key is picked by the request's author
+    TEAM = "team"  # the case team's users: the key is picked by the request's author
 
 
 class Params(BaseModel):
@@ -94,7 +87,7 @@ class KibanaTemplate(ABC):
     body_model: ClassVar[type[BaseModel] | None] = None
     preview: ClassVar[bool] = False
     # Every Kibana call is light for admission (its estimate is reserved from the lane); it is
-    # charged max(round trip, estimate_ms) afterwards (plan §7.8). None is heavy.
+    # charged max(round trip, estimate_ms) afterwards. None is heavy.
     cost: ClassVar[CostClass] = CostClass.LIGHT
 
     @classmethod
@@ -287,7 +280,7 @@ class CasePageParams(Params):
 
 @kregister
 class CaseUserActions(KibanaTemplate):
-    """Who changed what on a case, oldest first (Q-D3's change detection)."""
+    """Who changed what on a case, oldest first (for change detection)."""
 
     name = "cases.user_actions"
     version = 1
@@ -334,7 +327,7 @@ class CaseComments(KibanaTemplate):
 @kregister
 class CasesConfigure(KibanaTemplate):
     """The case configuration (read only): a required custom field without a default would
-    reject every create, so a write run reads it first (plan §2)."""
+    reject every create, so a write run reads it first."""
 
     name = "cases.configure"
     version = 1
@@ -463,7 +456,7 @@ class AttachParams(Params):
 @kregister
 class AttachAlerts(KibanaTemplate):
     """Attaches alerts: Kibana's internal user then writes each alert's ``case_ids``, so every
-    alert counts as an alert mutation (plan §7.1)."""
+    alert counts as an alert mutation."""
 
     name = "cases.attach_alerts"
     version = 1
@@ -529,7 +522,7 @@ class CloseCase(KibanaTemplate):
 
 @kregister
 class SetAlertStatus(KibanaTemplate):
-    """WA (Q-D5 builds its sender): alert status by ids, through Kibana's route."""
+    """WA: alert status by ids, through Kibana's route."""
 
     name = "alerts.status"
     version = 1
@@ -550,8 +543,8 @@ class SetAlertStatus(KibanaTemplate):
         return models.check_alert_status(answer, params)
 
 
-# --------------------------------------------------------------------------- the case team (AR8)
-# Writes of class WC, sent as one of the six service users (D-158): the opening and the alerts
+# --------------------------------------------------------------------------- the case team
+# Writes of class WC, sent as one of the service users: the opening and the alerts
 # only by the lead, the files only by the reporter, a comment by whoever owns the part. The
 # validator holds each template to its users (``validator.TEAM_ONLY``).
 
@@ -611,7 +604,7 @@ class TeamComment(KibanaTemplate):
 @kregister
 class TeamEditCase(KibanaTemplate):
     """The lead corrects the case it opened: a new title and/or description, against the version
-    the poster just read (D-236). Kibana answers the updated case."""
+    the poster just read. Kibana answers the updated case."""
 
     name = "team.edit_case"
     version = 1
@@ -640,7 +633,7 @@ class TeamCommentEditParams(Params):
 
 @kregister
 class TeamEditComment(KibanaTemplate):
-    """A user corrects the comment they wrote, against the comment's version (D-236). Kibana
+    """A user corrects the comment they wrote, against the comment's version. Kibana
     answers the whole case."""
 
     name = "team.edit_comment"

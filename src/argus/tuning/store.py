@@ -1,4 +1,4 @@
-"""Storing the weekly tuning reports (P7): one per rule and week, written once."""
+"""Storing the weekly tuning reports: one per rule and week, written once."""
 
 from __future__ import annotations
 

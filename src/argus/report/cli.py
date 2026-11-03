@@ -1,5 +1,5 @@
-"""``argus report ...``: report@2 of an investigation (Q-F2). Read-only: nothing is written to
-the database, nothing is asked of the SIEM or a model."""
+"""``argus report ...``: report@2 of an investigation. Read-only: nothing is written to the
+database, nothing is asked of the SIEM or a model."""
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def report_sample(
     config: ConfigOption = None,
 ) -> None:
     """Write the reports of a fixed random sample of assessed investigations, one text file
-    each (mode 0600: they hold campus addresses and names), for a person to read."""
+    each (mode 0600: they hold internal addresses and names), for a person to read."""
     settings = load(config)
     picked = seed or datetime.now(UTC).date().isoformat()
 

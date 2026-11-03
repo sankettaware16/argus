@@ -1,25 +1,9 @@
-"""Whether the agents' files and their pins are still as approved (Q-H1): ``argus doctor``
-warns when they are not, since an edited file and its new pin in code are consistent with
-each other, and only an approval says they are wanted.
-
-Each pin names the git tag that approves its version (``Pin.approved``: ``q-<id>-approved``).
-The files are compared with the nearest of those tags HEAD descends from, never with another
-approval tag: under Phase 3's streams (D-110) one component's approval tag sits on a tree
-that may hold another component's agents, not approved yet. A pin whose tag is not in HEAD's
-history is named as waiting for its approval. What is compared is what is on disk now,
-uncommitted edits, new files and deletions included: everything under ``config/agents/`` but
-hidden files, on disk and in the tag alike (the loader ignores them too), and
-``src/argus/agent/registry.py`` (bindings, pins, enabled versions, gold run ids). Git's output
-is decoded as file names are (UTF-8, any other byte kept), so a name that is not UTF-8 is
-compared like any other.
-
-Git only reads refs and objects here (``rev-parse``, ``tag``, ``describe``, ``ls-tree``): it
-never looks at the working tree, so nothing a checkout configures (an fsmonitor hook, a clean
-filter, a diff driver) can run. The files on disk are hashed as git blobs in Python, and only
-those of their tagged size (any other size has changed): nothing is read whole, and a pipe
-or a device is never waited on. A copy that is not a git checkout (a deployed tag) cannot
-tell, and says so.
-"""
+"""Whether the agents' files and their pins are still as approved: ``argus doctor`` warns when
+they are not. Each pin names the git tag that approves it (``Pin.approved``); the files on disk
+(``config/agents/`` and ``registry.py``, uncommitted edits included) are compared with the nearest
+such tag HEAD descends from. Git only reads refs and objects (nothing the checkout configures can
+run) and files are hashed as git blobs in Python; a copy that is not a git checkout says it cannot
+tell."""
 
 from __future__ import annotations
 
@@ -100,7 +84,6 @@ def blob_id(data: bytes, algorithm: str = "sha1") -> str:
 
 
 def approvals(pins: Mapping[str, Mapping[str, Pin]] = PINS) -> frozenset[str]:
-    """The approval tags the pins name."""
     return frozenset(pin.approved for versions in pins.values() for pin in versions.values())
 
 

@@ -1,20 +1,9 @@
-"""The case team after the adversarial review (AR7/AR8, D-201 to D-210).
+"""The case team's rotation, comment reads and verdict statuses.
 
-* ``case_team_looks``: when the poster last looked at a case (one row each). The poster picks its
-  candidates in SQL (only cases that could qualify) and rotates through them by this time, so
-  a case at the back of a long list is reached in one pass. The writer's login keeps it; the
-  runtime reads it.
-* ``case_team_reads``: the Kibana case's ``updated_at`` and comment count at the last read of its
-  comments. The sync reads a posted case's comments only when either changed. The runtime login
-  keeps it (the sync's pass).
-* ``case_team_seen``: the primary key gains ``status``, so a comment first kept as ``unmatched``
-  (no ARGUS person had that Kibana account) can later get a second row with what ARGUS did when
-  one appeared, and ``counts`` holds what the review path did (labelled, already, kept, ...) so
-  the lead's note says exactly that. The table stays append-only.
-
-Downgrading is refused while a comment has two rows (the old key cannot hold them).
-
-The role names are written out, not imported (see 0003).
+``case_team_looks`` (when the poster last looked at a case, so it rotates through candidates),
+``case_team_reads`` (the Kibana case's ``updated_at`` and comment count at the last read) and
+``case_team_seen`` (the primary key gains ``status``, and ``counts`` holds what the review path did;
+still append-only). Downgrading is refused while a comment has two rows.
 
 Revision ID: 0054
 Revises: 0053

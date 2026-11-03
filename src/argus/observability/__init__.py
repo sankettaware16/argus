@@ -1,1 +1,1 @@
-"""Logging, redaction and (later) metrics."""
+"""Logging and redaction."""

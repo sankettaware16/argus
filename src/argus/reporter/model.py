@@ -1,5 +1,5 @@
 """The Reporter's contract: the figures of a report, each with the words that say how it was
-counted (Q-H3). Stored as the ``numbers`` of a ``reports`` row and served by ``/api/v1``."""
+counted. Stored as the ``numbers`` of a ``reports`` row and served by ``/api/v1``."""
 
 from __future__ import annotations
 

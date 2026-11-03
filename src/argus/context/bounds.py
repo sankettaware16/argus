@@ -1,15 +1,7 @@
-"""The bounds every evidence template of batch 1 keeps (Q-F4, plan §7.3's template rules),
-checked where the parameters are made, so no caller can build a request outside them:
-
-* times are timezone-aware, the window is not empty and not longer than the template allows;
-* an aggregation reads exactly one daily index (D-067): with the gateway's 1 h pad around
-  midnight, a window inside 01:00 to 22:59 UTC of one day;
-* addresses are real IPv4 or IPv6 addresses, written the one way Elasticsearch stores them
-  (an IPv4-mapped IPv6 address as IPv4; no zone);
-* a value is never longer than its field indexes (``ignore_above``, counted in UTF-16 units
-  as Elasticsearch counts it).
-
-Pure: nothing here reads a clock or a database.
+"""The bounds every evidence template of batch 1 keeps, checked where the parameters are made:
+times are timezone-aware and the window is not empty or too long, an aggregation reads exactly one
+daily index, addresses are real IPv4/IPv6 in the form Elasticsearch stores them, and a value is
+never longer than its field indexes (``ignore_above``, counted in UTF-16 units). Pure.
 """
 
 from __future__ import annotations
@@ -25,7 +17,7 @@ MARGIN = timedelta(minutes=15)  # ingest: never read the last minutes (as proxy.
 
 def keyword_chars(source: str | None = None) -> int:
     """The longest value a keyword field of the family ``source`` indexes: its ``ignore_above``
-    (the captured mappings' 256). With no family named, the smallest of the site's."""
+    With no family named, the smallest of the site's."""
     return site.keyword_chars(source)
 
 

@@ -1,4 +1,4 @@
-"""Query templates (plan §5.3): the only way ARGUS asks the SIEM anything.
+"""Query templates: the only way ARGUS asks the SIEM anything.
 
 A template is a class with a name, a version, an endpoint, an index family, a cost class, a
 pydantic parameter model, field allowlists and a body builder. Values from parameters enter the
@@ -29,9 +29,9 @@ class Endpoint(StrEnum):
     RESOLVE_INDEX = "resolve_index"  # GET /_resolve/index/<family pattern>
     AUTHENTICATE = "authenticate"  # GET /_security/_authenticate
     HAS_PRIVILEGES = "has_privileges"  # POST /_security/user/_has_privileges
-    LICENSE = "license"  # GET /_license (Q-D2)
-    SECURITY_HEALTH = "security_health"  # GET /_cluster/health/.security (Q-D2, for Q-E2)
-    # `argus discover` (P4-D1): metadata reads of a SIEM ARGUS has not been configured for yet
+    LICENSE = "license"  # GET /_license
+    SECURITY_HEALTH = "security_health"  # GET /_cluster/health/.security
+    # `argus discover`: metadata reads of a SIEM ARGUS has not been configured for yet
     DISCOVER_INDICES = "discover_indices"  # GET /_resolve/index/<one of two fixed patterns>
     FIELD_MAPPING = "field_mapping"  # GET /<one index>/_mapping/field/<allowlisted fields>
     ILM_POLICIES = "ilm_policies"  # GET /_ilm/policy (needs read_ilm: asked only when held)
@@ -61,19 +61,19 @@ class Purpose(StrEnum):
     BACKFILL = "backfill"
     RECONCILE = "reconcile"
     ENRICH = "enrich"
-    WRITEBACK = "writeback"  # alert status writes and their read-backs (R17, Q-D5)
-    # Phase 3 lanes (plan §7.8, Q-D2): each spends its own share of the budget (lanes.py)
-    INVESTIGATE = "investigate"  # waves, agent@2, the still-active watch, "check more"
-    FRESHNESS = "freshness"  # watermarks and verified zeros (Q-F1)
-    MEASURE = "measure"  # the budget's re-measurement (Q-A3): NORMAL only, a person's session
-    IDENTITY = "identity"  # sign-in and capability checks (Q-E1); not stopped by STOP
-    KIBANA_READ = "kibana_read"  # the Kibana lane's reads (Q-D2, Q-D3)
-    KIBANA_WRITE = "kibana_write"  # case writes W1-W3 (Q-D4)
-    DISCOVER = "discover"  # `argus discover` (P4-D1): a person's metadata reads, NORMAL only
+    WRITEBACK = "writeback"  # alert status writes and their read-backs
+    # the lanes: each spends its own share of the budget (lanes.py)
+    INVESTIGATE = "investigate"  # waves, the agent, the still-active watch, "check more"
+    FRESHNESS = "freshness"  # watermarks and verified zeros
+    MEASURE = "measure"  # the budget's re-measurement: NORMAL only, a person's session
+    IDENTITY = "identity"  # sign-in and capability checks; not stopped by STOP
+    KIBANA_READ = "kibana_read"  # the Kibana lane's reads
+    KIBANA_WRITE = "kibana_write"  # case writes W1-W3
+    DISCOVER = "discover"  # `argus discover`: a person's metadata reads, NORMAL only
 
 
 # The kill switch a purpose answers to, besides the global one. The re-measurement has no
-# switch of its own (plan §7.8): the global one stops it, and its script refuses to start or
+# switch of its own: the global one stops it, and its script refuses to start or
 # go on while any switch is stopped.
 COMPONENT = {
     Purpose.PROBE: None,
@@ -237,11 +237,11 @@ def register(template: type[Template]) -> type[Template]:
 
 
 def plan_key(plan: RequestPlan, params: Params) -> str:
-    """A request's content address (D-054): sha256 of the template and version, the canonical
+    """A request's content address: sha256 of the template and version, the canonical
     parameters and what the plan reads (window, index names, log source). The daily indices
     the gateway resolves from the window are left out: they follow from the window, and the
     listing can change. The evidence store keys tasks by it, and the ledger records it with
-    every request (Q-F2), so a ledger row joins its evidence."""
+    every request, so a ledger row joins its evidence."""
     window = plan.window
     span: list[str] | None = None
     if window is not None:

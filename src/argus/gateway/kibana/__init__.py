@@ -1,11 +1,8 @@
-"""The Kibana lane (Q-D2, plan §5 and §7.1): the only path from ARGUS to Kibana.
+"""The Kibana lane: the only path from ARGUS to Kibana.
 
-- ``paths``: the one path builder (every path in ``/s/<space>/api/``; no DELETE, ``/internal/``,
-  configuration write or push can be built);
-- ``templates``: the reads and the class-gated writes, ``models``: their strict bodies and the
-  checks of Kibana's answers, ``validator``: the final request held to both;
-- ``writes``: the write classes, caps, window and the lane's shared state;
-- ``gateway``: ``KibanaGateway`` (read, start_run, write, key_privileges), ``transport``: HTTPS
-  with the pinned CA, ``selftest``: the keys' canaries, ``service`` and ``cli``.
-Settings: ``kibana.*`` (off by default).
+``paths`` builds every path; ``templates`` and ``models`` define the reads and class-gated writes
+with their strict bodies and answer checks; ``validator`` holds the final request to both;
+``writes`` has the write classes, caps and shared state; ``gateway`` is ``KibanaGateway``;
+``transport`` is the HTTPS client; ``selftest`` has the keys' canaries. Settings: ``kibana.*``
+(off by default).
 """

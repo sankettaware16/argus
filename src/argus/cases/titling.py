@@ -1,19 +1,9 @@
-"""Case titles from the database (D-230): the facts of a case, its title, and the pass that keeps
-ARGUS's own titles current.
-
-:mod:`argus.cases.naming` makes a title from :class:`~argus.cases.naming.Facts`; this module reads
-them from ARGUS's own database (never the SIEM): the member investigations' rule names, evidence
-flags and threat-listed values, the case's indicators, the outside answers cached for them, the
-campus web sites the investigations name, and whether a stored web check showed a config or backup
-file served. :func:`facts_of` is the pure part, so the reading is testable without a database.
-
-**Who wrote a title.** The actor of the newest ``suspected``, ``opened`` or ``retitled`` case
-event. ARGUS refreshes (:func:`refresh`) the titles it wrote when the new title differs, as
-``argus:title``, and never one a person wrote or set (``argus case retitle``): the service refuses
-it. New cases get their title from the same facts before they exist (:func:`for_members`), so the
-first title is the one the refresh would keep. A case with no facts to say anything from (a merged
-case holds no investigations) keeps its title.
-"""
+"""Case titles from the database: the facts of a case, its title, and the pass that keeps ARGUS's
+own titles current. :mod:`argus.cases.naming` makes a title from its facts; this module reads them
+from ARGUS's own database (:func:`facts_of` is the pure part). ARGUS refreshes (:func:`refresh`) the
+titles it wrote, as ``argus:title``, and never one a person wrote or set (``argus case retitle``).
+New cases get their title from the same facts before they exist (:func:`for_members`); a case with
+no facts to say anything from keeps its title."""
 
 from __future__ import annotations
 
@@ -67,8 +57,8 @@ def default_campus_domains() -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class Context:
-    """What the reading needs besides the database: the asset map's classes (a campus address, and
-    the place the asset map names it in) and the campus domains (a campus web site)."""
+    """What the reading needs besides the database: the asset map's classes (an internal address,
+    and the place the asset map names it in) and the internal domains (an internal web site)."""
 
     classifier: IpClassifier | None = None
     campus_domains: tuple[str, ...] = field(default_factory=default_campus_domains)
@@ -83,12 +73,9 @@ class Found:
     indicators: Sequence[tuple[str, str, str]] = ()  # kind, value, role
     outside: Sequence[tuple[str, str, str, str, Mapping[str, Any]]] = ()  # source, kind, value,
     # status, answer: the newest first
-    sites: Sequence[str] = ()  # campus domains the investigations name, the commonest first
+    sites: Sequence[str] = ()  # internal domains the investigations name, the commonest first
     served: bool = False
     follows: int = 0  # the number of the closed case this one follows (0: none)
-
-
-# --------------------------------------------------------------------------- the pure part
 
 
 def _campus(value: str, classifier: IpClassifier | None) -> bool:
@@ -102,7 +89,7 @@ def _campus(value: str, classifier: IpClassifier | None) -> bool:
 
 
 def _device(value: str, kind: str, classifier: IpClassifier | None) -> naming.Device:
-    """A campus device with the place and kind of site the asset map gives its network."""
+    """An internal device with the place and kind of site the asset map gives its network."""
     if classifier is None or kind != "ip":
         return naming.Device(value, kind)
     match = classifier.classify(value).asset
@@ -215,8 +202,6 @@ def title_of(found: Found, ctx: Context) -> str | None:
         return None  # nothing to say: the title stays
     return naming.title(facts)
 
-
-# --------------------------------------------------------------------------- reading
 
 _IDS = bindparam("ids", type_=ARRAY(UUID(as_uuid=True)))
 _MEMBERS = text(
@@ -357,8 +342,6 @@ async def for_members(
         found = replace(found, follows=int(number or 0))
     return title_of(found, ctx) or fallback
 
-
-# --------------------------------------------------------------------------- the pass
 
 _CASES = text(
     "SELECT c.id, c.number, c.title, c.state, coalesce((SELECT e.actor_user_id IS NOT NULL"

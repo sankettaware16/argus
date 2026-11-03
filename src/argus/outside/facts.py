@@ -1,16 +1,8 @@
-"""What an outside threat-intel answer is, as ARGUS keeps and says it (AR3, D-165).
-
-An *answer* is the small, parsed, size-capped JSON object a source's reply is reduced to (never
-the raw reply). A *fact* is an answer attached to an item: ``{"source", "kind", "value", "status",
-"answer", "flagged"}``. The item's ``outside`` list holds them; the privacy layer renders them,
-the decision floor and the evidence flags read ``flagged``, and :func:`describe` says one in
-plain words ("VirusTotal: 7 of 94 engines flag this IP"), the same sentence in the run's checks,
-the item the model reads and the investigation page.
-
-Pure functions: no I/O, no settings. Text a source supplies (names, organisations, products) is
-cleaned when an answer is parsed and passed through ``quote`` when a sentence is built, so the
-model's view can quote it as untrusted and a page can show it as it is.
-"""
+"""What an outside threat-intel answer is, as ARGUS keeps and says it. An *answer* is the small
+parsed JSON object a source's reply is reduced to (never the raw reply); a *fact* is an answer
+attached to an item (``{"source", "kind", "value", "status", "answer", "flagged"}``) in its
+``outside`` list. :func:`describe` says a fact in plain words, the same sentence everywhere. Text
+a source supplies is cleaned on parsing and quoted in sentences. Pure: no I/O, no settings."""
 
 from __future__ import annotations
 
@@ -36,8 +28,8 @@ DEFAULT_THRESHOLD = 3  # outside.flag_threshold's default
 FLAG = "flagged by outside threat intel"  # the evidence flag (evaluation.gold.flags, assess.raised)
 
 MAX_URL = 2048
-DOMAIN_SHAPE = 3  # a VirusTotal domain answer with the family fields (AR2c, D-168, D-174) says so
-# Web popularity (D-174): VirusTotal's ``popularity_ranks`` mixes lists that measure how many
+DOMAIN_SHAPE = 3  # a VirusTotal domain answer with the family fields says so
+# Web popularity: VirusTotal's ``popularity_ranks`` mixes lists that measure how many
 # people visit a site (Majestic's backlinks, Tranco, Cloudflare Radar's top buckets) with lists
 # that measure how many devices *query* a name (Cisco Umbrella, and Cloudflare Radar below its top
 # buckets), which a command-and-control domain scores on too because infected devices ask for it.
@@ -184,7 +176,7 @@ def web_listed(name: str, rank: int) -> bool:
 
 def web_popular(ranks: Mapping[str, int]) -> bool:
     """Whether any of the ranks (list name -> rank) is web popularity: the rule that makes a
-    domain "popular" (D-174). Give it current ranks only (see :func:`popularity`)."""
+    domain "popular". Give it current ranks only (see :func:`popularity`)."""
     return any(web_listed(name, rank) for name, rank in ranks.items())
 
 
@@ -195,7 +187,7 @@ def best_web_rank(ranks: Mapping[str, int]) -> int | None:
 
 
 def popularity(raw: object, now: datetime) -> dict[str, Any]:
-    """What VirusTotal's ``popularity_ranks`` says (D-174), as the fields of a domain answer:
+    """What VirusTotal's ``popularity_ranks`` says, as the fields of a domain answer:
     ``ranks`` (each list's rank, bounded: the web-popularity lists first, then the best of the
     others), ``ranked`` (a web-popularity list ranks the domain) and ``best_rank`` (the best of
     those). Only a rank with a timestamp inside :data:`RANK_FRESH` of ``now`` counts: VirusTotal
@@ -253,7 +245,7 @@ def kept_for(
     detection and for a server's description (Shodan or Censys found it), the shorter
     ``clean_window`` for everything else (no record, or VirusTotal's engines below the
     threshold), so a fresh server that nobody flags yet is looked at again soon. A domain that
-    VirusTotal ranks among the popular sites (D-174) is kept for ``window`` too, clean or not: a
+    VirusTotal ranks among the popular sites is kept for ``window`` too, clean or not: a
     popular site changes little in a week, and asking again each day spent the family budget."""
     if clean_window is None:
         return window
@@ -268,7 +260,6 @@ def kept_for(
 def fact(
     source: str, kind: str, value: str, status: str, answer: Mapping[str, Any], threshold: int
 ) -> dict[str, Any]:
-    """An answer attached to an item."""
     return {
         "source": source, "kind": kind, "value": value, "status": status, "answer": dict(answer),
         "flagged": flagged(source, status, answer, threshold),
@@ -276,7 +267,6 @@ def fact(
 
 
 def any_flagged(facts: object) -> bool:
-    """Whether any fact in an item's ``outside`` list is a detection."""
     return (
         isinstance(facts, Sequence)
         and not isinstance(facts, str)
@@ -330,7 +320,7 @@ def _virustotal(name: str, this: str, answer: Mapping[str, Any]) -> str:
 
 
 def _domain_note(this: str, answer: Mapping[str, Any], quote: Callable[[str], str] = str) -> str:
-    """What VirusTotal's answer for a domain adds (AR2c, D-168, D-174): whether it is among the
+    """What VirusTotal's answer for a domain adds: whether it is among the
     popular sites (and, when it is not, the other lists that rank it: a DNS-volume list says how
     many devices ask for a name, not how many people visit it) and when it was registered.
     Nothing for an answer that does not carry them."""

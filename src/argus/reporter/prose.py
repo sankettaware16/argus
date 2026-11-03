@@ -1,17 +1,10 @@
-"""The optional prose of a report (Q-H3, plan §5 and §7.7). Built off: nothing calls a model while
-``ENABLED["reporter"]`` is None (``argus.agent.registry``), and the deterministic text
-(:mod:`argus.reporter.render`) is the whole of every report until the user has read two of them
-and asks for the prose.
+"""The optional prose of a report. Built off: nothing calls a model while ``ENABLED["reporter"]``
+is None, and the deterministic text (:mod:`argus.reporter.render`) is the whole of every report.
 
-When it is switched on, :func:`accept` is the only door for its answer (``prose@1``: one JSON
-object ``{"paragraph": <text>}``). The paragraph is taken whole or not at all: it must be plain
-text (no markup, link, address or control character, at most :data:`MAX_CHARS` characters) and
-**every number it writes must be a number it was given** (:mod:`argus.reporter.figures`:
-digits, number words, ordinals, percentages, times, ranges, units). A single invented, rounded
-or converted number refuses the whole paragraph, and the report carries its deterministic text
-only. The model sees the figures with their labels and units, never a host, an address, a hash
-or a name.
-"""
+When switched on, :func:`accept` is the only door for the answer (one JSON object
+``{"paragraph": <text>}``): taken whole or not at all, plain text of at most :data:`MAX_CHARS`
+characters in which **every number is one it was given** (:mod:`argus.reporter.figures`). The model
+sees figures with labels and units, never a host, an address, a hash or a name."""
 
 from __future__ import annotations
 

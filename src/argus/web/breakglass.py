@@ -1,20 +1,12 @@
-"""Break-glass (Q-E2, plan §7.2, DQ17): the one emergency account, for when ELK cannot be asked.
+"""Break-glass: the one emergency account, for when ELK cannot be asked.
 
-* **Off by default.** Switched on only at the host, by the person who holds it (the user, D-110):
-  ``argus break-glass on`` asks for a typed reason, checks that the SIEM really is down (or takes a
-  typed override), opens a window of at most 4 hours and prints a one-time password once.
-* **One-time:** the first successful sign-in uses the password up; its session ends with the
-  window at the latest. The account is ``break-glass`` (kind ``break_glass``, never a person: it
-  never approves).
-* **Only view and review** (``capabilities.BREAK_GLASS``): its reviews are never written back to
-  Kibana (``review_events.kibana_ok`` false), it approves nothing, opens no case, changes no
-  setting. Every page shows a banner while it is in use.
-* **Fully audited:** the window (who, why, how long, override or not), every sign-in and refusal,
-  its end.
-
-The sign-in itself is :class:`argus.web.signin.ElkSignIn`; this module is the account and the
-window.
-"""
+Off by default: switched on only at the host, by the person who holds it (``argus break-glass on``
+asks for a typed reason, checks that the SIEM really is down or takes a typed override, opens a
+window of at most 4 hours and prints a one-time password once). The first successful sign-in uses
+the password up and its session ends with the window at the latest. The account is never a person
+and has only view and review (``capabilities.BREAK_GLASS``): its reviews are never written back to
+Kibana, it approves nothing and changes no setting. Everything is audited. The sign-in itself is
+:class:`argus.web.signin.ElkSignIn`."""
 
 from __future__ import annotations
 

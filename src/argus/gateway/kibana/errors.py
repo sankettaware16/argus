@@ -1,6 +1,6 @@
-"""What the Kibana lane raises (Q-D2). Refusals (``RefusedError``) mean nothing was sent. After
+"""What the Kibana lane raises. Refusals (``RefusedError``) mean nothing was sent. After
 sending, every error says whether the request may have taken effect: a write whose outcome is
-unknown is never sent again by ARGUS (plan §3 rule 4); reconciliation (Q-D3, Q-D4) decides."""
+unknown is never sent again by ARGUS; reconciliation decides."""
 
 from __future__ import annotations
 
@@ -36,13 +36,13 @@ class KibanaResponseError(ResponseError):
 
 
 class KibanaAuthError(KibanaResponseError):
-    """401: Kibana does not accept the key. Stops Kibana work only (DQ9 (b))."""
+    """401: Kibana does not accept the key. Stops Kibana work only."""
 
     reason = "kibana_auth_failed"
 
 
 class KibanaForbiddenError(KibanaResponseError):
-    """403: the key may not do this. A write: its outbox row and its class pause (DQ9 (b))."""
+    """403: the key may not do this. A write: its outbox row and its class pause."""
 
     reason = "kibana_forbidden"
 
@@ -84,7 +84,7 @@ class KibanaServerError(KibanaResponseError):
 
 class UnknownOutcomeError(KibanaResponseError):
     """Sent, but no usable answer (a timeout, a reset, a truncated answer): a write may have
-    landed. It becomes "ambiguous" and is looked for, never resent (plan §7.1)."""
+    landed. It becomes "ambiguous" and is looked for, never resent."""
 
     reason = "unknown_outcome"
     maybe_applied = True

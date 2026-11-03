@@ -1,11 +1,8 @@
-"""ARGUS's reading (AR1, D-150): what the investigator made of an item when it did not propose.
-
-An answer that is inconclusive, fails the citation checks or is stopped by the decision floor
-is not a proposal, but it is still the agent's best reading of the item. The agent stores it
-beside the run's answer (``report["reading"]``: why it is not a proposal and which cited facts
-were found in the evidence); this module says it in plain words for the pages. A reading is
-display only: it has no effect on the assessment's outcome, status, score or write-back.
-"""
+"""ARGUS's reading: what the investigator made of an item when it did not propose. An answer that
+is inconclusive, fails the citation checks or is stopped by the decision floor is not a proposal
+but is still the agent's best reading; it is stored beside the run's answer
+(``report["reading"]``) and said in plain words for the pages. Display only: it has no effect on
+the assessment's outcome, status, score or write-back."""
 
 from __future__ import annotations
 
@@ -97,7 +94,7 @@ def _strings(value: Any) -> list[str]:
     return [v for v in value if isinstance(v, str)] if isinstance(value, list) else []
 
 
-# a run from before AR1 stored no reading, only the agent's refusal among its reasons
+# a run from before the reading was stored has only the agent's refusal among its reasons
 _REFUSALS = (
     ("the agent could not decide", UNDECIDED),
     ("a cited fact is not in the item", CITATION),
@@ -107,8 +104,8 @@ _REFUSALS = (
 
 
 def _legacy(answer: Mapping[str, Any], reasons: Sequence[str]) -> dict[str, Any] | None:
-    """The reading of a run from before AR1, rebuilt from its refusal. Its quotes are marked
-    found only where the refusal proves it: past the citation check (the benign rules)."""
+    """The reading of an older run, rebuilt from its refusal. Its quotes are marked found only
+    where the refusal proves it: past the citation check (the benign rules)."""
     for said in reasons:
         for prefix, kind in _REFUSALS:
             if said.startswith(prefix):
@@ -123,7 +120,7 @@ def _legacy(answer: Mapping[str, Any], reasons: Sequence[str]) -> dict[str, Any]
 
 def of(report: Mapping[str, Any] | None, reasons: Sequence[str] = ()) -> Reading | None:
     """The reading stored in an investigator run's report, or None when the run left none;
-    for a run from before AR1, the one its refusal (in ``reasons``) shows."""
+    for an older run, the one its refusal (in ``reasons``) shows."""
     if not isinstance(report, Mapping):
         return None
     stored, answer = report.get("reading"), report.get("answer")

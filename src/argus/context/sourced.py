@@ -1,4 +1,4 @@
-"""Parameters of a request that reads one family of logs of a role (P4-D1 review F3).
+"""Parameters of a request that reads one family of logs of a role.
 
 A site may have several families of one role (two proxies, two web servers). The evidence
 templates read the family the *rule* reads (``site.family_of_rule``), so the parameters carry

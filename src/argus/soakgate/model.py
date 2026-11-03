@@ -1,19 +1,10 @@
-"""The soak gate's vocabulary (P4-A1): verdicts, checks, lines and the report, and the typed facts
-each line is judged from.
+"""The soak gate's vocabulary: verdicts, checks, lines and the report, and the typed facts each
+line is judged from.
 
-A **line** is one numbered line of a phase's exit gate (``docs/phase-3-exit.md``). It holds
-**checks**, each with its own verdict, the numbers it rests on (with their n) and, when it cannot
-decide, what is missing. A line's verdict is its worst check:
-
-``FAIL`` > ``PENDING`` > ``OPEN`` > ``PASS``
-
-* ``PASS``: measured, and inside the limit.
-* ``FAIL``: measured, and outside it.
-* ``PENDING``: not enough data yet (the check says what is missing and the minimum).
-* ``OPEN``: only a person can say (a systemd unit's restarts, a cut of the log lines).
-
-Nothing here reads a clock, a database or a file: the facts come in, the checks go out.
-"""
+A **line** is one numbered line of a phase's exit gate; it holds **checks**, each with a verdict,
+the numbers it rests on (with their n) and what is missing when it cannot decide. A line's verdict
+is its worst check: ``FAIL`` (measured, outside the limit) > ``PENDING`` (not enough data) >
+``OPEN`` (only a person can say) > ``PASS``. Nothing here reads a clock, a database or a file."""
 
 from __future__ import annotations
 
@@ -138,9 +129,6 @@ class Report:
         }
 
 
-# --------------------------------------------------------------------------- numbers
-
-
 def nearest_rank(values: Sequence[float], q: float) -> float | None:
     """The q-quantile by nearest rank (always a value that was seen); None for no values."""
     if not values:
@@ -184,9 +172,6 @@ def percent(part: int, whole: int) -> str:
     return "n/a" if whole == 0 else f"{100 * part / whole:.1f} %"
 
 
-# --------------------------------------------------------------------------- facts: line 1
-
-
 @dataclass(frozen=True)
 class LifecycleFacts:
     """The case team's posts and steps in the window (``case_team_posts``, ``case_team_steps``)."""
@@ -202,9 +187,6 @@ class LifecycleFacts:
     duplicate_findings: int  # the read-back's ``duplicate_case`` findings in the window
 
 
-# --------------------------------------------------------------------------- facts: line 2
-
-
 @dataclass(frozen=True)
 class OpenedCase:
     """An ARGUS case that has a Kibana case, and the person's confirm that stood before it."""
@@ -213,9 +195,6 @@ class OpenedCase:
     opened_at: datetime
     confirmed_by_person: bool
     only_confirmed_by_assistant: bool = False  # the confirm is ARGUS's own assistant account's
-
-
-# --------------------------------------------------------------------------- facts: line 3
 
 
 @dataclass(frozen=True)
@@ -250,9 +229,6 @@ class WriteFacts:
     cycles_complete: int
 
 
-# --------------------------------------------------------------------------- facts: line 4
-
-
 @dataclass(frozen=True)
 class Confirmed:
     """A person-confirmed true positive: when it was ready to post, and what happened."""
@@ -264,9 +240,6 @@ class Confirmed:
     case_state: str
 
 
-# --------------------------------------------------------------------------- facts: line 5
-
-
 @dataclass(frozen=True)
 class ClosureFacts:
     events: int  # case events of any kind in the window (the base: ARGUS was working)
@@ -274,9 +247,6 @@ class ClosureFacts:
     automatic: tuple[str, ...]  # closures with no person as actor, as short labels
     kibana_requests: int  # requests to Kibana in the window (the base for the second claim)
     kibana_closes: tuple[str, ...]  # ledger rows of a close template
-
-
-# --------------------------------------------------------------------------- facts: line 6
 
 
 @dataclass(frozen=True)
@@ -293,9 +263,6 @@ class ReconcileFacts:
     team_cases_in_mirror: int
 
 
-# --------------------------------------------------------------------------- facts: line 7
-
-
 @dataclass(frozen=True)
 class NotifiedFacts:
     cases: int  # notified cases in the window
@@ -304,9 +271,6 @@ class NotifiedFacts:
     changed: int
     change_lags_s: tuple[float, ...]  # activity -> the change in Needs attention
     pass_s: float  # what "one pass" is: the longest lag that still counts
-
-
-# --------------------------------------------------------------------------- facts: line 8
 
 
 @dataclass(frozen=True)
@@ -356,11 +320,8 @@ class LoadFacts:
     signin_server_ms: int
     signin_gap_breaches: int  # two sign-in requests closer than signins.gap
     signin_gap_s: float
-    signin_steady_per_day: int  # D-216's arithmetic
+    signin_steady_per_day: int  # expected steady requests a day
     signin_backfill_extra: int
-
-
-# --------------------------------------------------------------------------- facts: line 9
 
 
 @dataclass(frozen=True)
@@ -396,9 +357,6 @@ class SweepFacts:
     dossiers: int | None
 
 
-# --------------------------------------------------------------------------- facts: line 10
-
-
 @dataclass(frozen=True)
 class AnalysisFacts:
     labelled: int  # proposals a person's verdict can check
@@ -410,9 +368,6 @@ class AnalysisFacts:
     monthly_cap_usd: float | None
     finished: int  # assessments finished in the window
     inconclusive: int
-
-
-# --------------------------------------------------------------------------- facts: line 11
 
 
 @dataclass(frozen=True)

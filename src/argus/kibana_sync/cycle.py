@@ -1,34 +1,16 @@
-"""One read-back cycle, and the loop that runs one every 10, 20 or 60 minutes (Q-D3).
+"""One read-back cycle, and the loop that runs one every 10, 20 or 60 minutes.
 
-Every request is a read template of the Kibana lane (``KibanaGateway.read``) or the
-Elasticsearch gateway's ``alerts.case_links`` with ``Purpose.KIBANA_READ``: the lane's budget,
-health gating, kill switches, breakers and ledger apply to each, and nothing is retried (a
-cycle that cannot finish ends ``partial`` or ``failed``; the next one goes on from what was
-kept). A cycle:
-
-1. ``kibana.status`` once an hour; every answer's Date header gives Kibana's clock offset;
-2. the change poll: ``cases.find`` of ``argus``'s cases and the case team's (one find, the
-   reporters being every ARGUS identity, P4-B1), newest ``updatedAt`` first, down to the last
-   complete cycle's start less the overlap;
-3. the listing: every open and in-progress case of those reporters, oldest first; its id set
-   against the mirror finds new cases (adopted only through their ARGUS case's sent create, or
-   the case team's post and its sent open step) and missing ones (deleted only after
-   ``cases.get`` answers 404); a version that moved is a change the poll missed. The closed
-   cases: one ``cases.find`` of one case each cycle, whose ``total`` is compared with the
-   mirror's closed count, and the listing of all of them only when the two differ (and once a
-   day);
-4. the user actions of each changed case from where the last read stopped, classified
-   (``classify``) and kept with the mirror in one transaction per case; a case that fails to
-   be kept is a finding and the cycle goes on with the others (``partial``);
-5. once an hour, not between 00:00 and 01:30 UTC: a bounded, rotating slice of the alert
-   changes on ARGUS's cases and people's cases holding known alerts.
-
-The change poll's start (``changes_from``) moves only after a complete cycle, so a crash, a
-budget stop or Kibana going down never skips a change; a finding is kept once (its key). An
-alarm pauses every write class **before** its finding is kept, and only when the finding is
-new: a crash cannot leave a finding without its pause, and a pause the owner lifted is not
-applied again for the same finding.
-"""
+Every request is a read template of the Kibana lane or the Elasticsearch gateway's
+``alerts.case_links``: the lane's budget, health gating, kill switches, breakers and ledger apply,
+and nothing is retried (a cycle that cannot finish ends ``partial`` or ``failed``). A cycle: (1)
+``kibana.status`` hourly; (2) the change poll, ``cases.find`` of ARGUS's and the case team's cases,
+down to the last complete cycle's start less an overlap; (3) the listing of open and in-progress
+cases, whose id set against the mirror finds new cases (adopted only through a sent create or open
+step) and missing ones (deleted only after ``cases.get`` answers 404), plus a cheap probe of the
+closed cases; (4) the user actions of each changed case, classified and kept in one transaction per
+case; (5) hourly, a bounded rotating slice of alert changes. The poll's start moves only after a
+complete cycle, so nothing is skipped; an alarm pauses every write class **before** its finding is
+kept, and only for a new finding."""
 
 from __future__ import annotations
 
@@ -112,7 +94,7 @@ MAX_CYCLE = timedelta(minutes=55)  # hourly in DEGRADED, where the lane has a te
 @dataclass(frozen=True)
 class SyncConfig:
     author: str = "argus"  # kibana.service_user: who ARGUS is in Kibana
-    team: tuple[str, ...] = ()  # the case team's Kibana users (case_team.users(), P4-B1)
+    team: tuple[str, ...] = ()  # the case team's Kibana users (case_team.users())
     intervals: Intervals = field(default_factory=Intervals)
     overlap: timedelta = timedelta(minutes=2)
     per_page: int = 100
@@ -176,7 +158,7 @@ class Syncer:
         after_cycle: Callable[[datetime], Awaitable[None]] | None = None,
     ) -> None:
         self.kibana = kibana
-        self.after_cycle = after_cycle  # AR8: reads the case team's cases for a person's verdict
+        self.after_cycle = after_cycle  # reads the case team's cases for a person's verdict
         self.store = store
         self.lane = lane  # GatewayState and KibanaState: health, switches, pauses
         self.es = es
@@ -187,8 +169,6 @@ class Syncer:
         self.sleep = sleep
         # the closed total and the mirror's closed count a closed listing last settled
         self._closed_seen: tuple[int, int] | None = None
-
-    # ------------------------------------------------------------------ the loop
 
     async def health(self) -> HealthState:
         memory = health_core.effective(await self.lane.health(), self.clock(), self.health_config)
@@ -220,8 +200,6 @@ class Syncer:
             if cycles is None or done < cycles:
                 await self.sleep(max(left, 1.0))
         return done
-
-    # ------------------------------------------------------------------ one cycle
 
     async def cycle(self, *, deadline: datetime) -> CycleRecord:
         run = _Run(started=self.clock(), deadline=deadline)
@@ -445,7 +423,7 @@ class Syncer:
     async def _listing(self, run: _Run, status: str) -> tuple[dict[str, KCase], bool]:
         """Every case of ``argus`` with ``status``, oldest first; complete unless Kibana's
         paging depth ends it. Open and in-progress cases are listed every cycle, closed ones
-        once a day (``closed_every``: §7.1's read model at a year's case count). Paging drift
+        once a day (``closed_every``). Paging drift
         (a case made, deleted or moved between pages) is noted: no deletion is taken from a
         listing without a get."""
         per = self.config.per_page
@@ -580,7 +558,7 @@ class Syncer:
             mirror = classify.new_mirror(adoption.case_id, case, self.clock())
         try:
             actions, rewound = await self._actions(run, case.id, mirror.actions_seen)
-        except KibanaNotFoundError:  # deleted since it was listed (review D3-R10)
+        except KibanaNotFoundError:  # deleted since it was listed
             run.detail["vanished"] = run.detail.get("vanished", 0) + 1
             if not new:  # a mirrored case: confirmed by a get and recorded at once
                 await self._confirm_deleted(run, mirror)
@@ -634,7 +612,7 @@ class Syncer:
         self, run: _Run, kid: str, version: str, exc: Exception, case_id: uuid.UUID | None
     ) -> None:
         """A case the read-back could not keep (the database refused it, a bug): a finding,
-        the cycle ends ``partial`` and goes on with the other cases (review D3-R1)."""
+        the cycle ends ``partial`` and goes on with the other cases."""
         log.error("kibana sync: case %s could not be kept", kid, exc_info=exc)
         run.failed.append(kid)
         what = redact_text(f"{type(exc).__name__}: {exc}")
@@ -675,17 +653,15 @@ class Syncer:
             page += 1
         return actions, rewound
 
-    # ------------------------------------------------------------------ discovery
-
     async def _discovery(self, run: _Run) -> None:
         """Alert changes on ARGUS's cases, then people's cases holding known alerts: a few
         searches of 100 alerts each, a rotating window, so the read load is the same however
-        many alerts the cases hold (plan §7.1)."""
+        many alerts the cases hold."""
         mirrors = await self.store.mirrors()
         state = await self.store.state()
         horizon = self.clock() - self.config.window
         # the alert diff is ARGUS's own writer's: the people on a case-team incident triage its
-        # alerts in Kibana as part of the work (D-270), which is no unexplained change
+        # alerts in Kibana as part of the work, which is no unexplained change
         live = {
             m.kibana_case_id: (m.kibana_case_id, m.case_id)
             for m in mirrors.values()

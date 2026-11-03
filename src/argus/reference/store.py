@@ -1,7 +1,7 @@
-"""Reference data in Postgres (D-057): the rules registry rebuilt from the stored alerts, the
+"""Reference data in Postgres: the rules registry rebuilt from the stored alerts, the
 truncated-execution feed of the coverage ledger, the threat-intel mirrors (``site.ti_sources`` of
 mode ``mirror``), the cached lookups of the sources of mode ``lookup``, and threat-intel answers
-for a list of values (D-057, D-293)."""
+for a list of values."""
 
 from __future__ import annotations
 
@@ -143,14 +143,13 @@ async def refresh_rules(
     conn: AsyncConnection, now: datetime, batch: int = BATCH, hold: timedelta = HOLD
 ) -> dict[str, int]:
     """Bring the registry up to date with the alerts stored since the last refresh (no SIEM
-    request): counts added, first/last alert and execution widened, the definition taken from
-    a newer alert, every (revision, note) recorded, and a closed ``truncated_execution`` gap
-    for every execution that hit ``max_signals``. One call reads at most ``batch`` alerts;
-    ``pending`` says how many more are waiting (call again).
+    request): counts, first/last alert and execution, the definition from a newer alert, every
+    (revision, note), and a closed ``truncated_execution`` gap for every execution that hit
+    ``max_signals``. One call reads at most ``batch`` alerts; ``pending`` says how many are left.
 
-    One refresh at a time (an advisory lock); the cursor stays ``hold`` behind the database
-    clock, longer than any ingest transaction lasts: an alert's ``first_seen_at`` is its
-    transaction's start, and a transaction that began before a refresh may commit after it."""
+    One refresh at a time (an advisory lock); the cursor stays ``hold`` behind the database clock,
+    longer than any ingest transaction lasts, because a transaction that began before a refresh may
+    commit after it."""
     await conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LOCK_KEY})
     since = (
         await conn.execute(text("SELECT at FROM collector_cursors WHERE name = :n"), {"n": CURSOR})
@@ -467,7 +466,7 @@ async def _ask(
         hits = result.body.get("hits", {}).get("hits", [])
         if len(hits) >= LOOKUP_SIZE and len(batch) > 1:
             # Which values had the rows past the cap is unknown: ask again in halves
-            # (a refreshed feed holds many rows per indicator, 2026-10-14).
+            # (a refreshed feed holds many rows per indicator).
             half = len(batch) // 2
             batches[:0] = [batch[:half], batch[half:]]
             continue

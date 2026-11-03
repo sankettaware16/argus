@@ -1,18 +1,9 @@
-"""What the privacy layer costs (P2, D-078): the same dossiers rendered for every arm of the
-comparison. The model, prompt and scoring are the same for all arms; only this differs.
-
-- ``B``: the P1 policy (pseudonyms), as sent in production;
-- ``A-fake``: no pseudonyms: every identifier replaced by a realistic fake of the same kind,
-  so the model reads meaningful text and no real campus value leaves;
-- ``A-real``: real values, unlabelled. Real campus data: run only on a small sample after a
-  second confirmation by the user (D-078);
-- ``C-…``: B with one kind of value shown as a realistic fake instead of a pseudonym
-  (``C-ips``, ``C-hosts``, ``C-users``, ``C-sites``, ``C-ids``), or with exact counts
-  (``C-counts``) or absolute times (``C-times``): which rule costs what.
-In every arm secrets, passwords, tokens and keys stay removed. Only ``B`` is meant for the
-egress validator; the other arms carry fakes or real values by design and never go out
-except as an explicit comparison run.
-"""
+"""What the privacy layer costs: the same dossiers rendered for every arm of a comparison; only the
+rendering differs. ``B`` is the policy (pseudonyms) as sent in production; ``A-fake`` replaces
+identifiers with realistic fakes of the same kind; ``A-real`` keeps real values (run only on a
+small sample, after a second confirmation); ``C-…`` is B with one kind of value faked, or exact
+counts or times. Secrets and keys stay removed in every arm; only ``B`` is meant for the egress
+validator."""
 
 from __future__ import annotations
 
@@ -32,7 +23,7 @@ FAKE_DOMAIN = "campus.example"
 CREDENTIAL = "[credential removed]"
 KINDS = {"ips": ("IP",), "hosts": ("HOST",), "users": ("USER", "EMAIL"), "sites": ("SITE",),
          "ids": ("MAC", "HASH", "ID")}  # fmt: skip
-# Service words every campus uses: they keep a fake site's meaning and name nothing.
+# Service words every organisation uses: they keep a fake site's meaning and name nothing.
 GENERIC_LABELS = frozenset(
     [
         "www",
@@ -84,7 +75,7 @@ GENERIC_LABELS = frozenset(
 )
 ALL_FAKE = frozenset(label for labels in KINDS.values() for label in labels)
 ARMS = ("B", "A-fake", "A-real", *(f"C-{k}" for k in KINDS), "C-counts", "C-times")
-REAL_DATA = frozenset({"A-real"})  # arms that send real campus values
+REAL_DATA = frozenset({"A-real"})  # arms that send real values
 
 
 class Fakes(Pseudonyms):
@@ -114,7 +105,7 @@ class Fakes(Pseudonyms):
 
     def _label(self, label: str) -> str:
         """A subdomain label: a generic service word stays (it says what the site is and
-        names no campus), any other becomes a neutral fake, the same within an item."""
+        names the organisation), any other becomes a neutral fake, the same within an item."""
         if label in GENERIC_LABELS:
             return label
         if label not in self._labels:
@@ -183,7 +174,6 @@ class _AbsoluteTimes(_Scrub):
 
 
 def arm(privacy: Privacy, name: str) -> Privacy:
-    """``privacy`` configured for one arm of the comparison."""
     if name not in ARMS:
         raise ValueError(f"unknown arm {name!r}; arms: {', '.join(ARMS)}")
     variant = Privacy(privacy.policy, privacy.classifier, privacy.campus)
@@ -214,11 +204,11 @@ def _escaped(text: str) -> str:
 
 @dataclass
 class FakeRequest(Request):
-    """A fake arm's request. The validator cannot pass realistic fakes (a fake private
-    address is private), so it is sendable only as a proof: its text must be exactly its
-    policy twin's (``base``, arm B on the same bodies) with our fakes put in place of the
-    twin's pseudonyms, and the twin must pass the validator. A value the twin removed and
-    this arm kept breaks the equality, and the request is refused."""
+    """A fake arm's request. The validator cannot pass realistic fakes (a fake private address
+    is private), so it is sendable only as a proof: its text must be exactly its policy twin's
+    (``base``, arm B on the same bodies) with our fakes put in place of the twin's pseudonyms,
+    and the twin must pass the validator. A value the twin removed and this arm kept breaks the
+    equality, and the request is refused."""
 
     base: Request | None = field(default=None, repr=False)
 

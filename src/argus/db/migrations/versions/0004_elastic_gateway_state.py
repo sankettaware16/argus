@@ -1,6 +1,6 @@
 """Elastic Gateway state: kill switches, shared state machines, request ledger, live sessions
 
-R4 (D-048). Separate ARGUS processes share one budget, one breaker and one health memory
+Separate ARGUS processes share one budget, one breaker and one health memory
 through ``siem_state`` (row-locked read-modify-write). The runtime role may update only the
 columns that change; the ledger is append-only for it (no UPDATE, no DELETE).
 

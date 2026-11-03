@@ -1,10 +1,8 @@
-"""The sign-in hours check is written flat, so a restore reads it back the same (AR6, D-234).
+"""The sign-in hours check is written flat, so a restore reads it back the same.
 
 0056 wrote ``cardinality(hours) BETWEEN 1 AND 24 AND hours <@ ...``: PostgreSQL keeps the BETWEEN as
-a nested ``(a AND b) AND c``, which pg_dump prints and a restore parses back flat. The meaning is
-the same but ``pg_get_constraintdef`` differs, and the backup drill (D-197) compares that text, so
-every restore of 0056+ failed as "schema constraints: differs". The check is recreated with the
-same meaning, written flat.
+a nested ``(a AND b) AND c``, which a restore parses back flat, so ``pg_get_constraintdef`` differed
+and the backup drill failed. The check is recreated with the same meaning, written flat.
 
 Revision ID: 0060
 Revises: 0059

@@ -1,28 +1,15 @@
-"""The one sign-in throttle (plan §7.2 step 3), for every way in: ``/signin``, ``/login``,
-``/api/login`` and the step-up page.
+"""The one sign-in throttle, for every way in: ``/signin``, ``/login``, ``/api/login`` and the
+step-up page.
 
 Only a **refusal that counts** is counted: a wrong password that Elasticsearch (or, in local
-mode, the account's hash) refused. A check ARGUS never made (a reserved name, a locked name, a
-wait not over, ELK not reachable, an account ARGUS refuses after a right password) is written
-to the audit trail but counts for nothing, so a request every few minutes cannot keep a name
-locked: the old throttle counted its own refusals.
-
-* **Exponential waits per name and client:** after the second counted refusal of a name from
-  a client the next check waits ``web.signin_delay_s``, then twice, four times that (the fifth
-  refusal locks the name). An attempt inside the wait is answered like any failure, unread.
-* **5 counted refusals of a name in 15 minutes lock it**; **20 from a client** lock the client;
-  **60 an hour across all names** lock everyone, and an alarm goes up (once an hour).
-* **A device cookie** from an earlier good sign-in to that name passes all three locks (not the
-  waits): the person is not shut out by someone else's guesses. In ELK mode "that name" is the
-  account's exact ELK name, never its ARGUS handle: one person's cookie is nobody else's key.
-* **The emergency account is outside the counts and the locks** (``signin``): its one-time
-  password has 144 bits, so a guess needs no limit, and a limit would be a way to lock the holder
-  out in the middle of an outage.
-* Step-up failures count like sign-in failures; three end the session (``auth``).
-
-Counts come from the audit trail (``audit_events``, the database's clock): failures are
-recorded by the name's HMAC in ELK mode, by the name in local mode.
-"""
+mode, the account's hash) refused. A check ARGUS never made (a reserved or locked name, a wait
+not over, ELK unreachable) is audited but counts for nothing, so a request every few minutes
+cannot keep a name locked. Waits are exponential per name and client (``web.signin_delay_s``,
+doubling from the second refusal); 5 counted refusals of a name in 15 minutes lock it, 20 from a
+client lock the client, 60 an hour across all names lock everyone and raise an alarm. A device
+cookie from an earlier good sign-in passes the locks (not the waits). The emergency account is
+outside the counts and locks. Step-up failures count like sign-in failures; three end the
+session. Counts come from the audit trail (``audit_events``, the database's clock)."""
 
 from __future__ import annotations
 

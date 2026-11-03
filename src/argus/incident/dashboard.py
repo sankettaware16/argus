@@ -1,16 +1,11 @@
-"""The one-page picture dashboard of an incident (AR10, D-250), drawn by code.
+"""The one-page picture dashboard of an incident, drawn by code.
 
-The same four panels as the Visualiser's charts in the Kibana case (:mod:`argus.caseteam.visual`),
-made from the same :class:`argus.incident.glance.Glance` with reportlab's own graphics (no new
-dependency): alerts per day stacked by rule, the top actors, the targets, and the table of rules,
-under a row of numbers. It is the second part of the incident PDF (after the title block) and,
-on its own page, the file ``<incident>_dashboard.pdf`` in the case's Files tab.
-
-Rendered from the stored report only: no database, no network, no model. The same report gives the
-same bytes (reportlab's ``invariant`` mode). Colours are the dataviz palette's categorical order,
-light surface; a series is never identified by colour alone (the legend names it, and the numbers
-are in the table beside it). Names of people are never drawn.
-"""
+The same four panels as the Visualiser's charts (:mod:`argus.caseteam.visual`), made from the same
+:class:`argus.incident.glance.Glance` with reportlab's own graphics: alerts per day stacked by rule,
+the top actors, the targets and the table of rules, under a row of numbers. It is the second part
+of the incident PDF and, alone, the file ``<incident>_dashboard.pdf``. Rendered from the stored
+report only; the same report gives the same bytes. A series is never identified by colour alone,
+and names of people are never drawn."""
 
 from __future__ import annotations
 
@@ -103,7 +98,7 @@ def _axis_style(axis: Any, sans: str, size: float = 6.5) -> None:
 
 
 def alerts_over_time(glance: g.Glance, width: float, height: float) -> Drawing:
-    """Alerts per IST day, stacked by rule (the top rules, then "Other rules")."""
+    """Alerts per local day, stacked by rule (the top rules, then "Other rules")."""
     layers = [layer for layer in glance.layers if any(layer.values)]
     if not glance.days or not layers:
         return _empty(width, height, "No alert times to draw.")

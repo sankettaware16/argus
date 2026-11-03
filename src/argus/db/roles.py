@@ -1,49 +1,12 @@
-"""Database roles (D-029): who may do what in ARGUS's database.
+"""Database roles: who may do what in ARGUS's database.
 
-* The **owner** (``database.owner_user``) owns every ARGUS table and is the only login the
-  ``argus db`` commands use (bootstrap, migrations). On the local Docker server it is the
-  superuser; elsewhere it may be a role with CREATEROLE.
-* ``argus_runtime`` (:data:`RUNTIME_ROLE`) is a group role that cannot log in and is a member of
-  nothing. Migrations grant it what ARGUS needs at run time, table by table and explicitly (no
-  default privileges), as listed in :data:`RUNTIME_GRANTS`.
-* The **runtime login** (``database.user``, default ``argus_app``) is what ARGUS runs as: an
-  inheriting member of ``argus_runtime`` (without ADMIN OPTION) and of nothing else, with no
-  settings stored on it. It is no superuser, cannot create databases, roles or schemas, and owns
-  nothing, so it cannot alter, switch off or drop the audit trail's guard triggers, nor set
-  ``session_replication_role``.
-
-* ``argus_web`` (:data:`API_ROLE`, Q-A2) is the web's group role, made like ``argus_runtime``.
-  Migrations grant it exactly what the web needs (:data:`API_GRANTS`): it reads what the pages
-  show and writes sessions, reviews, gold answers, requested assessments and audit events, and
-  nothing else. Its one login, the **web's login** (``database.api_user``, default
-  ``argus_api``), exists once ``database.api_password`` is set; ``argus web`` uses it when
-  ``web.database_role`` is ``api``.
-* ``argus_purge`` (:data:`PURGE_ROLE`, Q-A4) is the retention purge's group role: it cannot log
-  in, owns nothing and may delete or empty exactly what D-028's purge removes
-  (:data:`PURGE_GRANTS`). ``argus purge`` logs in as the owner and runs every statement after
-  ``SET LOCAL ROLE argus_purge``, so it can never touch the audit trail or the case records,
-  disable a trigger or change ``session_replication_role``.
-* ``argus_writer`` (:data:`WRITER_ROLE`, Q-D4) is the case writer's group role, made like
-  ``argus_web``: it holds exactly what the writer needs (:data:`WRITER_GRANTS`): the outbox
-  moves to ``sending``, ``sent``, ``verified`` and the rest, its own four tables, the lane's
-  state and request ledger, the audit trail and the findings, and SELECT on what it reads. The
-  writer's login (``database.writer_user``, exists once ``database.writer_password`` is set) is a
-  member of this role and of nothing else, **not** of ``argus_runtime``: it cannot revive a
-  disabled user, change a person's capabilities, set a session's step-up or lift a mirror pause
-  (Q-D4 review R8). It is the one process that moves an outbox row on to the request and its
-  read-back.
-* ``argus_approvals`` (:data:`APPROVALS_ROLE`, Q-C1) is a third group role that cannot log in:
-  it may call the functions that record approvals and identity checks (migrations 0026 and
-  0030) and nothing else. The runtime login is never a member of it, so ARGUS's services cannot
-  record an approval; the web's own login is (Q-C3: :func:`ensure_web_approvals`), so the web
-  records the approvals it signs.
-
-``argus db bootstrap`` (:func:`ensure_roles`, :func:`ensure_api_roles`,
-:func:`ensure_approvals_role`, :func:`grant_connect`) creates these roles or puts them back into
-that state, says what it had to repair, and sets the logins' passwords from the configuration.
-``argus doctor`` checks the result from each login's own point of view
-(:func:`runtime_role_problems`, :func:`api_role_problems`). Membership options need PostgreSQL
-16 or later.
+The **owner** (``database.owner_user``) owns every table and is the only login ``argus db`` uses.
+``argus_runtime`` is a group role (no login, member of nothing) that migrations grant what ARGUS
+needs, table by table (:data:`RUNTIME_GRANTS`); the **runtime login** (``database.user``) is its
+inheriting member and owns nothing. ``argus_web``, ``argus_writer``, ``argus_purge`` and
+``argus_approvals`` are the web's, the case writer's, the retention purge's and the approval
+functions' group roles, each with its own grant list. ``argus db bootstrap`` creates or repairs
+these roles; ``argus doctor`` checks each login's grants (``*_role_problems``).
 """
 
 from __future__ import annotations
@@ -62,20 +25,20 @@ from argus.config.settings import DatabaseSettings, usable_password
 from argus.observability.redaction import redact_text
 
 RUNTIME_ROLE = "argus_runtime"
-API_ROLE = "argus_web"  # the web's group role (Q-A2); its login is database.api_user
+API_ROLE = "argus_web"  # the web's group role; its login is database.api_user
 APPROVALS_ROLE = "argus_approvals"
-PURGE_ROLE = "argus_purge"  # the retention purge (Q-A4); the owner switches to it to purge
-WRITER_ROLE = "argus_writer"  # the case writer (Q-D4); its login is database.writer_user
-# Functions only argus_approvals may call (0026). The runtime login must not be able to execute
+PURGE_ROLE = "argus_purge"  # the retention purge; the owner switches to it to purge
+WRITER_ROLE = "argus_writer"  # the case writer; its login is database.writer_user
+# Functions only argus_approvals may call. The runtime login must not be able to execute
 # them, nor the owner's trigger and helper functions (PostgreSQL grants PUBLIC EXECUTE on every
-# new function; 0026 revokes it).
+# new function; the migration revokes it).
 APPROVALS_FUNCTIONS = (
     "argus_approval_request(text, uuid, integer, text, text, uuid, bigint, jsonb, text, text,"
     " timestamptz, text, jsonb)",
     "argus_approval_decide(text, bigint, text, text, timestamptz, jsonb, text, jsonb)",
     "argus_identity_record(bigint, text, text, text, jsonb)",
 )
-# What the runtime login may execute (0030, Q-C3): ARGUS's own closure proposals and
+# What the runtime login may execute: ARGUS's own closure proposals and
 # re-confirmation requests, which still need a person's approval; the send-time check's moves
 # of closure writes (it holds no UPDATE on the outbox).
 RUNTIME_FUNCTIONS = (
@@ -84,7 +47,7 @@ RUNTIME_FUNCTIONS = (
     "argus_closure_write_move(bigint, text, text)",
     "argus_closure_write_lock(bigint)",
 )
-# What the web's login may execute: argus_approvals' functions (it is a member, Q-C3).
+# What the web's login may execute: argus_approvals' functions (it is a member).
 WEB_FUNCTIONS = APPROVALS_FUNCTIONS
 OWNER_ONLY_FUNCTIONS = (
     "argus_approval_session_user(text)",
@@ -104,9 +67,9 @@ OWNER_ONLY_FUNCTIONS = (
     "argus_case_event_outbox()",
     "argus_outbox_guard()",
     "argus_reject_truncate_unless_empty()",
-    # 0042 (Q-B3 review): the web's login records a case only as the person who acted
+    # the web's login records a case only as the person who acted
     "argus_web_case_writes()",
-    # 0044 (Q-H2): the edges of a case action, and what the web's login may write of one
+    # the edges of a case action, and what the web's login may write of one
     "argus_case_action_guard()",
 )
 _ALL_FUNCTIONS = (*APPROVALS_FUNCTIONS, *RUNTIME_FUNCTIONS, *OWNER_ONLY_FUNCTIONS)
@@ -195,9 +158,9 @@ class TableGrant:
     update: tuple[str, ...] = ()
     """Columns it may update (the gateway's state tables); none for the audit trail."""
     delete: bool = False
-    """Only LangGraph's checkpoint tables (a finished run's thread is deleted, D-054), the
-    outside-intel cache (expired answers, AR3) and the sign-in sightings (replaced by a complete
-    lookup, pruned after ``signins.keep_days``, AR6)."""
+    """Only LangGraph's checkpoint tables (a finished run's thread is deleted), the
+    outside-intel cache (expired answers) and the sign-in sightings (replaced by a complete
+    lookup, pruned after ``signins.keep_days``)."""
 
 
 _EVIDENCE_RESULT = (
@@ -246,7 +209,7 @@ _TI_COLUMNS = (
     "removed_at",
 )
 
-# Granted by migrations (0003 for these two); every new table is added here and to its migration.
+# Granted by migrations; every new table is added here and to its migration.
 RUNTIME_GRANTS: dict[str, TableGrant] = {
     "alembic_version": TableGrant(select=True),
     # id and occurred_at come from the database: ARGUS cannot renumber or backdate an event.
@@ -262,7 +225,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "details",
         ),
     ),
-    # 0004 (R4): the Elastic Gateway's shared state, ledger and live-test sessions.
+    # the Elastic Gateway's shared state, ledger and live-test sessions.
     "siem_switches": TableGrant(
         select=True, update=("stopped", "changed_at", "changed_by", "reason")
     ),
@@ -283,8 +246,8 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "response_bytes",
             "attempts",
             "live_session",
-            "task_key",  # 0021 (Q-F2)
-            # 0029 (Q-D2): lane, target and a write's outbox, hash, class, approval
+            "task_key",
+            # lane, target and a write's outbox, hash, class, approval
             "lane",
             "target",
             "outbox_id",
@@ -300,7 +263,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("id", "created_by", "ends_at", "max_requests"),
         update=("used", "ended_at"),
     ),
-    # 0022 (Q-A2): the health probe's readings, append-only.
+    # the health probe's readings, append-only.
     "siem_probes": TableGrant(
         select=True,
         insert=(
@@ -321,7 +284,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "stale_rules",
         ),
     ),
-    # 0005 (R5): the collector's alert store; nothing is ever deleted.
+    # the collector's alert store; nothing is ever deleted.
     "alert_records": TableGrant(
         select=True,
         insert=(
@@ -381,7 +344,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
     "coverage_gaps": TableGrant(
         select=True, insert=("kind", "subject", "start_at", "detail"), update=("end_at", "detail")
     ),
-    # 0006 (R6): investigations, the entity index and the job queue.
+    # investigations, the entity index and the job queue.
     "investigations": TableGrant(
         select=True,
         insert=(
@@ -437,10 +400,9 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "deferrals",
         ),
     ),
-    # 0007 (R7): reviewers, sessions, append-only review events.
-    # 0024 (Q-A1): local capabilities; the absolute expiry and step-up of a session.
-    # 0036 (Q-E2): the account's kind and ELK link, set at a terminal (`argus user link`,
-    # `argus break-glass`)
+    # reviewers, sessions, append-only review events; local capabilities; the absolute
+    # expiry and step-up of a session; the account's kind and ELK link, set at a terminal
+    # (`argus user link`, `argus break-glass`)
     "users": TableGrant(
         select=True,
         insert=("username", "display_name", "password_hash", "capabilities", "kind", "realm"),
@@ -469,15 +431,15 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "stepped_up_at",
             "stepup_failures",
             "credential",
-            "ended_why",  # `argus sessions end-all` (0036)
+            "ended_why",  # `argus sessions end-all`
         ),
     ),
-    # 0036 (Q-E2): a browser that signed in well keeps a device cookie: whichever login the
+    # a browser that signed in well keeps a device cookie: whichever login the
     # web runs as (local mode may still run as the runtime login) remembers it
     "user_devices": TableGrant(
         select=True, insert=("user_id", "token_hash"), update=("last_used_at",)
     ),
-    # 0036 (Q-E2): `argus break-glass on` opens the window and `off` ends it
+    # `argus break-glass on` opens the window and `off` ends it
     "break_glass": TableGrant(
         select=True,
         insert=("user_id", "reason", "enabled_by", "expires_at", "override"),
@@ -494,13 +456,13 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "outcome",
             "note",
             "assessment_id",
-            "kibana_ok",  # 0036 (Q-E2)
+            "kibana_ok",
         ),
     ),
-    # 0025 (Q-A1): each investigation's newest review; only review_events' trigger writes it.
+    # each investigation's newest review; only review_events' trigger writes it.
     "review_state": TableGrant(select=True),
-    # 0008 (R8): evidence (retried in place unless ok/empty), dossiers and signals (once per
-    # investigation version), and LangGraph's checkpoint tables in their own schema (D-054).
+    # evidence (retried in place unless ok/empty), dossiers and signals (once per
+    # investigation version), and LangGraph's checkpoint tables in their own schema.
     "evidence": TableGrant(
         select=True,
         insert=(
@@ -508,11 +470,11 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "version",
             "task_key",
             *_EVIDENCE_RESULT,
-            "asked_at",  # 0033 (Q-F1)
+            "asked_at",
         ),
         update=(*_EVIDENCE_RESULT, "asked_at"),
     ),
-    # 0021 (Q-F2): an evidence request's opaque id, never changed or removed at run time.
+    # an evidence request's opaque id, never changed or removed at run time.
     "evidence_requests": TableGrant(
         select=True,
         insert=(
@@ -595,7 +557,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         update=("channel", "type", "blob"),
         delete=True,
     ),
-    # 0009 (R9): reference data (D-057).
+    # reference data.
     "rules": TableGrant(select=True, insert=("rule_id", *_RULE_COLUMNS), update=_RULE_COLUMNS),
     "rule_revisions": TableGrant(
         select=True, insert=("rule_id", "revision", "note_hash", "name", "first_seen_at")
@@ -631,9 +593,9 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         ),
         update=("status", "expires_at"),
     ),
-    # 0012 (R16): the soak's hourly samples.
+    # the soak's hourly samples.
     "soak_samples": TableGrant(select=True, insert=("at", "metrics")),
-    # 0013 (R17): the write-back outbox (D-061). Since 0045 (Q-D5) the runtime also plans a
+    # the write-back outbox. The runtime also plans a
     # closure's row; the columns that record a send (written_count, previous, operator) and the
     # cache of the flags the sender derives (needs_operator, held) are the writer's alone.
     "writeback_outbox": TableGrant(
@@ -648,7 +610,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         ),
         update=("state", "sent_at", "error", "sent_count"),
     ),
-    # 0016 (P2): the gold set; frozen items and append-only answers.
+    # the gold set; frozen items and append-only answers.
     "gold_items": TableGrant(
         select=True,
         insert=(
@@ -666,7 +628,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
     "gold_labels": TableGrant(
         select=True, insert=("set_name", "investigation_id", "user_id", "outcome", "note")
     ),
-    # 0017 (P3): assessments, queue and result in one row.
+    # assessments, queue and result in one row.
     "assessments": TableGrant(
         select=True,
         insert=(
@@ -695,12 +657,12 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "finished_at",
         ),
     ),
-    # 0019 (P7): the weekly tuning reports.
+    # the weekly tuning reports.
     "tuning_reports": TableGrant(
         select=True,
         insert=("rule", "week_end", "report", "suggestions", "dropped", "model", "cost_usd"),
     ),
-    # 0026 (Q-C1): cases, the Kibana outbox, approvals (read only: argus_approvals' functions
+    # cases, the Kibana outbox, approvals (read only: argus_approvals' functions
     # insert them), notes, the opener's decisions and the hash chains' heads (read only).
     "chain_heads": TableGrant(select=True),
     "cases": TableGrant(
@@ -738,7 +700,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "blocked_at",
         ),
     ),
-    # 0055 (D-211): a removed member or indicator that is added again has its row revived
+    # a removed member or indicator that is added again has its row revived
     "case_members": TableGrant(
         select=True,
         insert=("case_id", "investigation_id", "link", "link_value", "added_version", "added_by"),
@@ -793,7 +755,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "decided_by",
         ),
     ),
-    # 0041 (Q-C2): the still-active watch's answers (a decided one is never replaced: a trigger)
+    # the still-active watch's answers (a decided one is never replaced: a trigger)
     # and the suggestions for matches that are not joined. The web's role gets neither.
     "case_watch_checks": TableGrant(
         select=True,
@@ -831,7 +793,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("investigation_id", "case_id", "link", "link_value", "kind", "why"),
         update=("dismissed_at", "dismissed_by"),
     ),
-    # 0050 (AR4b, D-169, D-176): what a person told or blocked (append-only), what ARGUS decided
+    # what a person told or blocked (append-only), what ARGUS decided
     # about the investigations of a notified case's device, what that infection already includes
     # and ARGUS's two reminders. The terminal records a person's notice, so the runtime may.
     "case_notices": TableGrant(
@@ -859,7 +821,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("case_id", "kind", "why"),
         update=("dismissed_at", "dismissed_by"),
     ),
-    # 0052 (AR7, D-190): the incident report. ARGUS writes the versions (append-only) and its look
+    # the incident report. ARGUS writes the versions (append-only) and its look
     # at each case; a decision is a person's (the terminal does not make one, but may be given one)
     "incident_reports": TableGrant(
         select=True,
@@ -877,7 +839,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "prose_by",
             "generated_by",
             "as_at",
-            "core_hash",  # 0057 (AR6 review, D-225)
+            "core_hash",
         ),
     ),
     "incident_report_decisions": TableGrant(
@@ -889,7 +851,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("case_id", "signal", "checked_at", "report_id", "failure", "failed_at"),
         update=("signal", "checked_at", "report_id", "failure", "failed_at"),
     ),
-    # 0053 (AR8, D-195): the case team's posts. The writer's login posts and the web approves;
+    # the case team's posts. The writer's login posts and the web approves;
     # the runtime reads them, and records the verdict comments it read (the sync's pass).
     "case_team_posts": TableGrant(select=True),
     "case_team_steps": TableGrant(select=True),
@@ -910,7 +872,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "review_ids",
         ),
     ),
-    # 0054: when the poster last looked at each case (read here; the writer keeps it), and what the
+    # when the poster last looked at each case (read here; the writer keeps it), and what the
     # sync saw of a posted Kibana case when it last read its comments
     "case_team_looks": TableGrant(select=True),
     "case_team_reads": TableGrant(
@@ -918,7 +880,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("case_id", "kibana_updated_at", "comment_count", "read_at"),
         update=("kibana_updated_at", "comment_count", "read_at"),
     ),
-    # 0056 (AR6, D-216): the SSO sign-ins of the internal addresses (personal data). A complete
+    # the SSO sign-ins of the internal addresses (personal data). A complete
     # lookup replaces the day's sightings (delete, insert); the pass prunes what is old.
     "signin_sightings": TableGrant(
         select=True,
@@ -948,7 +910,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "more_accounts",
             "reason",
             "unnamed",
-            "store_failures",  # 0057 (AR6 review, D-222, D-223)
+            "store_failures",
         ),
         update=(
             "looked_at",
@@ -960,7 +922,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "store_failures",
         ),
     ),
-    # 0047 (AR2, AR2b): the investigations an investigator run stands for (insert only), and
+    # the investigations an investigator run stands for (insert only), and
     # what the evidence flagged on an investigation's newest dossier (replaced by a newer one)
     "assessment_shares": TableGrant(
         select=True, insert=("assessment_id", "investigation_id", "version", "pattern", "day")
@@ -970,7 +932,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("investigation_id", "version", "dossier_hash", "flags"),
         update=("version", "dossier_hash", "flags", "evaluated_at"),
     ),
-    # 0048 (AR3, D-165): outside threat-intel answers (a cache: expired ones are deleted) and the
+    # outside threat-intel answers (a cache: expired ones are deleted) and the
     # ledger of the requests that fetched them
     "outside_lookups": TableGrant(
         select=True,
@@ -983,7 +945,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("at", "source", "kind", "purpose", "outcome"),
         update=("outcome", "http_status", "answer_bytes", "stopped_until"),
     ),
-    # 0044 (Q-H2): what was advised, asked and done about a case. ARGUS records its advice and
+    # what was advised, asked and done about a case. ARGUS records its advice and
     # its verdict; a person's request and report go in as ``user:<id>``. No DELETE; the guard
     # trigger holds the edges and the row's identity.
     "case_actions": TableGrant(
@@ -1018,7 +980,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "last_beat",
         ),
     ),
-    # 0046 (Q-H3): the Reporter's history. A report is written once and read; the runtime
+    # the Reporter's history. A report is written once and read; the runtime
     # login cannot change or delete one, or set its generated_at (the database's clock).
     "reports": TableGrant(
         select=True,
@@ -1032,7 +994,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "prose_agent",
         ),
     ),
-    # 0043 (Q-H4): what the notices remember (one live row per kind and subject); the runtime
+    # what the notices remember (one live row per kind and subject); the runtime
     # login cannot delete a row. The web's role gets nothing.
     "notices": TableGrant(
         select=True,
@@ -1050,7 +1012,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
     ),
     "approval_requests": TableGrant(select=True),
     "approval_decisions": TableGrant(select=True),
-    # 0030 (Q-C3): identity checks (read: the send-time check). The send-time check moves
+    # identity checks (read: the send-time check). The send-time check moves
     # closure writes through argus_closure_write_move() only (RUNTIME_FUNCTIONS).
     "identity_checks": TableGrant(select=True),
     "kibana_outbox": TableGrant(
@@ -1068,7 +1030,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "approval_request_id",
         ),
     ),
-    # 0034 (Q-D3): the read-back writes the mirror (a pause is lifted only by the owner:
+    # the read-back writes the mirror (a pause is lifted only by the owner:
     # the trigger argus_mirror_resume_needs_owner), its state, cycles, findings and people's
     # cases; cycles and findings are append-only for the runtime
     "kibana_mirror": TableGrant(
@@ -1091,10 +1053,10 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "actions_seen",
             "argus_actions",
             "paused_reason",
-            "unexplained",  # 0035
+            "unexplained",
         ),
         update=(
-            "kibana_case_id",  # 0035: once, after the case was deleted (a trigger)
+            "kibana_case_id",  # once, after the case was deleted (a trigger)
             "kibana_version",
             "status",
             "title",
@@ -1110,7 +1072,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "actions_seen",
             "argus_actions",
             "paused_reason",
-            "unexplained",  # 0035
+            "unexplained",
         ),
     ),
     "kibana_sync_state": TableGrant(
@@ -1123,7 +1085,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "last_discovery_at",
             "last_closed_listing_at",
             "discovery_cursor",
-            "diff_cursor",  # 0035
+            "diff_cursor",
             "alerts_checked_to",
             "clock_offset_ms",
             "clock_checked_at",
@@ -1160,7 +1122,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "details",
         ),
     ),
-    # 0037 (Q-D4): the case writer's own records, which the runtime may read
+    # the case writer's own records, which the runtime may read
     "kibana_steps": TableGrant(select=True),
     "kibana_lookups": TableGrant(select=True),
     "kibana_writer_runs": TableGrant(select=True),
@@ -1196,7 +1158,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         ),
     ),
     "action_ledger": TableGrant(select=True),
-    # 0018 (P5): the LLM gateway's shared state and call ledger.
+    # the LLM gateway's shared state and call ledger.
     "llm_state": TableGrant(select=True, update=("state", "updated_at")),
     "llm_calls": TableGrant(
         select=True,
@@ -1219,7 +1181,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "request_sha256",
         ),
     ),
-    # 0028 (Q-G2): the local model's shadow answers; never the web's (never shown)
+    # the local model's shadow answers; never the web's (never shown)
     "llm_shadow": TableGrant(
         select=True,
         insert=(
@@ -1244,7 +1206,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "output_tokens",
         ),
     ),
-    # 0033 (Q-F1): the freshness lane's readings (append-only), the watermarks (they only
+    # the freshness lane's readings (append-only), the watermarks (they only
     # advance: a trigger), the shadow's verdicts (replaced when derived again) and would-be
     # proposals (append-only). The web's role gets none of them: shadow output is never shown.
     "freshness_readings": TableGrant(
@@ -1266,7 +1228,7 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         insert=("source", "ingested", "event_at", "read_at"),
         update=("ingested", "event_at", "read_at"),
     ),
-    # 0039 (Q-F3): the deterministic wave and "Check more": a queue and its record in one row
+    # the deterministic wave and "Check more": a queue and its record in one row
     "investigation_checks": TableGrant(
         select=True,
         insert=(
@@ -1328,12 +1290,12 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
 
 _AUDIT_INSERT = RUNTIME_GRANTS["audit_events"].insert
 
-# The web's grants (Q-A2), granted to API_ROLE by migration 0021: what its pages and /api read,
+# The web's grants, granted to API_ROLE by migrations: what its pages and /api read,
 # and the rows a person's action writes. It may touch no other table at all, which
 # api_role_problems checks table by table; a migration that gives the web more lists it here.
 API_GRANTS: dict[str, TableGrant] = {
     "alert_records": TableGrant(select=True),
-    # "Ask the AI investigator" queues an assessment (D-095), at a person's priority (D-097).
+    # "Ask the AI investigator" queues an assessment, at a person's priority.
     "assessments": TableGrant(
         select=True,
         insert=(
@@ -1347,19 +1309,19 @@ API_GRANTS: dict[str, TableGrant] = {
             "priority",
         ),
     ),
-    # every login, refusal and action; the login throttle counts the refusals (D-104)
+    # every login, refusal and action; the login throttle counts the refusals
     "audit_events": TableGrant(select=True, insert=_AUDIT_INSERT),
     "collector_cursors": TableGrant(select=True),
     "coverage_gaps": TableGrant(select=True),
     "dossiers": TableGrant(select=True),
-    # 0036 (Q-E2): the identity lane runs in the web: its gate state (the `identity` row), the
+    # the identity lane runs in the web: its gate state (the `identity` row), the
     # switches it obeys and its ledger rows. Its security-index check goes through the
     # Elasticsearch gateway, which keeps the budget, lanes, breaker and health rows of the same
-    # table: the column grant covers every row, the trigger `siem_state_web_rows` (0036)
+    # table: the column grant covers every row, the trigger `siem_state_web_rows`
     # refuses the web all but those five (never the Kibana lane's rows)
     "siem_state": TableGrant(select=True, update=("state", "updated_at")),
     "siem_switches": TableGrant(select=True),
-    # report@2 (Q-F2, 0023): the evidence it shows, the ids and the ledger rows that answered
+    # the evidence the report shows, the ids and the ledger rows that answered
     "siem_requests": TableGrant(select=True, insert=RUNTIME_GRANTS["siem_requests"].insert),
     "entities": TableGrant(select=True),
     "evidence": TableGrant(select=True),
@@ -1369,8 +1331,8 @@ API_GRANTS: dict[str, TableGrant] = {
         select=True, insert=("set_name", "investigation_id", "user_id", "outcome", "note")
     ),
     "investigation_alerts": TableGrant(select=True),
-    # 0039 (Q-F3): a person's "Check more" is queued by the web; ARGUS's service runs it. 0040
-    # takes ``kind`` and ``source`` away (they default to a check, a person's): the web can add
+    # a person's "Check more" is queued by the web; ARGUS's service runs it. The web may not
+    # set ``kind`` and ``source`` (they default to a check, a person's): the web can add
     # nothing else, and the table's trigger holds the limits.
     "investigation_checks": TableGrant(
         select=True,
@@ -1404,14 +1366,14 @@ API_GRANTS: dict[str, TableGrant] = {
             "outcome",
             "note",
             "assessment_id",
-            "kibana_ok",  # 0036 (Q-E2)
+            "kibana_ok",
         ),
     ),
     "rules": TableGrant(select=True),
     "tuning_reports": TableGrant(select=True),
-    # each investigation's newest review (0025, Q-A1): the lists read it, a trigger writes it
+    # each investigation's newest review: the lists read it, a trigger writes it
     "review_state": TableGrant(select=True),
-    # sessions with their absolute end and step-up (0024, Q-A1)
+    # sessions with their absolute end and step-up
     "user_sessions": TableGrant(
         select=True,
         insert=(
@@ -1433,7 +1395,7 @@ API_GRANTS: dict[str, TableGrant] = {
             "ended_at",
             "stepped_up_at",
             "stepup_failures",
-            # 0036 (Q-E2): the ELK session's snapshot, credential and verification state
+            # the ELK session's snapshot, credential and verification state
             "capabilities",
             "checked_at",
             "map_version",
@@ -1445,7 +1407,7 @@ API_GRANTS: dict[str, TableGrant] = {
     ),
     # accounts are made and disabled at a terminal (`argus user ...`); the web adds the account
     # of a person who signs in through ELK for the first time and freezes the old account of a
-    # new person behind a known name (0036, Q-E2)
+    # new person behind a known name
     "users": TableGrant(
         select=True,
         insert=(
@@ -1475,13 +1437,13 @@ API_GRANTS: dict[str, TableGrant] = {
         select=True, insert=("user_id", "token_hash"), update=("last_used_at",)
     ),
     "break_glass": TableGrant(select=True, update=("consumed_at",)),
-    # 0030 (Q-C3): what the web signs when a person approves (the request, the decisions so
+    # what the web signs when a person approves (the request, the decisions so
     # far, the person's identity checks); it records them only through argus_approvals'
     # functions
     "approval_requests": TableGrant(select=True),
     "approval_decisions": TableGrant(select=True),
     "identity_checks": TableGrant(select=True),
-    # 0042 (Q-B3): the case pages read the record and the web runs the case commands a person
+    # the case pages read the record and the web runs the case commands a person
     # gives (CaseService writes a command's row, members, indicators, event and outbox rows in
     # one transaction); no case is opened, nothing deleted, no event, note or outbox row
     # changed, and the database's guards (edges, versions, approvals, chains) hold whoever asks
@@ -1505,7 +1467,7 @@ API_GRANTS: dict[str, TableGrant] = {
             "blocked_at",
         ),
     ),
-    # 0055 (D-211): a removed member or indicator that is added again has its row revived
+    # a removed member or indicator that is added again has its row revived
     "case_members": TableGrant(
         select=True,
         insert=("case_id", "investigation_id", "link", "link_value", "added_version", "added_by"),
@@ -1565,10 +1527,10 @@ API_GRANTS: dict[str, TableGrant] = {
     ),
     "kibana_mirror": TableGrant(select=True),
     "kibana_findings": TableGrant(select=True),
-    # 0042 too (Q-B3 with Q-C2): the suggested members and the watch's answers are read on the
+    # the suggested members and the watch's answers are read on the
     # page; a person dismisses a suggestion (audited as theirs)
     "case_suggestions": TableGrant(select=True, update=("dismissed_at", "dismissed_by")),
-    # 0050 (AR4b): a person records a notice or a block (the case row's two columns and the
+    # a person records a notice or a block (the case row's two columns and the
     # notice, in CaseService's transaction), the pages read what ARGUS decided, and a person
     # dismisses a reminder
     "case_notices": TableGrant(
@@ -1588,11 +1550,11 @@ API_GRANTS: dict[str, TableGrant] = {
     "case_known_matches": TableGrant(select=True),
     "case_known_keys": TableGrant(select=True),
     "case_reminders": TableGrant(select=True, update=("dismissed_at", "dismissed_by")),
-    # 0052 (AR7): the pages read the report and its checks; a person's confirm or reject is theirs
+    # the pages read the report and its checks; a person's confirm or reject is theirs
     # (the labels it writes go through the web's existing grants on review_events)
     "incident_reports": TableGrant(select=True),
     "incident_report_checks": TableGrant(select=True),
-    # 0053 (AR8): the case team's posts are read; a person approves a first sequence (canary)
+    # the case team's posts are read; a person approves a first sequence (canary)
     "case_team_posts": TableGrant(select=True),
     "case_team_steps": TableGrant(select=True),
     "case_team_seen": TableGrant(select=True),
@@ -1614,21 +1576,21 @@ API_GRANTS: dict[str, TableGrant] = {
         select=True,
         insert=("report_id", "decision", "outcome", "reason", "by_user_id", "review_ids"),
     ),
-    # 0056 (AR6): the pages show the probable users of a device, to people with log access only
+    # the pages show the probable users of a device, to people with log access only
     # (the route checks ``see_logs``); the web writes none
     "signin_sightings": TableGrant(select=True),
     "signin_lookups": TableGrant(select=True),
-    # 0047 (AR2, AR2b): the pages show a shared run ("same pattern as ...") and what was raised
+    # the pages show a shared run ("same pattern as ...") and what was raised
     "assessment_shares": TableGrant(select=True),
     "investigation_raises": TableGrant(select=True),
-    # 0048 (AR3): the investigation page says what outside intel found; the ledger stays private
+    # the investigation page says what outside intel found; the ledger stays private
     "outside_lookups": TableGrant(select=True),
     "case_watch_checks": TableGrant(select=True),
-    # Q-C2's finder, which the case pages and the approval desk ask, reads what the opener decided
+    # The case finder, which the case pages and the approval desk ask, reads what the opener decided
     "case_openings": TableGrant(select=True),
-    # 0046 (Q-H3): the Reports page reads what the Reporter made; the web writes none
+    # the Reports page reads what the Reporter made; the web writes none
     "reports": TableGrant(select=True),
-    # 0044 (Q-H2): the web reads the advice and writes only a person's request or report
+    # the web reads the advice and writes only a person's request or report
     # (``user:<id>``); the verdict columns and ARGUS's recommendation are ARGUS's
     "case_actions": TableGrant(
         select=True,
@@ -1658,7 +1620,7 @@ API_GRANTS: dict[str, TableGrant] = {
 # The schemas whose tables api_role_problems checks one by one (ARGUS's, LangGraph's).
 _API_SCHEMAS = ("public", "langgraph")
 
-# The retention purge's grants (Q-A4, D-028), granted to PURGE_ROLE by migration 0031: it empties
+# The retention purge's grants, granted to PURGE_ROLE by a migration: it empties
 # the raw alert and evidence snapshot columns, deletes investigations past memory.window with
 # what hangs off them, reads the holds, and records its runs. Nothing else: purge_role_problems
 # checks every table of ARGUS's schemas, so the audit trail and the case records stay out of
@@ -1691,8 +1653,8 @@ PURGE_GRANTS: dict[str, TableGrant] = {
 }
 
 
-# The case writer's grants (Q-D4, review R8), granted to WRITER_ROLE by migrations 0037, 0038 and
-# 0045 (the alert status write-back, Q-D5).
+# The case writer's grants, granted to WRITER_ROLE by migrations (including the alert
+# status write-back).
 # Its login belongs to this role alone, never to ARGUS_RUNTIME: writer_role_problems checks every
 # table of ARGUS's schemas, so what is not listed here it cannot touch at all.
 _OUTBOX_UPDATE = (
@@ -1717,7 +1679,7 @@ WRITER_READS = (
     "siem_probes",
     "siem_switches",
     "identity_checks",
-    "incident_report_decisions",  # 0053 (AR8): the case team renders the stored report
+    "incident_report_decisions",  # the case team renders the stored report
     "incident_reports",
     "investigation_alerts",
     "kibana_mirror",
@@ -1733,7 +1695,7 @@ WRITER_GRANTS: dict[str, TableGrant] = {
     "siem_requests": RUNTIME_GRANTS["siem_requests"],
     # the outbox: it moves rows (the runtime inserts them and cannot move them)
     "kibana_outbox": TableGrant(select=True, update=_OUTBOX_UPDATE),
-    # the alert status write-back (0045, Q-D5): it reads, before each request, what says whether
+    # the alert status write-back: it reads, before each request, what says whether
     # a row may still go out (never a review's notes) and moves the rows the runtime planned
     "review_events": TableGrant(
         select_columns=(
@@ -1803,7 +1765,7 @@ WRITER_GRANTS: dict[str, TableGrant] = {
         insert=("write_class", "step", "since", "changed_by", "note"),
         update=("step", "since", "changed_by", "note"),
     ),
-    # 0053 (AR8, D-195): the case team's posts and steps are the writer's; it reads the approval
+    # the case team's posts and steps are the writer's; it reads the approval
     # of a first sequence and the verdict comments the runtime recorded
     "case_team_posts": TableGrant(
         select=True,
@@ -1846,12 +1808,12 @@ WRITER_GRANTS: dict[str, TableGrant] = {
     ),
     "case_team_approvals": TableGrant(select=True),
     "case_team_seen": TableGrant(select=True),
-    # 0054: when the poster last looked at each case (its rotation)
+    # when the poster last looked at each case (its rotation)
     "case_team_looks": TableGrant(
         select=True, insert=("case_id", "examined_at"), update=("examined_at",)
     ),
 }
-# What the writer's login may execute (0030): the send-time check's moves of closure writes and
+# What the writer's login may execute: the send-time check's moves of closure writes and
 # its request for a person's re-confirmation (ARGUS's own proposals still need a person's approval).
 WRITER_FUNCTIONS = RUNTIME_FUNCTIONS
 
@@ -1908,7 +1870,7 @@ async def ensure_roles(
 
 
 def api_login_configured(settings: DatabaseSettings) -> bool:
-    """Whether the web's own login is set up: its password is configured (Q-A2)."""
+    """Whether the web's own login is set up: its password is configured."""
     return settings.api_password is not None and bool(settings.api_password.get_secret_value())
 
 
@@ -1946,7 +1908,7 @@ def check_api_settings(settings: DatabaseSettings) -> None:
 async def ensure_api_roles(
     conn: AsyncConnection, settings: DatabaseSettings, *, changes: list[str] | None = None
 ) -> list[str]:
-    """The web's roles (Q-A2), as :func:`ensure_roles` makes the runtime ones: the group role
+    """The web's roles, as :func:`ensure_roles` makes the runtime ones: the group role
     ``argus_web`` always (migrations grant it what the web needs), and the web's login
     (``database.api_user``, an inheriting member of that group and of nothing else) once its
     password is configured. In ``conn``'s transaction, as the owner. Returns the roles it
@@ -1974,7 +1936,7 @@ async def ensure_api_roles(
 
 
 def writer_login_configured(settings: DatabaseSettings) -> bool:
-    """Whether the case writer's own login is set up: its password is configured (Q-D4)."""
+    """Whether the case writer's own login is set up: its password is configured."""
     return settings.writer_password is not None and bool(
         settings.writer_password.get_secret_value()
     )
@@ -2018,8 +1980,8 @@ def check_writer_settings(settings: DatabaseSettings) -> None:
 async def ensure_writer_roles(
     conn: AsyncConnection, settings: DatabaseSettings, *, changes: list[str] | None = None
 ) -> list[str]:
-    """The case writer's roles (Q-D4), as :func:`ensure_api_roles` makes the web's: the group
-    role ``argus_writer`` always (migrations 0037 and 0038 grant it what the writer needs), and
+    """The case writer's roles, as :func:`ensure_api_roles` makes the web's: the group
+    role ``argus_writer`` always (migrations grant it what the writer needs), and
     the writer's login (``database.writer_user``) once its password is configured: an inheriting
     member of that group and of nothing else (a membership of ``argus_runtime`` it had is
     revoked). In ``conn``'s transaction, as the owner. Returns the roles it created; repairs are
@@ -2049,7 +2011,7 @@ async def ensure_web_approvals(
     conn: AsyncConnection, settings: DatabaseSettings, *, changes: list[str] | None = None
 ) -> bool:
     """Make the web's login (``database.api_user``) an inheriting member of ``argus_approvals``
-    without ADMIN OPTION, so the web records the approvals it signs (Q-C3). Run after
+    without ADMIN OPTION, so the web records the approvals it signs. Run after
     :func:`ensure_api_roles` and :func:`ensure_approvals_role`; a no-op without the web's login.
     Returns whether it granted the membership; a repair is appended to ``changes``."""
     if not api_login_configured(settings):
@@ -2117,10 +2079,10 @@ async def _ensure_group_and_login(
 async def ensure_approvals_role(
     conn: AsyncConnection, *, changes: list[str] | None = None
 ) -> list[str]:
-    """Create the group role ``argus_approvals`` (Q-C1), or put it back into its safe state: no
+    """Create the group role ``argus_approvals``, or put it back into its safe state: no
     login, no dangerous attribute, a member of nothing. Run with :func:`ensure_roles`, which
     keeps the runtime login out of it. Returns the roles it created (``[]`` or the group);
-    repairs are appended to ``changes``. Migration 0026 grants it EXECUTE on the approval
+    repairs are appended to ``changes``. A migration grants it EXECUTE on the approval
     functions, nothing else."""
     repairs = [] if changes is None else changes
     group = APPROVALS_ROLE
@@ -2137,11 +2099,11 @@ async def ensure_approvals_role(
 async def ensure_purge_role(
     conn: AsyncConnection, *, changes: list[str] | None = None
 ) -> list[str]:
-    """Create the group role ``argus_purge`` (Q-A4), or put it back into its safe state: no
+    """Create the group role ``argus_purge``, or put it back into its safe state: no
     login, no dangerous attribute, a member of nothing. The owner switches to it (``SET ROLE``)
     to purge: a superuser owner may anyway; any other owner gets the membership it needs for
     that, without inheriting the role's privileges. Returns the roles it created; repairs are
-    appended to ``changes``. Migration 0031 grants it :data:`PURGE_GRANTS`."""
+    appended to ``changes``. A migration grants it :data:`PURGE_GRANTS`."""
     repairs = [] if changes is None else changes
     group = PURGE_ROLE
     await conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": BOOTSTRAP_LOCK_KEY})
@@ -2447,7 +2409,7 @@ async def _execute(conn: AsyncConnection, statement: sql.Composable) -> None:
 
 async def runtime_role_problems(engine: AsyncEngine) -> list[str]:
     """What the login of ``engine`` (the runtime role) may do beyond :data:`RUNTIME_GRANTS`, or
-    may not do of it. Empty when it is exactly as D-029 intends. Needs the tables to exist."""
+    may not do of it. Empty when it is exactly as intended. Needs the tables to exist."""
     return await _login_problems(
         engine, RUNTIME_ROLE, RUNTIME_GRANTS, every_table=False, may=RUNTIME_FUNCTIONS
     )
@@ -2456,7 +2418,7 @@ async def runtime_role_problems(engine: AsyncEngine) -> list[str]:
 async def api_role_problems(engine: AsyncEngine) -> list[str]:
     """What the login of ``engine`` (the web's login) may do beyond :data:`API_GRANTS`, or may
     not do of it, on every table of ARGUS's schemas: a table the list does not name it may not
-    touch at all. Empty when it is exactly as Q-A2 intends. Needs the tables to exist."""
+    touch at all. Empty when it is exactly as intended. Needs the tables to exist."""
     return await _login_problems(
         engine,
         API_ROLE,
@@ -2471,7 +2433,7 @@ async def writer_role_problems(engine: AsyncEngine) -> list[str]:
     """What the login of ``engine`` (the case writer's) may do beyond :data:`WRITER_GRANTS`, or
     may not do of it, on every table of ARGUS's schemas: a table the list does not name it may
     not touch at all, and it is not a member of ``argus_runtime``. Empty when it is exactly as
-    migrations 0037 and 0038 intend. Needs the tables to exist."""
+    the migrations intend. Needs the tables to exist."""
     return await _login_problems(
         engine,
         WRITER_ROLE,
@@ -2483,8 +2445,8 @@ async def writer_role_problems(engine: AsyncEngine) -> list[str]:
 
 async def purge_role_problems(owner_engine: AsyncEngine) -> list[str]:
     """What ``argus_purge`` may do beyond :data:`PURGE_GRANTS`, or may not do of it, on every
-    table of ARGUS's schemas, seen after the owner's ``SET ROLE`` to it (Q-A4). Empty when it is
-    exactly as migration 0031 intends; ``argus purge`` refuses to run otherwise."""
+    table of ARGUS's schemas, seen after the owner's ``SET ROLE`` to it. Empty when it is
+    exactly as its migration intends; ``argus purge`` refuses to run otherwise."""
     return await _login_problems(
         owner_engine, PURGE_ROLE, PURGE_GRANTS, every_table=True, set_role=PURGE_ROLE, may=()
     )
@@ -2559,7 +2521,7 @@ async def _function_problems(
     conn: AsyncConnection, may: tuple[str, ...] = RUNTIME_FUNCTIONS
 ) -> list[str]:
     """The login may execute exactly ``may`` of ARGUS's own functions: the runtime login only
-    ARGUS's proposals (0030), never an approval or the owner's chain and guard functions; the
+    ARGUS's proposals, never an approval or the owner's chain and guard functions; the
     web's login the approval functions. argus_approvals may execute exactly those."""
     problems: list[str] = []
     for function in _ALL_FUNCTIONS:
@@ -2663,7 +2625,7 @@ async def _membership_problems(
         problems.append(f"does not inherit the privileges of {group}")
     if held[1]:
         problems.append(f"can grant {group} to other roles (ADMIN OPTION)")
-    for role in also:  # how it belongs to each of them (review F10); missing ones show as
+    for role in also:  # how it belongs to each of them; missing ones show as
         extra = (  # functions it may not execute
             await conn.execute(
                 text(

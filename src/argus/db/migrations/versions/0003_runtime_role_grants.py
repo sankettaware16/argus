@@ -1,12 +1,9 @@
-"""runtime role: read the audit trail and append to it, nothing else (D-029)
+"""runtime role: read the audit trail and append to it, nothing else
 
-ARGUS runs as a login that is a member of the group role ``argus_runtime``, which ``argus db
-bootstrap`` creates. That role may read ``alembic_version`` and ``audit_events`` and insert audit
-events, but not their ``id`` or ``occurred_at``: the database numbers and timestamps each event,
-so ARGUS cannot renumber or backdate one. Without UPDATE, DELETE, TRUNCATE or ownership it can
-neither change the trail nor switch its guard triggers off. Each later migration that adds a
-table grants the runtime role what it needs there, explicitly (no default privileges), and
-``argus.db.roles.RUNTIME_GRANTS`` lists it for ``argus doctor``.
+ARGUS runs as a login that is a member of the group role ``argus_runtime`` (made by ``argus db
+bootstrap``). It may read ``alembic_version`` and ``audit_events`` and insert audit events, but not
+their ``id`` or ``occurred_at``, and has no UPDATE, DELETE, TRUNCATE or ownership. Later migrations
+grant it what each new table needs, explicitly; ``argus.db.roles.RUNTIME_GRANTS`` lists it.
 
 Revision ID: 0003
 Revises: 0002

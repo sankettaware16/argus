@@ -1,29 +1,15 @@
-"""What is worth a notice (Q-H4, plan §5): the five triggers, each computed from ARGUS's own
-database. Nothing here asks the SIEM, and nothing invents a new lookup: it reads what the watch
-(Q-C2), the case record (Q-C1, Q-C3), the dossiers' threat-intel answers and the gateway's
-health memory already wrote.
+"""What is worth a notice: the five triggers, each computed from ARGUS's own database (nothing here
+asks the SIEM).
 
-1. ``case_active``: a confirmed case (open, assigned or contained) the watch found active on a
-   finished or running UTC day in the last :data:`LOOKBACK_DAYS`, after its verdict or its
-   containment (an ``active`` row of ``case_watch_checks`` for a later day, or for the verdict's
-   own day when its newest alert is after the verdict moment, or a ``new_activity`` event after
-   it). Severity: the case's, and at least *high* when it had been contained.
-   Not a notified case (AR4b, D-169): its owner was told and its alerts are counted, so the
-   notice would repeat what everybody knows.
-2. ``after_closure``: an ``activity_after_closure`` event on a case still closed, in the last
-   :data:`AFTER_CLOSURE_DAYS` (Q-C2's follower case, or the note on the closed case).
-   The link leads to the follower when there is one. Severity: the case's, at least *high*.
-3. ``closure_waiting``: a closure request nobody has decided for more than :data:`WAITING` (12
-   hours) and that has not expired. Severity *medium*, *high* in its last 12 hours.
-4. ``ioc_hit``: an investigation not yet reviewed, with alerts in the last :data:`IOC_DAYS`,
-   whose newest dossier lists an indicator that a source calls high-confidence, and whose actor
-   is a campus host (the opener's own test; every candidate is read, newest first, so a flood of
-   outside scanners cannot hide a campus host). Severity *high*, *critical* for a critical alert.
-   Not an investigation that belongs to a notified case's known infection (AR4b, D-169).
-5. ``outage``: the SIEM's health memory DEGRADED or STOP, the Kibana lane stopped or a write class
-   paused, Q-C2's watch not run when it is switched on, or an ARGUS-side coverage gap left open.
-   Noticed once it has lasted an hour (:func:`argus.notices.model.ready`); the watch that has
-   never run is late after 36 hours, counted from the first pass that saw it switched on.
+1. ``case_active``: a confirmed case the watch found active in the last :data:`LOOKBACK_DAYS`, after
+   its verdict or containment; not a notified case (its owner was told).
+2. ``after_closure``: activity after the closure of a case still closed, in the last
+   :data:`AFTER_CLOSURE_DAYS`.
+3. ``closure_waiting``: a closure request nobody has decided for more than :data:`WAITING`.
+4. ``ioc_hit``: an unreviewed investigation whose newest dossier lists an indicator that a source
+   calls high-confidence and whose actor is an internal host.
+5. ``outage``: the SIEM degraded or stopped, the Kibana lane stopped or a write class paused, the
+   daily watch not run, or an ARGUS-side coverage gap; noticed once it has lasted an hour.
 
 A trigger that fails is reported in :attr:`Found.failed` and its kind is never resolved by that
 pass: a database error must not read as "everything is fine".
@@ -58,8 +44,8 @@ IOC_DAYS = 1
 ASSISTANT = opener.ASSISTANT  # the assistant's account: its verdicts are no person's look
 IOC_PAGE = 200  # investigations read at a time for kind 4, the newest first
 IOC_SCAN_LIMIT = 20_000  # more than this in a day: the kind is unreadable (held), not truncated
-# A request lives to the end of the next write window, 15 to 39 hours, so it is noticed while there
-# are at least 3 hours left (the plan's "over 24 hours" never held for 18 of 48 half-hour slots).
+# A request lives to the end of the next write window, 15 to 39 hours, so it is noticed while
+# there are at least 3 hours left.
 WAITING = timedelta(hours=WAITING_HOURS)
 URGENT_LEFT = timedelta(hours=12)  # a waiting closure is high when this little time is left
 # Gaps that are ARGUS's or the gateway's own (coverage_gaps.kind) and a stalled log source: an
@@ -89,8 +75,6 @@ def _severity(value: str, floor: Severity | None = None) -> Severity:
     got: Severity = value if value in SEVERITIES else "medium"
     return got if floor is None else max_severity(got, floor)
 
-
-# --------------------------------------------------------------------------- 1: still active
 
 _ACTIVE = text(
     """
@@ -149,8 +133,6 @@ async def case_active(conn: AsyncConnection, now: datetime) -> list[Condition]:
     return out
 
 
-# --------------------------------------------------------------------------- 2: after closure
-
 _AFTER = text(
     """
 SELECT c.id, c.severity, count(e.id) AS n,
@@ -191,8 +173,6 @@ async def _follower(conn: AsyncConnection, child: object) -> uuid.UUID | None:
     return found
 
 
-# --------------------------------------------------------------------------- 3: closure waiting
-
 _WAITING = text(
     f"""
 SELECT DISTINCT ON (r.case_id) r.case_id, r.requested_at AS since, r.expires_at AS expires
@@ -228,8 +208,6 @@ async def closure_waiting(conn: AsyncConnection, now: datetime) -> list[Conditio
     found = (waiting_condition(r.case_id, r.since, r.expires, now) for r in rows)
     return [c for c in found if c is not None]
 
-
-# --------------------------------------------------------------------------- 4: a known-bad address
 
 _LISTED = "d.body #> '{context,pack,ti,listed}'"
 _IOC = text(
@@ -310,9 +288,9 @@ async def ioc_hit(
     conn: AsyncConnection, now: datetime, classifier: IpClassifier
 ) -> list[Condition]:
     """Every investigation of the window that qualifies: the SQL keeps those with a listed array
-    and a source match that has a confidence, and the rest of the tests (a high confidence, a
-    campus actor) run here on each page, so the pages go on until the list is exhausted and no
-    flood of outside scanners can push a campus host out of sight. More than
+    and a source match that has a confidence, and the rest of the tests (a high confidence, an
+    internal actor) run here on each page, so the pages go on until the list is exhausted and no
+    flood of outside scanners can push an internal host out of sight. More than
     :data:`IOC_SCAN_LIMIT` candidates raises: the kind is held, never resolved on a partial
     read."""
     out: list[Condition] = []
@@ -347,8 +325,6 @@ async def ioc_hit(
             raise RuntimeError("too many investigations with listed indicators to read")
         after_at, after_id = rows[-1].last_event_at, rows[-1].id
 
-
-# --------------------------------------------------------------------------- 5: an outage
 
 HEALTH = Target("health")
 
@@ -429,9 +405,6 @@ async def _outages(
             Condition("outage", f"gap:{gap.kind}", OUTAGE_GAPS[gap.kind], 0, HEALTH, gap.since)
         )
     return out
-
-
-# --------------------------------------------------------------------------- all five
 
 
 async def compute(

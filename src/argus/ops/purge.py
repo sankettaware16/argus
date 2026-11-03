@@ -1,38 +1,17 @@
-"""The retention purge (Q-A4, D-028): what ARGUS removes of the personal data it holds, and when.
+"""The retention purge: what ARGUS removes of the personal data it holds, and when.
 
-Classes, each with its period (``retention.*``, ``memory.window``), never shorter in effect
-than ``history.window`` (the collector would read back what the purge took):
-
-* ``raw_source`` empties a normalized alert's raw ``_source`` (``{}``, ``raw_purged_at``);
-  ``quarantine`` does the same for a quarantined alert. The age of an alert is the earlier of
-  when the SIEM wrote it (``detected_at``) and when ARGUS stored it (``first_seen_at``).
-* ``evidence`` empties the evidence snapshots (the log rows a query returned) of an
-  investigation whose newest decision is a review (``reviewed``, not a follow-up) of its current
-  version, older than the period; what was asked, its status, counts and hash stay. A version
-  changed since the review is open work: its snapshots stay.
-* ``memory`` removes an investigation past ``memory.window`` whole, with its alerts, entity
-  index, dossiers, signals, evidence, reviews, assessments, jobs, write-back rows and the local
-  model's shadow answers; entity counts are recomputed; expired alerts in no investigation,
-  threat-intel answers and weekly tuning reports (they name the dominant values) older than the
-  window go. An investigation goes only when every alert of it, and every review, is past the
-  window, and no job or assessment of it is waiting or running and no write-back of it is
-  planned or paused (unfinished work: the plan counts it as waiting).
-* ``app_logs`` are the systemd journal's, outside the database: reported, trimmed by root.
-
-Q-H4's ``notices`` table (a kind, an opaque id, a severity and a count; no host, address, user
-or rule name) names nothing personal and no foreign key: it is kept, and emptied only by a
-regroup.
-
-**Holds** (DQ27): an investigation in the gold set, or an active member of a case that is not
-closed or has an approval request that has not expired (as its case or merge target), keeps
-everything; the investigation a held one continues keeps its row, so the held row's link stays.
-**Case records, entity notes and the audit trail are never purged** in Phase 3: an
-investigation any case record names stays, as foreign keys require.
-
-The plan (dry run) counts with the same predicates the run deletes by. A run works in batches,
-each a transaction under ``SET LOCAL ROLE argus_purge`` (``argus.db.roles.PURGE_GRANTS``), and
-re-checks each batch's rows (locked) before it changes them, so a hold set meanwhile wins.
-"""
+Classes, each with its period (``retention.*``, ``memory.window``), never shorter in effect than
+``history.window``: ``raw_source`` empties a normalized or quarantined alert's raw ``_source``;
+``evidence`` empties the log rows of an investigation whose newest decision is a review of its
+current version, older than the period (what was asked, status, counts and hash stay);
+``memory`` removes a whole investigation past ``memory.window`` with everything hanging off it,
+only when every alert and review of it is past the window and no job, assessment or write-back is
+unfinished; ``app_logs`` are the systemd journal's, outside the database. **Holds**: an
+investigation in the gold set, or an active member of a case that is not closed or has an
+unexpired approval request, keeps everything. Case records, entity notes, the audit trail and the
+``notices`` table are never purged. The plan (dry run) counts with the same predicates the run
+deletes by; a run works in batches, each a transaction under ``SET LOCAL ROLE argus_purge``, and
+re-checks each batch's rows (locked) so a hold set meanwhile wins."""
 
 # ruff: noqa: S608 - every statement is built from this module's constant fragments and its fixed
 # table names; every value is a bound parameter.
@@ -54,8 +33,8 @@ from argus.db.audit import record_audit
 from argus.db.roles import PURGE_ROLE, purge_role_problems
 
 CLASSES = ("raw_source", "quarantine", "evidence", "memory")
-# Kept whatever their age (DQ27, D-028): the record of what people and ARGUS decided, and the
-# notes people wrote about an entity on purpose (D-025; knowledge, like a case's notes).
+# Kept whatever their age: the record of what people and ARGUS decided, and the
+# notes people wrote about an entity on purpose (knowledge, like a case's notes).
 NEVER_PURGED = ("the audit trail", "case records", "entity notes")
 ALERT_BATCH = 1000
 EVIDENCE_BATCH = 1000
@@ -145,11 +124,10 @@ def cutoffs(settings: Settings, at: datetime) -> Cutoffs:
     )
 
 
-# --------------------------------------------------------------------------- selection
 # Every predicate below is shared by the plan's counts and the run's changes.
 
-# Investigations under the legal hold (DQ27). An approval request is pending until it expires
-# (at most 72 hours, plan §7.1), decided or not: the hold errs on the side of keeping.
+# Investigations under a hold. An approval request is pending until it expires
+# (at most 72 hours), decided or not: the hold errs on the side of keeping.
 _HELD = """
 held AS (
   SELECT g.investigation_id FROM gold_items g
@@ -169,8 +147,8 @@ held AS (
 # NULL, so the OR is LEAST(...) < cut, written so the two indexes serve it).
 _ALERT_EXPIRED = "(a.detected_at < :{cut} OR a.first_seen_at < :{cut})"
 # The holds are tested as IN (...) against a set read once (a hashed subplan); a correlated
-# EXISTS over the CTE was scanned again for every row (seconds per chunk of 1,000 at 4,000
-# held). Neither set has NULLs, so NOT IN means what it says.
+# EXISTS over the CTE was scanned again for every row. Neither set has NULLs, so NOT IN
+# means what it says.
 _HELD_IDS = "(SELECT investigation_id FROM held)"
 _ALERT_HELD = (
     "a.alert_id IN (SELECT l.alert_id FROM investigation_alerts l"
@@ -216,7 +194,7 @@ OR i.id IN (SELECT w.investigation_id FROM writeback_outbox w
   WHERE w.state IN ('planned', 'paused')))"""
 _MEMORY_WHERE = f"{_MEMORY_EXPIRED}\nAND NOT {_MEMORY_BUSY}"
 # Kept: held, continued by a held investigation (the held row's link stays), or named by a case
-# record (never purged in Phase 3; foreign keys need them).
+# record (never purged; foreign keys need them).
 _MEMORY_HELD = f"""(i.id IN {_HELD_IDS}
 OR i.id IN (SELECT n.continues_id FROM investigations n
   WHERE n.id IN {_HELD_IDS} AND n.continues_id IS NOT NULL)
@@ -231,10 +209,9 @@ _UNLINKED_WHERE = (
     " AND NOT EXISTS (SELECT 1 FROM investigation_alerts l WHERE l.alert_id = a.alert_id)"
 )
 
-# Rows the database removes with the investigation itself (ON DELETE CASCADE; Q-F1's shadow
-# and its proposals, migration 0033; Q-F3's waves and checks, 0039; Q-C2's suggestions, 0041;
-# AR2's shared runs and AR2b's raises, 0047; AR4b's known-infection decisions, 0050): not
-# deleted here, not counted in the dry run.
+# Rows the database removes with the investigation itself (ON DELETE CASCADE: shadow answers
+# and proposals, waves and checks, suggestions, shared runs, raises, known-infection decisions):
+# not deleted here, not counted in the dry run.
 _CASCADES = (
     "freshness_shadow",
     "freshness_proposals",
@@ -264,9 +241,6 @@ def _victims_cte() -> str:
         f"WITH {_HELD}, victims AS (SELECT i.id FROM investigations i"
         f" WHERE {_MEMORY_WHERE} AND NOT {_MEMORY_HELD})"
     )
-
-
-# --------------------------------------------------------------------------- the plan
 
 
 @dataclass
@@ -420,8 +394,8 @@ async def _as_purge(
     engine: AsyncEngine, *, read_only: bool = False
 ) -> AsyncIterator[AsyncConnection]:
     """A transaction as ``argus_purge`` (``SET LOCAL ROLE``): every statement in it has the
-    purge role's privileges and no others. JIT is off: compiling the counts' plans cost ~0.45 s
-    each and saved nothing (the review measured it)."""
+    purge role's privileges and no others. JIT is off: compiling the counts' plans cost more
+    than it saved."""
     async with engine.begin() as conn:
         if read_only:
             await conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
@@ -437,7 +411,7 @@ async def plan(engine: AsyncEngine, cut: Cutoffs) -> Counts:
 
 
 async def preflight(engine: AsyncEngine) -> None:
-    """PurgeError unless ``argus_purge`` holds exactly its grants (Q-A4)."""
+    """PurgeError unless ``argus_purge`` holds exactly its grants."""
     problems = await purge_role_problems(engine)
     if problems:
         shown = "; ".join(problems[:10])
@@ -445,9 +419,6 @@ async def preflight(engine: AsyncEngine) -> None:
             f"{PURGE_ROLE} is not as migration 0031 grants it ({shown}): run `argus db"
             " bootstrap` and `argus db upgrade`, then argus doctor"
         )
-
-
-# --------------------------------------------------------------------------- the run
 
 
 async def _ids(conn: AsyncConnection, sql: str, params: Mapping[str, Any]) -> list[Any]:
@@ -805,7 +776,7 @@ async def run(engine: AsyncEngine, cut: Cutoffs, *, expect: Counts | None = None
 
 async def reviewed_periods(engine: AsyncEngine) -> dict[str, str] | None:
     """The periods of the last reviewed purge (``--expect``) that succeeded, from the audit
-    trail; None if there was none. The schedule continues exactly those (R9)."""
+    trail; None if there was none. The schedule continues exactly those."""
     async with _as_purge(engine, read_only=True) as conn:
         found = (
             await conn.execute(

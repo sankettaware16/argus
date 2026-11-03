@@ -1,17 +1,9 @@
-"""The model's view of a dossier (P1; plan §2.1, §5.1, §5.2, §5.5, D-075, D-076).
-
-``Privacy.request(bodies)`` turns dossier bodies into one ``Request``:
-- each body becomes an item (``I1``, ``I2``…) built field by field under the data policy
-  (``config/llm_data_policy.yaml``, default deny); a body that cannot be read is left out;
-- internal identifiers become typed pseudonyms in a space of their own per item
-  (``I2.IP_1``, ``I2.HOST_1``); public addresses and domains stay as they are;
-- times are relative, counts are rounded, untrusted text is decoded, cleaned, stripped of
-  anything shaped like a pseudonym, quoted and capped on a token boundary;
-- then the text is rendered, cut only between items.
-Re-identification (``Request.reveal``) happens only in memory, for one item, and refuses an
-answer that names any other pseudonym. The map is never printed, pickled or stored.
-``Request.validate`` runs the egress validator on the exact text.
-"""
+"""The model's view of a dossier. ``Privacy.request(bodies)`` turns dossier bodies into one
+``Request``: each body becomes an item built field by field under the data policy
+(``config/llm_data_policy.yaml``, default deny); internal identifiers become typed pseudonyms in a
+space per item, times are relative, counts rounded, untrusted text decoded, cleaned, quoted and
+capped. ``Request.reveal`` re-identifies only in memory, for one item, and refuses an answer
+naming another pseudonym; ``Request.validate`` runs the egress validator on the exact text."""
 
 from __future__ import annotations
 
@@ -67,7 +59,7 @@ class Policy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     version: int = Field(ge=1)
-    # extra campus domains besides ``site.own_domains`` (D-284); the privacy layer uses both
+    # extra own domains besides ``site.own_domains``; the privacy layer uses both
     campus_domains: tuple[str, ...] = ()
     asset_fields: tuple[str, ...] = ()
     # index patterns whose URL query values are sent; None (left out): the site's web families
@@ -86,8 +78,8 @@ class PrivacyConfigError(ValueError):
 
 def query_patterns(policy: Policy) -> tuple[str, ...]:
     """The index patterns whose URL query values are sent: the policy's ``query_values_for``, or,
-    left out, the site's web families (D-294), each daily pattern with the separator before its
-    ``*`` dropped (``acme-logs-nginx-*`` as ``acme-logs-nginx*``: a rule may name it either way)."""
+    left out, the site's web families, each daily pattern with the separator before its
+    ``*`` dropped (``logs-nginx-*`` as ``logs-nginx*``: a rule may name it either way)."""
     if policy.query_values_for is not None:
         return policy.query_values_for
     return tuple(
@@ -99,7 +91,7 @@ def query_patterns(policy: Policy) -> tuple[str, ...]:
 def own_domains_of(policy: Policy) -> tuple[str, ...]:
     """The organisation's own domains the privacy layer replaces and keeps out of outside lookups:
     ``site.own_domains`` and the policy's ``campus_domains``, each once. A layer that knows none
-    would let ``example.org`` through to a cloud provider, so it refuses to run (D-285)."""
+    would let ``example.org`` through to a cloud provider, so it refuses to run."""
     domains = site.own_domains(policy.campus_domains)
     if not domains:
         raise PrivacyConfigError(
@@ -168,7 +160,7 @@ def quote(text: str) -> str:
 
 
 class Pseudonyms:
-    """One item's pseudonym space. Never printed, pickled or stored (plan §2.6)."""
+    """One item's pseudonym space. Never printed, pickled or stored."""
 
     def __init__(self, item: str) -> None:
         self.item = item
@@ -221,7 +213,7 @@ class Request:
     items: tuple[str, ...]  # rendered, in order
     omitted: tuple[str, ...]  # built but cut by the size limit
     failed: tuple[str, ...]  # bodies that could not be read: never sent
-    truncated: tuple[str, ...]  # rendered items with untrusted text cut (plan §5.5)
+    truncated: tuple[str, ...]  # rendered items with untrusted text cut
     campus: Campus = field(repr=False)
     _maps: dict[str, Pseudonyms] = field(repr=False, default_factory=dict)
 
@@ -229,7 +221,7 @@ class Request:
         return egress.check(self.text, self.campus, ordinary=template_words())
 
     def check(self, body: bytes) -> egress.Verdict:
-        """The validator on the exact bytes a provider would receive (P5)."""
+        """The validator on the exact bytes a provider would receive."""
         return egress.check(body, self.campus, ordinary=template_words())
 
     def unknown(self, answer: str, about: str) -> list[str]:
@@ -299,7 +291,7 @@ def _map(value: Any) -> Mapping[str, Any]:
 
 
 class Privacy:
-    # what an item's values are replaced with, and how; P2's comparison arms swap them (D-078)
+    # what an item's values are replaced with, and how; the comparison arms swap them
     space: Callable[[str], Pseudonyms] = Pseudonyms
     scrub: type[_Scrub]
 
@@ -366,7 +358,7 @@ class Privacy:
     def campus_for(self, bodies: Iterable[Any]) -> Campus:
         """The base campus plus every host and user name these dossiers mention: entities,
         fields and grouping keys whose policy action is ``host`` or ``user``. Public so that
-        outside lookups (AR3) refuse exactly what the model's view of an item scrubs."""
+        outside lookups refuse exactly what the model's view of an item scrubs."""
         hosts: set[str] = set()
         users: set[str] = set()
         for body in bodies:
@@ -393,7 +385,7 @@ class Privacy:
         return replace(self.campus, hosts=frozenset(hosts), users=frozenset(users))
 
     def _is_public_address(self, value: str) -> bool:
-        """A public address names no campus host."""
+        """A public address names no internal host."""
         c = self.classifier.classify(value)
         return c.ip_class is IpClass.PUBLIC and not self.campus.internal(
             ipaddress.ip_address(value)
@@ -606,7 +598,7 @@ class Privacy:
 
     def _outside(self, value: Any, cx: _Scrub) -> list[str]:
         """What outside threat intel (VirusTotal, Shodan, Censys) said of the item's external
-        indicators (AR3, D-165): ARGUS's own sentence from the answer's numbers, with the text a
+        indicators: ARGUS's own sentence from the answer's numbers, with the text a
         source supplied quoted as untrusted, and the indicator (public by construction) after it."""
         found = outside.facts_of(value)[: self.policy.ti_answers]
         if not found:
@@ -722,7 +714,6 @@ class _Scrub:
     # -- numbers and words ------------------------------------------------------------------
 
     def count(self, value: Any) -> str:
-        """A count: rounded (``bucket``)."""
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return "?" if value is None else self.text(str(value), 40)
         return bucket(value)

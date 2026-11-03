@@ -1,5 +1,5 @@
 """Putting the gateway together from the settings, and the two jobs that run on it besides
-everyone's queries: the health probe (plan §5.1) and the identity self-test (plan §5.3)."""
+everyone's queries: the health probe and the identity self-test."""
 
 from __future__ import annotations
 
@@ -61,13 +61,13 @@ def targets(settings: SiemSettings) -> Targets:
 
 
 def budget_config(settings: SiemSettings) -> BudgetConfig:
-    """D-022's ceiling (``siem.budget``)."""
+    """The load ceiling (``siem.budget``)."""
     config: BudgetConfig = settings.ceiling()
     return config
 
 
 def lane_plan(settings: SiemSettings) -> LanePlan:
-    """The lane budgets (plan §7.8): ``siem.lanes`` where set, else each lane's share of the
+    """The lane budgets: ``siem.lanes`` where set, else each lane's share of the
     ceiling; ValueError if they exceed it."""
     return plan_from(budget_config(settings), settings.lane_specs())
 
@@ -140,15 +140,13 @@ async def probe(
     ingest_lag: Mapping[str, timedelta] | None = None,
     indices: bool = True,
 ) -> HealthMemory:
-    """One health probe: node stats and index blocks in, the new health state saved. If the
-    gateway itself refused to send (its probe allowance, the deadline), nothing was learnt
-    about the SIEM: the memory is left as it is and goes stale on its own. ``component`` names
-    the probe's caller on its ledger rows (the re-measurement counts its own, Q-A3).
-    ``ingest_lag``: each log source's lag, from the freshness lane's readings (Q-F1, once
-    switched on): the health trip wire's input (DQ19). ``indices=False``: node stats only, no
-    index blocks (``argus discover`` on an Elastic whose indices are not configured yet). Such
-    a reading is partial: the index blocks, the ingest lag and the stale rules are conditions
-    that only a fuller reading clears, so it is evaluated and returned but never saved."""
+    """One health probe: node stats and index blocks in, the new health state saved. If the gateway
+    itself refused to send (its probe allowance, the deadline), nothing was learnt: the memory is
+    left as it is and goes stale on its own. ``component`` names the probe's caller on its ledger
+    rows. ``ingest_lag``: each log source's lag from the freshness lane's readings (the health trip
+    wire's input). ``indices=False``: node stats only, no index blocks (``argus discover`` on an
+    Elastic whose indices are not configured yet); such a partial reading is evaluated and returned
+    but never saved, since only a fuller reading clears some conditions."""
     now = now or utcnow()
     deadline = now + PROBE_DEADLINE
     try:
@@ -195,7 +193,7 @@ async def probe(
             readings = replace(readings, probe_ok=False)
         except GatewayError:
             readings = replace(readings, probe_ok=False)
-    if ingest_lag:  # each source's lag from the freshness lane (Q-F1, mode on only)
+    if ingest_lag:  # each source's lag from the freshness lane (mode on only)
         readings = replace(readings, ingest_lag=dict(ingest_lag))
     switches = await store.switches()
     memory = evaluate(
@@ -204,10 +202,10 @@ async def probe(
         health_config(settings),
         kill_switch="global" in switches.stopped,
     )
-    if not indices:  # a partial reading must not clear what a full one found (F2)
+    if not indices:  # a partial reading must not clear what a full one found
         return memory
     await store.save_health(memory)
-    try:  # the readings are kept for Q-A3; losing one never fails the probe
+    try:  # the readings are kept for the re-measurement; losing one never fails the probe
         await store.record_probe(readings, memory)
     except Exception as exc:
         log.warning("probe readings not stored: %s", redact_text(f"{type(exc).__name__}: {exc}"))

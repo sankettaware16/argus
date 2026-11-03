@@ -1,6 +1,6 @@
-"""The collector's side of Postgres (D-050): alert records, cursors, coverage gaps and
-reconciliation runs. Every function takes an open connection, so the caller decides what one
-transaction holds (plan §7.2: a page is one transaction)."""
+"""The collector's side of Postgres: alert records, cursors, coverage gaps and reconciliation
+runs. Every function takes an open connection, so the caller decides what one transaction
+holds (a page of alerts is one transaction)."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def _row(
 ) -> tuple[dict[str, Any], NormalizedAlert | None]:
     """The record of one mget document. ``written_at`` is the alert's ``@timestamp`` as
     Elasticsearch sorts it (from the id listing): the store counts alerts per hour by it, so
-    its hours always agree with Elasticsearch's, even for an alert R3 quarantined."""
+    its hours always agree with Elasticsearch's, even for an alert the normalizer quarantined."""
     result = normalize(doc)
     source = doc["_source"]
     content_hash, state_hash, status = split_source(source)
@@ -171,7 +171,7 @@ async def ingest(
         )
     }  # fmt: skip
     updates["detected_at"] = func.coalesce(excluded.detected_at, ALERTS.c.detected_at)
-    # Once the retention purge emptied it (Q-A4), the raw _source is never written back.
+    # Once the retention purge has emptied it, the raw _source is never written back.
     updates["raw"] = case((ALERTS.c.raw_purged_at.is_(None), excluded.raw), else_=ALERTS.c.raw)
     statement = statement.on_conflict_do_update(
         index_elements=[ALERTS.c.alert_id],

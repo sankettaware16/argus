@@ -1,5 +1,5 @@
-"""The Reporter's history (Q-H3, migration 0046): reports are written once and read. The runtime
-login inserts and reads; the web's login reads."""
+"""The Reporter's history: reports are written once and read. The runtime login inserts and
+reads; the web's login reads."""
 
 from __future__ import annotations
 

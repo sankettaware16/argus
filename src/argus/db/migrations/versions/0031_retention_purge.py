@@ -1,12 +1,10 @@
-"""retention purge: the purge role's grants and the purge markers (Q-A4, D-028)
+"""retention purge: the purge role's grants and the purge markers
 
-The purge empties an alert's raw ``_source`` after ``retention.raw_source`` and an evidence
-snapshot ``retention.evidence`` after the investigation's newest review, and removes whole
-investigations past ``memory.window`` (with the local model's shadow answers about them, 0028).
-It runs as ``argus_purge`` (``argus db bootstrap`` makes the role): exactly the grants below,
-so the audit trail and the case records stay out of its reach and it can never disable a
-trigger. ``raw_purged_at`` and ``snapshot_purged_at`` say
-when a value was removed; a check keeps a purged value empty, so nothing writes it back.
+The purge empties an alert's raw ``_source`` after ``retention.raw_source`` and an evidence snapshot
+after ``retention.evidence``, and removes whole investigations past ``memory.window``. It runs as
+``argus_purge`` with exactly the grants below, so the audit trail and the case records stay out of
+its reach. ``raw_purged_at`` and ``snapshot_purged_at`` say when a value was removed; a check keeps
+a purged value empty.
 
 Revision ID: 0030
 Revises: 0029

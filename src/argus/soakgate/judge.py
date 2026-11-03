@@ -1,14 +1,7 @@
-"""The soak gate's judges (P4-A1): each of ``docs/phase-3-exit.md``'s eleven lines as a pure
-function from typed facts to checks. Nothing here reads a clock (``now`` comes in), a database or a
-file, so every verdict is reproducible from the facts and the tests can walk each boundary.
-
-Two rules hold throughout:
-
-* **A rate has its n.** A check whose claim rests on a count of zero cannot pass: it is PENDING
-  and says what is missing and the minimum. "0 second creates" is true of no creates at all, but
-  it proves nothing.
-* **Only measured limits fail.** A claim the store cannot show is OPEN, with where a person looks.
-"""
+"""The soak gate's judges: each line of the exit gate as a pure function from typed facts to checks
+(no clock, database or file, so every verdict is reproducible). **A rate has its n**: a check
+whose claim rests on a count of zero cannot pass, it is PENDING with what is missing. **Only
+measured limits fail**: a claim the store cannot show is OPEN, with where a person looks."""
 
 from __future__ import annotations
 
@@ -40,7 +33,7 @@ from argus.soakgate.model import (
     span_text,
 )
 
-# the gate's own numbers (docs/phase-3-exit.md)
+# the gate's own numbers
 MIN_CASES_POSTED = 3
 MIN_VERDICTS = 1
 MIN_CYCLES = 20
@@ -74,9 +67,6 @@ def _pending(ident: str, title: str, needs: str, **measured: Any) -> Check:
 def _named(items: Sequence[str], shown: int = CASE_NUMBERS_SHOWN) -> str:
     head = ", ".join(items[:shown])
     return head if len(items) <= shown else f"{head} and {len(items) - shown} more"
-
-
-# --------------------------------------------------------------------------- line 1
 
 
 def judge_lifecycle(f: LifecycleFacts) -> list[Check]:
@@ -145,9 +135,6 @@ def judge_lifecycle(f: LifecycleFacts) -> list[Check]:
     return [steps, second, duplicate]
 
 
-# --------------------------------------------------------------------------- line 2
-
-
 def judge_person_only(opened: Sequence[OpenedCase]) -> list[Check]:
     """2. 0 Kibana cases opened without a person's confirm of a true positive."""
     title = "Every Kibana case follows a person's confirm of a true positive"
@@ -170,9 +157,6 @@ def judge_person_only(opened: Sequence[OpenedCase]) -> list[Check]:
             measured={"cases": len(opened), "without_person_confirm": len(bad)},
         )
     ]
-
-
-# --------------------------------------------------------------------------- line 3
 
 
 def _write_window(f: WriteFacts) -> WriteCaps:
@@ -305,9 +289,6 @@ def _minimum_counts(f: WriteFacts) -> Check:
     )
 
 
-# --------------------------------------------------------------------------- line 4
-
-
 def judge_coverage(confirmed: Sequence[Confirmed], now: datetime) -> list[Check]:
     """4. Every person-confirmed true positive has its Kibana case within 15 minutes of the
     confirmation or of the next write window's start (n, max)."""
@@ -385,9 +366,6 @@ def judge_coverage(confirmed: Sequence[Confirmed], now: datetime) -> list[Check]
     return [first, second]
 
 
-# --------------------------------------------------------------------------- line 5
-
-
 def judge_closures(f: ClosureFacts) -> list[Check]:
     """5. 0 automatic closures; 0 Kibana closes by ARGUS."""
     title = "No automatic closure"
@@ -418,9 +396,6 @@ def judge_closures(f: ClosureFacts) -> list[Check]:
             measured={"kibana_requests": f.kibana_requests, "closes": len(f.kibana_closes)},
         )
     return [first, second]
-
-
-# --------------------------------------------------------------------------- line 6
 
 
 def judge_reconciliation(f: ReconcileFacts) -> list[Check]:
@@ -510,9 +485,6 @@ def judge_reconciliation(f: ReconcileFacts) -> list[Check]:
     return out
 
 
-# --------------------------------------------------------------------------- line 7
-
-
 def judge_notified(f: NotifiedFacts) -> list[Check]:
     """7. Every notified case judged every day it was active; a change after the notice in Needs
     attention within one pass."""
@@ -562,16 +534,13 @@ def judge_notified(f: NotifiedFacts) -> list[Check]:
     return out
 
 
-# --------------------------------------------------------------------------- line 8
-
-
 def _ms(value: int) -> str:
     return f"{value:,} ms"
 
 
 def judge_load(f: LoadFacts) -> list[Check]:
     """8. Every lane and the total within its limits per minute and per day; 0 moves to CAUTION
-    attributable to ARGUS; the sign-ins lane within D-216's arithmetic."""
+    attributable to ARGUS; the sign-ins lane within its expected request count."""
     limits = {x.lane: x for x in f.limits}
     out: list[Check] = []
 
@@ -797,9 +766,6 @@ def _judge_signin_arithmetic(f: LoadFacts) -> Check:
     )
 
 
-# --------------------------------------------------------------------------- line 9
-
-
 def stale_lookups(f: SigninFacts) -> list[str]:
     """Incomplete lookups that should have been retried by now: not final (logs gone, a batch
     stored-failed the most times, a day past the SSO logs' retention) and older than their retry
@@ -944,9 +910,6 @@ def _judge_sweep(s: SweepFacts, since: datetime) -> Check:
     )
 
 
-# --------------------------------------------------------------------------- line 10
-
-
 def judge_analysis(f: AnalysisFacts) -> list[Check]:
     """10. 0 true positives proposed benign; cost within the caps; the inconclusive rate with
     its n."""
@@ -1023,9 +986,6 @@ def _judge_cost(f: AnalysisFacts) -> Check:
             "monthly_cap_usd": f.monthly_cap_usd,
         },
     )
-
-
-# --------------------------------------------------------------------------- line 11
 
 
 def judge_health(h: HealthFacts, b: BackupFacts) -> list[Check]:

@@ -1,25 +1,9 @@
-"""Write-back (R17, D-061, D-062, D-063; v2 Q-D5): people's decisions as alert status changes in
-Kibana. This module plans and shows; ``argus.writeback_sender`` sends.
-
-``plan`` turns each investigation's newest decision into one outbox row, and each approved case
-closure into another: only the alerts the reviewer saw (linked before the review) whose state
-differs; an older row not sent yet is superseded (``skipped``). The mapping (D-061, DQ11 (a)):
-a person's review as benign, policy or false positive closes, a true positive or a follow-up
-acknowledges, anything else does nothing; an approved closure closes its alerts (not a duplicate
-and not one created in error, which say nothing about the alerts).
-
-Who may reach Kibana: a review made under an ELK check that showed the alert-status privileges
-(``review_events.kibana_ok``) in the default plan; ``plan(older=True)`` also plans a person's
-earlier reviews (local mode, an unverified session), but as rows that only a terminal run whose
-operator signed in with their own ELK account may send (``needs_operator``). Break-glass and
-service accounts never. A benign verdict resting on Q-F1's "nothing found" is held until the
-user's audit of Q-F1 is recorded (``held``).
-
-``needs_operator`` and ``held`` are derived from their sources (:func:`standing`: the review's
-``kibana_ok``, its author's kind, Q-F1's verdict now) whenever they matter: by the sender before
-each request, and by :func:`diff`. The stored columns are a cache that only the writer fills in
-(0045: the runtime may not even name them), never trusted.
-"""
+"""Write-back: people's decisions as alert status changes in Kibana. This module plans and shows;
+``argus.writeback_sender`` sends. ``plan`` turns each investigation's newest decision and each
+approved case closure into one outbox row for the alerts the reviewer saw whose state differs
+(benign, policy or false positive closes; true positive or follow-up acknowledges); an older
+unsent row is superseded. Only reviews made under an ELK check that showed the alert-status
+privileges may reach Kibana; ``plan(older=True)`` adds earlier ones (an operator sends those)."""
 
 from __future__ import annotations
 
@@ -51,9 +35,11 @@ CLOSURE_CLOSES = frozenset(
         "stopped_after_notice",
     }
 )
-BENIGN = frozenset({"benign_expected", "benign_policy"})  # the verdicts F1's zeros could carry
+BENIGN = frozenset(
+    {"benign_expected", "benign_policy"}
+)  # the verdicts a freshness zero could carry
 F1_HOLD = "f1_zeros"
-FIRST_RUN = 5  # alerts written while nothing was ever written, with the user present (plan §6)
+FIRST_RUN = 5  # alerts written while nothing was ever written, with a person present
 
 
 class WritebackRefused(Exception):  # noqa: N818
@@ -64,7 +50,7 @@ def _target(action: str, outcome: str | None) -> str | None:
     return "acknowledged" if action == "follow_up" else TARGET.get(outcome or "")
 
 
-# Q-F1's "nothing found" in force (mode on, a verified zero) behind a verdict
+# a freshness "nothing found" in force (mode on, a verified zero) behind a verdict
 _F1_REVIEW = (
     "SELECT EXISTS (SELECT 1 FROM freshness_shadow f WHERE f.investigation_id = :i"
     " AND f.mode = 'on' AND f.verdict = 'known_zero')"
@@ -209,14 +195,14 @@ class Standing:
 
     person: bool  # its author is a person (a break-glass or service account never reaches Kibana)
     needs_operator: bool  # made without an alert-write check: only an operator may send it
-    held: str | None  # waits for the audit of Q-F1
+    held: str | None  # waits for the audit of the freshness answers
 
 
 async def standing(
     conn: AsyncConnection, *, review_id: int | None, investigation_id: Any, case_id: Any
 ) -> Standing | None:
-    """The row's flags from ``review_events.kibana_ok``, ``users.kind`` and Q-F1's verdict (or
-    the closed case's reason and its investigations' verdicts); None when the decision it was
+    """The row's flags from ``review_events.kibana_ok``, ``users.kind`` and the freshness verdict
+    (or the closed case's reason and its investigations' verdicts); None when the decision it was
     made from cannot be found."""
     if review_id is not None:
         found = (
@@ -252,10 +238,10 @@ async def standing(
 
 
 async def diff(conn: AsyncConnection) -> dict[str, Any]:
-    """What a run would change: items and alerts left per target status. Rows that wait for
-    an operator or for F1's audit are counted apart, under ``needs_operator`` and ``held``, and
-    a row whose decision or author no longer allows a send under ``unsendable``; the flags come
-    from their sources (:func:`standing`)."""
+    """What a run would change: items and alerts left per target status. Rows that wait for an
+    operator or for the freshness audit are counted apart, under ``needs_operator`` and ``held``,
+    and a row whose decision or author no longer allows a send under ``unsendable``; the flags
+    come from their sources (:func:`standing`)."""
     rows = (
         await conn.execute(
             text(
@@ -284,7 +270,7 @@ async def diff(conn: AsyncConnection) -> dict[str, Any]:
 def refuse_unless_ready(
     enabled: bool, writer_key: object | None, confirmed: bool, *, terminal: bool = True
 ) -> None:
-    """The conditions of a real run (D-061), each with its own reason."""
+    """The conditions of a real run, each with its own reason."""
     if not enabled:
         raise WritebackRefused("writeback.enabled is false (D-061: the user switches it on)")
     secret = getattr(writer_key, "get_secret_value", None)

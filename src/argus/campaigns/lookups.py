@@ -1,25 +1,9 @@
-"""The family look-ups and the flags a campaign gives (AR2c, D-168, D-170): one step of an
-assessment pass.
-
-A campaign shows in no single investigation, so the step reads the whole window: the families of
-domain names (``families``), what the outside cache already says about each parent, and the
-addresses VirusTotal flags. It then, within a small daily budget (``outside.families_per_day``,
-VirusTotal requests with the purpose ``families``), asks VirusTotal about the largest families
-that no answer covers yet: their registered parent once (popularity, age, registrar, name servers,
-addresses, engines) and then, for a family that is rare or detected (a popular one is not worth the
-request), the first public address the parent points at (its network). Nothing campus is ever
-sent: the parent is checked by ``Eligibility`` against the campus view of every
-investigation that holds a name under it (as the beacon look-ups do), shared infrastructure is
-never asked, and an answer already cached costs no request. With the answers in the cache,
-``analysis.analyse`` says which investigations are detections of a flagged parent, tied to its
-operator, or part of a rare campaign shape, and :func:`apply` adds those flags to the stored
-evidence (``investigation_raises``) of the unreviewed investigations, where the pages and the
-investigator's queue read them.
-
-Without a VirusTotal key, or with ``families_per_day`` 0, nothing is asked, but the flags still
-follow whatever the cache holds (a detection that an earlier look-up, the beacon prefetch or a
-person's question left there).
-"""
+"""The family look-ups and the flags a campaign gives: one step of an assessment pass. It reads
+the whole window, spends a small daily budget (``outside.families_per_day``) on VirusTotal for the
+largest families no answer covers (the parent; for a rare or detected family also its first public
+address), then adds the flags ``analysis.analyse`` gives to the stored evidence. Nothing internal is
+sent (``Eligibility`` against every holder's view) and shared infrastructure is never asked.
+Without a key nothing is asked, but the flags still follow the cache."""
 
 from __future__ import annotations
 
@@ -47,7 +31,7 @@ from argus.outside.service import Outside
 log = logging.getLogger("argus.campaigns")
 
 BATCH = 2  # VirusTotal requests one pass may spend on families (3 a minute is its limit)
-MAX_HOLDERS = 500  # investigations whose campus view a parent is checked against
+MAX_HOLDERS = 500  # investigations whose internal view a parent is checked against
 
 # the flags a campaign gives, in the order they are written
 FLAGS = (raised.OUTSIDE, raised.OPERATOR, raised.CAMPAIGN)
@@ -82,7 +66,7 @@ class Report:
 
 
 def usable_parent(outside: Outside, shared: Shared) -> Callable[[str], bool]:
-    """Whether a parent may be asked about outside: a public name that holds no campus identifier
+    """Whether a parent may be asked about outside: a public name that holds no internal identifier
     and is not shared infrastructure (many customers behind one name)."""
     return lambda parent: (
         outside.eligibility.check("domain", parent) is None
@@ -98,8 +82,8 @@ async def cleared(
     conn: AsyncConnection, outside: Outside, parent: str, holders: set[uuid.UUID]
 ) -> tuple[bool, Campus | None]:  # fmt: skip
     """Whether ``parent`` may go out for the investigations that hold a name under it, and the
-    campus view to ask under (the first holder's). It may not when the campus view of any holder
-    (its host and user names, as the privacy layer scrubs them) finds a campus name in it."""
+    view to ask under (the first holder's). It may not when the internal view of any holder
+    (its host and user names, as the privacy layer scrubs them) finds an internal name in it."""
     first: Campus | None = None
     for holder in sorted(holders)[:MAX_HOLDERS]:
         view = await prefetch.campus_of(conn, holder, outside)
@@ -127,7 +111,7 @@ def _tally(report: Report, got: service.Outcome) -> bool:
 
 
 def order_of(world: analysis.World, family: Family) -> tuple[int, int, int, str]:
-    """The order candidates are looked at in (D-174): a family the cache already reads as rare or
+    """The order candidates are looked at in: a family the cache already reads as rare or
     detected first (its address is the one request missing), the ones nobody has looked at next,
     popular ones last (nothing is missing for them), each widest first."""
     reading = world.readings.get(family.parent)
@@ -151,7 +135,7 @@ async def look_up(
     spent = 0
     async with db.connect() as conn:
         used = await store.used_today(conn, facts.VIRUSTOTAL, "families", outside.clock())
-    room = s.families_per_day - used  # when it is spent, no candidate's campus view is prepared
+    room = s.families_per_day - used  # when it is spent, no candidate's internal view is prepared
 
     async def ask(kind: str, value: str, campus: Campus | None = None) -> service.Outcome:
         nonlocal spent

@@ -1,5 +1,5 @@
-"""The LLM gateway's shared state and ledger in Postgres (P5): every ARGUS process shares
-one budget, one set of breakers and one kill switch. Each change locks the state row."""
+"""The LLM gateway's shared state and ledger in Postgres: every ARGUS process shares one
+budget, one set of breakers and one kill switch. Each change locks the state row."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ T = TypeVar("T")
 
 async def read_state(conn: AsyncConnection) -> budget.State:
     """The gateway's state, read on the caller's connection (the web reads it inside its
-    request's own transaction: never a second pooled connection, Q-A1 review F1)."""
+    request's own transaction, never on a second pooled connection)."""
     row = await conn.execute(text("SELECT state FROM llm_state WHERE name = 'gateway'"))
     data: dict[str, Any] = row.scalar_one()
     return budget.from_json(data)
@@ -116,9 +116,9 @@ class PgLlmStore:
             return cleared
 
     async def reconcile(self, now: datetime, *, actor: str) -> tuple[float, float]:
-        """Set this month's spend to the ledger's settled costs, dropping reservations that
-        were never settled (a crash, or connections that never reached a provider before
-        D-096). Audited. Returns (before, after)."""
+        """Set this month's spend to the ledger's settled costs, dropping reservations that were
+        never settled (a crash, or connections that never reached a provider). Audited. Returns
+        (before, after)."""
         month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         async with self.sessions() as session, session.begin():
             row = await session.execute(

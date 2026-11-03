@@ -1,23 +1,11 @@
-"""The limits of "Check more" are the table's own (Q-F3 review R9, R10).
+"""The limits of "Check more" are the table's own.
 
-Migration 0039 let the web's login queue a request with the columns a person's request has. The
-caps on how many a person may have open (5), how many anyone may (100) were read, then
-inserted, by one function: eight requests at once all passed the same count, and the web's
-login could insert any ``kind`` and ``source`` (a wave as the engine, a request under another
-person's name) without meeting a cap at all. This migration moves the rules into the table.
-
-* The web's login no longer inserts ``kind`` or ``source``: they default to what a person's
-  "Check more" is (``check``, ``person``), so the web can add nothing else. (Whose name stands in
-  ``requested_by`` is the web's to say: the database does not know the signed-in person.)
-* ``created_at`` is the server's own clock, which nobody inserts, so no one can backdate a
-  request to hide it from the daily count.
-* A trigger on the insert of a check, under one advisory lock so that requests cannot pass the
-  same count together, refuses the 6th open check of a person, the 101st open check, and the
-  31st check of one person in a UTC day. Its refusals carry SQLSTATE ``AR001`` and the words a
-  person reads; ``argus.investigation.checks`` turns them into a refusal, not an error. The
-  numbers are written here and in ``checks.py`` (a test keeps them equal).
-
-The role name is written out, not imported (see 0003).
+The web's login no longer inserts ``kind`` or ``source`` (they default to what a person's check is),
+``created_at`` is the server's clock, and a trigger on the insert, under one advisory lock so
+requests cannot pass one count together, refuses the 6th open check of a person, the 101st open
+check and the 31st check of one person in a UTC day (SQLSTATE ``AR001``;
+``argus.investigation.checks`` turns it into a refusal). The numbers are written here and in
+``checks.py``; a test keeps them equal.
 
 Revision ID: 0040
 Revises: 0039

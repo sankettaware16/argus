@@ -1,31 +1,9 @@
-"""The LLM gateway (P5, D-086; v2, Q-G1): the only way ARGUS calls a model.
-
-A ``Call`` carries a privacy ``Request`` (P1): nothing else can be sent, to a cloud provider or
-to the campus machine alike. For each call the gateway
-1. refuses it unless the request passes the egress validator, and again unless the exact
-   body bytes for each provider do;
-2. tries the providers in the configured order, each only if the kill switch is off and the
-   provider is enabled, is not one the call avoids (its answer was unusable, AR1), has the
-   tier and a key, serves the call's task (its allowlist), is on
-   campus when the call is campus-only, fits the call in its model's context, answers its
-   probe (a machine that is sometimes off), has budget for the call's priority (minute, day,
-   month; evaluation calls only overnight and within their own day cap), no cool-down, closed
-   breakers and a free lease (calls in flight, across processes);
-3. on ``429`` cools that model down for its ``Retry-After``; on a 5xx or no answer after the
-   request went out trips the model's breaker; on no connection the provider's; on a
-   certificate that does not verify, a refused key or a missing model cools the provider down
-   for an hour and raises an alarm; a model whose median latency passes ``slow_s`` cools down;
-   on any failure goes on to the next provider;
-4. records every attempt in the ledger (probes too): provider, model, tokens, cost, latency,
-   outcome and the body's hash, never its content.
-When no provider can take the call now it raises ``NoCapacity`` with the time to try again
-(the assessment is deferred, P3; never more than an hour for a provider that is off, slow or
-misconfigured); when none ever could, ``Refused``.
-
-Models that think first (D-108): each model's ``thinking_tokens`` are added to the answer's
-cap, the reasoning (``reasoning_content``, or a leading ``<think>`` block) is never taken as
-the answer, and an answer cut off by its cap (``finish_reason: length``) is not used.
-"""
+"""The LLM gateway: the only way ARGUS calls a model. A ``Call`` carries a privacy ``Request``; it
+is refused unless the egress validator passes it and each provider's exact body. Providers are
+tried in the configured order, each only when the kill switch, task allowlist, tier, probe, budget,
+cool-downs, breakers and lease allow; a failure cools a model or provider down and goes on to the
+next. Every attempt is recorded in the ledger (never its content). When no provider can take the
+call it raises ``NoCapacity`` (try again at a time), when none ever could, ``Refused``."""
 
 from __future__ import annotations
 
@@ -55,7 +33,7 @@ QUOTA_WAIT = timedelta(hours=6)  # a paid account out of credit
 AUTH_WAIT = timedelta(hours=1)  # a refused key, a certificate or a model not as pinned
 PROBE_EVERY = timedelta(minutes=5)  # an "up" probe is believed this long
 LOADING_WAIT = timedelta(seconds=60)
-# A reply from the model that is no usable answer (Q-G2's calls rung counts each). Not: a
+# A reply from the model that is no usable answer (an evaluation counts each). Not: a
 # quota (429), a key refused, the model loading, or a connection that never reached it.
 UNUSABLE = frozenset({"truncated", "bad_answer", "too_large", "server_error", "rejected"})
 
@@ -65,7 +43,7 @@ class LlmError(Exception):
         super().__init__(why)
         # calls of this one that reached a model and came back with no usable answer (timed
         # out, a server error, cut off, malformed, refused by the model): an evaluation counts
-        # each as an unusable call (Q-G2)
+        # each as an unusable call
         self.failed = failed
 
 
@@ -89,7 +67,7 @@ class Call:
     purpose: str  # the task: "assess", "evaluate", "ping", "tune" (providers' allowlists)
     tier: Tier = Tier.SMALL
     priority: budget.Priority = budget.Priority.NORMAL
-    max_output: int = 1000  # the answer's tokens; a thinking model's room is added (D-108)
+    max_output: int = 1000  # the answer's tokens; a thinking model's room is added
     json: bool = True
     timeout_s: float | None = None  # None: the provider's; else at most the provider's
     campus_only: bool = False  # never to a cloud provider
@@ -99,7 +77,7 @@ class Call:
 
 @dataclass(frozen=True)
 class Completion:
-    text: str  # still pseudonymized: the caller validates and reveals (P1)
+    text: str  # still pseudonymized: the caller validates and reveals
     provider: str
     model: str
     input_tokens: int
@@ -194,7 +172,7 @@ def body_for(provider: ProviderConfig, call: Call) -> bytes:
 
 
 def timeout_for(provider: ProviderConfig, call: Call, body_bytes: int) -> float | None:
-    """A call's deadline: from its size where the model's speed is measured (D-112), else the
+    """A call's deadline: from its size where the model's speed is measured, else the
     provider's; at most the call's own. None: it would need longer than the provider allows,
     so it is never sent."""
     model = provider.models[call.tier]
@@ -209,7 +187,7 @@ def timeout_for(provider: ProviderConfig, call: Call, body_bytes: int) -> float 
 
 def lease_s(provider: ProviderConfig, call: Call) -> float | None:
     """How long ``call``'s slot is held at ``provider`` (its deadline and a minute), or None
-    if it would not be sent there (Q-G2: a latency is judged against it)."""
+    if it would not be sent there (a latency is judged against it)."""
     if call.tier not in provider.models:
         return None
     timeout = timeout_for(provider, call, len(body_for(provider, call)))
@@ -335,12 +313,12 @@ class LlmGateway:
                 why.append(f"{provider.name}: not on campus")
                 continue
             if provider.trust is Trust.CAMPUS and provider.licence is None and call.purpose != PING:
-                # Q-G2: the model's licence confirmed (plan §12 item 21) before any call with
-                # campus data; the connection test sends none
+                # the licence must be confirmed before any call with real data; the
+                # connection test sends none
                 why.append(f"{provider.name}: its licence is not confirmed (licence: D-NNN)")
                 continue
             if provider.schema_required and (call.schema is None or not call.json):
-                why.append(f"{provider.name}: needs a JSON schema")  # D-112: no plain JSON mode
+                why.append(f"{provider.name}: needs a JSON schema")  # no plain JSON mode
                 continue
             result = await self._attempt(call, call_id, provider, key, attempt + 1)
             if isinstance(result, Completion):
@@ -480,7 +458,7 @@ class LlmGateway:
             return tin, cap if tout is None else min(tout, cap)
 
         def beyond(latency_ms: int, tin: int, tout: int) -> int:
-            """How much longer than its measured speed says the call took (D-112): a model
+            """How much longer than its measured speed says the call took: a model
             is slow when that is above slow_s; without a measured speed, its latency."""
             return max(0, latency_ms - round(model.expected_s(tin, tout) * 1000))
 
@@ -505,7 +483,7 @@ class LlmGateway:
                 await self._update(lambda s: budget.observe(
                     budget.overload(s, model_key, done), model_key, elapsed, slow_ms, done
                 ))  # fmt: skip
-            else:  # no connection: nothing was used (D-096); the transport's breaker
+            else:  # no connection: nothing was used; the transport's breaker
                 await self._update(lambda s: budget.overload(
                     budget.settle(s, ask, at, 0, 0.0), name, done
                 ))  # fmt: skip
@@ -537,7 +515,7 @@ class LlmGateway:
 
         def replied(s: budget.State) -> budget.State:
             """Any HTTP reply proves the connection: the provider's breaker trial passes, so
-            one model's failure never holds its siblings (D-100); the call used nothing."""
+            one model's failure never holds its siblings; the call used nothing."""
             return budget.success(budget.settle(s, ask, at, 0, 0.0), name, done)
 
         if status == 200:

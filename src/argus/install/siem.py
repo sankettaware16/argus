@@ -1,6 +1,6 @@
 """The reads ``argus init`` makes of the SIEM and Kibana, through the existing gateways (the
 ledger, the budget, the health states): the key's identity and privileges, discovery, the
-self-test, and Kibana's reader self-test. Read-only; nothing is written to the SIEM (D-297).
+self-test, and Kibana's reader self-test. Read-only; nothing is written to the SIEM.
 Init takes these as an object, so its tests give fakes."""
 
 from __future__ import annotations

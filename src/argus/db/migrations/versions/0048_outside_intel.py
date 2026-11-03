@@ -1,21 +1,10 @@
-"""Outside threat intel (AR3, D-165): the answers of VirusTotal, Shodan and Censys, and the
-ledger of the requests that fetched them.
+"""Outside threat intel: the answers of VirusTotal, Shodan and Censys, and their request ledger
 
-* ``outside_lookups``: one row per (source, kind, indicator): the parsed, size-capped answer
-  (``status`` found, or not_found when the source has no record), and when it was fetched. An
-  answer is valid for ``outside.cache_window`` (7 days); an indicator is never asked twice inside
-  it. Only external indicators ever get a row (campus, private and special addresses and campus
-  names are refused before any request). The raw reply is never kept.
-* ``outside_requests``: the ledger. One row per request made (time, source, kind, the purpose that
-  asked, the outcome, the HTTP status, the size of the answer, and until when a 429 stops the
-  source). Never the key and never the indicator. The limits (per second, minute, day, month) are
-  counted from it, so a restart or a second process cannot exceed them.
-
-``argus_runtime`` reads both, inserts and updates the listed columns of both, and deletes expired
-answers (the only table besides LangGraph's it may delete from: it is a cache); the web's role
-reads the answers (the investigation page says what outside intel found) and never the ledger.
-
-The role names are written out, not imported (see 0003).
+``outside_lookups``: one row per (source, kind, indicator), the parsed, size-capped answer (never
+the raw reply), valid for ``outside.cache_window``; only external indicators get a row.
+``outside_requests``: the ledger, one row per request made (never the key or the indicator); the
+limits are counted from it, so a restart or a second process cannot exceed them. The runtime may
+delete expired answers (the cache); the web's role reads the answers and never the ledger.
 
 Revision ID: 0048
 Revises: 0047

@@ -1,4 +1,4 @@
-"""The threat-intel templates (plan §5.3, D-057, D-293). Only exact lookups and bounded reads: no
+"""The threat-intel templates. Only exact lookups and bounded reads: no
 aggregation, no scroll over a source of millions of rows. Each takes the source's index and
 schema (``site.ti_sources``); the gateway refuses an index the site does not name."""
 
@@ -53,7 +53,7 @@ IOC_FIELDS = frozenset(
         "confidence",
     }
 )
-MIRROR_SIZE = 1000  # a mirrored source is small (~500 documents): one page, its total checked
+MIRROR_SIZE = 1000  # a mirrored source is small: one page, its total checked
 LOOKUP_VALUES = 200  # terms (values and their spellings): the validator's limit
 LOOKUP_SIZE = 500  # rows per lookup: a value may have several (sources, types)
 

@@ -1,5 +1,5 @@
-"""The knowledge store's seeds (plan §9.3, D-057): typed items from ``config/knowledge.yaml``,
-upserted by key. Reviewers add items from R15 on; a benign pattern must always expire."""
+"""The knowledge store's seeds: typed items from ``config/knowledge.yaml``, upserted by key.
+Reviewers add items from the web UI; a benign pattern must always expire."""
 
 from __future__ import annotations
 

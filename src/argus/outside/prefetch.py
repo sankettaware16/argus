@@ -1,26 +1,9 @@
-"""The daily look-up of beacon destinations (AR3, D-164, D-165).
-
-A regular, beacon-like rhythm is the one flag that came on about 300 investigations a day, and it
-alone raised nothing (D-164). What set the real Amadey incident apart was that VirusTotal knew its
-servers. So every pass, ARGUS looks up at VirusTotal the external destinations of the unreviewed
-investigations that carry the beacon flag (and no threat-list hit, which already settles them),
-in priority order, within a daily budget; the 7-day cache makes a repeat free. An answer that flags
-a destination gives the investigation the flag "flagged by outside threat intel" on the next
-:func:`argus.assess.raised.refresh_outside`, and with the beacon flag that raises it into Needs
-attention.
-
-Priority: investigations the rule rated low or medium first (a high or critical one is in Needs
-attention already), the more severe of those first, then the newest. Per investigation at most
-:data:`PER_INVESTIGATION` indicators, addresses before names. Never asked: a campus or private
-address or name (``Outside.lookup`` refuses them again), shared infrastructure (a content-delivery
-network or cloud range: many customers behind one address, so a detection says little about the
-one that was reached), anything the cache already holds, and anything that failed lately
-(``Outside.failed_lately``: an error is not an answer, and the same failing indicators must not
-take every pass's batch and the day's budget). A name is also checked against the campus view of
-each investigation that holds it: that investigation's host and user names, as the privacy layer
-scrubs them from the model's view (``jsmith.c2.com`` is refused when an investigation is about
-the user ``jsmith``).
-"""
+"""The daily look-up of beacon destinations: each pass asks VirusTotal about the external
+destinations of unreviewed investigations that carry the beacon flag (and no threat-list hit),
+lowest severity first, within a daily budget; the cache makes a repeat free. A flagged destination
+gives the investigation the "flagged by outside threat intel" flag on the next
+:func:`argus.assess.raised.refresh_outside`. Never asked: internal or private names, shared
+infrastructure, cached answers and indicators that failed lately."""
 
 from __future__ import annotations
 
@@ -105,7 +88,7 @@ class Pick:
 async def campus_of(
     conn: AsyncConnection, investigation_id: uuid.UUID, outside: service.Outside
 ) -> Campus | None:  # fmt: skip
-    """The campus view of one investigation: the base campus plus its host and user names, built
+    """The internal view of one investigation: the base view plus its host and user names, built
     by the privacy layer from the same parts of the dossier its model view is (the host and user
     entities, the grouping key and the fields). None when the layer's view is not set up."""
     build = outside.eligibility.campus_for
@@ -144,7 +127,7 @@ async def pick(
     for investigation_id, kind, value in rows:
         indicator = facts.canonical(kind, value)
         if indicator is None or outside.eligibility.check(kind, indicator) is not None:
-            continue  # a campus, private or special address or name, or not valid
+            continue  # an internal, private or special address or name, or not valid
         if shared.reason(kind, indicator) is not None:
             continue  # many customers behind one address: a detection says little
         by_investigation.setdefault(investigation_id, []).append((kind, indicator))
@@ -163,11 +146,11 @@ async def pick(
     for investigation_id in ids:  # the priority order the database gave
         for pair in by_investigation.get(investigation_id, []):
             holders.setdefault(pair, []).append(investigation_id)
-    views: dict[uuid.UUID, Campus | None] = {}  # each investigation's campus view, built once
+    views: dict[uuid.UUID, Campus | None] = {}  # each investigation's internal view, built once
     cleared: dict[tuple[str, str], Pick | None] = {}
 
     async def clear(pair: tuple[str, str]) -> Pick | None:
-        """The pick, or None when an investigation that holds the pair has a campus name in it."""
+        """The pick, or None when an investigation holding the pair has an internal name in it."""
         if pair not in cleared:
             cleared[pair] = None
             for holder in holders[pair]:

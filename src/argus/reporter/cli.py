@@ -1,6 +1,6 @@
-"""``argus report daily|weekly`` (Q-H3): make the day's or the week's report from ARGUS's own
-database (no SIEM request, no model call), store it once, or with ``--dry-run`` print it and
-store nothing. Added to the ``argus report`` group of :mod:`argus.report.cli`."""
+"""``argus report daily|weekly``: make the day's or the week's report from ARGUS's own database
+(no SIEM request, no model call), store it once, or with ``--dry-run`` print it and store nothing.
+Added to the ``argus report`` group of :mod:`argus.report.cli`."""
 
 from __future__ import annotations
 

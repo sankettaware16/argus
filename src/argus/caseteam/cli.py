@@ -1,26 +1,16 @@
-"""``argus case team ...``: the case team at the terminal (AR8, D-195).
+"""``argus case team ...``: the case team at the terminal.
 
 * ``preview <n>``: exactly what would be sent for case ``n``, as a dry run (nothing is written, no
-  Kibana key is read): the decision and why, each step with its author, the text of every comment
-  and, with ``--requests``, the request each step makes. Works while ``case_team.post`` is off,
-  which is the point.
-* ``status [<n>]``: the posts and their steps, and what the read-back last saw of each Kibana case
-  (its status, a person's edits, a deletion: P4-B1).
-* ``run [<n>]``: post now. A person at a terminal types ``WC``; ``--unattended`` is for a timer
-  and needs ``case_team.post`` and the class ``WC`` switched on by name. Both wait out the
-  pause between alert calls (``case_team.alert_pause``) and hold one lock: a second run does
-  nothing while the first goes on. In the writer's
-  account (``sudo argus-owner --as writer case team run``): the six users' keys live there.
-* ``sync``: read the posted cases' comments for a person's ``Verdict:`` (what Kibana sync does
-  after each cycle), now.
-* ``refresh <n> [--apply]``: correct a posted case in place (D-236): its title, description and
-  comments as the newest report renders them, where they differ from what ARGUS last wrote. A
-  dry run by default; ``--apply`` (a person at a terminal, in the writer's account) plans the
-  edits in ARGUS's database and the case team's next run sends them, each one against the
-  version Kibana holds then. What a person changed in Kibana is never overwritten.
-* ``resend <step>`` and ``skip <step> --reason``: a person decides a step the four looks did not
-  find in Kibana (or one that failed or was held). ``skip`` is refused while the Kibana case does
-  not exist (nothing after the step could be sent); ``resend`` also frees a held create.
+  Kibana key is read); works while ``case_team.post`` is off.
+* ``status [<n>]``: the posts and their steps, and what the read-back last saw of each Kibana case.
+* ``run [<n>]``: post now. A person at a terminal types ``WC``; ``--unattended`` is for a timer and
+  needs ``case_team.post`` and the class ``WC`` on. One lock: a second run does nothing meanwhile.
+  Run it in the writer's account (``sudo argus-owner --as writer case team run``).
+* ``sync``: read the posted cases' comments for a person's ``Verdict:`` now.
+* ``refresh <n> [--apply]``: correct a posted case in place (title, description, comments); a dry
+  run by default. What a person changed in Kibana is never overwritten.
+* ``resend <step>`` and ``skip <step> --reason``: decide a step the four looks did not find in
+  Kibana (or one that failed or was held).
 """
 
 from __future__ import annotations
@@ -44,7 +34,7 @@ from argus.db.engine import create_engine
 from argus.gateway.cli import ConfigOption, _human_at_a_terminal, engine_for, load
 from argus.incident.plain import printable
 
-team_app = typer.Typer(no_args_is_help=True, help="The case team's posts in Kibana (AR8).")
+team_app = typer.Typer(no_args_is_help=True, help="The case team's posts in Kibana.")
 CaseArg = Annotated[int, typer.Argument(help="the case's number")]
 
 
@@ -399,7 +389,7 @@ def provision_cmd(
     expiration: Annotated[int, typer.Option(help="Days the API keys last.")] = 365,
     config: ConfigOption = None,
 ) -> None:
-    """Make the case team's Kibana users from one administrator login (D-303): two roles in the
+    """Make the case team's Kibana users from one administrator login: two roles in the
     site's space, seven users with passwords nobody sees, one API key each, written to the writer's
     credential folder (mode 600). The login is asked once and never stored, printed or logged.
     Without --apply it prints the plan and sends nothing. Posting stays off afterwards."""

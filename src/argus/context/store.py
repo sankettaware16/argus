@@ -1,4 +1,4 @@
-"""What the context graph reads from and writes to Postgres (D-054).
+"""What the context graph reads from and writes to Postgres.
 
 Reads are bounded (a digest, never every alert); every write is idempotent: evidence is
 keyed by (investigation, version, task key) and an ``ok``/``empty`` row is never replaced; a
@@ -25,7 +25,7 @@ SAMPLE_ALERTS = 10
 ENTITY_SAMPLE = 20
 VALUE_CHARS = 256
 RELATED = 20
-SUPERNODE = 200  # an entity in more investigations relates nothing (D-051)
+SUPERNODE = 200  # an entity in more investigations relates nothing
 # The advisory-lock class (two-key form) under which one investigation's E-ids are numbered.
 REQUEST_LOCK = 0x45726571  # "Ereq"
 
@@ -203,7 +203,7 @@ _RESULT = (
     "reused_from_version",
     "error",
     "collected_at",
-    "asked_at",  # Q-F1: when the gateway was asked; a copy keeps the original's
+    "asked_at",  # when the gateway was asked; a copy keeps the original's
 )
 _COLUMNS = ("investigation_id", "version", "task_key", *_RESULT)
 _JSON = ("params", "coverage", "snapshot")
@@ -260,7 +260,7 @@ async def reusable(
     conn: AsyncConnection, investigation_id: uuid.UUID, keys: Sequence[str]
 ) -> dict[str, int]:
     """For each key with an ok/empty row in this investigation (any version): the newest
-    such version. A row whose snapshot the retention purge removed (Q-A4) is never reused."""
+    such version. A row whose snapshot the retention purge removed is never reused."""
     if not keys:
         return {}
     rows = await conn.execute(
@@ -275,7 +275,7 @@ async def reusable(
 
 
 async def purged(conn: AsyncConnection, investigation_id: uuid.UUID, key: str) -> bool:
-    """Whether the retention purge (Q-A4) removed this key's stored answer (an ok/empty row of
+    """Whether the retention purge removed this key's stored answer (an ok/empty row of
     any version whose snapshot is gone). Asking again would ask the SIEM for logs it no longer
     keeps, and its "nothing found" would read as a negative."""
     row = await conn.execute(
@@ -328,7 +328,7 @@ async def snapshots(
     return {str(key): snapshot for key, snapshot in rows}
 
 
-# ----------------------------------------------------------------------------- E-ids (Q-F2)
+# ----------------------------------------------------------------------------- E-ids
 
 
 async def eids(

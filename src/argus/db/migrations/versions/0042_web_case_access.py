@@ -1,40 +1,14 @@
-"""The web's login may read the case record and run the case commands (Q-B3).
+"""The web's login may read the case record and run the case commands.
 
-Q-C1 gave the case tables to ARGUS's runtime role and Q-C3 gave the web's login the approval
-functions, but the web's role (``argus_web``, Q-A2) had no grant on any case table, so no page or
-route could show a case or let a person take one. Q-C3 left the decision to this component
-(Q-B3): "the web records, ARGUS applies" or the web runs the commands itself.
-
-This migration lets the web run them: ``CaseService`` writes a command's case row, members,
-indicators, event and Kibana outbox rows in one transaction, so the web gets exactly the
-columns that service writes for the commands a person gives from a page (take, assign, release,
-contain, reopen, request a closure or a merge, merge a suspected case, apply an approval the
-person has just completed) and the notes' inserts, and may read what the pages show. It gets
-no INSERT on ``cases`` (the web opens no case), no DELETE anywhere, no UPDATE on events, notes,
-approvals or the outbox, and nothing on ``chain_heads``.
-
-What the database already refuses whoever asks stays refused: the case guard's lifecycle edges
-and versions, closing a confirmed case without a complete approval, the outbox guard's moves, the
-append-only tables and the hash chains (their triggers are the owner's). Reading the mirror and
-the reconciliation's findings lets a page show Kibana's state and people's comments there; the
-web never writes either. Q-C2's tables (``case_suggestions``, ``case_watch_checks``) are read, and
-a person dismisses a suggestion (``dismissed_at``, ``dismissed_by``), the one column pair the
-terminal's ``argus case suggestions --dismiss`` also writes; the finder that says whether a case
-was quiet (the case pages and the approval desk build the case service with it) also reads the
-opener's ``case_openings``.
-
-The web's login is runtime-equivalent for the case record (Q-B3 review, decision 22): so that a
-buggy or hijacked web process cannot sign its writes with ARGUS's name or an invented one, the
-owner's trigger ``argus_web_case_writes`` (ENABLE ALWAYS, like the other guards; it looks at
-``current_user`` as ``argus_web_state_rows`` does, so the owner and ARGUS's own logins pass) refuses
-from the web's login a case event whose actor is not ``user:<id>`` with that id in
-``actor_user_id``, a member or indicator whose ``added_by`` is not a ``user:`` actor, and a ``W1``
-Kibana write (a case is opened in Kibana by ARGUS; no command a person gives from a page plans
-one). A ``W3`` write without its approval is refused already by the table's CHECK and by
-``argus_outbox_guard``. Whose person it is stays the session's: the database cannot know it.
-
-The role name is written out, not imported (see 0003). ``WEB_GRANTS`` is what the doctor and the
-tests compare with ``roles.API_GRANTS``.
+The case tables were given to ARGUS's runtime role and the web's login got the approval functions,
+but ``argus_web`` had no grant on any case table. This migration lets the web run the case
+commands itself: ``CaseService`` writes a command's case row, members, indicators, event and
+outbox rows in one transaction, so the web gets exactly the columns that service writes, the
+notes' inserts and read access to what the pages show. It gets no INSERT on ``cases``, no DELETE,
+no UPDATE on events, notes, approvals or the outbox, and nothing on ``chain_heads``; the
+database's guards (edges, versions, approvals, chains) hold whoever asks. The owner's trigger
+``argus_web_case_writes`` refuses from the web's login a case event whose actor is not
+``user:<id>``, a member or indicator not added by a ``user:`` actor, and a ``W1`` Kibana write.
 
 Revision ID: 0042
 Revises: 0041
@@ -66,11 +40,11 @@ WEB_GRANTS = (
     "GRANT INSERT (kind, value, author_user_id, body) ON entity_notes TO argus_web",
     "GRANT INSERT (case_id, case_event_id, position, idempotency_key, write_class, op,"
     " payload, payload_hash, before_image, approval_request_id) ON kibana_outbox TO argus_web",
-    # Q-C2's tables (0041): the suggested members and the watch's answers are read on the page;
+    # the watch tables (0041): the suggested members and the watch's answers are read on the page;
     # dismissing a suggestion is a person's act (audited as theirs)
     "GRANT SELECT, UPDATE (dismissed_at, dismissed_by) ON case_suggestions TO argus_web",
     "GRANT SELECT ON case_watch_checks TO argus_web",
-    # the finder (Q-C2) reads the opener's record of what it decided about a ``tie``
+    # the finder reads the opener's record of what it decided about a ``tie``
     "GRANT SELECT ON case_openings TO argus_web",
 )
 

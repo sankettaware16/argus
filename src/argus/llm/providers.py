@@ -1,16 +1,9 @@
-"""The LLM gateway's configuration (``config/llm.yaml``, D-086; v2, Q-G1) and its keys.
-
-Keys are read by name from ``keys_file`` (``NAME=value`` lines) into ``SecretStr`` and
-registered for log redaction; a missing key leaves its provider out. Nothing here is ever
-printed but the names. In the custody layout (Q-A5) the file is the service's credential
-``llm-api-keys.env`` in ``$CREDENTIALS_DIRECTORY``, and ``keys_file`` is not read.
-
-Each provider has its own trust (``cloud`` or ``campus``), certificate (``ca_file``: trust that
-certificate and no other), timeout, concurrency (calls in flight across every process), task
-allowlist, availability probe and output mode; each model its context and output limits.
-A campus provider must be on this machine (the tunnel's 127.0.0.1), pinned, limited to named
-tasks and capped per day.
-"""
+"""The LLM gateway's configuration (``config/llm.yaml``) and its keys. Keys are read by name from
+``keys_file`` into ``SecretStr`` and registered for log redaction; a missing key leaves its
+provider out; only names are ever printed. Each provider has its own trust (``cloud`` or
+``campus``: an on-premises model that must be on this machine, pinned, limited to named tasks and
+capped per day), certificate, timeout, concurrency, task allowlist, probe and output mode; each
+model its context and output limits."""
 
 from __future__ import annotations
 
@@ -44,22 +37,21 @@ class Tier(StrEnum):
 
 
 class Trust(StrEnum):
-    CLOUD = "cloud"  # a provider on the internet: pseudonymized text only (P1)
-    CAMPUS = "campus"  # a machine of the institute: P1 still applies (plan §3 rule 14)
+    CLOUD = "cloud"  # a provider on the internet: pseudonymized text only
+    CAMPUS = "campus"  # a machine of the organisation: the privacy rules still apply
 
 
 # The tasks a call may name (``Call.purpose``); a provider may serve only some of them.
-# The helper tasks (Q-G2, plan §7.4) are what the local model may earn, task by task, by its
-# evaluation ladder and a decision: specialists' notes, indicator extraction, triage hints and
-# checked summaries.
+# The helper tasks are what an on-premises model may earn, task by task, through an
+# evaluation: specialists' notes, indicator extraction, triage hints and checked summaries.
 HELPER_TASKS = frozenset({"notes", "extract", "triage", "summary"})
 TASKS = frozenset({"assess", "evaluate", "ping", "tune"}) | HELPER_TASKS
 EVALUATE = "evaluate"
-PING = "ping"  # the connection test: a fixed text, no campus data
+PING = "ping"  # the connection test: a fixed text, no site data
 # What a campus provider serves without a promotion: evaluation runs and the connection test.
 UNPROMOTED = frozenset({EVALUATE, PING})
-# Never on a campus provider in Phase 3 (plan §7.4, DQ22): verdicts (floor signals, conflicts,
-# true-positive advice) and rule tuning.
+# Never on a campus provider: verdicts (floor signals, conflicts, true-positive advice) and
+# rule tuning.
 NEVER_ON_CAMPUS = frozenset({"assess", "tune"})
 _DECISION = r"^D-\d{3,}$"
 
@@ -94,12 +86,12 @@ class ModelConfig(_Model):
     # The context window (prompt and answer together); None: not checked here.
     context_tokens: int | None = Field(default=None, ge=256)
     # Room for the reasoning a model writes before its answer, added to every call's cap: a
-    # model that always thinks first (D-108) counts the thinking against max_tokens.
+    # model that always thinks first counts the thinking against max_tokens.
     thinking_tokens: int = Field(default=0, ge=0, le=32768)
     max_output: int | None = Field(default=None, ge=16)  # the model's own cap, if any
-    # The longest prompt sent (D-112: about 12,000 of the local model's 16,384), else None.
+    # The longest prompt sent, else None.
     max_prompt_tokens: int | None = Field(default=None, ge=64)
-    # Measured speed (D-112): prompt tokens read and answer tokens written a second. Set, they
+    # Measured speed: prompt tokens read and answer tokens written a second. Set, they
     # give each call a deadline from its size and judge slowness against them.
     read_tps: float | None = Field(default=None, gt=0)
     write_tps: float | None = Field(default=None, gt=0)
@@ -138,7 +130,7 @@ class ModelConfig(_Model):
         return prompt / self.read_tps + answer / self.write_tps
 
     def deadline_s(self, body_bytes: int, max_tokens: int) -> float | None:
-        """A call's deadline from its size (D-112): reading the prompt and writing the whole
+        """A call's deadline from its size: reading the prompt and writing the whole
         cap at the measured speed, with a margin; None when the speed is not known."""
         if self.read_tps is None:
             return None
@@ -148,7 +140,7 @@ class ModelConfig(_Model):
 
 CONTEXT_OVERHEAD = 64  # the chat template's tokens around the messages, an upper bound
 DEADLINE_MARGIN = 1.5  # a measured speed's room: another load on the machine, a long thought
-DEADLINE_BASE_S = 15.0  # the connection through the tunnel, the template, the first token
+DEADLINE_BASE_S = 15.0  # the connection (a tunnel, say), the template, the first token
 
 
 def prompt_tokens(body_bytes: int) -> int:
@@ -161,9 +153,9 @@ MIDNIGHT = time(0, 0)
 
 class EvaluationConfig(_Model):
     """The evaluation budget: evaluation calls go at low priority, only inside the overnight
-    window, and at most ``calls_per_day`` a UTC day per provider. The window lies in one UTC
-    day, so that is a night's cap, and a run spreads over separate nights instead of using up
-    one (it stops and resumes, D-078's runner)."""
+    window, and at most ``calls_per_day`` a UTC day per provider. The window lies in one UTC day,
+    so that is a night's cap, and a run spreads over separate nights instead of using up one (it
+    stops and resumes)."""
 
     window_utc: tuple[time, time] | None = None  # [start, end); end 00:00 means midnight
     calls_per_day: int | None = Field(default=None, ge=1)
@@ -175,9 +167,7 @@ class EvaluationConfig(_Model):
         start, end = self.window_utc
         if start.tzinfo is not None or end.tzinfo is not None:
             raise ValueError('window_utc takes UTC times without an offset ("17:30")')
-        # One UTC day, so calls_per_day is a night's cap; and never in the SIEM's nightly pause
-        # (the site's quiet hours, 00:00-01:30 UTC: index creation and ILM deletes): `gold agent
-        # --tools` reads the SIEM.
+        # One UTC day, so calls_per_day is a night's cap; and never in the site's quiet hours.
         quiet = site.quiet_hours()
         if quiet.overlaps(start, end) or not (start < end or end == MIDNIGHT):
             raise ValueError(
@@ -213,7 +203,7 @@ class ProviderConfig(_Model):
     max_tokens_field: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
     json_mode: bool = True
     schema_output: bool = False  # it takes response_format json_schema when a call has one
-    # json_schema only (D-112): a call without a schema never goes to it (no plain JSON mode)
+    # json_schema only: a call without a schema never goes to it (no plain JSON mode)
     schema_required: bool = False
     enabled: bool = True
     models: dict[Tier, ModelConfig] = Field(min_length=1)
@@ -225,8 +215,7 @@ class ProviderConfig(_Model):
     tasks: tuple[str, ...] | None = None  # None: every task
     probe: bool = False  # ask GET /v1/models before calls (a machine that is sometimes off)
     slow_s: float = Field(default=120.0, gt=0)  # median latency above this: the model is slow
-    # Q-G2: each helper task a campus provider serves names the decision that promoted it, and
-    # a promotion needs the decision that recorded the model's licence confirmation.
+    # Each helper task a campus provider serves names the decision that promoted it.
     promoted: dict[str, Annotated[str, Field(pattern=_DECISION)]] = {}
     licence: Annotated[str, Field(pattern=_DECISION)] | None = None
 
@@ -298,9 +287,9 @@ class ProviderConfig(_Model):
 class LlmConfig(_Model):
     keys_file: Path | None = Path("reference/llm_api_keys.env")
     """The provider keys (``NAME=value`` lines, mode 0600); relative: to the repository. None:
-    no keys file, so no model is called and ARGUS investigates deterministically (D-298)."""
+    no keys file, so no model is called and ARGUS investigates deterministically."""
     monthly_cap_usd: float = Field(default=10.0, ge=0)
-    daily_cap_usd: float | None = Field(default=None, ge=0)  # D-098
+    daily_cap_usd: float | None = Field(default=None, ge=0)
     margin: float = Field(default=0.8, gt=0, le=1)
     shares: dict[budget.Priority, Annotated[float, Field(gt=0, le=1)]] = {
         budget.Priority.HIGH: 1.0,
@@ -341,14 +330,14 @@ def pinned(config: LlmConfig, name: str, *, allow_disabled: bool = False) -> Llm
 
 def callable_providers(config: LlmConfig) -> list[str]:
     """The enabled providers that have a key: none means no model can be called, and every
-    feature that asks one is off (D-298)."""
+    feature that asks one is off."""
     names = {k for p in config.providers for k in p.keys}
     present = load_keys(config.keys_file, names)
     return [p.name for p in config.providers if p.enabled and any(k in present for k in p.keys)]
 
 
 def models_of(config: LlmConfig) -> str:
-    """Which providers and models a run may use, for evaluation keys (Q-G1)."""
+    """Which providers and models a run may use, for evaluation keys."""
     return ";".join(f"{p.name}/{t.value}={m.name}" for p in config.providers
                     for t, m in sorted(p.models.items()))  # fmt: skip
 
@@ -359,8 +348,7 @@ _OVERLAY_KEYS = frozenset({"keys_file"})
 
 def load_config(path: Path = DEFAULT_PATH) -> LlmConfig:
     """``path``, with this installation's overlay laid over it when there is one:
-    ``llm.local.yaml`` beside it (``argus init`` writes it), which may set ``keys_file`` only
-    (D-298)."""
+    ``llm.local.yaml`` beside it (``argus init`` writes it), which may set ``keys_file`` only."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     overlay = path.with_name(LOCAL_OVERLAY)
     if overlay != path and overlay.is_file() and isinstance(data, dict):
@@ -374,7 +362,7 @@ def load_config(path: Path = DEFAULT_PATH) -> LlmConfig:
 def load_keys(path: Path | None, names: set[str]) -> dict[str, SecretStr]:
     """The named keys that ``path`` (relative: to the repository) holds with a value; the
     others are left out, unread; none when there is no keys file (None). With a credential
-    directory (custody, Q-A5) the keys are its ``llm-api-keys.env`` instead, and none without
+    directory (custody) the keys are its ``llm-api-keys.env`` instead, and none without
     one: never a file in a checkout."""
     credentials = os.environ.get("CREDENTIALS_DIRECTORY")
     if credentials:

@@ -1,15 +1,9 @@
-"""CaseService: every change to a case in one transaction (plan §7.1, §3 rule 1).
+"""CaseService: every change to a case in one transaction.
 
-Each command locks the case, checks the version the caller saw (409 if it moved), lets the
-pure machine decide, then writes the case row, its members and indicators, exactly one case
-event with the new version, the Kibana outbox rows planned with it, and an audit event naming
-the actor (``user:<id>`` or ``argus:<part>``). The caller's transaction commits or rolls back
-all of it; the database checks at commit that the case's version has its event and the event
-its outbox rows (migration 0026).
-
-Lock order, so two changes never wait for each other: the cases (by id), then the hash
-chains (the case event), then the audit trail's last.
-"""
+Each command locks the case, checks the version the caller saw (409 if it moved), lets the pure
+machine decide, then writes the case row, members and indicators, exactly one case event, the Kibana
+outbox rows planned with it and an audit event naming the actor. The caller's transaction commits or
+rolls back all of it. Lock order: the cases (by id), the hash chains, the audit trail last."""
 
 from __future__ import annotations
 
@@ -76,7 +70,7 @@ class Applied:
 
 @dataclass(frozen=True)
 class Carried:
-    """What a split takes with the investigations it moves (D-211): ``leaving`` are the actor
+    """What a split takes with the investigations it moves: ``leaving`` are the actor
     rows only they carried (they leave the source), ``rows`` everything the target gets (those, the
     moved investigations' own actors, and the source's C2 and indicator rows they touch), and
     ``staying`` the actor rows of the moved investigations that stay on the source because an
@@ -112,7 +106,7 @@ QuietWindows = Callable[[Case], Awaitable[QuietWindow]]
 
 
 async def no_quiet_window(case: Case) -> QuietWindow:
-    """Until the still-active watch (Q-C2) with known negatives (Q-F1) exists, nothing proves a
+    """Without the still-active watch and verified negatives, nothing proves a
     72-hour quiet window."""
     return NO_QUIET_WINDOW
 
@@ -141,8 +135,6 @@ class CaseService:
     async def _clock(self) -> datetime:
         now: datetime = (await self.conn.execute(text("SELECT clock_timestamp()"))).scalar_one()
         return now
-
-    # ----------------------------------------------------------------------- reading
 
     async def get(self, case_id: uuid.UUID, *, lock: bool = False) -> Case | None:
         row = (
@@ -205,7 +197,7 @@ class CaseService:
                             r.details) for r in rows]  # fmt: skip
 
     async def titled_by_person(self, case_id: uuid.UUID) -> bool:
-        """Whether a person wrote the case's title (D-230): the actor of its newest ``suspected``,
+        """Whether a person wrote the case's title: the actor of its newest ``suspected``,
         ``opened`` or ``retitled`` event is a person's. ARGUS refreshes only the titles it wrote."""
         found = (
             await self.conn.execute(
@@ -267,8 +259,6 @@ class CaseService:
                 f" {expected_version}",
             )
         return case
-
-    # ----------------------------------------------------------------------- commands
 
     async def open(
         self, actor: Actor, command: Open, *, case_id: uuid.UUID | None = None
@@ -562,7 +552,7 @@ class CaseService:
         evidence: str | None = None,
         expected_version: int | None = None,
     ) -> tuple[Applied, int]:
-        """ARGUS proposes closing the case (Q-C3): its request event, then the request bound
+        """ARGUS proposes closing the case: its request event, then the request bound
         to the new version, its alerts and the exact writes, which a person approves. The
         quiet window is the service's to find out, never the caller's."""
         case = await self._locked(case_id, expected_version)
@@ -691,7 +681,7 @@ class CaseService:
             assert facts.target_case_id is not None
             return list(await self.merge(actor, facts.case_id, facts.target_case_id,
                                          approval_id=request_id))  # fmt: skip
-        # resends and compensating writes are applied by the writer (Q-D4); a re-confirmation
+        # resends and compensating writes are applied by the writer; a re-confirmation
         # lets the send-time check release its closure write (argus.cases.sendcheck)
         return []
 
@@ -787,8 +777,6 @@ class CaseService:
         ).scalar_one()
         await self._audit(actor, "entity.note", f"{kind}:{value}", {"note": note_id})
         return note_id
-
-    # ----------------------------------------------------------------------- writing
 
     async def _insert(self, case: Case) -> int:
         number: int = (

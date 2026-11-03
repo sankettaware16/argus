@@ -1,21 +1,14 @@
 # ruff: noqa: S608 - the f-strings put fixed fragments (GOOD_RUN, state lists) in the SQL; values are bound
-"""The ramp (plan §7.1, "Write classes and the ramp"): how many units a run of a class may
-write, and what must be true before it writes more.
+"""The ramp: how many units a run of a class may write, and what must be true before it writes more.
 
-A class starts at step 1 (its canary: one case, one change or one closure, with a person
-present). It moves to 5 and then to at most 10 only after at least 3 runs on 3 different days at
-its step (or, with fewer, 5 working days), every run's writes all read back as sent, no
-reconciliation alarm since the step began, and a person's check in Kibana; the person raises it
-at the terminal with the class name typed. The classes also go in order (DQ8): W2 begins after
-W1's canary and one more run, W3 after W2's.
-
-Only a run that sent something counts, and only when every write it sent was read back as sent
-and it stopped for no reason: a pass that sent nothing (the window shut, a gap not yet over, a
-refusal) is no evidence of anything. Nothing is raised while a finding of the writer (a case that
-landed twice, an answer that was not what the write should have produced) waits for a person,
-the class is paused in the lane, or one of its writes is in doubt, in conflict or paused. The
-service runs a class only after a clean canary run at a terminal and a step above 1.
-"""
+A class starts at step 1 (its canary: one case, change or closure, with a person present). It
+moves to 5 and then to at most 10 only after at least 3 runs on 3 different days at its step (or
+5 working days), every write read back as sent, no reconciliation alarm since the step began, and
+a person's check in Kibana. Only a run that sent something and stopped for no reason counts.
+Nothing is raised while a writer finding waits for a person, the class is paused in the lane, or
+a write is in doubt, in conflict or paused. The classes go in order (W2 after W1's canary and one
+more run, W3 after W2's) and the service runs a class only after a clean canary at a terminal and
+a step above 1."""
 
 from __future__ import annotations
 
@@ -29,7 +22,7 @@ from argus.gateway.kibana import writes
 from argus.writer import store
 
 STEPS = (1, 5, 10)
-BEFORE = {"W2": "W1", "W3": "W2"}  # the order the classes are first used in (DQ8)
+BEFORE = {"W2": "W1", "W3": "W2"}  # the order the classes are first used in
 MIN_RUNS, MIN_DAYS, MIN_WORKING_DAYS = 3, 3, 5
 # a run that counts: it sent, every write it sent was read back as sent, and nothing stopped it
 GOOD_RUN = (
@@ -198,7 +191,7 @@ async def scheduled_problem(conn: AsyncConnection, write_class: str) -> str | No
 
 async def first_use_problem(conn: AsyncConnection, write_class: str) -> str | None:
     """Why the class may not be used yet: the one before it has not had its canary and one more
-    clean run (DQ8's order W1, W2, W3)."""
+    clean run (the order is W1, W2, W3)."""
     before = BEFORE.get(write_class)
     if before is None:
         return None

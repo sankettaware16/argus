@@ -1,14 +1,10 @@
-"""The newest review of each investigation, kept by a trigger (Q-A1, plan §8 criterion 14)
+"""The newest review of each investigation, kept by a trigger
 
-The lists derived each investigation's state from its newest review by ranking every review
-on every request: at twice the exit's size (350,000 investigations, 70,000 reviewed) that
-alone took most of 300 ms. ``review_state`` holds the result instead, one row per reviewed
-investigation, written only by an AFTER INSERT trigger on the append-only ``review_events``
-(a SECURITY DEFINER function: ARGUS's runtime role may read the table and never write it, so
-a state still comes only from a review event). The upgrade fills it from the reviews so far.
-
-Every list also sorted all investigations for each page: each list order has an index now
-(Q-A1 review F2), so a page is read in order instead.
+The lists derived each investigation's state by ranking every review on every request, which was
+slow at production size. ``review_state`` holds the result instead, one row per reviewed
+investigation, written only by an AFTER INSERT trigger on the append-only ``review_events`` (a
+SECURITY DEFINER function: the runtime role may read the table and never write it). The upgrade
+fills it from the reviews so far and adds an index for each list order.
 
 Revision ID: 0025
 Revises: 0024
@@ -26,7 +22,7 @@ down_revision: str | None = "0024"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# The web's own group role (0021, Q-A2) reads it too (argus.db.roles.API_GRANTS).
+# The web's own group role (0021) reads it too (argus.db.roles.API_GRANTS).
 WEB_GRANTS = ("GRANT SELECT ON review_state TO argus_web",)
 
 # A note never changes the state: the decision columns change only for a newer decision (ids
@@ -104,7 +100,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_review_state_decided_at"), "review_state", ["decided_at"])
     op.execute(FILL)
-    # Each list order walks an index (review F2): no list sorts every investigation.
+    # Each list order walks an index: no list sorts every investigation.
     for name, columns in ORDERS.items():
         op.create_index(name, "investigations", [sa.text(c) for c in columns])
     op.create_index("ix_review_state_decided", "review_state",

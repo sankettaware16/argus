@@ -1,19 +1,12 @@
-"""Writing the incident reports in the assessment pass, or on its own (AR7, D-190).
+"""Writing the incident reports in the assessment pass, or on its own.
 
-Each pass looks at the active cases (suggested, open, assigned, contained), the ones ARGUS looked at
-least recently first, and writes a report for those that need one: a case with none, or one whose
-evidence changed since the last look. "Changed" is a cheap signal read in one statement
-(:func:`argus.incident.gather.signals`, with the still-going-on bucket and the writer's version in
-it); a case whose signal is the one stored is not read again, and a report that says the same as the
-newest version (same content hash) is not stored as a new one. A case is not written again within
-``incident.min_interval`` of its last report, and one pass writes at most ``incident.per_pass``.
-
-**A failure is reported and never stops the pass** (:attr:`Done.warned`): the failed case keeps its
-last report, records the failure (``incident_report_checks``) and is tried again after a pause. The
-pass reads ARGUS's own database only: the SIEM and Kibana are never asked. A model is asked only
-for the summary's prose, when ``incident.prose`` is on and a gateway was given, and only through
-:mod:`argus.incident.prose`.
-"""
+Each pass looks at the active cases, the ones ARGUS looked at least recently first, and writes a
+report for those with none or whose evidence changed (a cheap signal read in one statement,
+:func:`argus.incident.gather.signals`); a report that says the same as the newest version is not
+stored. A case is not written again within ``incident.min_interval``, and a pass writes at most
+``incident.per_pass``. **A failure is reported and never stops the pass**: the case keeps its last
+report and is tried again later. Only ARGUS's own database is read; a model is asked only for the
+summary's prose, through :mod:`argus.incident.prose`."""
 
 from __future__ import annotations
 
@@ -86,7 +79,7 @@ def context_for(
     except (CatalogueError, OSError):
         catalogue = None  # the report is written without advice and says so (a limit)
     reading = None
-    if settings.signins.enabled and classifier is not None:  # AR6: the accounts of the devices
+    if settings.signins.enabled and classifier is not None:  # the accounts of the devices
         reading = signin_view.reading_of(settings, classifier)
     from argus.cases import titling
 
@@ -111,9 +104,9 @@ def key_of(signal: gather.Signal, ctx: build.Context) -> str:
 async def users_of(
     conn: AsyncConnection, facts: gather.CaseFacts, ctx: build.Context
 ) -> signin_view.Users:
-    """Who signed in from the case's devices, from the stored sightings (AR6, D-216): the
+    """Who signed in from the case's devices, from the stored sightings: the
     devices on the source side of the member investigations' alerts, each over the alerts of its
-    own investigations. The page's card reads the same way (D-226)."""
+    own investigations. The page's card reads the same way."""
     assert ctx.signins is not None
     return await signin_view.for_case(conn, ctx.signins, facts.case.id, ctx.as_at)
 

@@ -1,36 +1,13 @@
-"""Case titles (D-230): what happened, to or from whom, with the key values.
+"""Case titles: what happened, to or from whom, with the key values.
 
-A title is how a person meets a case: in the queue, in Kibana, on a PDF. The team's own cases say
-what the incident is ("Amadey infection on 10.198.36.230", "DNS beaconing to fast-dns-host.com
-and service-windows.com from 47 hostel devices"); this module does the same from a case's facts.
-:func:`title` is pure and deterministic: the same :class:`Facts` give the same title, at most
-:data:`MAX_TITLE` characters, and the loaders (:mod:`argus.cases.titling`, the suggester and the
-opener) only gather the facts.
-
-**What a title may hold** (it reaches Kibana, terminals and PDFs, whose readers may lack log
-access, and a value in a log is untrusted text): an IP address that ``ipaddress`` parses; a host or
-domain name of letters, digits and hyphens; a name from the asset map (a building, a department, a
-kind of site) of plain characters; a family from :data:`FAMILIES` (the title holds the table's
-spelling, never the text that matched); a rule's name of plain characters (the fallback shape);
-counts; and the words of the shapes below. Anything else is dropped, and the title says a count or
-a general word instead ("2 flagged servers", "a campus device").
-
-**The shapes**, the first that fits the facts:
-
-* DNS look-ups of look-alike domains under a parent: ``DNS lookups of 12 look-alike domains under
-  fast-dns-host.com from 35 campus devices``;
-* campus devices and flagged servers: ``Beaconing to 176.65.139.158 and 2 more flagged servers
-  from 4 campus devices in Hostel 12``, with a known family ``Amadey beaconing from 10.198.36.230
-  to 176.65.139.158``;
-* threat-listed outside addresses at campus servers: ``Threat-listed 45.138.12.51 probing 3 campus
-  servers``;
-* outside addresses at campus web sites: ``Web scanning of www.example.edu and 2 more
-  campus sites by 16 outside addresses — config files served``;
-* otherwise the rule: ``<rule name>: <actor> → <target>``.
-
-Each shape is a list of wordings from the most to the least specific; the first that fits is the
-title, so a long value falls back to a count and never to a cut.
-"""
+:func:`title` is pure: the same :class:`Facts` give the same title, at most :data:`MAX_TITLE`
+characters. A title reaches Kibana, terminals and PDFs whose readers may lack log access, so it
+holds only values of a strict shape (an IP address, a host or domain name, an asset-map name, a
+family from :data:`FAMILIES`, a rule's plain name, counts); anything else is dropped for a count.
+The shapes, the first that fits: DNS look-ups of look-alike domains under a parent, internal
+devices and flagged servers, threat-listed outside addresses at internal servers, outside addresses
+at internal web sites, else ``<rule name>: <actor> → <target>``. Each shape lists wordings from the
+most to the least specific, so a long value falls back to a count and never to a cut."""
 
 from __future__ import annotations
 
@@ -91,7 +68,7 @@ _FAMILY_KEYS = tuple(
 
 @dataclass(frozen=True)
 class Device:
-    """A campus device a case names: an address or a host name, with what the asset map says of
+    """An internal device a case names: an address or a host name, with what the asset map says of
     the network it is in (``site.type``: "hostel"; ``site.building``/``site.department``)."""
 
     value: str
@@ -107,13 +84,13 @@ class Facts:
 
     rules: tuple[tuple[str, int], ...] = ()  # (rule name, investigations), commonest first
     flags: frozenset[str] = frozenset()  # ARGUS's evidence flags on the investigations
-    devices: tuple[Device, ...] = ()  # campus devices that acted
+    devices: tuple[Device, ...] = ()  # internal devices that acted
     outsiders: tuple[str, ...] = ()  # outside addresses that acted
     accounts: int = 0  # user accounts that acted (never named)
     servers: tuple[str, ...] = ()  # flagged, listed or command-and-control addresses and names
     domains: tuple[str, ...] = ()  # outside names the devices asked for
-    sites: tuple[str, ...] = ()  # campus web sites that were reached
-    campus_servers: int = 0  # campus addresses that were reached (not devices that acted)
+    sites: tuple[str, ...] = ()  # internal web sites that were reached
+    campus_servers: int = 0  # internal addresses that were reached (not devices that acted)
     listed: tuple[str, ...] = ()  # values a local threat list holds
     served: bool = False  # a config or backup file got a successful answer
     labels: tuple[str, ...] = ()  # outside intel's tags and names: where a family may show
@@ -145,9 +122,6 @@ def probed(paths: Iterable[str]) -> str | None:
         return None
     best, count = Counter(k for k in kinds if k).most_common(1)[0] if any(kinds) else ("", 0)
     return best if best and count >= PROBE_SHARE * len(kinds) else None
-
-
-# --------------------------------------------------------------------------- values
 
 
 def address(value: str) -> str | None:
@@ -214,11 +188,8 @@ def _unique(values: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(v for v in values if v))
 
 
-# --------------------------------------------------------------------------- phrases
-
-
 def _devices(f: Facts, *, where: bool = True) -> str:
-    """Who acted on the campus: the device, or a count with the place or kind they share."""
+    """Who acted inside the network: the device, or a count with the place or kind they share."""
     devices = list(dict.fromkeys(f.devices))
     named = [(d, host(d.value) if d.kind == "host" else address(d.value)) for d in devices]
     if len(devices) == 1:
@@ -242,7 +213,7 @@ def _outsiders(f: Facts) -> str:
 
 
 def _servers_reached(f: Facts) -> str:
-    """ "a campus server" / "3 campus servers": the own addresses that were reached."""
+    """ "an internal server" / "3 internal servers": the own addresses that were reached."""
     if f.campus_servers == 1:
         return site.a_own("server")
     return f"{f.campus_servers} {site.own('servers')}"
@@ -283,11 +254,8 @@ def _what(f: Facts) -> str:
     return " — attacks got successful answers" if SUCCESS in f.flags else ""
 
 
-# --------------------------------------------------------------------------- shapes
-
-
 def _dns(f: Facts) -> list[str] | None:
-    """Campus devices that asked for many names under one or a few parent domains."""
+    """Internal devices that asked for many names under one or a few parent domains."""
     if not f.devices:
         return None
     sites = set(map(domain, f.sites))
@@ -316,7 +284,7 @@ def _dns(f: Facts) -> list[str] | None:
 
 
 def _beacon(f: Facts) -> list[str] | None:
-    """Campus devices in contact with flagged servers, or beaconing."""
+    """Internal devices in contact with flagged servers, or beaconing."""
     if not f.devices:
         return None
     beacon = BEACON in f.flags
@@ -361,7 +329,7 @@ def _sites(f: Facts) -> str | None:
 
 
 def _target(f: Facts) -> str:
-    """The campus servers or sites reached, for "probing ..."."""
+    """The internal servers or sites reached, for "probing ..."."""
     if f.campus_servers > 0:
         return _servers_reached(f)
     sites = _sites(f)
@@ -373,7 +341,7 @@ def _target(f: Facts) -> str:
 
 
 def _probe(f: Facts) -> list[str] | None:
-    """Outside addresses a local threat list holds, probing campus servers."""
+    """Outside addresses a local threat list holds, probing internal servers."""
     if f.devices:
         return None
     outsiders = _unique(f.outsiders)
@@ -396,7 +364,7 @@ def _probe(f: Facts) -> list[str] | None:
 
 
 def _web(f: Facts) -> list[str] | None:
-    """Outside addresses that reached campus web sites."""
+    """Outside addresses that reached internal web sites."""
     if f.devices or not _unique(f.outsiders):
         return None
     who = _outsiders(f)
@@ -467,9 +435,6 @@ def _fallback(f: Facts) -> list[str]:
         out.append(f"{rule}{join}{actor}")
     out += [rule, EMPTY]
     return out
-
-
-# --------------------------------------------------------------------------- the title
 
 
 def _fit(options: Sequence[str], limit: int = MAX_TITLE) -> str:

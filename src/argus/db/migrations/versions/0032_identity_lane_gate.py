@@ -1,9 +1,8 @@
-"""The identity lane's own gate (Q-E1, plan §7.2): its reachability and overload state
+"""The identity lane's own gate: its reachability and overload state
 
-- A new shared state ``identity`` in ``siem_state``: the identity lane's own gate, opened by
-  its own requests finding the SIEM unreachable or overloaded (``argus.identity.reach``), never by
-  the SIEM's health state or ARGUS's own key. The runtime role already reads and updates
-  ``siem_state`` (0004); no new table, no new grant.
+A new shared state ``identity`` in ``siem_state``: the identity lane's own gate, opened by its own
+requests finding the SIEM unreachable or overloaded (``argus.identity.reach``). No new table or
+grant.
 
 Revision ID: 0032
 Revises: 0031

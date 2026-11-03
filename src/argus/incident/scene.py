@@ -1,10 +1,8 @@
-"""What the writer works out once from a case's facts, and the context it is given (AR7, D-190).
+"""What the writer works out once from a case's facts, and the context it is given.
 
-:class:`Scene` holds the case's shape in plain collections (its campus devices, outside actors,
-servers, rules, the span of its alerts, what is flagged and what is listed), so the parts of the
-report (:mod:`argus.incident.verdict`, :mod:`argus.incident.parts`, :mod:`argus.incident.story`)
-read the same answers. Pure: no database, no clock (``Context.as_at`` is passed in).
-"""
+:class:`Scene` holds the case's shape in plain collections (internal devices, outside actors,
+servers, rules, the span of its alerts, what is flagged and listed), so the parts of the report read
+the same answers. Pure: no database, no clock."""
 
 from __future__ import annotations
 
@@ -40,8 +38,8 @@ class Context:
     catalogue: Catalogue | None = None
     active_days: int = 3  # activity within this many days is "still going on"
     quiet_days: int = 14  # no activity this long: ARGUS proposes "stopped after notice"
-    signins: Reading | None = None  # AR6: how the SSO sign-ins of the case's devices are read
-    campus_domains: tuple[str, ...] = ()  # a site under one of these is a campus web site
+    signins: Reading | None = None  # how the SSO sign-ins of the case's devices are read
+    campus_domains: tuple[str, ...] = ()  # a site under one of these is an internal web site
 
 
 def is_ip(value: str) -> bool:
@@ -53,7 +51,7 @@ def is_ip(value: str) -> bool:
 
 
 def private(value: str) -> bool:
-    """Private space (RFC 1918, IPv6 ULA): what a campus address is without an asset map."""
+    """Private space (RFC 1918, IPv6 ULA): what an internal address is without an asset map."""
     try:
         address = ipaddress.ip_address(value)
     except ValueError:
@@ -62,7 +60,8 @@ def private(value: str) -> bool:
 
 
 def campus(value: str, classifier: IpClassifier | None) -> bool:
-    """Whether ``value`` is a campus address (the asset map's, a campus prefix or private space)."""
+    """Whether ``value`` is an internal address (the asset map's, an internal prefix or private
+    space)."""
     if classifier is not None:
         kind = classifier.classify(value).ip_class
         return kind in (IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL)
@@ -90,7 +89,7 @@ class Scene:
     last: datetime | None
     alerts: int
     standing: m.Standing
-    devices: list[str]  # campus addresses the case names as actors
+    devices: list[str]  # internal addresses the case names as actors
     outsiders: list[str]  # outside addresses the case names as actors
     servers: list[str]  # the case's command-and-control indicators
     members: dict[uuid.UUID, MemberRow]

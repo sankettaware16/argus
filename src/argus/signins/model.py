@@ -1,4 +1,4 @@
-"""What the sign-in lookups store and read (AR6, D-216): plain frozen records, no database.
+"""What the sign-in lookups store and read: plain frozen records, no database.
 
 A **sighting** is one account's sign-ins from one address on one UTC day. A **lookup** is the record
 that ARGUS asked about an address on a day and what the answer was, so that "looked, none seen",
@@ -27,15 +27,15 @@ PARTIAL: Final = "partial"  # the SIEM's answer timed out or lost shards: never 
 BAD_ANSWER: Final = "bad_answer"  # the answer did not have the shape the contract says
 GONE: Final = "logs_gone"  # the day's index no longer exists (ILM)
 FAILED: Final = "failed"  # the request reached the SIEM and failed (overload, transport, an error)
-STORE_FAILED: Final = "store_failed"  # the SIEM answered, ARGUS could not store the answer (D-222)
-UNNAMED: Final = "unnamed_events"  # sign-in events with no usable account name (D-223)
-MISSING: Final = "index_missing"  # the day's index is not there though the logs should be (D-224)
+STORE_FAILED: Final = "store_failed"  # the SIEM answered, ARGUS could not store the answer
+UNNAMED: Final = "unnamed_events"  # sign-in events with no usable account name
+MISSING: Final = "index_missing"  # the day's index is not there though the logs should be
 REASONS: Final = (PARTIAL, BAD_ANSWER, GONE, FAILED, STORE_FAILED, UNNAMED, MISSING)
 # A lookup made on this reason is tried again no sooner than this (the rest: RETRY_AFTER).
 RETRY_AFTER: Final = timedelta(minutes=30)
 BACKOFF: Final = {STORE_FAILED: timedelta(hours=6), MISSING: timedelta(hours=6)}
 MAX_STORE_FAILURES: Final = 3  # a batch that cannot be stored this many times is left alone
-FINAL_AFTER: Final = timedelta(hours=3)  # ``signins.final_after``'s default (D-224)
+FINAL_AFTER: Final = timedelta(hours=3)  # ``signins.final_after``'s default
 
 
 def source() -> str:
@@ -74,12 +74,12 @@ class Lookup:
     answer was whole; ``accounts`` is every account that signed in that day and ``more_accounts``
     how many of them are not listed as sightings. Incomplete: ``reason`` says why, and ``accounts``
     is 0 (nothing is known). The one incomplete answer that holds sightings is ``unnamed_events``:
-    the named accounts are right, ``unnamed`` events had no account name (D-223).
-    ``store_failures``: how many times in a row ARGUS could not store the answer (D-222).
+    the named accounts are right, ``unnamed`` events had no account name.
+    ``store_failures``: how many times in a row ARGUS could not store the answer.
 
     ``looked_at`` is when the answer was got, except for a day that was not over: then it is no
     later than the request's end plus the ingest margin, so ``covered_until`` never claims more
-    than was read (D-224)."""
+    than was read."""
 
     address: str
     day: date

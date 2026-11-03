@@ -1,28 +1,13 @@
-"""Credential custody (Q-A5, plan §7.9): ARGUS's services as their own system users, each
-with only its own secrets, from root-owned files by ``LoadCredential=``.
+"""Credential custody: ARGUS's services as their own system users, each with only its own secrets,
+from root-owned files by ``LoadCredential=``.
 
-The layout ``deploy/custody/install.sh`` makes (as root; it is the user's production step):
-
-* system users ``argus-svc`` (collector, worker, assessments, soak samples, Kibana read-back),
-  ``argus-web`` and ``argus-writer``, each in its own group and in the group ``argus``;
-* ``/etc/argus/credentials/<name>``: one root-owned file (mode 0600) per secret, in a folder
-  anyone may list (names are public, contents are not). No service can read one: systemd reads
-  each as root and gives a unit only the ones its ``LoadCredential=`` lines name, in
-  ``$CREDENTIALS_DIRECTORY``, readable by that unit's user alone;
-* ``/etc/argus/argus.env``: the non-secret settings the shared ``.env`` held (root:argus 0640);
-  the SIEM CA, the web's certificate and the asset map beside it. Like the credentials, once
-  there they are not replaced from the checkout without a review: they decide where each service
-  connects and which CA it trusts, and any process of the operator's account can change the
-  checkout (review F2);
-* ``/opt/argus/releases/<tag>-<commit>``: a read-only copy of an approved tag (root-owned, no
-  write bit anywhere) with its own virtualenv; ``/opt/argus/current`` points at one;
-* system units from ``deploy/custody/units`` and ``/usr/local/sbin/argus-owner``, the root
-  wrapper for the owner's commands (and for commands run inside a service's account).
-
-This module holds that layout (the script, the units and the tests are checked against it),
-the import the script runs (``python -m argus.ops.custody import``) and ``argus doctor``'s
-custody check. Nothing here prints a secret: only names, places and modes.
-"""
+The layout ``deploy/custody/install.sh`` makes (as root): system users ``argus-svc``, ``argus-web``
+and ``argus-writer``; ``/etc/argus/credentials/<name>``, one root-owned 0600 file per secret that
+systemd hands only to the units whose ``LoadCredential=`` names it; ``/etc/argus/argus.env``, the
+non-secret settings (not replaced from the checkout without a review: they decide where each service
+connects and which CA it trusts); read-only releases under ``/opt/argus/releases``; the system units
+and the ``argus-owner`` root wrapper. This module holds that layout, the import the script runs and
+``argus doctor``'s custody check. Nothing here prints a secret: only names, places and modes."""
 
 from __future__ import annotations
 
@@ -73,21 +58,21 @@ class Account:
     names it once it exists."""
 
 
-# the case team's six users' keys (AR8, D-159), the writer's alone
+# the case team's users' keys, the writer's alone
 TEAM_KEYS = tuple(
     f"case_team.{user}_api_key"
     for user in ("lead", "evidence", "intel", "responder", "hunter", "reporter")
 )
-# the seventh user's key (AR10, D-250) is optional for the case team itself (its step is skipped
+# the visualiser's key is optional for the case team itself (its step is skipped
 # without it), so no unit file names it until the key exists (a missing LoadCredential= file fails
 # the unit); the writer's account loads it when present
 OPTIONAL_TEAM_KEYS = ("case_team.visualiser_api_key",)
 
 ACCOUNTS: dict[str, Account] = {
-    # the notices' relay password (Q-H4) is optional: a campus relay may need no login, and a
-    # unit names it only at the production step that gives it one
-    # the outside threat-intel keys (AR3, D-165) are optional too: a source without a key is
-    # off, and a unit names a key only at the production step that gives it one
+    # the notices' relay password is optional: a mail relay may need no login, and a
+    # unit names it only once something gives it one
+    # the outside threat-intel keys are optional too: a source without a key is
+    # off, and a unit names a key only once one exists
     "svc": Account(
         "svc",
         "argus-svc",
@@ -108,8 +93,8 @@ ACCOUNTS: dict[str, Account] = {
         ),
     ),
     "web": Account("web", "argus-web", ("database.api_password", "web-tls.key")),
-    # the Kibana keys (Q-D2) are made at their own production steps: the writer is off until
-    # its canary, and the svc units get the Kibana reader key at Q-D3's first live read
+    # the Kibana keys are made when Kibana access is set up: the writer is off until
+    # its canary, and the svc units get the Kibana reader key at the first live read
     "writer": Account(
         "writer",
         "argus-writer",
@@ -124,9 +109,9 @@ ACCOUNTS: dict[str, Account] = {
             *TEAM_KEYS,
             *OPTIONAL_TEAM_KEYS,
         ),
-        # minted at later canaries (R17's write-back, Q-D5's alert writer): the cases canary
-        # and the cases schedule start without them (Q-D4 review: the unit would not start).
-        # The case team's six keys (AR8, D-159) wait for its own canary the same way.
+        # minted at later canaries (the write-back, the alert writer): the cases canary and the
+        # cases schedule start without them (a missing credential file stops the unit).
+        # The case team's keys wait for its own canary the same way.
         optional=(
             "siem.writer_api_key",
             "kibana.alert_writer_api_key",
@@ -161,12 +146,12 @@ SERVICE_USERS = tuple(a.user for a in ACCOUNTS.values() if a.user != "root")
 FILE_CREDENTIALS: dict[str, Path] = {
     "llm-api-keys.env": Path("reference/llm_api_keys.env"),
     "web-tls.key": Path("data/tls/argus.key"),
-    # the approval signing key (Q-C3, `argus approvals keygen`): normally made in place at the
+    # the approval signing key (`argus approvals keygen`): normally made in place at the
     # first closure; copied from the checkout only when a development key is there
     "approval-signing.key": Path("data/approval-signing.key"),
 }
 EMPTY_ALLOWED = frozenset({"llm-api-keys.env"})
-# Needed before the switch-over; the writer key only at its canary (D-109).
+# Needed before the switch-over; the writer key only at its canary.
 REQUIRED = frozenset(
     {
         "database.password",
@@ -238,16 +223,16 @@ UNITS: dict[str, tuple[str | None, Role]] = {
 }
 
 
-# Credentials one unit loads besides its account's (Q-D3): the Kibana read-back alone of the
+# Credentials one unit loads besides its account's: the Kibana read-back alone of the
 # svc units gets the Kibana reader key, so the collector's units never depend on a key that is
-# made only at its production step (Q-D2's open risk) and never hold it.
+# made only later and never hold it.
 UNIT_EXTRA_CREDENTIALS: dict[str, tuple[str, ...]] = {
     "argus-kibana-sync.service": ("kibana.reader_api_key",),
 }
 
 
-# A unit that loads a different set of its account's credentials (D-214): the case team needs
-# the six team keys (optional for the writer until AR8's canary) and not the cases writer key.
+# A unit that loads a different set of its account's credentials: the case team needs
+# the team keys (optional for the writer until the case team's canary) and not the cases writer key.
 UNIT_CREDENTIALS: dict[str, tuple[str, ...]] = {
     "argus-case-team.service": (
         "database.writer_password",
@@ -284,9 +269,6 @@ def all_credentials() -> list[str]:
 
 def holders(name: str) -> list[str]:
     return [role for role, account in ACCOUNTS.items() if name in account.credentials]
-
-
-# --------------------------------------------------------------------------- the import
 
 
 @dataclass
@@ -547,7 +529,7 @@ def import_checkout(checkout: Path, etc: Path, *, check: bool, accept: str | Non
     custody ``/etc/argus``, or a fake root's). A credential already there is never replaced (it
     is the one that counts once custody is installed: rotate it by hand); a missing one is
     created, mode 0600. argus.env and the data files are written when missing; a difference
-    from the installed ones is shown and kept unless ``accept`` is its digest (review F2).
+    from the installed ones is shown and kept unless ``accept`` is its digest.
     ``check``: change nothing, say what a run would do. Ownership is the caller's (install.sh
     chowns)."""
     report = Report()
@@ -643,9 +625,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if report.missing:
         return 3
     return 1 if (args.check and report.pending) or report.kept else 0
-
-
-# --------------------------------------------------------------------------- doctor
 
 
 def marker(etc: Path = ETC) -> dict[str, str] | None:

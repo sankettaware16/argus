@@ -1,14 +1,10 @@
-"""``argus kibana ...``: the operator's side of the Kibana lane (Q-D2).
+"""``argus kibana ...``: the operator's side of the Kibana lane.
 
 - ``selftest --key reader|cases|alerts``: Kibana's version and what the key holds against its
-  must-hold and must-not-hold canaries. ``--dry-run`` prints the requests and sends nothing
-  (the only form usable while ``kibana.enabled`` is false, and under D-109 for the SIEM).
-- ``state``: Kibana stopped or not, paused classes, today's write counts, the breaker (no
-  request to Kibana).
-- ``sync ...``: the read-back and reconciliation (Q-D3, ``argus.kibana_sync.cli``).
-- ``resume``: lift a stop (a 401) or one class's pause (a 403, a wrong answer), audited. As
-  the owner only (Q-A5's rule, migration 0029): services and the runtime login may stop and
-  pause, only the owner resumes.
+  must-hold and must-not-hold canaries (``--dry-run`` sends nothing).
+- ``state``: Kibana stopped or not, paused classes, today's write counts, the breaker.
+- ``sync ...``: the read-back and reconciliation (``argus.kibana_sync.cli``).
+- ``resume``: lift a stop or one class's pause; only the database owner may.
 """
 
 from __future__ import annotations
@@ -38,9 +34,9 @@ from argus.gateway.kibana.writes import WriteClass
 from argus.gateway.pgstore import PgStore
 from argus.kibana_sync.cli import sync_app
 
-kibana_app = typer.Typer(no_args_is_help=True, help="The Kibana lane: self-test, state (Q-D2).")
+kibana_app = typer.Typer(no_args_is_help=True, help="The Kibana lane: self-test, state.")
 kibana_app.add_typer(sync_app, name="sync")
-# the case team's six keys are tested one by one, as their own users (D-159 did on the SIEM); this
+# the case team's keys are tested one by one, as their own users; this
 # self-test is of ARGUS's three service keys
 KEYS = tuple(role.value for role in KeyRole if role is not KeyRole.TEAM)
 
@@ -140,7 +136,7 @@ def kibana_resume(
     config: ConfigOption = None,
 ) -> None:
     """Lift Kibana's stop (after a 401) or one write class's pause (after a 403); as the
-    database owner (Q-A5)."""
+    database owner."""
     cls = None
     if write_class is not None:
         if write_class not in {c.value for c in WriteClass} - {"WT"}:
@@ -149,7 +145,7 @@ def kibana_resume(
         cls = WriteClass(write_class)
     settings = load(config)
     command = "kibana resume" + ("" if cls is None else f" --class {cls.value}")
-    engine = owner_engine_for(settings, command)  # migration 0029 refuses any other role
+    engine = owner_engine_for(settings, command)  # the database refuses any other role
 
     async def use(store: PgStore) -> bool:
         return await store.kibana_resume(actor="cli", reason=reason, write_class=cls)

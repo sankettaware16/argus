@@ -1,17 +1,10 @@
-"""The checks the wave and "Check more" may ask (Q-F3, plan §7.3 point 2): what each template
-can close, which of the rule's own log sources it needs, and how its request is built from a
-dossier.
+"""The checks the wave and "Check more" may ask: what each template can close, which of the rule's
+own log sources it needs, and how its request is built from a dossier.
 
-Checks are found by what they answer and by the sources the rule itself reads (the alert's
-``kibana.alert.rule.indices``), never by a rule's name (D-058, D-060). A check names the *role*
-of the log it needs (``proxy``, ``web``, ``dns``); a rule reads sources (the site's families),
-each with a role. A gap names what it
-needs as a key: ``signal:<name>`` (a signal that could not be told) or ``capability:<name>`` (a
-question a note step asks); ``closers`` lists the templates that answer it, best first.
-
-Every check is an existing, registered template, built with the same builders the packs and
-the first runs use, so the request is always one the gateway's validator accepts. Nothing here
-sends anything.
+Checks are found by what they answer and by the sources the rule itself reads, never by a rule's
+name. A gap names what it needs as ``signal:<name>`` or ``capability:<name>``; ``closers`` lists the
+templates that answer it, best first. Every check is an existing, registered template built with the
+same builders the packs use; nothing here sends anything.
 """
 
 from __future__ import annotations
@@ -273,7 +266,7 @@ def _first(found: Sequence[TaskSpec], template: str) -> TaskSpec | batch1.Refusa
 
 def build(template: str, m: Material) -> TaskSpec | batch1.Refusal:
     """The request of ``template`` for a dossier, with the pack's own builders (an earlier
-    request of the investigation is planned as it was, D-070), or why it cannot be built."""
+    request of the investigation is planned as it was), or why it cannot be built."""
     now = m.now.astimezone(UTC)
     earlier = m.pack.get("earlier_logs") or {}
     if template in ("proxy.host", "proxy.destination"):

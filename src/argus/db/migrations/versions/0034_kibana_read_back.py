@@ -1,21 +1,12 @@
-"""The Kibana read-back and reconciliation (Q-D3, plan §5 and §7.1): read-only
+"""The Kibana read-back and reconciliation: read-only
 
-- ``kibana_mirror`` (0026) becomes writable by the runtime role, which the read-back runs as
-  (``argus-kibana-sync`` in the svc account): it inserts a mirror for a case ARGUS made and
-  updates what it reads back. Three new columns: ``actions_seen`` (how many of the case's
-  user actions were read), ``argus_actions`` (how many of them were ARGUS's, by kind: each
-  must be explained by a sent outbox row) and ``paused_reason`` (ARGUS's writes to the case
-  are paused: a person changed ARGUS's ``argus:*`` tags or its settings). As Q-A5's rule
-  for the switches (0027, 0029), a row trigger lets services pause, only the owner lift.
-- ``kibana_sync_state``: one row (where the change poll starts, the discovery's place, the
-  clock offset).
-- ``kibana_sync_cycles``: one row per cycle; the runtime may insert, never change.
-- ``kibana_findings``: the reconciliation's alarms, items and notes, each once; the runtime
-  may insert, never change (a person resolves them, Q-B3).
-- ``kibana_people_cases``: people's Kibana cases that hold alerts ARGUS knows (read-only).
-- ``kibana_alert_states``: the status of each alert on ARGUS's cases at the last discovery
-  (an alert change is found by diffing statuses: Kibana's internal route records neither
-  ``workflow_user`` nor ``workflow_status_updated_at``, Q-D1's finding #7).
+``kibana_mirror`` becomes writable by the runtime role (which the read-back runs as) and gains
+``actions_seen``, ``argus_actions`` and ``paused_reason`` (writes to a case are paused when a
+person changes ARGUS's tags or settings; a row trigger lets services pause, only the owner lift).
+New tables: ``kibana_sync_state`` (the change poll's place and the clock offset),
+``kibana_sync_cycles`` and ``kibana_findings`` (insert-only for the runtime),
+``kibana_people_cases`` (people's Kibana cases that hold alerts ARGUS knows) and
+``kibana_alert_states`` (alert changes are found by diffing statuses).
 
 Revision ID: 0034
 Revises: 0033

@@ -1,4 +1,4 @@
-# What a language model may see of a dossier (Phase 2, P1; plan §2.1, D-075).
+# What a language model may see of a dossier.
 # Default deny: a field not listed here is withheld, and the item says how many were.
 #
 # Field actions (applied to each top value of a field in the context pack):
@@ -13,20 +13,18 @@
 # Every request is checked again, byte by byte, by the egress validator (argus.llm.egress).
 version: 1
 
-# Campus domains: the organisation's own domains (site.own_domains in config/argus.yaml) and their
-# subdomains are always pseudonymized. Domains listed here are pseudonymized as well (an install
-# that listed them here before site.own_domains existed keeps working); none by default.
-# The two lists together must name at least one domain: with none, ARGUS builds no text for a model
-# (the privacy layer refuses, `argus doctor` says so; D-285).
+# The organisation's own domains (site.own_domains) and their subdomains are always pseudonymized.
+# Domains listed here are pseudonymized as well; none by default. The two lists together must name
+# at least one domain: with none, ARGUS builds no text for a model (the privacy layer refuses,
+# `argus doctor` says so).
 campus_domains: []
 
 # What an address in the asset map may say about itself (a generalisation, never its name).
 asset_fields: [site.type, site.zone]
 
 # URL query values are sent only for the site's web families (the WAF and web logs, where the
-# payload is the evidence; acme-logs-nginx-* as acme-logs-nginx*); elsewhere (the proxy: people's
-# searches) only the keys are sent. query_values_for: [<index pattern>, ...] lists other patterns
-# instead (D-294).
+# payload is the evidence); elsewhere (the proxy: people's searches) only the keys are sent.
+# query_values_for: [<index pattern>, ...] lists other patterns instead.
 
 # The longest untrusted string sent (rule text, a URL, a user agent); cut on a token boundary.
 text_chars: 300
@@ -62,7 +60,7 @@ fields:
   rule.id: send
   threat.enrichments.matched.field: send
   threat.enrichments.indicator.confidence: send
-  # an investigation's entities by kind (P7's tuning report, D-090): handled as their kind
+  # an investigation's entities by kind: handled as their kind
   entity.ip: ip
   entity.domain: domain
   entity.host: host

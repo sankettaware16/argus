@@ -1,27 +1,13 @@
-"""Planning a post (AR8, D-195): the stored report in, the ordered steps out. Pure: no database,
-no clock, no network; the same report and alerts always give the same plan, and the plan's hash is
-what a person's approval binds.
+"""Planning a post: the stored report in, the ordered steps out. Pure: the same report and alerts
+always give the same plan, and the plan's hash is what a person's approval binds.
 
-* :func:`first_plan` is generation 1: the lead opens the case, attaches and tags the alerts, then
-  the owners' comments in the fixed order (evidence, devices, intel when needed, actions, queries),
-  the reporter's files and the comment listing them, and the lead's verdict last.
-* :func:`update_plan` is a later generation, for a report that got a newer version: only what
-  changed, as a new "Update" comment by the owning user; never an edit, never a delete. A file is
-  uploaded again only if its bytes changed, under a versioned name.
-* :func:`refresh_plan` corrects what was posted, in place (D-236): the lead sets the case's title
-  and description, the user who wrote a comment rewrites it. A retitle in ARGUS reaches Kibana
-  as the first step of the next update plan; the description and the comments are rewritten only
-  when a person asks (``argus case team refresh``). An edit is a value to set against the
-  version Kibana holds *now*: the poster reads it first and sends only if Kibana still holds
-  what ARGUS last wrote (never over a person's change).
-* :func:`note_plan` is the lead's note about what is not the report's: a person's ``Verdict:``
-  comment (and what the review path did with it), people who disagree, alerts that could not be
-  tagged.
-
-A step is turned into the exact Kibana request by :func:`request_of` (the lane's templates); the
-step's ``request_hash`` is the lane's own hash of that request, with a stand-in case id while the
-case is not open yet, and the author in it.
-"""
+:func:`first_plan` is generation 1 (the lead opens the case, attaches and tags the alerts, the
+owners' comments in a fixed order, the files, the lead's verdict last); :func:`update_plan` a later
+generation (only what changed, as a new "Update" comment, never an edit or a delete);
+:func:`refresh_plan` corrects what was posted in place, only when a person asks;
+:func:`note_plan` is the lead's note on what is not the report's (a person's ``Verdict:``,
+disagreement, untagged alerts). :func:`request_of` turns a step into the exact Kibana request,
+whose hash includes the author."""
 
 from __future__ import annotations
 
@@ -60,7 +46,7 @@ from argus.incident.words import size
 REFRESH = "refresh"  # a payload flag: this comment step belongs to a person's refresh
 STAND_IN = "NEWCASE"  # the case id in the hashes of a generation planned before the case exists
 STAND_IN_VERSION = "WzAsMF0="  # the Kibana version of an edit planned before it is read
-PER_CALL = 100  # alerts a call unless the settings say otherwise (case_team.alerts_per_call, D-235)
+PER_CALL = 100  # alerts a call unless the settings say otherwise (case_team.alerts_per_call)
 FILE_KINDS = ("pdf", "dashboard", "indicators", "affected")
 FILE_WHAT = {
     "pdf": "Incident report (PDF)",
@@ -72,8 +58,8 @@ FILE_WHAT = {
 
 
 def kinds_of(report: m.IncidentReport) -> tuple[str, ...]:
-    """The files this report has: the three, and the accounts CSV when it names an account
-    (AR6, D-216). A report without accounts has exactly the files it always had."""
+    """The files this report has: the three, and the accounts CSV when it names an account.
+    A report without accounts has exactly the three files."""
     return (*FILE_KINDS, "accounts") if report_files.has_accounts(report) else FILE_KINDS
 
 
@@ -132,9 +118,6 @@ class Posted:
     title_by_person: bool = False  # a person changed it in Kibana: ARGUS never edits it again
     description: str | None = None  # the description ARGUS last wrote
     comments: Mapping[str, PostedComment] = field(default_factory=dict)  # by the step's key
-
-
-# --------------------------------------------------------------------------- steps -> requests
 
 
 _BUNDLES: dict[tuple[str, str, str], dict[str, tuple[str, bytes]]] = {}
@@ -251,9 +234,6 @@ def sealed(
     steps: Sequence[Step], target: Target, kibana_case_id: str | None, report: m.IncidentReport
 ) -> tuple[Step, ...]:
     return tuple(s.with_hash(hash_step(s, target, kibana_case_id, report)) for s in steps)
-
-
-# --------------------------------------------------------------------------- generation 1
 
 
 def _batches(alerts: Sequence[AlertRef], per_call: int = PER_CALL) -> list[list[AlertRef]]:
@@ -375,7 +355,7 @@ def first_plan(
     steps += alert_steps(alerts, render.alert_tags_of(report), per_call=per_call)
     for part in render.parts_of(report, ctx):
         steps += comment_steps(part)
-        if part.name == "evidence":  # AR10: the visualiser follows the evidence comment
+        if part.name == "evidence":  # the visualiser follows the evidence comment
             steps += visual.steps(report, target.space)
     file_list, rows = file_steps(report, kinds_of(report), None)
     steps += file_list
@@ -407,9 +387,6 @@ def first_plan(
     )
 
 
-# --------------------------------------------------------------------------- later generations
-
-
 def posted_units(report: m.IncidentReport, ctx: render.Context) -> dict[str, frozenset[str]]:
     """What a fresh generation 1 of this report would have posted, by part (the baseline of a
     case that was posted before this table kept the hashes)."""
@@ -430,7 +407,7 @@ def update_plan(
     """The "Update" round: only what is new since ``posted``, by the user that owns each part."""
     steps: list[Step] = []
     title = retitle_step(report, posted)
-    if title is not None:  # ARGUS's own retitle reaches the case (D-230, D-236)
+    if title is not None:  # ARGUS's own retitle reaches the case
         steps.append(title)
     fresh = [
         a for a in alerts if a.alert_id not in posted.attached and a.alert_id not in posted.gone
@@ -454,7 +431,7 @@ def update_plan(
         if gone:
             intro.append(f"{gone} earlier lines no longer apply; see the report.")
         steps += comment_steps(part, heading=f"Update: {part.title}", intro=intro, units=new)
-    if visual.due(report, target.space, before_glance):  # AR10: the glance, if it changed
+    if visual.due(report, target.space, before_glance):  # the glance, if it changed
         steps += visual.steps(report, target.space, update=bool(before_glance))
     changed = [
         kind

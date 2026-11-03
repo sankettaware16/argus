@@ -1,4 +1,4 @@
-"""Putting the identity lane together from the settings (Q-E1)."""
+"""Putting the identity lane together from the settings."""
 
 from __future__ import annotations
 

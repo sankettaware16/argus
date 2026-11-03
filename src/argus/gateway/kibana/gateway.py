@@ -1,35 +1,12 @@
-"""The Kibana lane (Q-D2): the only path from ARGUS to Kibana.
+"""The Kibana lane: the only path from ARGUS to Kibana.
 
-``KibanaGateway.read`` and ``.write`` decide, in this order, and stop at the first refusal:
-
-1. the deadline has not passed;
-2. no kill switch stops the work (``global``; ``kibana`` for reads, ``cases`` for case writes,
-   ``writeback`` for alert writes) and the SIEM's health allows it (reads: NORMAL, CAUTION and
-   DEGRADED at a reduced share; writes: NORMAL only); Kibana is not stopped (a 401);
-3. a write: its class is switched on at the host and not paused, the run verified Kibana's
-   pinned version and the licence (``start_run``), the context names its outbox row, the hash
-   of exactly this payload and, for a closure, its approval;
-4. the template builds its request and the validator accepts the **final** request;
-5. Kibana's own breaker is closed, and so is the SIEM's (every Kibana call is load on the SIEM:
-   Kibana keeps its cases there, an attach and an alert status change write the alerts, the
-   keys' self-check goes to the SIEM itself); the SIEM's is only looked at, never tried or tripped;
-6. the lane's budget admits it (waiting within the deadline; steps 2-5 are asked again after
-   every wait), within D-022's concurrency shared by every lane (``lanes.shared_wait``);
-7. just before sending, steps 2, 3 and 5 are asked once more (the kill switch before every
-   request), the transport says it can send it (its route allowlist, the key installed), then
-   a write takes its place in the caps (window, gaps, per run, per day) and Kibana's breaker
-   its trial, if one is due.
-
-It sends **once**: no request of the Kibana lane is retried, and a write whose outcome is unknown
-is never resent (plan §3 rule 4). A write's error answer says it may have landed
-(``maybe_applied``) unless it is one Kibana gives before changing anything (``may_have_landed``).
-The answer is checked by the template (a check that crashes is a wrong answer); a Kibana 401 stops
-Kibana work only, a 403 pauses only the write's class (its outbox row is the caller's), and a
-read's 403 stops Kibana work (DQ9 (b)); 429 and 503 open Kibana's breaker, never the SIEM's. Each
-request is charged max(round trip, the template's estimate) to its lane (a timeout its whole
-timeout, ``kibana.timeout``; no connection nothing), and every request that left gets a ledger
-row: lane, outbox row, payload hash, class, approval, the SIEM's health and the stopped switches. A
-request the transport refused never left: no ledger row, and no place in the caps.
+``KibanaGateway.read`` and ``.write`` stop at the first refusal: the deadline, the kill switches
+and the SIEM's health (reads: NORMAL, CAUTION and DEGRADED at a reduced share; writes: NORMAL
+only), Kibana not stopped, for a write its class, run facts, outbox row, payload hash and approval,
+the validator on the **final** request, both breakers, and the lane's budget. It sends **once**:
+nothing is retried and a write whose outcome is unknown is never resent. A 401 stops Kibana work,
+a 403 pauses the write's class, 429/503 open Kibana's breaker, never the SIEM's. Every request
+that left gets a ledger row.
 """
 
 from __future__ import annotations
@@ -106,7 +83,7 @@ READ_MIN_LEFT = timedelta(seconds=1)
 # The error answers to a write that Kibana gives before it changes anything: 401 (the key is
 # checked first), a create's or a PATCH's 400 (the body's schema), a PATCH's 404, 406 and 409
 # (the case, its changes and its version are checked before the update). Any other answer may
-# come after a part of the write landed: Q-D1's tier saw attaches answered 400 and 403 after
+# come after a part of the write landed: attaches have been seen answered 400 and 403 after
 # the attachment was saved, a status change and an attach answered 500 after Kibana saved them,
 # and a 429 or 503 can come from Elasticsearch after the case was written.
 BEFORE_ANY_CHANGE: dict[KEndpoint, frozenset[int]] = {
@@ -141,11 +118,11 @@ class KibanaTargets:
 
 @dataclass(frozen=True)
 class WriteContext:
-    """Who asked for a write and what it is bound to (plan §3 rule 1, §7.1). ``payload_hash``
+    """Who asked for a write and what it is bound to. ``payload_hash``
     is the hash of the exact request (``KibanaGateway.payload_hash``: template, route, URL
     parameters and body bytes), which the writer computes from the body it rendered and records
-    with the send; it is also the ledger row's. Q-C1's approvals bind the case change's intent
-    (``argus.cases.kibana.payload_hash``); the writer (Q-D4) checks the approval, then renders."""
+    with the send; it is also the ledger row's. The approvals bind the case change's intent
+    (``argus.cases.kibana.payload_hash``); the writer checks the approval, then renders."""
 
     write_class: WriteClass
     outbox_id: str
@@ -230,7 +207,7 @@ class KibanaGateway:
         return build_final(template, params, self.targets.space, self.targets.alerts_index_prefix)
 
     def payload_hash(self, template: KibanaTemplate, params: BaseModel) -> str:
-        """What an outbox row records for this write, and its approval binds (plan §7.1)."""
+        """What an outbox row records for this write, and its approval binds."""
         return request_hash(self.final(template, params))
 
     async def read(
@@ -246,7 +223,7 @@ class KibanaGateway:
         return await self._run(template, params, Purpose.KIBANA_READ, component, deadline)
 
     async def start_run(self, *, component: str, deadline: datetime) -> WriteRun:
-        """Before a write run (plan §5 Q-D2): Kibana's version must be in the site's range
+        """Before a write run: Kibana's version must be in the site's range
         (``site.kibana_versions``) and its status available, the licence active (any level: the
         cases ARGUS writes need no paid feature; ``WriteRun.facts`` says what a paid level adds),
         and the case configuration is read (a required custom field without a default blocks
@@ -293,7 +270,7 @@ class KibanaGateway:
         deadline: datetime,
         before_send: Callable[[], Awaitable[None]] | None = None,
     ) -> KResult:
-        """Send one write. ``before_send`` (the writer's: commit ``sending``, plan §7.1) runs
+        """Send one write. ``before_send`` (the writer's: commit ``sending``) runs
         after every check has passed and a place in the caps is taken, and just before the
         request leaves; if it raises, nothing is sent."""
         spec = type(template).spec()
@@ -317,7 +294,7 @@ class KibanaGateway:
         """What one of ARGUS's Kibana keys holds: Elasticsearch's ``_has_privileges`` sent with
         that key (any key may check its own privileges). The body is held to the Elasticsearch
         validator's has_privileges rules; the request spends the Kibana read lane, and a 401
-        or 403 stops Kibana work, never the SIEM's (DQ9 (b))."""
+        or 403 stops Kibana work, never the SIEM's."""
         now = self.clock()
         if now >= deadline:
             raise DeadlinePassedError("the deadline passed before the request started")
@@ -627,7 +604,7 @@ class KibanaGateway:
                 await lane_settle(self.state, lane, lease, 0, self.clock(), seen.scale)
                 raise
             except UnknownOutcomeError as exc:
-                if not exc.reached:  # no connection: Kibana did no work (D-093)
+                if not exc.reached:  # no connection: Kibana did no work
                     charged = 0
                 elif exc.timed_out:
                     charged = int(wire.timeout_s * 1000)
@@ -700,7 +677,7 @@ class KibanaGateway:
         return KibanaRejectedError(f"Kibana refused the request ({status})", status=status)
 
     async def _after_error(self, exc: KibanaResponseError, context: WriteContext | None) -> None:
-        """DQ9 (b): a 401 stops Kibana work; a write's 403 or wrong answer pauses its class; a
+        """A 401 stops Kibana work; a write's 403 or wrong answer pauses its class; a
         read's 403 stops Kibana work (the reader key lacks Cases Read); 429/503 open Kibana's
         breaker. Never the SIEM's health or breaker."""
         now = self.clock()

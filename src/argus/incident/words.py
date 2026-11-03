@@ -1,5 +1,5 @@
 """The report's plain words: times in IST (12-hour), durations, sizes, plurals and the one place the
-writer turns a number into a phrase (AR7, D-190). Pure; the same input always gives the same text.
+writer turns a number into a phrase. Pure; the same input always gives the same text.
 """
 
 from __future__ import annotations
@@ -113,7 +113,7 @@ OUTCOME_WORDS = {
     "rule_false_positive": "a false positive of the rule",
     "inconclusive": "inconclusive",
 }
-# the Kibana tag for a verdict (docs/runbooks/kibana-incident-case.md)
+# the Kibana tag for a verdict
 VERDICT_TAG = {
     "true_positive": "verdict:true-positive",
     "benign_expected": "verdict:benign-expected",

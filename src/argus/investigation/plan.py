@@ -1,15 +1,10 @@
-"""From gaps to checks (Q-F3, plan §7.3 point 3): which requests a wave would send, in which
-order, within a wave's caps, and what it leaves alone and why. Pure: the same gaps, material,
-admissions and stored answers always give the same plan, and a plan made from a wave's own
-results asks nothing more.
+"""From gaps to checks: which requests a wave would send, in which order, within a wave's caps,
+and what it leaves alone and why. Pure.
 
-For each closable gap, best first, the first of its closers that can be asked is chosen: the
-template must be switched on, its request buildable from the dossier, admitted by the rules
-that need the database (the prevalence gate, the daily cap, quiet hours, health: ``admission``),
-and not tried a moment ago and failed. An answer already stored for the same request is
-**reused** (nothing is sent: it costs nothing and counts toward no cap). Sends are held to the
-caps in rank order (requests, heavy requests); what does not fit is left with its reason.
-Server time is a cap the executor keeps as answers arrive (a request's time is known only then).
+For each closable gap, best first, the first closer that can be asked is chosen: the template is
+switched on, its request buildable, admitted by the rules that need the database (prevalence gate,
+daily cap, quiet hours, health) and not tried a moment ago and failed. A stored answer for the same
+request is reused (nothing sent). Sends are held to the caps in rank order.
 """
 
 from __future__ import annotations
@@ -198,7 +193,7 @@ def choose(
 
 
 def priority(gaps: Sequence[Gap], severity: str | None) -> tuple[int, int, int, int, int]:
-    """Which undecided investigation a wave takes first (plan §7.3 coverage): one with a
+    """Which undecided investigation a wave takes first: one with a
     closable floor gap, then the higher severity, then a threat-intel gap, a beacon gap, a gap
     about successes after an attack. Smaller goes first."""
     closable = [g for g in gaps if g.closable]

@@ -1,19 +1,10 @@
-"""report@2 for one assessment, or for a dossier alone (Q-F2, plan §7.3). Pure: the same
-inputs give the same report.
+"""report@2 for one assessment, or for a dossier alone. Pure: the same inputs give the same report.
 
-Two views of the investigation version are compared:
-- **the starting view**: what the alerts alone say (the pack's signals and steps with no
-  evidence);
-- **the final view**: with the evidence of the version up to the assessment's end,
-  recomputed by the same pack: the dossier's own checks, and an assessor's asks where they
-  stand in for one (``primary``). A pack reads one subject per template (the investigation's
-  host, client, destination), so a second request of a template about another subject (an
-  investigator's ask about another host) is shown as a check of its own, with its
-  observations and its subject named, never read as the investigation's.
-Their diff is what every SIEM query found ("What ARGUS found with extra SIEM queries"). When
-the dossier's pack is not deployed here the stored dossier stands for the final view and the
-starting view keeps only what needs no evidence (``recomputed`` is false).
-"""
+Two views of the investigation version are compared: the starting view (what the alerts alone say)
+and the final view (the same pack recomputed with the evidence up to the assessment's end, from the
+dossier's own checks and an assessor's asks). A second request of a template about another subject
+is shown as a check of its own. Their diff is what every SIEM query found. When the dossier's pack
+is not deployed here the stored dossier stands for the final view (``recomputed`` is false)."""
 
 from __future__ import annotations
 
@@ -92,9 +83,6 @@ class Inputs:
     assessment: AssessmentRow | None = None
 
 
-# ----------------------------------------------------------------------------- views
-
-
 @dataclass(frozen=True)
 class State:
     signals: list[dict[str, Any]]  # local and derived, by name
@@ -164,9 +152,6 @@ def side(
              if (g := fx.step_gap(s, f)) is not None]  # fmt: skip
     every = [*signals.values(), *steps, *fx.alert_facts(body.get("facts") or {}), *observed]
     return Side(view(every, checks, gaps), signals, raw, steps)
-
-
-# ----------------------------------------------------------------------------- the parts
 
 
 def _items(new: WhatsNew, after: Side) -> list[Item]:
@@ -462,9 +447,6 @@ def _cost(rows: Sequence[fx.EvidenceRow], report: Mapping[str, Any] | None) -> C
     )
 
 
-# ----------------------------------------------------------------------------- evidence
-
-
 def primary(
     rows: Sequence[fx.EvidenceRow], own: set[str], order: Mapping[str, int]
 ) -> tuple[list[fx.EvidenceRow], dict[str, bool]]:
@@ -525,9 +507,6 @@ def _threat_lists(
             continue
         local.update(str(n) for n, x in sources.items() if isinstance(x, Mapping) and "match" in x)
     return holds, tuple(sorted(local))
-
-
-# ----------------------------------------------------------------------------- the report
 
 
 def _unanswered(request: fx.RequestRow, version: int, until: datetime | None) -> bool:

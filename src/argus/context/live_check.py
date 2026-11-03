@@ -1,14 +1,12 @@
-"""The first production runs of the log templates (R12, R13; D-056, D-068, D-069).
+"""The first production runs of the log templates.
 
-* ``web``: one ``web.followups`` search inside a live-test session, within its limits
-  (15 minutes of nginx, at most 10 rows).
-* ``proxy``: live tests never aggregate (the gateway refuses), so the two proxy aggregations
-  run once as a measured job the user confirms at the terminal, under the normal budget and
-  health gate (a user-approved, journaled, budgeted job), over one hour of
-  squid inside one daily index.
+- ``web``: one ``web.followups`` search inside a live-test session (15 minutes of nginx, at most
+  10 rows).
+- ``proxy``: live tests never aggregate, so the two proxy aggregations run once as a measured job a
+  person confirms at the terminal, under the normal budget and health gate.
 
-Subjects come from the stored alerts. Each request's server time is printed; a part passes
-when every request answers in time. Nothing is stored but the gateway's ledger."""
+Subjects come from the stored alerts; each request's server time is printed and a part passes when
+every request answers in time. Nothing is stored but the gateway's ledger."""
 
 from __future__ import annotations
 
@@ -101,7 +99,7 @@ def window(
     return start, end
 
 
-LIVE_WINDOW = timedelta(minutes=15)  # the live-test tier's limit (plan §10)
+LIVE_WINDOW = timedelta(minutes=15)  # the live-test tier's limit
 LIVE_ROWS = 10
 
 

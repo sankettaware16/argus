@@ -1,20 +1,11 @@
-"""The deterministic wave and the executor behind "Check more" (Q-F3, plan §7.3 point 3).
+"""The deterministic wave and the executor behind "Check more".
 
 For an undecided investigation with a closable gap, and for a person's request, ARGUS asks the
 ranked checks (``gaps``, ``plan``) through the investigation lane before any model is asked: each
 check is a catalogue template the rule's own indices allow, sent by the same path every batch-1
-request takes (the prevalence gate, quiet hours, NORMAL only, the daily cap per template), and
-spends the lane's 400 ms a minute and 300 heavy requests a day. Each check is recorded with
-its reason (``evidence_requests.reason``) and an E-id; its answer goes to the evidence table.
-When something new was learned, the investigation gets one more **dossier** of the same
-version, under the ident ``<pack>+wave.<round>@<version>``: the pack's signals and steps over
-the old evidence and the new, with provenance and the "what's new" diff of report@2. A dossier
-is never changed, so a second wave over the same evidence changes nothing and adds nothing.
-
-Nothing here calls a model. Nothing runs while the SIEM is not NORMAL, in the quiet hours, with the
-lane's kill switch thrown or the overload breaker open. A run the SIEM cannot serve (a deferral,
-a stop, the breaker, the lane's debt) concludes nothing: the request goes back in the queue
-unstarted, what it asked is kept, and the process leaves the lane alone until it can go on.
+request takes, recorded with its reason and an E-id. When something new was learned the
+investigation gets one more dossier of the same version (ident ``<pack>+wave.<round>@<version>``).
+Nothing here calls a model. A run the SIEM cannot serve goes back in the queue unstarted.
 """
 
 from __future__ import annotations
@@ -86,7 +77,7 @@ class Env:
     health_config: HealthConfig | None = None
     clock: Callable[[], datetime] = utcnow
     # the investigation lane is in debt (or the SIEM said "not now") until then: a pass in this
-    # process claims nothing before it (Q-F3 review R1)
+    # process claims nothing before it
     hold_until: datetime | None = None
 
 
@@ -135,7 +126,7 @@ async def prepare_from(
 
 def _keys(task: TaskSpec) -> tuple[batch1.Key, ...]:
     """What the prevalence gate checks for the packs' own heavy templates when a wave or a
-    person asks them: the campus host of a host search or a client's search, the destination of
+    person asks them: the internal host of a host search or a client's search, the destination of
     a destination search (batch-1 templates carry their own, ``batch1.keys``)."""
     name, ip = type(task.template).name, getattr(task.params, "ip", None)
     if not isinstance(ip, str):
@@ -152,7 +143,7 @@ async def admit(
     ``batch1.admit`` (its switch, the quiet hours, NORMAL, the prevalence gate, its daily cap).
     The others (host, destination and follow-up searches, threat-list lookups): the quiet
     hours and NORMAL health, and, for the first three, the same prevalence gate and the same
-    daily server-time cap per template (plan §7.3, DQ20): a wave never asks about a value
+    daily server-time cap per template: a wave never asks about a value
     ARGUS sees in 50 investigations, nor spends more than a template's 90 seconds a day."""
     name = type(task.template).name
     if name in batch1.TEMPLATES:
@@ -217,13 +208,11 @@ def _subject(params: Any) -> dict[str, Any]:
 async def retried(
     conn: AsyncConnection, investigation_id: uuid.UUID, version: int, task: TaskSpec
 ) -> TaskSpec:
-    """``task``, but with the parameters of the request the investigation already asked about
-    the same subject and got no answer to (a timeout, a deferral, a busy SIEM). The window of a
-    request about an investigation that is still active follows the clock, so asked again it
-    would be another request with a key of its own: its answer would be paid for and stored,
-    but the dossier already holds the template's failed answer under the old key and takes only
-    a retry of that (``feed``), and every later wave would ask again (Q-F3 review R5). The same
-    request again has the same key: the answer replaces the failed one."""
+    """``task``, but with the parameters of the request the investigation already asked about the
+    same subject and got no answer to (a timeout, a deferral, a busy SIEM). The window of a request
+    about a still-active investigation follows the clock, so asking again would be a request with a
+    key of its own, whose answer the dossier (holding the failed answer under the old key) would
+    never take. The same request again has the same key: the answer replaces the failed one."""
     name = type(task.template).name
     new = _subject(task.params)
     for row in await store.unanswered(conn, investigation_id, version, name):
@@ -374,7 +363,7 @@ async def ask(env: Env, inv: uuid.UUID, version: int, planned: Planned, origin: 
     if purged or planned.mode != "send":  # never asked again: unknown, never negative
         record.update(status="skipped_budget", coverage={"reason": "purged"})
     else:
-        record["asked_at"] = env.clock()  # a verified zero needs a reading from before (Q-F1)
+        record["asked_at"] = env.clock()  # a verified zero needs a reading from before
         try:
             result = await _dispatch(env, task, env.clock() + ASK_DEADLINE)
             sent = True
@@ -383,7 +372,7 @@ async def ask(env: Env, inv: uuid.UUID, version: int, planned: Planned, origin: 
                 raise SourceUnavailable(refused.refusal.code) from None
             record.update(status="deferred", coverage={"reason": "context_partial"},
                           error=refused.refusal.code)  # fmt: skip
-        except LaneBusyError as exc:  # the lane's own debt is not the SIEM's timeout (R1)
+        except LaneBusyError as exc:  # the lane's own debt is not the SIEM's timeout
             raise LaneBusy(exc.retry_at) from exc
         except GatewayError as exc:
             sent = True
@@ -523,13 +512,11 @@ async def execute(
     keep: dict[str, Any] | None = None,
     spent_before: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run a plan: ask what it sends, reuse what is stored, and leave the new dossier if
-    something was learned. Returns the request's record (what was asked, what it cost, the
-    dossier left). The wave's caps hold as answers arrive: requests, heavy requests and
-    server time (``spent_before``: what its earlier runs already used). Run-level
-    unavailability (the SIEM stopped, deferred or tripped, the lane in debt) ends the run at
-    once with ``later`` set and no dossier: nothing was concluded, so the caller puts the
-    work back (the answers already stored are reused by its next run)."""
+    """Run a plan: ask what it sends, reuse what is stored, and leave the new dossier if something
+    was learned. Returns the request's record (what was asked, what it cost, the dossier left). The
+    wave's caps (requests, heavy requests, server time; ``spent_before`` is what earlier runs used)
+    hold as answers arrive. Run-level unavailability ends the run at once with ``later`` set and no
+    dossier: the caller puts the work back and its next run reuses the stored answers."""
     cur = prep.current
     inv, version = cur.investigation_id, cur.version
     base = {str(r["task_key"]): dict(r) for r in cur.body.get("evidence") or []
@@ -661,13 +648,12 @@ async def select(env: Env, conn: AsyncConnection, now: datetime, room: int) -> l
 
 
 async def owed(env: Env, conn: AsyncConnection, now: datetime) -> set[uuid.UUID]:
-    """The undecided investigations the wave still owes its checks: the AI investigator waits
-    for these (plan §7.3 point 3: deterministic checks before any model is asked). While the
-    day's waves are not used up, those with no wave yet and those whose wave is queued or
-    running; once they are, only those whose wave is open (it was asked for and will run). Empty
-    while a wave cannot run (the SIEM not NORMAL, the quiet hours, a kill switch, an open
-    breaker): the model does not wait for tomorrow, or for an outage to end. A wave open for
-    ``store.OWED_FOR`` holds nobody any longer."""
+    """The undecided investigations the wave still owes its checks: the AI investigator waits for
+    these (deterministic checks come before any model is asked). While the day's waves are not used
+    up: those with no wave yet or whose wave is queued or running; afterwards only those whose wave
+    is open. Empty while a wave cannot run (the SIEM not NORMAL, the quiet hours, a kill switch, an
+    open breaker): the model does not wait for an outage to end. A wave open for ``store.OWED_FOR``
+    holds nobody any longer."""
     if not await ready(env, now):
         return set()
     capped = await store.waves_today(conn, now) >= env.per_day
@@ -706,15 +692,12 @@ async def _engine_waves(
 
 
 async def run_pass(env: Env, owner: str, *, wave: bool, limit: int = 1) -> dict[str, int]:
-    """One pass of the service: claim up to ``limit`` requests and run them (one by default: a
-    wave takes two to four minutes of the lane's time, and the service's engine and
-    investigator wait for it). A person's requests go first, but after three of them in a day
-    for each of the engine's waves the engine has its turn, so one account cannot keep the
-    waves waiting; with ``wave`` on, the engine's next waves are the most important undecided
-    investigations, within the day's cap. Nothing is claimed while the SIEM is not NORMAL, in the
-    quiet hours, with the lane's kill switch thrown or the breaker open, or while the lane pays
-    off a debt: requests wait (defer, never fail). A request the SIEM could not serve is put
-    back, unspent."""
+    """One pass of the service: claim up to ``limit`` requests and run them (one by default: a wave
+    takes minutes of the lane's time). A person's requests go first, but after three of them in a
+    day for each of the engine's waves the engine has its turn; with ``wave`` on, the engine's next
+    waves are the most important undecided investigations, within the day's cap. Nothing is claimed
+    while the SIEM is not NORMAL, in the quiet hours, with the lane's kill switch thrown or the
+    breaker open, or while the lane pays off a debt: requests wait (defer, never fail)."""
     counts = {"queued": 0, "done": 0, "refused": 0, "failed": 0, "waiting": 0}
     now = env.clock()
     if (env.hold_until is not None and now < env.hold_until) or not await ready(env, now):

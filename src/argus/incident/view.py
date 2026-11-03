@@ -1,14 +1,10 @@
-"""The report for a person whose ELK account cannot read the logs (AR7, D-190).
+"""The report for a person whose ELK account cannot read the logs.
 
-What ARGUS read from the logs (the proxy, DNS and web checks' answers, the requests an actor made)
-is shown to people who may read those logs, like the lead report's (``argus.report.render``). For
-everyone else a fact derived from log content reads ``Hidden: needs log access in ELK.`` in the
-fact, in every sentence that cites it, in the evidence line's count and in the actor's request
-count; the query itself stays (it holds the addresses the alerts name, and a person without log
-access cannot run it anyway). Accounts, named in the alerts, are left out of the assets, and
-the accounts that signed in from the case's devices (AR6) are dropped, leaving each device's
-state and count. Hiding twice changes nothing more.
-"""
+A fact derived from log content reads ``Hidden: needs log access in ELK.`` in the fact, in every
+sentence that cites it, in the evidence line's count and in the actor's request count; the query
+itself stays. Accounts named in the alerts are left out of the assets and the accounts that signed
+in from the case's devices are dropped, leaving each device's state and count. Hiding twice changes
+nothing more."""
 
 from __future__ import annotations
 
@@ -80,7 +76,7 @@ def hide_logs(report: m.IncidentReport) -> m.IncidentReport:
             ),
             "signins": (),
         }
-    )  # AR6: the accounts are personal data from the logs
+    )  # the accounts are personal data from the logs
     actions = report.actions.model_copy(
         update={
             "close_when": sentence(report.actions.close_when) if report.actions.close_when else None

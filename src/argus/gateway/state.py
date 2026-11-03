@@ -1,5 +1,5 @@
 """Where the gateway keeps its shared state: kill switches, health memory, budget, breaker,
-live-test sessions, the request ledger and the probes' readings (Q-A2). Every read-modify-write
+live-test sessions, the request ledger and the probes' readings. Every read-modify-write
 is atomic, so separate ARGUS processes share one budget and one breaker (``PgStore``, in
 ``argus.gateway.pgstore``). ``MemoryStore`` is the same behaviour inside one process, for tests
 and tools.
@@ -59,8 +59,8 @@ class LedgerEntry:
     response_bytes: int
     attempts: int
     live_session: str | None = None
-    task_key: str | None = None  # the request's content address (Q-F2): joins its evidence
-    # Q-D2 (migration 0029): the lane it spent, where it went, and for a write what it was
+    task_key: str | None = None  # the request's content address: joins its evidence
+    # the lane it spent, where it went, and for a write what it was
     lane: str | None = None
     target: str = "elasticsearch"  # or "kibana"
     outbox_id: str | None = None
@@ -73,7 +73,7 @@ class LedgerEntry:
 
 @dataclass(frozen=True)
 class RecentRequest:
-    """A ledger row as the re-measurement reads it back (Q-A3)."""
+    """A ledger row as the re-measurement reads it back."""
 
     at: datetime
     component: str
@@ -87,7 +87,7 @@ class RecentRequest:
 
 @dataclass(frozen=True)
 class ProbeRow:
-    """A stored probe reading (``siem_probes``) and the state it led to (Q-A2, Q-A3)."""
+    """A stored probe reading (``siem_probes``) and the state it led to."""
 
     at: datetime
     state: str
@@ -137,7 +137,7 @@ class GatewayState(Protocol):
     async def live_use(self, session_id: str, now: datetime) -> bool: ...
     async def record(self, entry: LedgerEntry) -> None: ...
     async def record_probe(self, readings: Readings, memory: HealthMemory) -> None: ...
-    # Q-D2: the lanes other than the collector's (whose bucket is budget_admit's)
+    # the lanes other than the collector's (whose bucket is budget_admit's)
     async def lane_admit(
         self, lane: Lane, cost: CostClass, now: datetime, scale: float, lease_id: str,
         *, kept: int = 0,
@@ -148,7 +148,7 @@ class GatewayState(Protocol):
 
 
 class KibanaState(Protocol):
-    """The Kibana lane's shared state (Q-D2): stopped, paused classes, the write caps' counters
+    """The Kibana lane's shared state: stopped, paused classes, the write caps' counters
     and Kibana's own overload breaker."""
 
     async def kibana_lane(self) -> kibana_writes.KibanaLaneState: ...
@@ -167,14 +167,12 @@ class SharedState(GatewayState, KibanaState, Protocol):
 
 
 class DiscoveryStore:
-    """The store ``argus discover`` runs on (P4-D1, F1/F2): everything it reads and spends is
-    the real store's (the budget, the breakers, the ledger, the kill switches, the health memory
-    it is judged by), but it remembers no failure and no reading: ``save_health`` and
-    ``record_probe`` do nothing, and a Kibana lane change is worked out and dropped, so a 401 or
-    403 on a discovery read (a key without the privilege, a wrong space) never puts the SIEM in
-    STOP or stops the Kibana lane for the services that share the real store. The ledger row of
-    the read still says what happened. ``adopt`` is the one way in: a probe's reading (never
-    saved) is what the rest of this command's requests are admitted by."""
+    """The store ``argus discover`` runs on: everything it reads and spends is the real store's
+    (budget, breakers, ledger, kill switches, health memory), but it remembers no failure and no
+    reading: ``save_health`` and ``record_probe`` do nothing and a Kibana lane change is dropped, so
+    a 401 or 403 on a discovery read never puts the SIEM in STOP or stops the Kibana lane for the
+    services that share the real store. ``adopt`` sets the health this command's requests are
+    admitted by (a probe's reading, never saved)."""
 
     def __init__(self, inner: SharedState) -> None:
         self.inner = inner
@@ -290,7 +288,7 @@ class MemoryStore:
         self, cost: CostClass, now: datetime, scale: float, lease_id: str
     ) -> budget_core.Admission:
         async with self.lock:
-            # heavy queries one at a time across every lane; D-022's concurrency shared by all
+            # heavy queries one at a time across every lane; the concurrency limit shared by all
             waiting = lanes_core.collector_wait(
                 self.lanes, self.budget, cost, now, self.budget_config, self.lane_plan.ceiling
             )

@@ -1,11 +1,8 @@
-"""Scoring the privacy comparison (P2, D-078): did the labels make the model's answers worse?
-
-``score(gold, answers)`` compares every arm with a person's labels and with the reference
-arm (``A-fake`` by default): accuracy, recall of true positives, the true positives an arm
-misses that the reference catches, paired agreement and McNemar's exact test, cited facts
-that hold, requests for withheld information, tokens and time. ``decide(scores)`` applies
-the rule of D-078. Pure functions: no model, no database.
-"""
+"""Scoring the privacy comparison: did the labels make the model's answers worse?
+``score(gold, answers)`` compares every arm with a person's labels and with the reference arm
+(``A-fake`` by default): accuracy, recall of true positives, paired agreement and McNemar's exact
+test, cited facts that hold, requests for withheld information, tokens and time.
+``decide(scores)`` applies the decision rule. Pure functions: no model, no database."""
 
 from __future__ import annotations
 
@@ -95,7 +92,7 @@ def score(
 class Decision:
     keep: bool  # the policy as it is
     loosen: tuple[str, ...]  # rules (C arms) whose loosening closes the gap
-    report: bool  # loosening single rules does not close it: the user decides (D-078)
+    report: bool  # loosening single rules does not close it: a person decides
     reason: str
 
 
@@ -109,9 +106,9 @@ def decide(
     reference: str = "A-fake",
     margin: float = MARGIN,
 ) -> Decision:
-    """Keep the policy when it is within ``margin`` of the reference and misses no true
-    positive the reference catches. Else name every loosened arm (``C-…``) that is; if none
-    is, the user decides."""
+    """Keep the policy when it is within ``margin`` of the reference and misses no true positive
+    the reference catches. Else name every loosened arm (``C-…``) that is; if none is, a person
+    decides."""
     b, ref = scores[policy], scores[reference]
     gap = ref.accuracy - b.accuracy
     if _close(b, ref, margin):

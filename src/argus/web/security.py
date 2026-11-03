@@ -1,21 +1,12 @@
-"""The web app's request rules (Phase 3 plan §7.2, §7.5; Q-A1).
+"""The web app's request rules.
 
-- **Where a state change may come from:** any method but GET, HEAD and OPTIONS needs proof
-  that this origin's own page sent it: an ``Origin`` header equal to the origin the browser
-  addressed, or, without one, ``Sec-Fetch-Site: same-origin``. A request that says neither
-  is refused (it was let through before Q-A1); so is any ``Sec-Fetch-Site`` but
-  ``same-origin``. Non-browser clients send ``Origin`` themselves.
-- **The API is for this origin only:** a request to ``/api/`` that a browser marks as coming
-  from another site (``Sec-Fetch-Site: cross-site`` or ``same-site``) is refused whatever its
-  method (Fetch Metadata resource isolation). Navigations to pages may come from anywhere
-  (deep links from Kibana).
-- **Background requests** (``X-Argus-Background: 1``: the cost bar, the app's polls) are
-  served but never keep a session alive.
-- **Where sign-in may send the browser back to:** ``safe_next`` keeps a same-origin path of
-  printable ASCII to a page, and turns anything else into ``/``.
-- **Login CSRF:** the sign-in form carries a random token that must equal the one in a
-  short-lived, HttpOnly, SameSite=Strict cookie set with the form (``__Host-`` under TLS).
-"""
+A state change (any method but GET, HEAD and OPTIONS) needs proof that this origin's own page sent
+it: an ``Origin`` header equal to the origin the browser addressed, or ``Sec-Fetch-Site:
+same-origin``; a request that says neither is refused. A request to ``/api/`` that a browser marks
+as coming from another site is refused (page navigations may come from anywhere: deep links from
+Kibana). Background requests (``X-Argus-Background: 1``) never keep a session alive. ``safe_next``
+keeps a same-origin printable-ASCII path and turns anything else into ``/``. Login CSRF: the form's
+random token must equal the one in a short-lived HttpOnly SameSite=Strict cookie."""
 
 from __future__ import annotations
 
@@ -43,7 +34,7 @@ def signin_cookie(tls: bool) -> str:
 
 
 def device_cookie(tls: bool) -> str:
-    """The device cookie's name: it marks a browser that signed in well once (plan §7.2)."""
+    """The device cookie's name: it marks a browser that signed in well once."""
     return "__Host-argus_device" if tls else "argus_device"
 
 
@@ -121,5 +112,5 @@ CSP = (
     " object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 )
 # The sign-in and step-up pages run no script at all, so no compromised dependency can fake a
-# password prompt there (plan §7.5): the same policy with scripts and connections switched off.
+# password prompt there: the same policy with scripts and connections switched off.
 CSP_NO_SCRIPT = CSP.replace("script-src 'self'", "script-src 'none'; connect-src 'none'")

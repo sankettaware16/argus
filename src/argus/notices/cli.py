@@ -1,4 +1,4 @@
-"""``argus notices ...`` (Q-H4): the pass, what is on, and the user's test message.
+"""``argus notices ...``: the pass, what is on, and a test message.
 
 Everything is computed from ARGUS's own database; nothing here asks the SIEM. Nothing is e-mailed
 unless ``notices.enabled`` is true, a recipient is named and the relay is set: without them
@@ -25,8 +25,7 @@ from argus.notices import mail, run, triggers
 
 notices_app = typer.Typer(
     no_args_is_help=True,
-    help="Minimal notices: a link, a severity and a count by e-mail (Q-H4). Off until you switch"
-    " them on.",
+    help="Minimal notices: a link, a severity and a count by e-mail. Off until you switch them on.",
 )
 
 

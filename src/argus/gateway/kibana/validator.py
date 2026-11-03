@@ -1,16 +1,10 @@
-"""The Kibana lane's validator (Q-D2): it inspects the **final** request, exactly as the
-transport would send it (method, path, URL parameters, body bytes), and refuses anything
-outside the contract before a byte is sent.
+"""The Kibana lane's validator: it inspects the **final** request, exactly as the transport would
+send it, and refuses anything outside the contract before a byte is sent.
 
-- the route: ``paths.refusal`` (DELETE, ``/internal/``, outside the space, configuration
-  writes, pushes) and the path must be the one ``paths.wire_path`` builds for the template;
-- reads are GETs without a body; writes are POST or PATCH with a body;
-- URL parameters from the template's allowlist only, each once, plain text;
-- the body: at most ``MAX_BODY_BYTES``, plain JSON, valid against the template's strict model
-  when read back from the exact bytes, and none of the fields ARGUS never sends (assignees,
-  custom fields, a category, and in a PATCH ``settings``, a connector or an owner);
-- an attachment's alert indices are the space's own backing indices, exactly (the prefix and
-  six digits: another space whose id starts with this one's is not this space).
+It checks the route (``paths.refusal`` and ``paths.wire_path``), that reads are GETs without a body
+and writes POST or PATCH with one, URL parameters from the template's allowlist, and the body: size
+cap, plain JSON valid against the strict model, none of the fields ARGUS never sends, and an
+attachment's alert indices being the space's own backing indices.
 """
 
 from __future__ import annotations
@@ -34,7 +28,7 @@ MAX_PARAM_CHARS = 256
 REPEATED_PARAMS = frozenset({"tags", "reporters"})  # Kibana reads a repeated key as a list
 NEVER_SENT = frozenset({"assignees", "customFields", "category"})
 NEVER_PATCHED = frozenset({"settings", "connector", "owner", "syncAlerts"})
-# The case team (AR8, D-158): only the lead opens a case and touches alerts; only the reporter
+# The case team: only the lead opens a case and touches alerts; only the reporter
 # uploads files. Every other team write may be any of the six users'.
 TEAM_ONLY: dict[str, frozenset[str]] = {
     "team.create": frozenset({TEAM_LEAD}),
@@ -71,7 +65,7 @@ def encode(body: Any) -> bytes:
 
 
 def request_hash(final: KFinal) -> str:
-    """The payload's hash: what an outbox row and an approval are bound to (plan §7.1)."""
+    """The payload's hash: what an outbox row and an approval are bound to."""
     document = {
         "template": f"{final.spec.name}@{final.spec.version}",
         "method": final.method,

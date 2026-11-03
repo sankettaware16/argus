@@ -1,11 +1,8 @@
-"""What's new (Q-F2, plan §7.3 point 6): a pure diff of two views of a dossier.
+"""What's new: a pure diff of two views of a dossier.
 
-A ``View`` holds facts (by key), checks (by E-id) and gaps (by key); the diff lists what the
-second view adds to the first: new facts, signals now known, signals that changed, steps
-answered, gaps closed and opened, and the checks that are new or came to something else.
-Views are mappings, so the order facts arrived in never matters, and every list in the result
-is sorted by key: ``diff(x, x)`` is empty, and ``diff`` of reordered inputs is the same.
-"""
+A ``View`` holds facts (by key), checks (by E-id) and gaps (by key); the diff lists what the second
+view adds to the first. Views are mappings and every list is sorted by key, so ``diff(x, x)`` is
+empty and the order facts arrived in never matters."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
-"""The Reporter's deterministic text (Q-H3): written from the figures only. Every figure is
-shown exactly: counts as they are, percentages to the one decimal they have, durations in whole
-units (``1 h 5 min 3 s``), ages in whole hours. Nothing is rounded here and no word is chosen
-by a model. Times are IST, 12-hour (people read IST); the period is a UTC day, said so."""
+"""The Reporter's deterministic text, written from the figures only. Every figure is shown
+exactly: counts as they are, percentages to the one decimal they have, durations in whole units
+(``1 h 5 min 3 s``), ages in whole hours. Nothing is rounded here and no word is chosen by a
+model. Times are in the site's zone, 12-hour; the period is a UTC day, said so."""
 
 from __future__ import annotations
 

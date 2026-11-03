@@ -1,25 +1,13 @@
-"""The incident report's contract (AR7, D-190): ``incident-report@1``.
+"""The incident report's contract: ``incident-report@1``.
 
-A report is a structured, versioned object, stored whole (``incident_reports.body``) and served
-by ``/api/v1``. The parts are the ones the security team writes by hand (the
-hand-made reference case): summary, ARGUS's verdict with its confidence, timeline, actors and
-affected assets, evidence (each line with the exact query behind it), hypotheses, indicators and
-recommended actions. Rendering it (the Kibana comments, the PDF, the CSVs) is a function of this
-object and nothing else.
-
-Rules the model itself keeps, so a stored report can be trusted whoever wrote it:
-
-* **Counts, times and lists come from code.** A :class:`ReportFact` is one verified sentence
-  written by code with the figures it uses in ``numbers``; narrative sentences
-  (:class:`ReportSentence`) cite facts by id, and :func:`check` refuses a report whose sentence
-  cites nothing, cites a fact that is not there, or writes a number (in digits) that none of the
-  facts it cites writes.
-* **Every evidence line has a query** (:class:`ReportQuery`: text a person can paste, and a
-  read-only Discover link). The query is text only: building it never asks the SIEM anything.
-* Times are UTC and timezone-aware; the words say IST, 12-hour, as the rest of ARGUS.
-* Text that came from logs or alerts (user agents, paths, names) is untrusted: it is capped here
-  and the pages show it as untrusted text.
-"""
+A report is a structured, versioned object, stored whole (``incident_reports.body``) and served by
+``/api/v1``: summary, ARGUS's verdict with its confidence, timeline, actors and affected assets,
+evidence (each line with the exact query behind it), hypotheses, indicators and recommended
+actions. Rendering it is a function of this object and nothing else. The model keeps the rules
+itself, so a stored report can be trusted: counts, times and lists come from code (a
+:class:`ReportFact` carries its figures; :func:`check` refuses a sentence that cites nothing, cites
+a missing fact or writes a number no cited fact writes); every evidence line has a query; times are
+UTC and timezone-aware; text from logs or alerts is untrusted and capped."""
 
 from __future__ import annotations
 
@@ -32,7 +20,7 @@ from typing import Any, Final, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA: Final = "incident-report@1"
-WRITER: Final = "incident-writer@3"  # the writer's version: a new one is a new report (3: D-287)
+WRITER: Final = "incident-writer@3"  # the writer's version: a new one is a new report
 HIDDEN: Final = "Hidden: needs log access in ELK."
 
 # The web's Outcome order: typing caches equal Literals as one, so a second order flips the spec.
@@ -129,7 +117,7 @@ class ReportHeader(_M):
     detected_by: str = Field(max_length=500)
     first_alert_at: AwareDatetime | None
     last_alert_at: AwareDatetime | None
-    tags: tuple[str, ...] = ()  # the Kibana case's key:value tags (AR8 sends them)
+    tags: tuple[str, ...] = ()  # the Kibana case's key:value tags
 
 
 class ReportNotice(_M):
@@ -178,7 +166,7 @@ class ReportPhase(_M):
 
 
 class ReportDayRow(_M):
-    day: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")  # an IST day
+    day: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")  # a local day
     counts: tuple[int, ...]  # one for each column of the timeline
     total: int
 
@@ -200,7 +188,7 @@ class ReportActor(_M):
     kind: Literal["ip", "host", "user"]
     role: str = Field(max_length=40)  # scout, collector, prober, beacon source, ...
     role_words: str = Field(max_length=400)
-    inside: bool  # a campus address
+    inside: bool  # an internal address
     network: str | None = Field(default=None, max_length=200)
     country: str | None = Field(default=None, max_length=100)
     user_agents: tuple[str, ...] = ()
@@ -209,7 +197,7 @@ class ReportActor(_M):
     alerts: int = 0
     requests: int | None = None
     sentence: ReportSentence | None = None
-    # what ARGUS holds about an outside address (D-240): on the local threat lists, what outside
+    # what ARGUS holds about an outside address: on the local threat lists, what outside
     # services say, and whether the web server gave it successful (2xx) answers (None: no web
     # check or alert shows it) and for which paths (read from the logs: hidden without log access)
     listed: bool = False
@@ -241,7 +229,7 @@ class ReportAsset(_M):
     value: str = Field(max_length=300)
     label: str | None = Field(default=None, max_length=200)  # the domain it reached, the site, ...
     alerts: int = 0
-    days: int = 0  # IST days with an alert
+    days: int = 0  # local days with an alert
     first_seen: AwareDatetime | None = None
     last_seen: AwareDatetime | None = None
 
@@ -453,13 +441,13 @@ def content_hash(report: IncidentReport) -> str:
     """What the report says, without when it was made and without a model's wording: two
     reports of the same evidence have the same hash, so the same case yields the same report until
     its evidence changes. The prose is left out (words a model chose are not evidence). A report
-    without accounts hashes as it did before AR6."""
+    without accounts hashes as one made before the accounts existed."""
     return _hash(report, users=bool(report.users.devices))
 
 
 def core_hash(report: IncidentReport) -> str:
     """The hash of the report without its accounts (``users``): two versions that differ only in
     who signed in from the case's devices have the same core. A person's confirm of a report holds
-    for a later version with the same core (D-225): the accounts are leads read from the logs, not
+    for a later version with the same core: the accounts are leads read from the logs, not
     what the person confirmed."""
     return _hash(report, users=False)

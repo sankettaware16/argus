@@ -1,21 +1,9 @@
-"""AR2b's steps of an assessment pass (D-160): store the flags of new dossiers, then suggest
-cases from evidence across investigations. With outside threat intel (AR3, D-165) the pass also
-looks up the external destinations of beacon-flagged investigations at VirusTotal (a few a pass,
-within a daily budget) and adds the flag "flagged by outside threat intel" to the investigations
-whose destination it flags. AR2c (D-168) adds the families: the registered parents of many names
-that many campus devices reach, looked up once each, with the flags a flagged parent, its
-operator and a rare campaign shape give (``argus.campaigns``). AR4b (D-169) adds the known
-infections: for each case whose owner was told, the investigations of its devices are counted
-(and kept out of Needs attention and the AI queue) or, when something changed since the notice,
-raised with the reason (``argus.cases.knownrun``).
-
-This sits beside the packages that build what a model sees (``assess``, ``agent``, ``llm``,
-``context``, ``tuning``), not in them: those never import the case record (a test holds it, plan
-Q-B3: notes are for people only), and the suggester is a case writer. ``argus assess run`` calls
-:func:`run` every pass; the case step runs at most every :data:`SUGGEST_EVERY`. Case titles (D-230)
-are made again from the cases' facts in the same pass, at most that often too
-(``argus.cases.titling``): ARGUS's own titles only.
-"""
+"""The steps of an assessment pass beyond assessing: store the flags of new dossiers, look up the
+external destinations of beacon-flagged investigations at VirusTotal, add the family flags
+(``argus.campaigns``), decide the notified cases' investigations (``argus.cases.knownrun``),
+refresh case titles and suggest cases. It sits beside the packages that build what a model sees,
+which never import the case record. ``argus assess run`` calls :func:`run` every pass; the case
+step runs at most every :data:`SUGGEST_EVERY`."""
 
 from __future__ import annotations
 
@@ -49,7 +37,7 @@ class Done:
     warned: list[str] = field(default_factory=list)  # lines for the error stream
     suggested_at: datetime | None = None  # when the case step last ran
     titled_at: datetime | None = None  # when the titles were last refreshed
-    campaigns: tuple[Campaign, ...] = ()  # what the family step found this pass (AR2c)
+    campaigns: tuple[Campaign, ...] = ()  # what the family step found this pass
 
 
 async def run(
@@ -69,7 +57,7 @@ async def run(
     titled_last: datetime | None = None,
 ) -> Done:
     """Read the evidence of new dossiers (every pass; with ``outside``, the cached outside
-    answers too), look up beacon destinations and add what they flag (AR3), then suggest cases
+    answers too), look up beacon destinations and add what they flag, then suggest cases
     (when ``suggesting`` and the last time was :data:`SUGGEST_EVERY` ago). A failure is said and
     never stops the pass: the next one tries again."""
     done = Done(suggested_at=last, titled_at=titled_last)
@@ -99,7 +87,7 @@ async def run(
 
 
 async def _titles(db: AsyncEngine, ctx: titling.Context, now: datetime, done: Done) -> None:
-    """Case titles (D-230): ARGUS's own titles made again from the case's facts, changed when they
+    """Case titles: ARGUS's own titles made again from the case's facts, changed when they
     differ (a person's title is never touched). A failure is said and the pass goes on."""
     try:
         report = await titling.refresh(db, ctx)
@@ -113,8 +101,9 @@ async def _titles(db: AsyncEngine, ctx: titling.Context, now: datetime, done: Do
 
 
 async def _known(db: AsyncEngine, ctx: knownrun.Context, now: datetime, done: Done) -> None:
-    """AR4b's part of a pass (D-169): decide the investigations of the notified cases' devices,
-    note a moved address, suggest the reminders. A failure is said and the case step goes on."""
+    """The known infections' part of a pass: decide the investigations of the notified
+    cases' devices, note a moved address, suggest the reminders. A failure is said and the case
+    step goes on."""
     try:
         report = await knownrun.run(db, ctx, now)
     except Exception as exc:
@@ -129,10 +118,10 @@ async def _outside(
     db: AsyncEngine, outside: Outside, shared: Shared, classifier: IpClassifier | None,
     now: datetime, done: Done, window: timedelta, resolvers: Sequence[IPNetwork] = (),
 ) -> None:  # fmt: skip
-    """AR3's and AR2c's part of a pass: the family look-ups and their flags, the beacon look-ups,
-    then the flags they give, then the cache's upkeep. A failure of the family step is said and
-    never stops AR3's part (a schema that is not upgraded yet, a bad window), and a failure of
-    that part is said and the case step goes on."""
+    """The outside look-ups' part of a pass: the family look-ups and their flags, the beacon
+    look-ups, then the flags they give, then the cache's upkeep. A failure of the family step is
+    said and never stops the beacon look-ups (a schema that is not upgraded yet, a bad window),
+    and a failure of that part is said and the case step goes on."""
     try:
         if classifier is not None:
             families, found = await campaign_lookups.run(
@@ -156,7 +145,7 @@ async def _outside(
 
 
 def titles_for(settings: Any, privacy: Any) -> titling.Context | None:
-    """What the case titles' refresh needs (D-230): the asset map's classes and the campus domains,
+    """What the case titles' refresh needs: the asset map's classes and the organisation's domains,
     or None when ``cases.retitle`` is off. Built here, beside the case record, for the same reason
     as :func:`outside_for`: ``assess`` never imports it."""
     if not settings.cases.retitle:
@@ -167,9 +156,9 @@ def titles_for(settings: Any, privacy: Any) -> titling.Context | None:
 def known_for(
     settings: Any, privacy: Any, shared: Shared, view: View | None
 ) -> knownrun.Context | None:
-    """The known infections' context (AR4b, D-169), the one builder for ``argus assess run`` and
-    ``argus case known run`` (D-181): the asset map's classes, the shared list, the rules from
-    ``notified``, the outside cache's view and the check that keeps campus names out of a case's
+    """The known infections' context, the one builder for ``argus assess run`` and
+    ``argus case known run``: the asset map's classes, the shared list, the rules from
+    ``notified``, the outside cache's view and the check that keeps internal names out of a case's
     destinations. None without the asset map (the privacy layer needs it too)."""
     classifier = getattr(privacy, "classifier", None)
     if classifier is None:
@@ -181,7 +170,7 @@ def known_for(
 def outside_for(
     settings: Any, privacy: Any, db: AsyncEngine
 ) -> tuple[Outside, Shared, Callable[[], Awaitable[None]]]:
-    """Outside threat intel for ``argus assess run`` (AR3, D-165): the lookup service (a source
+    """Outside threat intel for ``argus assess run``: the lookup service (a source
     without a key is off), the shared-infrastructure list the beacon look-ups skip, and the
     function that closes its client. Each key is read from the settings here only, and no request
     is made until a lookup is asked. Built here, beside the case record, because the shared list

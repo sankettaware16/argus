@@ -1,13 +1,9 @@
-"""Evidence packs (plan §5.4, D-054): what to ask about an investigation, and what it means.
+"""Evidence packs: what to ask about an investigation, and what it means.
 
-A pack is a plain object with a name and a version. The framework calls ``local_signals``
-once, ``plan`` once per wave (up to ``max_waves``), then ``signals``; it allocates the pack's
-declared per-run budget, runs the tasks through the gateway and stores the evidence. Tasks
-travel through the graph state as plain dicts (``TaskSpec.ref``) and are rebuilt from the
-template registry on the other side, so the state never holds objects.
-
-Phase 1 has one pack, the local-only stub: facts from the stored alerts and the entity
-index, no SIEM query. R10 replaces it with the generic pack.
+A pack is a plain object with a name and a version. The framework calls ``local_signals`` once,
+``plan`` once per wave (up to ``max_waves``), then ``signals``; it allocates the pack's per-run
+budget, runs the tasks through the gateway and stores the evidence. Tasks travel through the graph
+state as plain dicts (``TaskSpec.ref``). The stub pack is local-only; the generic pack replaces it.
 """
 
 from __future__ import annotations
@@ -127,7 +123,7 @@ class Pack(ABC):
 
 
 class StubPack(Pack):
-    """Phase 1's only pack until R10: what ARGUS's own store says, no SIEM query."""
+    """The local-only pack: what ARGUS's own store says, no SIEM query."""
 
     name = "stub"
     version = 1
@@ -154,8 +150,8 @@ class StubPack(Pack):
 
 def related(version: int, total: int, supernodes: int) -> SignalValue:
     """How many investigations share an entity with this one. Entities in more than 200
-    investigations are left out (D-051), so with any of them the count is a lower bound,
-    and none found is not known to be none (D-023)."""
+    investigations are left out, so with any of them the count is a lower bound,
+    and none found is not known to be none."""
     if not supernodes:
         return local("related_investigations", version, total)
     if total > 0:
@@ -164,15 +160,15 @@ def related(version: int, total: int, supernodes: int) -> SignalValue:
     return unknown("related_investigations", version, "supernode_entities")
 
 
-# The ident of a dossier derived again after the deterministic wave or a person's "Check more"
-# (Q-F3): the base pack's ident with ``+wave.<round>`` after its name.
+# The ident of a dossier derived again after the deterministic wave or a person's "Check more":
+# the base pack's ident with ``+wave.<round>`` after its name.
 WAVE_IDENT = re.compile(
     r"^(?P<name>[a-z0-9_.-]+)\+wave\.(?P<round>[1-9][0-9]?)@(?P<version>[0-9]+)$"
 )
 
 
 class WavePack(Pack):
-    """The base pack read over more evidence (Q-F3): a dossier derived again after the
+    """The base pack read over more evidence: a dossier derived again after the
     deterministic wave or a person's "Check more" is one more dossier of the same investigation
     version (a dossier is never changed), under an ident of its own, ``generic+wave.1@12``.
     Everything is the base pack's; it plans nothing (its evidence is already asked)."""
@@ -217,8 +213,8 @@ class WavePack(Pack):
 
 
 class PackRegistry:
-    """Which pack works on an investigation. Phase 1: every rule is the generic family
-    (the rules registry, R9, will map rules to families)."""
+    """Which pack works on an investigation. For now every rule is the generic family
+    (the rules registry may later map rules to families)."""
 
     def __init__(self, packs: Sequence[Pack], default: str = "generic") -> None:
         self._by_family = {pack.family: pack for pack in packs}
@@ -237,7 +233,7 @@ class PackRegistry:
         found = self._by_ident.get(ident)
         if found is not None:
             return found
-        wave = WAVE_IDENT.match(ident)  # a wave dossier reads as its base pack does (Q-F3)
+        wave = WAVE_IDENT.match(ident)  # a wave dossier reads as its base pack does
         base = None if wave is None else self._by_ident.get(f"{wave['name']}@{wave['version']}")
         return None if wave is None or base is None else WavePack(base, int(wave["round"]))
 
@@ -250,9 +246,9 @@ def default_registry(
     proxy_aggregations: bool = False,
     clock: Any = None,
 ) -> PackRegistry:
-    """Phase 1: the generic pack (R10) for every rule; ``classifier`` is the asset map's;
+    """The generic pack for every rule; ``classifier`` is the asset map's;
     ``remote_ti``/``log_queries``/``proxy_aggregations``: its modules may ask the SIEM (each
-    after its own first production run, D-056, D-069)."""
+    after its own first production run)."""
     from argus.context.generic import GenericPack
 
     return PackRegistry(

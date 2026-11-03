@@ -1,4 +1,4 @@
-"""The "Your access" page (Q-E2, plan §7.2): what this person may do in ARGUS, why, how fresh
+"""The "Your access" page: what this person may do in ARGUS, why, how fresh
 that is, and what to ask for when it is not enough, in plain words. Built from the session
 alone (no request to ELK: the page never waits)."""
 

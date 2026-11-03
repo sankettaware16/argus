@@ -1,16 +1,8 @@
-"""AR6's review fixes (D-222 to D-227): what the sign-in lookups can say about a failure, and a
-report's hash without its accounts.
+"""Review fixes for the sign-ins: lookup failure reasons, and a report hash without accounts
 
-* ``signin_lookups`` gains ``unnamed`` (sign-in events of the day that carried no account name: the
-  lookup is incomplete, ``unnamed_events``) and ``store_failures`` (how many times in a row ARGUS
-  could not store the answer: ``store_failed``), and its ``reason`` may also be ``store_failed``,
-  ``unnamed_events`` and ``index_missing`` (the day's index is not there though the logs should be).
-* ``incident_reports`` gains ``core_hash``: the hash of the report without its ``users`` section, so
-  that a person's confirm of a report stays valid for a later version that differs only in the
-  accounts (D-225). A column added to an append-only table; rows written before it have none, and
-  the case team computes the hash from the stored body then.
-
-The role names are written out, not imported (see 0003).
+``signin_lookups`` gains ``unnamed`` and ``store_failures`` and more ``reason`` values.
+``incident_reports`` gains ``core_hash``: the hash without its ``users`` section, so a person's
+confirm stays valid for a later version that differs only in the accounts.
 
 Revision ID: 0057
 Revises: 0056

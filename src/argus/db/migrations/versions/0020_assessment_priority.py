@@ -1,4 +1,4 @@
-"""Assessments: a priority (D-097), so that a person's request is claimed first
+"""Assessments: a priority, so that a person's request is claimed first
 
 Revision ID: 0020
 Revises: 0019

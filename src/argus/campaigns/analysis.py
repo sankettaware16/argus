@@ -1,32 +1,8 @@
-"""What the families and the outside answers say together (AR2c, D-168, D-170): operators, shared
-flagged servers, campaigns and the flags they give investigations.
-
-* **Reading.** What VirusTotal says about a family's parent (its engines, whether it ranks among
-  the popular sites, its age, name servers and addresses) and, from the look-up of its first public
-  address, the network that address is in (:class:`Reading`). "Popular" means a web-popularity
-  list (Majestic, Tranco, Cloudflare Radar's top buckets) ranks it within the last year; DNS-volume
-  lists such as Cisco Umbrella rank command-and-control domains too (D-174).
-* **Detected.** A registered parent that at least ``threshold`` engines call malicious and that no
-  popularity list ranks (a popular site flagged by a few engines is a false positive far more often
-  than a campaign): every name under it is a detection of that parent, and every investigation
-  holding such a name has the flag "flagged by outside threat intel".
-* **Operator** (D-174). Candidate families that no popularity list ranks are tied only by an
-  identical set of two or more name servers (an account's or a zone's own pair), by the same /24
-  of the first address outside the shared networks, or by the same autonomous system unless it is
-  one of the big hosters in the shared-infrastructure list. A family tied to a detected one has
-  the flag "same operator as a flagged destination", which raises like a detection.
-* **Campaign shape.** At least :data:`MIN_FLAG_HOSTS` campus hosts and :data:`MIN_FLAG_NAMES`
-  names under a parent no popularity list ranks: the flag "many campus devices reach one rare
-  domain". By itself it is one flag; with a detection or an operator tie it puts the
-  investigations in Needs attention (D-164's two-signal rule).
-* **Campaign.** A detected parent, or an address VirusTotal flags, that :data:`MIN_SERVER_HOSTS`
-  or more campus hosts reached, together with whatever is tied to it, is one campaign: the
-  investigations of all of it, the hosts, the domains and servers, the infrastructure they share
-  and the benign families of the same alerts (popular, no detection): in its own investigations,
-  or raised by the same rule. An address that a popular family points at is no flagged server.
-
-Pure: the world (sightings, cached readings, flagged servers) is given.
-"""
+"""What the families and the outside answers say together: detected parents, operator ties (an
+identical set of name servers, the same /24 or autonomous system unless a big hoster), the campaign
+shape (many hosts and names under one rare parent), campaigns (a detected parent or flagged address
+that several hosts reached, with everything tied to it) and the flags these give investigations.
+Pure: the world (sightings, cached readings, flagged servers) is given."""
 
 from __future__ import annotations
 
@@ -45,9 +21,9 @@ from argus.campaigns.families import Family, Key, Sighting
 from argus.cases.membership import NO_SHARED, Shared
 from argus.outside import facts
 
-MIN_FLAG_HOSTS = 3  # campaign shape: campus hosts under one rare parent ...
+MIN_FLAG_HOSTS = 3  # campaign shape: internal hosts under one rare parent ...
 MIN_FLAG_NAMES = 20  # ... and distinct names under it
-MIN_SERVER_HOSTS = 2  # campus hosts that make a flagged server a campaign (the Amadey shape)
+MIN_SERVER_HOSTS = 2  # internal hosts that make a flagged server a campaign
 MIN_NAME_SERVERS = 2  # name servers in an identical set that tie two families
 # name servers a DNS host gives each account its own pair of (a shared host otherwise)
 ACCOUNT_NAME_SERVERS = (".ns.cloudflare.com",)
@@ -88,7 +64,7 @@ class Reading:
 
     def benign(self) -> bool:
         """Popular on the web and no engine calls it malicious: what ARGUS recommends closing. Age
-        alone is not enough (a command-and-control domain registered in 2019 is old, D-174)."""
+        alone is not enough (a command-and-control domain registered in 2019 is old)."""
         return self.found and self.malicious == 0 and self.popular
 
 
@@ -179,7 +155,7 @@ def name_server_set(reading: Reading, shared: Shared) -> frozenset[str]:
 
 
 def operator_keys(reading: Reading, shared: Shared) -> frozenset[tuple[str, str]]:
-    """What can tie a family to another (D-174), and nothing else: an identical set of two or more
+    """What can tie a family to another, and nothing else: an identical set of two or more
     name servers (``ns``: Cloudflare gives each account a fixed pair and Route53 each zone its own
     set, so it stands even when the provider is a shared domain; a pool of servers that merely
     share a registered domain ties nothing), the /24 of the first address outside the shared
@@ -211,14 +187,14 @@ class World:
     sightings: tuple[Sighting, ...]
     readings: Mapping[str, Reading] = field(default_factory=dict)  # by registered parent
     servers: Mapping[str, frozenset[uuid.UUID]] = field(default_factory=dict)  # flagged address
-    # the campus devices of each investigation
+    # the internal devices of each investigation
     hosts: Mapping[uuid.UUID, frozenset[Key]] = field(default_factory=dict)
     threshold: int = 3
 
 
 @dataclass(frozen=True)
 class Campaign:
-    """Campus devices and the infrastructure they reached that belong together."""
+    """Internal devices and the infrastructure they reached that belong together."""
 
     members: frozenset[uuid.UUID]
     hosts: frozenset[Key]
@@ -228,7 +204,7 @@ class Campaign:
     infrastructure: tuple[str, ...]  # the networks and name servers that tie them, in words
     benign: tuple[str, ...]  # benign families in the same alerts (see ``_campaign``)
     random_share: float  # of the names under its domains that look random
-    # the campus devices of each member investigation (the suggester treats them as its actors)
+    # the internal devices of each member investigation (the suggester treats them as its actors)
     member_hosts: Mapping[uuid.UUID, frozenset[Key]] = field(default_factory=dict)
 
     def keys(self) -> frozenset[Key]:

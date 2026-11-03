@@ -1,11 +1,11 @@
-"""Which investigation an alert belongs to (plan §7.1, D-051, D-053): a pure function of the
-alert, so order, batching and concurrency cannot change it.
+"""Which investigation an alert belongs to: a pure function of the alert, so order, batching
+and concurrency cannot change it.
 
-An investigation is one rule, one **actor** and one day (D-053): of the rule's key fields only
-the ones that say who acted (ECS ``source.*``, ``client.*``, ``host.*``, ``user.*``) are kept;
-what the actor touched (destinations, ports, URLs) is listed inside the investigation, not
-split into more of them. No per-rule setting: it works the same for rules added tomorrow. A
-key without an actor field is kept whole."""
+An investigation is one rule, one **actor** and one day: of the rule's key fields only the ones
+that say who acted (ECS ``source.*``, ``client.*``, ``host.*``, ``user.*``) are kept; what the
+actor touched (destinations, ports, URLs) is listed inside the investigation, not split into
+more of them. No per-rule setting: it works the same for rules added tomorrow. A key without an
+actor field is kept whole."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from argus import site
 from argus.normalize import NormalizedAlert
 from argus.normalize.canon import canonical_json
 
-GROUPING_VERSION = "2"  # 2: actor keys (D-053)
+GROUPING_VERSION = "2"  # changes whenever the grouping key rules change
 NAMESPACE = uuid.UUID("6f0c4a52-6a53-5b5e-9a43-7a2b9c1d0e11")  # fixed forever: ids depend on it
 ANCHOR_DAY = datetime(2026, 1, 2)  # noqa: DTZ001 - the local midnight the 24-hour buckets are counted from
 # the days of 2026 whose offsets say which is the zone's smallest (its standard time)
@@ -48,13 +48,11 @@ def standard_offset(zone: ZoneInfo) -> timedelta:
 
 def anchor() -> datetime:
     """The instant the 24-hour buckets are counted from: 2026-01-02 00:00 in the site's zone
-    (``site.timezone``) **on standard time**, the zone's smallest offset of the year. For a zone
-    without clock changes (Asia/Kolkata) that is 2026-01-01 18:30 UTC, the anchor the investigation
-    ids were made with. Buckets are fixed 24 hours, so in the season with daylight saving a bucket
-    starts at 01:00 local (00:30 for Lord Howe), never the evening before: the date of a bucket's
-    start is always the calendar day it is named for (``assess.patterns.day_of``), in a zone that is
-    ahead of UTC in January (Sydney) as in one that is behind it (New York). Every investigation id
-    depends on the anchor: the zone is chosen once, before the first alert is stored."""
+    (``site.timezone``) **on standard time**, the zone's smallest offset of the year. Buckets are
+    fixed 24 hours, so in the season with daylight saving a bucket starts at 01:00 local, never the
+    evening before: the date of a bucket's start is always the calendar day it is named for
+    (``assess.patterns.day_of``). Every investigation id depends on the anchor: the zone is chosen
+    once, before the first alert is stored."""
     return _anchor_of(site.zone_name())
 
 
@@ -77,7 +75,7 @@ def investigation_id(rule_id: str, key: str, start: datetime) -> uuid.UUID:
 
 
 def group_key(alert: NormalizedAlert) -> str:
-    """The actor part of the R3 key (or the whole key when it names no actor), or the alert
+    """The actor part of the rule's key (or the whole key when it names no actor), or the alert
     itself when it has to stand alone (singleton)."""
     key = alert.group_key
     if key.singleton is not None or key.canonical is None:

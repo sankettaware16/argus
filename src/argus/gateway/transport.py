@@ -1,7 +1,7 @@
 """Sending a validated request: the only code that opens a connection to Elasticsearch.
 
 ``HttpxTransport`` talks to the SIEM (or the es-local replica) over TLS with the pinned CA
-(D-033) and an API key, never through a proxy, never following redirects, with one deadline
+and an API key, never through a proxy, never following redirects, with one deadline
 for the whole exchange and a cap on the answer's size. It does not retry: the gateway decides.
 """
 
@@ -28,7 +28,7 @@ NODE_STATS_PATH = "/_nodes/_local/stats/fs,jvm,os,thread_pool,breaker"
 # index.uuid makes every existing index answer: Elasticsearch leaves out an index with no
 # matching setting, so blocks alone cannot tell "not blocked" from "not there".
 BLOCKS_SETTINGS = "index.blocks.*,index.uuid"
-# The security index's health: the check before a 401 counts as a refusal (plan §7.2, Q-E2).
+# The security index's health: the check before a 401 counts as a refusal.
 SECURITY_HEALTH_PATH = "/_cluster/health/.security"
 
 
@@ -59,7 +59,7 @@ def _names(names: tuple[str, ...]) -> str:
 
 def wire_path(request: FinalRequest) -> tuple[str, str]:
     """(method, path) for a validated request; the gateway alone builds paths. Exhaustive: every
-    endpoint has its own case, and one that has none is an error, never a fallback (Q-D2)."""
+    endpoint has its own case, and one that has none is an error, never a fallback."""
     endpoint = request.spec.endpoint
     match endpoint:
         case Endpoint.INFO:

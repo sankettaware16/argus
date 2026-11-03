@@ -32,12 +32,12 @@ from argus.gateway.service import (
 )
 
 siem_app = typer.Typer(
-    no_args_is_help=True, help="The Elastic Gateway: kill switches, health, budget (R4)."
+    no_args_is_help=True, help="The Elastic Gateway: kill switches, health, budget."
 )
 live_app = typer.Typer(
-    no_args_is_help=True, help="Live-test sessions against the SIEM, started by a person (§10)."
+    no_args_is_help=True, help="Live-test sessions against the SIEM, started by a person."
 )
-lanes_app = typer.Typer(no_args_is_help=True, help="The lanes' server-time buckets (D-022, D-243).")
+lanes_app = typer.Typer(no_args_is_help=True, help="The lanes' server-time buckets.")
 siem_app.add_typer(lanes_app, name="lanes")
 
 ConfigOption = Annotated[
@@ -69,7 +69,7 @@ RESUME_NEEDS_OWNER = (
 
 
 def owner_engine_for(settings: Settings, command: str) -> AsyncEngine:
-    """The owner's engine, for a resume (migration 0027 refuses one from any other role); exit
+    """The owner's engine, for a resume (the database refuses one from any other role); exit
     code 2 with how to run it when the owner's password is not configured here."""
     from argus.db.engine import create_engine
 
@@ -104,7 +104,7 @@ def _switch(component: str, stopped: bool, reason: str | None, config: Path | No
         typer.echo(f"error: --component is one of {', '.join(SWITCHES)}", err=True)
         raise typer.Exit(2)
     settings = load(config)
-    # a stop runs as the runtime login; a resume only as the owner (migration 0027, Q-A5)
+    # a stop runs as the runtime login; a resume only as the owner (the database enforces it)
     command = f"siem resume --component {component}"
     engine = None if stopped else owner_engine_for(settings, command)
 
@@ -255,7 +255,7 @@ def lanes_fill(
     ),
     config: ConfigOption = None,
 ) -> None:
-    """Top one lane's bucket up to its capacity (a person's command; D-243). A bucket stored
+    """Top one lane's bucket up to its capacity (a person's command). A bucket stored
     before a lane had a burst holds a minute's share and takes hours to grow into it, so the 60 s
     burst of the Kibana write lane would not exist after the deploy until then. Allowed only
     while the SIEM's stored health is NORMAL at full scale (the burst exists only then); never over
@@ -324,7 +324,7 @@ def live_start(
     minutes: Annotated[int, typer.Option(min=1, max=60)] = 20,
     config: ConfigOption = None,
 ) -> None:
-    """Open a live-test session: only a person at a terminal can, outside 00:00 to 01:30 UTC."""
+    """Open a live-test session: only a person at a terminal can, outside the quiet hours."""
     if not _human_at_a_terminal():
         typer.echo("error: a live session is started by a person at a terminal", err=True)
         raise typer.Exit(2)

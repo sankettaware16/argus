@@ -1,5 +1,5 @@
 """The collector as a service (``argus collect run``): one process, one loop, every job on its
-own schedule (D-050). A job that fails is logged and tried again at its next turn; a failed or
+own schedule. A job that fails is logged and tried again at its next turn; a failed or
 refused poll opens a coverage gap and, once polls work again, the gap is closed and the hours
 it covered are reconciled."""
 

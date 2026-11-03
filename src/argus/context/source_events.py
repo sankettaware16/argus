@@ -1,16 +1,11 @@
-"""``logs.source_events`` (Q-F4, plan §5 WS-F, §7.3): the log events behind a threshold or
-ES|QL alert, which carry no fetchable ancestor (a threshold alert names the rule's index
-pattern, an aggregating ES|QL alert an empty one). At most 20 rows of the alert's own source
-(a proxy, web server or DNS family of the site), for the alert's client in the alert's
-evidence window (at most an hour), narrowed by the alert's other group-by values where the
-field is allowed; the oldest first, so the rows start where the rule began to count.
+"""``logs.source_events``: the log events behind a threshold or ES|QL alert, which carry no
+fetchable ancestor.
 
-A search for rows, not an aggregation: medium cost, at most two daily indices, a 5 s timeout.
-It asks for 21 rows to know whether there were more than 20, and keeps 20: the answer then says
-"at least 21" (``answer``), so every reader of the stored evidence sees the cut. Each source
-returns its own fixed fields (by field role, the names the site gives them). The rule's query is
-never reused (only ARGUS-built parameters reach the body), so the rows are the client's events in
-that window, not necessarily only the ones the rule counted: the report says so.
+At most 20 rows of the alert's own source (a proxy, web server or DNS family), for the alert's
+client in its evidence window, narrowed by the alert's other group-by values where allowed, oldest
+first. A search for rows, not an aggregation: medium cost, at most two daily indices, a 5 s
+timeout. It asks for 21 rows to know whether there were more and keeps 20 ("at least 21"). The
+rule's query is never reused, so the rows may include events the rule did not count.
 """
 
 from __future__ import annotations
@@ -210,7 +205,7 @@ class LogsSourceEvents(Template):
     def answer(self, params: Params, body: Any) -> Any:
         """At most ``size`` rows. The one more asked for, when found, is left out and the
         total becomes a lower bound (``gte``), so the stored evidence record reads "at least
-        21, not every row" rather than a complete answer of 21 (review F4-R11)."""
+        21, not every row" rather than a complete answer of 21."""
         assert isinstance(params, SourceParams)
         part = body.get("hits") if isinstance(body, Mapping) else None
         if not isinstance(part, Mapping) or not isinstance(part.get("hits"), list):
@@ -239,7 +234,7 @@ def source_of(indices: Sequence[str]) -> str | None:
 
 
 def from_alert(normalized: Mapping[str, Any], indices: Sequence[str]) -> SourceParams | str:
-    """The parameters for an alert's source events, from its normalized form (R5: the
+    """The parameters for an alert's source events, from its normalized form (the
     adapter, the evidence window, the group key), or why there are none."""
     if normalized.get("rule_type") not in ("threshold", "esql"):
         return "only threshold and ES|QL alerts lack their source events"

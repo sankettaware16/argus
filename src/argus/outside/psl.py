@@ -1,23 +1,9 @@
-"""The registered parent of a domain name (AR2c, D-168, D-170): ``a.b.example.co.uk`` is
-``example.co.uk`` and ``x.y.workers.dev`` is ``y.workers.dev``.
-
-The rules are the Public Suffix List, ICANN and private sections both (so a hosting service such
-as ``workers.dev`` is a suffix and each customer under it is a parent of its own), read from the
-snapshot bundled with the package (``data/public_suffix_list.dat``, the version on its first
-lines). Nothing is fetched at run time: a new snapshot is a reviewed change to that file.
-
-The algorithm is the list's own (publicsuffix.org/list): the longest matching rule wins, a
-wildcard rule (``*.ck``) matches any one label, an exception rule (``!www.ck``) beats the
-wildcard and takes one label less, and a name that matches no rule has its last label as the
-suffix. Names are the canonical spelling ARGUS keys by (``facts.canonical``: lowercase ASCII,
-punycode for other scripts); the rules are put in that spelling when they are loaded.
-
-A suffix from the private section is a hosting service's (``workers.dev``, ``github.io``,
-``scf.usercontent.goog``): what sits directly under it is a customer of the service, one of
-thousands (:func:`under_private_suffix`).
-
-Pure functions: no I/O but the one read of the bundled file.
-"""
+"""The registered parent of a domain name: ``a.b.example.co.uk`` is ``example.co.uk`` and
+``x.y.workers.dev`` is ``y.workers.dev``. The rules are the Public Suffix List (ICANN and private
+sections) from the snapshot bundled with the package (``data/public_suffix_list.dat``); nothing is
+fetched at run time. The algorithm is the list's own: the longest matching rule wins, wildcard and
+exception rules apply, an unlisted name's last label is the suffix. Names use the canonical
+spelling (``facts.canonical``). Pure apart from reading the bundled file."""
 
 from __future__ import annotations
 

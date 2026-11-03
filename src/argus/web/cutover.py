@@ -1,26 +1,11 @@
-"""The cutover from local passwords to ELK sign-in (Q-E3, DQ18 (a); runbook ``elk-signin.md``).
-
-The per-person steps, each a terminal command and an audit row:
-
-1. **link** (``argus identity link`` / ``argus user link``): the local account gets its ELK
-   username. Nothing else changes: ``users.id`` stays, so reviews, notes, approvals and the
-   trail (``user:<handle>``) stay with the same person; the local password stays too.
-2. **the person signs in through ELK** (Q-E2): the web finds the linked account and writes an
-   audit ``login`` row with ``details.mode = 'elk'``.
-3. **disable-local** (``argus identity disable-local``): only if that ``login`` row exists *after*
-   the link, ARGUS drops the password hash. The database backs this up: it refuses a missing hash
-   without ``elk_first_signin_at`` (``ck_users_password_or_elk``, 0036). Nothing was lost by
-   dropping it that ELK does not give back: ``argus identity enable-local`` is the way back, with
-   a new password, for a rollback to local mode.
-
-``cutover status`` lists every account: linked or not, ELK sign-in seen or not, local password
-on or off, and the reason an account stays local. The break-glass account (kind ``break_glass``)
-is listed apart and is never touched here: it is off by design between windows and its password
-is a one-time window password, not a local password (``argus break-glass``).
-
-The functions take the caller's connection and transaction; the terminal commands are in
-``argus.identity.cli`` and ``argus.web.cli``.
-"""
+"""The cutover from local passwords to ELK sign-in, per person, each step a terminal command and an
+audit row: **link** (``argus identity link``): the local account gets its ELK username and nothing
+else changes (``users.id`` stays, so reviews, notes, approvals and the trail stay with the same
+person); the person **signs in through ELK** (an audit ``login`` row with ``details.mode = 'elk'``);
+**disable-local**: only if that row exists after the link, ARGUS drops the password hash (the
+database refuses a missing hash without ``elk_first_signin_at``); ``enable-local`` is the way back.
+``cutover status`` lists every account; the break-glass account is listed apart and never touched.
+The functions take the caller's connection and transaction."""
 
 from __future__ import annotations
 
@@ -58,9 +43,6 @@ def name_problem(settings: Settings, elk_username: str) -> str | None:
     return names(settings).refusal(elk_username)
 
 
-# --------------------------------------------------------------------------- link
-
-
 async def link(
     conn: AsyncConnection,
     username: str,
@@ -70,13 +52,13 @@ async def link(
     different_person: bool = False,
 ) -> bool:
     """Tie the local account ``username`` to ``elk_username`` (audited ``user.link``). Returns
-    whether ``answer_gold`` was taken away: in ELK mode only named owners answer gold items
-    (DQ15), so linking removes it (Q-E2 review F8; ``argus user grant`` gives it back).
+     whether ``answer_gold`` was taken away: in ELK mode only named owners answer gold items
+    , so linking removes it ( ``argus user grant`` gives it back).
 
-    An ELK name equal to *another* account's local handle is refused unless ``different_person``
-    (the pair may be the wrong way round: that other person's own sign-in would land here). An
-    account linked outside the tool (no ``user.link`` row) can be linked again with the same
-    name, which puts the link in the trail."""
+     An ELK name equal to *another* account's local handle is refused unless ``different_person``
+     (the pair may be the wrong way round: that other person's own sign-in would land here). An
+     account linked outside the tool (no ``user.link`` row) can be linked again with the same
+     name, which puts the link in the trail."""
     row = (
         await conn.execute(
             text(
@@ -141,9 +123,6 @@ async def _in_trail(conn: AsyncConnection, username: str) -> bool:
         )
         is not None
     )
-
-
-# --------------------------------------------------------------------------- the list
 
 
 @dataclass(frozen=True)
@@ -300,9 +279,6 @@ def render(people: list[Account], emergency: Glass, *, elk_mode: bool) -> list[s
         )
         lines.append(f"  {breakglass.NAME}: {now}; {used}; {seen}")
     return lines
-
-
-# --------------------------------------------------------------------------- disable / enable
 
 
 async def disable_local(

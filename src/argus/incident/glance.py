@@ -1,16 +1,10 @@
-"""An incident at a glance (AR10, D-250): the few numbers and the four small series that the
-Visualiser draws, from the stored report and nothing else.
+"""An incident at a glance: the few numbers and the four small series that the Visualiser draws,
+from the stored report and nothing else.
 
-Both pictures are made from the same :class:`Glance`: the Kibana comment
-(:mod:`argus.caseteam.visual`: a numbers row and live charts over the case's tagged alerts) and the
-one-page dashboard (:mod:`argus.incident.dashboard`: the same panels drawn by code). Pure: no
-database, no clock, no network. Nothing here names a site, an index or a rule: which field a
-chart splits on is decided by the *shape* of the case (outside addresses acting against campus
-servers, or campus devices reaching outside servers) from what the report already holds.
-
-Names of people never appear: an actor of kind ``user`` is not counted or drawn (AR6's rule), and
-the Kibana charts split only on the address, host, site and rule fields below.
-"""
+Both pictures (:mod:`argus.caseteam.visual` and :mod:`argus.incident.dashboard`) are made from the
+same :class:`Glance`. Pure. Nothing here names a site, an index or a rule: which field a chart
+splits on is decided by the *shape* of the case (outside addresses against internal servers, or
+internal devices reaching outside servers). Names of people never appear."""
 
 from __future__ import annotations
 
@@ -74,7 +68,7 @@ class Glance:
     rules: int
     rules_more: bool
     shape: Shape
-    days: tuple[str, ...]  # IST days (``2026-10-15``) of the alerts-over-time chart
+    days: tuple[str, ...]  # local days (``2026-10-15``) of the alerts-over-time chart
     layers: tuple[Layer, ...]
     top_actors: tuple[Slice, ...]
     top_targets: tuple[Slice, ...]
@@ -87,8 +81,8 @@ def _people(actor: m.ReportActor) -> bool:
 
 def shape_of(report: m.IncidentReport) -> Shape:
     """The case's shape, from the report's own fields. Actors are split on the address (an
-    outside attacker or a campus device: both are ``source.ip`` in the alerts) or, when every
-    actor is a host, on the host name. Targets are the campus sites the alerts name
+    outside attacker or an internal device: both are ``source.ip`` in the alerts) or, when every
+    actor is a host, on the host name. Targets are the internal sites the alerts name
     (``url.domain``) when the report names sites, else the servers the devices reached
     (``destination.ip``, or the DNS name when the report's own queries read DNS)."""
     actors = [a for a in report.actors if not _people(a)]
@@ -120,7 +114,7 @@ def _top(counts: dict[str, int], n: int) -> tuple[Slice, ...]:
 
 
 def _targets(report: m.IncidentReport, shape: Shape) -> dict[str, int]:
-    """Alerts by target, from the report's assets: the campus sites (the alerts' directories,
+    """Alerts by target, from the report's assets: the internal sites (the alerts' directories,
     summed by site) or the servers its devices reached (the devices' alerts, summed by the name
     each reached)."""
     counts: dict[str, int] = defaultdict(int)

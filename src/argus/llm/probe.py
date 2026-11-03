@@ -1,16 +1,7 @@
-"""Is a provider there? ``GET /v1/models`` (Q-G1): no prompt, no campus data, the key only.
-
-The local model's machine is sometimes off, its tunnel may be down, a new setup run changes
-its certificate and key (D-108), and llama-server answers 503 while it loads the model. The
-probe tells these apart, so the gateway defers instead of sending a long call into nothing:
-
-- ``up``: 200 and every configured model is listed;
-- ``loading``: 503 (llama-server is loading the model);
-- ``unauthorized``: 401 or 403 (the key is not this run's: import the newest hand-over);
-- ``tls_failed``: the certificate is not the pinned one (a new run, or someone else);
-- ``model_mismatch``: it answers, but without the configured model;
-- ``down``: anything else (no connection, a timeout, another status, an unreadable list).
-"""
+"""Is a provider there? ``GET /v1/models``: no prompt, no data, the key only. The result tells
+``up``, ``loading`` (503), ``unauthorized`` (401 or 403), ``tls_failed`` (not the pinned
+certificate), ``model_mismatch`` (the configured model is not listed) and ``down`` apart, so the
+gateway defers instead of sending a long call into nothing."""
 
 from __future__ import annotations
 

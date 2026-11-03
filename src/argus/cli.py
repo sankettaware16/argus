@@ -71,7 +71,7 @@ app = typer.Typer(
 )
 config_app = typer.Typer(no_args_is_help=True, help="Inspect and validate configuration.")
 db_app = typer.Typer(
-    no_args_is_help=True, help="Database roles and migrations (as the schema owner, D-029)."
+    no_args_is_help=True, help="Database roles and migrations (as the schema owner)."
 )
 app.add_typer(config_app, name="config")
 app.add_typer(db_app, name="db")
@@ -99,7 +99,7 @@ app.add_typer(gold_app, name="gold")
 app.add_typer(assess_app, name="assess")
 app.add_typer(llm_app, name="llm")
 app.add_typer(tune_app, name="tune")
-register_reporter(report_app)  # `argus report daily|weekly` (Q-H3)
+register_reporter(report_app)  # `argus report daily|weekly`
 app.add_typer(report_app, name="report")
 app.add_typer(backup_app, name="backup")
 app.add_typer(purge_app, name="purge")
@@ -208,7 +208,7 @@ def config_validate(config: ConfigOption = None) -> None:
 @db_app.command("bootstrap")
 def db_bootstrap(config: ConfigOption = None) -> None:
     """Create or repair ARGUS's roles and set the logins' passwords: the runtime login, and the
-    web's own login once ARGUS_DATABASE__API_PASSWORD is set (Q-A2). Run before the first
+    web's own login once ARGUS_DATABASE__API_PASSWORD is set. Run before the first
     upgrade, and again after changing a login's name or password."""
     settings = _load(config)
     try:
@@ -226,7 +226,7 @@ def db_bootstrap(config: ConfigOption = None) -> None:
 async def _bootstrap(settings: Settings, engine: AsyncEngine) -> None:
     """Roles and the CONNECT grants in one transaction, audited in it if the audit table
     exists: the runtime roles, and the web's (its group always, its login once its password is
-    set, Q-A2). Whatever had to be repaired is printed and recorded (names only)."""
+    set). Whatever had to be repaired is printed and recorded (names only)."""
     database = settings.database
     web_login = roles.api_login_configured(database)
     writer_login = roles.writer_login_configured(database)
@@ -328,7 +328,7 @@ def db_upgrade(
     config: ConfigOption = None,
 ) -> None:
     """Apply migrations up to REVISION (default: head); a dump first when backup.before_migration
-    is on (Q-A2)."""
+    is on."""
     settings = _load(config)
     _check_revision("upgrade", revision)
     backup_first = settings.backup.before_migration and not no_backup
@@ -337,7 +337,7 @@ def db_upgrade(
 
 @db_app.command("regroup")
 def db_regroup(config: ConfigOption = None) -> None:
-    """Rebuild all investigations from the stored alerts after a grouping change (D-053).
+    """Rebuild all investigations from the stored alerts after a grouping change.
     Logs in as the schema owner; refused while reviews exist."""
     from datetime import UTC, datetime
 
@@ -407,8 +407,8 @@ async def _migrate(
     """Migrate and audit it in one locked transaction, so the audit record commits only if the
     migration does. A failed attempt is then recorded as a failure (best effort), with details
     ``from`` (left out if the database's revision could not be read), ``target`` and ``error``.
-    With ``backup_first`` the database is dumped first when the migration changes anything
-    (Q-A2), and a failed dump stops it before anything is migrated."""
+    With ``backup_first`` the database is dumped first when the migration changes anything,
+    and a failed dump stops it before anything is migrated."""
     action = f"db.{direction}"
     seen: dict[str, Any] = {}
     before: str | None = None

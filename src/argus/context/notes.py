@@ -1,16 +1,9 @@
-"""Runbooks derived from the rules' own notes (D-058): no per-rule configuration.
+"""Runbooks derived from the rules' own notes: no per-rule configuration.
 
 A note's ``Investigation Steps`` (a numbered list) become steps. Each step names fields in
-backticks and asks a kind of question; the question decides what can answer it:
-
-* the stored alerts (its fields have values): **answered**, the values shown;
-* a capability a pack brings (log pivots, periodicity, prevalence, reputation): **deferred**
-  until that pack exists, with its name;
-* a person (block, notify, request, tune, decide): **manual**;
-* nothing: a field it names is in none of the alerts: **unknown**.
-
-Every step gets exactly one status and one plain sentence: traceability is complete by
-construction. Pure; the patterns are English words of the notes, not rule names.
+backticks and asks a kind of question: the stored alerts answer it (**answered**), a capability a
+pack brings (**deferred**), a person (**manual**), or nothing because a named field is in none of
+the alerts (**unknown**). Every step gets exactly one status and one plain sentence. Pure.
 """
 
 from __future__ import annotations
@@ -30,7 +23,7 @@ _FIELD = re.compile(r"`(@timestamp|[a-z_][a-z0-9_]*(?:\.[a-z0-9_]+)+)(?::[^`]*)?
 
 # What answers a kind of question, if not the stored alerts. (capability, pack that brings it)
 CAPABILITIES: dict[str, str] = {
-    "reputation": "a threat-intelligence lookup",  # plain words for a reviewer (D-095)
+    "reputation": "a threat-intelligence lookup",  # plain words for a reviewer
     "prevalence": "proxy-log statistics",
     "timeline": "proxy-log statistics",
     "log_pivot": "a search of the web and proxy logs",

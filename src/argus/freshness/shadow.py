@@ -1,19 +1,11 @@
-"""Verified zeros in a dossier's signals (Q-F1): the verdict each log zero gets, stored in
-shadow, used only once switched on.
+"""Verified zeros in a dossier's signals: the verdict each log zero gets, stored in shadow, used
+only once switched on.
 
-A pack turns every 0 from a log search into "could not tell" (``evidence.from_logs``: reason
-``ingest_not_verified``). Here, after the pack derived its signals, each such signal's
-evidence is judged by the readings (``model.verify``) and the search's own completeness:
-
-- ``off``: nothing is read or stored; the signals are as the pack derived them;
-- ``shadow``: the verdict is stored (``freshness_shadow``), the signals are unchanged, so the
-  dossier, its hash and every assessor's input stay byte-identical;
-- ``on``: a signal whose every evidence row is verified becomes a known 0 and each row
-  records how far its source was complete (``evidence.source_watermark``: "logs complete to
-  <time>"); anything else stays "could not tell".
-
-Any failure here leaves the signals as the pack derived them (could not tell): a verified zero
-is never a guess, and the shadow never changes production.
+A pack turns every 0 from a log search into "could not tell". Here each such signal's evidence is
+judged by the readings (``model.verify``) and the search's own completeness. ``off``: nothing is
+read or stored. ``shadow``: the verdict is stored and the signals are unchanged, so the dossier and
+its hash stay byte-identical. ``on``: a signal whose every evidence row is verified becomes a known
+0. Any failure leaves the signals as the pack derived them: a verified zero is never a guess.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
-"""The campus asset map: validated loading and longest-prefix matching.
+"""The asset map: validated loading and longest-prefix matching.
 
-The file (``assets.map_path``, by default ``data/assets/asset_map.yaml``; imported by the operator
-with ``argus assets import``, D-032)::
+The file (``assets.map_path``, by default ``data/assets/asset_map.yaml``; imported with
+``argus assets import``)::
 
     defaults: {site.organization: ...}        # applied to every entry
     networks:
@@ -9,7 +9,7 @@ with ``argus assets import``, D-032)::
         range: 10.1.2.0/24                    # or ranges: [..., ...]; a bare address is a /32
         fields: {site.zone: ..., site.building: ...}
 
-Names and ranges identify campus networks, so no error message ever contains a value from the
+Names and ranges identify internal networks, so no error message ever contains a value from the
 file: problems are reported by entry number and key only.
 
 Matching returns the most specific network containing an address. The map nests (a /16 holding

@@ -1,18 +1,11 @@
-"""The Reporter's section builders (Q-H3, plan §7.7): each is one function of a connection and
-a :class:`~argus.reporter.model.Window`, returns a :class:`~argus.reporter.model.Section` of
-figures with their definitions, and reads ARGUS's own database only (no SIEM request, no model).
+"""The Reporter's section builders: each is one function of a connection and a
+:class:`~argus.reporter.model.Window`, returns a :class:`~argus.reporter.model.Section` of figures
+with their definitions, and reads ARGUS's own database only.
 
-Two kinds of figure, and every definition says which:
-
-* **what happened** is counted over the period ``[start, end)``: closures, requests, findings,
-  results, gaps. They do not change after the period ends (except a gap that was still open).
-* **what is waiting** is counted as at ``window.as_at``, the moment the report is made: cases by
-  state and age, actions, approvals, the Kibana backlog. A report made hours after its period
-  ends is still about the period, but these figures are of the moment it was made.
-
-A percentage is computed from two counts of the same report; a percentile of a short list is not
-shown (below 20 results the maximum stands in for a 95th percentile, plan §8).
-"""
+**What happened** is counted over the period ``[start, end)`` and does not change after it ends.
+**What is waiting** (cases by state and age, approvals, the Kibana backlog) is counted as at
+``window.as_at``, the moment the report is made. A percentage is computed from two counts of the
+same report; below 20 results the maximum stands in for a 95th percentile."""
 
 # ruff: noqa: S608 - every statement is built from this module's constant fragments; every
 # value is a bound parameter.
@@ -33,7 +26,7 @@ from argus.db.models import CLOSURE_REASONS, OUTCOMES
 from argus.reporter.model import Metric, Section, Unit, Value, Window
 from argus.responder.machine import ist_day
 
-P95_MIN_N = 20  # below this many results the maximum stands in for a 95th percentile (plan §8)
+P95_MIN_N = 20  # below this many results the maximum stands in for a 95th percentile
 HOSTS_SHOWN = 20
 NOTIFIED_SHOWN = 30  # notified cases the weekly report lists one by one
 CONFIRMED = "('open', 'assigned', 'contained')"
@@ -46,8 +39,8 @@ LANE_WORDS = {
     "kibana_read": "reading Kibana", "kibana_write": "writing to Kibana",
     "identity": "sign-in checks", "measurement": "measuring", "unassigned": "not tagged",
 }  # fmt: skip
-DAY_CAP_MS = 3_600_000  # D-022: 60 minutes of the SIEM server time a day (argus.soak.DAY_CAP_MS)
-# What a person did in Kibana to an ARGUS case, around ARGUS's approvals (brief §10, plan §7.1).
+DAY_CAP_MS = 3_600_000  # 60 minutes of the SIEM server time a day (argus.soak.DAY_CAP_MS)
+# What a person did in Kibana to an ARGUS case, around ARGUS's approvals.
 # Not listed: "person_edited" (INFO: an edit of a field ARGUS does not own) and
 # "settings_changed" (the case writer's own check raises it too, when Sync alerts is on).
 BYPASS_KINDS = (
@@ -137,9 +130,6 @@ def _hours_since(col: str, where: str = "true") -> str:
         f"floor(extract(epoch FROM CAST(:now AS timestamptz) - min({col}) FILTER (WHERE {where}))"
         " / 3600)::int"
     )
-
-
-# --------------------------------------------------------------------------- cases
 
 
 async def cases(conn: AsyncConnection, w: Window) -> Section:
@@ -242,8 +232,6 @@ async def cases(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="cases", title="Cases by state and age", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- notified, still active
-
 _NOTIFIED_ALERTS = """SELECT m.case_id, count(*) AS n FROM cases c
   JOIN case_members m ON m.case_id = c.id AND m.removed_at IS NULL
   JOIN investigation_alerts l ON l.investigation_id = m.investigation_id
@@ -258,8 +246,8 @@ _NOTIFIED_ALERTS = """SELECT m.case_id, count(*) AS n FROM cases c
 def _notified_case(c: knownview.KnownCase, alerts: int, w: Window) -> list[Metric]:
     """The weekly report's lines for one notified device: since when, how long, the alerts in the
     period and their trend, the notices sent and the blocks recorded."""
-    # the days are IST days (as the rest of the reports): those the period touches, its first
-    # and last one in part (the period is UTC days)
+    # the days are local days (as in the rest of the reports): those the period touches, its
+    # first and last one in part (the period is UTC days)
     zone = site.zone()
     first = w.start.astimezone(zone).date().isoformat()
     last = (w.end - timedelta(seconds=1)).astimezone(zone).date().isoformat()
@@ -315,8 +303,8 @@ def _notified_case(c: knownview.KnownCase, alerts: int, w: Window) -> list[Metri
 
 
 async def notified(conn: AsyncConnection, w: Window) -> Section:
-    """Cases whose owner was told and that stay active (AR4b, D-169 point 8): counted apart from
-    new work. The totals are for every report; the weekly report also lists each such device."""
+    """Cases whose owner was told and that stay active: counted apart from new work. The totals
+    are for every report; the weekly report also lists each such device."""
     row = await _one(
         conn,
         f"""SELECT
@@ -421,14 +409,12 @@ async def notified(conn: AsyncConnection, w: Window) -> Section:
                    notes=tuple(notes))  # fmt: skip
 
 
-# --------------------------------------------------------------------------- active hosts
-
 _ACTIVE = f"""WITH active AS (
   SELECT DISTINCT w.case_id, w.day FROM case_watch_checks w
   JOIN cases c ON c.id = w.case_id
   WHERE w.outcome = 'active' AND w.day >= CAST(:sd AS date) AND w.day < CAST(:ed AS date)
     AND c.state IN {CONFIRMED})"""
-# The campus hosts the watch saw reach the destination, per case and day (detail.hosts of an
+# The internal hosts the watch saw reach the destination, per case and day (detail.hosts of an
 # 'active' answer: the proxy's source addresses). A case's indicators are not read: they hold
 # outside addresses too, and hosts that never made contact.
 _SEEN = f"""WITH seen AS (
@@ -489,9 +475,6 @@ async def active_hosts(conn: AsyncConnection, w: Window) -> Section:
     )
     return Section(id="active_hosts", title="Still-active hosts", metrics=tuple(metrics),
                    notes=notes)  # fmt: skip
-
-
-# --------------------------------------------------------------------------- actions
 
 
 async def actions(conn: AsyncConnection, w: Window) -> Section:
@@ -577,9 +560,6 @@ async def actions(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="actions", title="Actions waiting", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- closures
-
-
 async def closures(conn: AsyncConnection, w: Window) -> Section:
     rows = await _all(
         conn,
@@ -623,8 +603,6 @@ async def closures(conn: AsyncConnection, w: Window) -> Section:
     )
     return Section(id="closures", title="Closures by reason", metrics=tuple(metrics))
 
-
-# --------------------------------------------------------------------------- approvals
 
 _REQUESTS = """WITH r AS (
   SELECT q.*,
@@ -737,9 +715,6 @@ async def approvals(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="approvals", title="Approvals", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- the SIEM load
-
-
 async def siem_load(conn: AsyncConnection, w: Window) -> Section:
     rows = await _all(
         conn,
@@ -824,9 +799,6 @@ async def siem_load(conn: AsyncConnection, w: Window) -> Section:
         )
     return Section(id="siem_load", title="the SIEM load, by lane and in total",
                    metrics=tuple(metrics))  # fmt: skip
-
-
-# --------------------------------------------------------------------------- Kibana sync
 
 
 async def kibana_sync(conn: AsyncConnection, w: Window) -> Section:
@@ -999,9 +971,6 @@ async def kibana_sync(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="kibana_sync", title="Kibana sync", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- guardrails
-
-
 async def guardrails(conn: AsyncConnection, w: Window) -> Section:
     audit = await _one(
         conn,
@@ -1106,9 +1075,6 @@ async def guardrails(conn: AsyncConnection, w: Window) -> Section:
                    metrics=tuple(metrics))  # fmt: skip
 
 
-# --------------------------------------------------------------------------- results
-
-
 async def results(conn: AsyncConnection, w: Window) -> Section:
     row = await _one(
         conn,
@@ -1198,9 +1164,6 @@ async def results(conn: AsyncConnection, w: Window) -> Section:
         ),
     ]
     return Section(id="results", title="Time to a result", metrics=tuple(metrics))
-
-
-# --------------------------------------------------------------------------- write-back
 
 
 async def writeback(conn: AsyncConnection, w: Window) -> Section:
@@ -1338,9 +1301,6 @@ async def writeback(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="writeback", title="Write-back to Kibana", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- gaps and outages
-
-
 async def gaps(conn: AsyncConnection, w: Window) -> Section:
     overlap = "start_at < :e AND coalesce(end_at, CAST(:now AS timestamptz)) > :s"
     row = await _one(
@@ -1426,9 +1386,6 @@ async def gaps(conn: AsyncConnection, w: Window) -> Section:
     return Section(id="gaps", title="Gaps and outages", metrics=tuple(metrics))
 
 
-# --------------------------------------------------------------------------- threat intel
-
-
 async def intel(conn: AsyncConnection, w: Window) -> Section:
     rows = await _all(
         conn,
@@ -1500,9 +1457,6 @@ async def intel(conn: AsyncConnection, w: Window) -> Section:
         id="intel", title="Threat-intelligence freshness", metrics=tuple(metrics),
         notes=tuple(notes),
     )  # fmt: skip
-
-
-# --------------------------------------------------------------------------- audit chain
 
 
 async def audit(conn: AsyncConnection, w: Window) -> Section:

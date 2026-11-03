@@ -1,35 +1,15 @@
-"""§7.1's read load at projected case counts (Q-D3): how many small reads a day the read-back
-makes, what they cost the Kibana read lane (plan §7.8: 200 ms a minute, 4 minutes a day, D-131)
-and whether one cycle fits the lane's minute share. Pure; ``argus kibana sync model`` prints it.
+"""The read load at projected case counts: how many small reads a day the read-back makes, what
+they cost the Kibana read lane (200 ms a minute, 4 minutes a day) and whether one cycle fits the
+lane's minute share. Pure; ``argus kibana sync model`` prints it.
 
-Per day, with ``C`` open or in-progress cases of ARGUS, ``K`` closed ones, ``X`` changed
-cases and ``W`` writes (Q-D4's read-back after each):
-
-- ``kibana.status``: 24 (hourly) plus one per write run;
-- the change poll: one ``cases.find`` per cycle (144 at 10 minutes), more pages only when
-  more than 100 cases changed in one cycle;
-- the listings (the id-set diff): ``ceil(C_open/100) + ceil(C_in_progress/100)`` finds a
-  cycle (at least one each), and the closed ones, ``ceil(K/100)``, once a day and again after
-  each closed case that is deleted;
-- the closed probe: one ``cases.find`` of one closed case per cycle, whose ``total`` is
-  compared with the mirror (a closed case deleted shows within a cycle, not a day);
-- user actions: two pages per changed case (``2X``: a case changed moments ago is read once
-  more at the next cycle, for Kibana writes the case and its user action separately),
-  deletions one ``cases.get`` each;
-- the case team's cases (P4-B1, D-270) add no request to the finds above (the same finds name
-  the team's users as reporters too) and ``T`` to ``X``: each case the team posts changes in a
-  few cycles (its steps are written over minutes, up to an hour with the alert pauses), and a
-  person's later edit, close or comment is one more;
-- discovery (hourly): at most ``diff_calls`` searches of the alerts on ARGUS's open and
-  recent cases (a rotating slice: the alerts of all of them are looked at once every
-  ``sweep_hours`` hours, however many there are) and ``discovery_calls`` searches of known
-  alerts, plus one get per new people's case;
-- one read-back per write (``W``).
-
-Each read is charged max(round trip, its template's estimate): 100 ms a find or user-action
-page, 50 ms a get, status or search (Q-D2, decision 9); the measured round trips replace them
-after the read-only days (§7.8).
-"""
+Per day, with ``C`` open or in-progress cases, ``K`` closed ones, ``X`` changed cases and ``W``
+writes: ``kibana.status`` hourly; one change-poll ``cases.find`` per cycle; the listings
+(``ceil(C/100)`` finds a cycle, the closed ones ``ceil(K/100)`` once a day); a one-case closed
+probe per cycle; two user-action pages per changed case and one ``cases.get`` per deletion; the case
+team's cases add changes but no finds; hourly discovery of at most ``diff_calls`` alert searches
+(a rotating slice) and ``discovery_calls`` searches of known alerts; one read-back per write. Each
+read is charged max(round trip, its template's estimate): 100 ms a find or user-action page, 50 ms
+a get, status or search; measured round trips replace them after the read-only days."""
 
 from __future__ import annotations
 
@@ -42,8 +22,8 @@ PAGE_MS = 100
 GET_MS = 50
 STATUS_MS = 50
 SEARCH_MS = 50
-LANE_DAY_MS = 4 * 60 * 1000  # §7.8: the Kibana read lane's day
-LANE_MINUTE_MS = 200  # its minute share (D-131; the burst is one minute's share)
+LANE_DAY_MS = 4 * 60 * 1000  # the Kibana read lane's day
+LANE_MINUTE_MS = 200  # its minute share (the burst is one minute's share)
 
 
 @dataclass(frozen=True)
@@ -129,9 +109,8 @@ def estimate(load: Load) -> Estimate:
     )
 
 
-# The plan's example (100 cases, 50 writes a day), the exit's projection and a year's: DQ4
-# opens cases only for incidents a person confirms (≤ 20 an hour); Phase 2 confirmed about
-# 19 true positives in 36 gold items, so a few new cases a day, most closed within weeks.
+# Example scenarios: a small, a mid-term, a year's and a busy load. Cases open only for
+# incidents a person confirms, so a few new cases a day, most closed within weeks.
 SCENARIOS: dict[str, Load] = {
     "plan §7.1 (100 cases, 50 writes)": Load(60, 40, 0, 60, 50),
     "exit (2027-02, ~100 live, 150 closed)": Load(

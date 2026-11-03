@@ -1,9 +1,9 @@
 """What kind of address an IP is, for context and for the by-host views.
 
-Order: the asset map (most specific network), the campus public prefixes, private space
+Order: the asset map (most specific network), the organisation's public prefixes, private space
 (RFC 1918, IPv6 ULA), special-purpose space (loopback, link-local, multicast, reserved,
 documentation, CGNAT, ...), and otherwise public. Without an imported asset map the lookup is
-``no_map``: "not in the asset map" is then unknown, never a negative (D-023).
+``no_map``: "not in the asset map" is then unknown, never a negative.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ _INTERNAL = tuple(
 
 class IpClass(StrEnum):
     ASSET = "asset"  # inside a network of the asset map
-    CAMPUS = "campus"  # a campus public prefix, not in the asset map
+    CAMPUS = "campus"  # one of the organisation's public prefixes, not in the asset map
     INTERNAL = "internal"  # private space, not in the asset map
     PUBLIC = "public"
     SPECIAL = "special"  # loopback, link-local, multicast, reserved, documentation, shared, ...

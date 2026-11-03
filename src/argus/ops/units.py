@@ -1,4 +1,4 @@
-"""ARGUS's systemd user units (Q-A2, D-295). The files in ``deploy/systemd/`` are templates: each
+"""ARGUS's systemd user units. The files in ``deploy/systemd/`` are templates: each
 installation renders them with the checkout the units run, the uv that starts ARGUS and the web's
 environment (``units`` in the settings), ``argus units install`` writes the rendered text, and
 ``argus doctor`` checks that what is installed equals it byte for byte and runs only what is meant
@@ -36,8 +36,8 @@ class Role(StrEnum):
 
 
 # Every unit file in deploy/systemd, and what it is for. A unit this installation runs is listed in
-# ``units.run`` (config/local.yaml): enabling an OFF unit is a production step with the user
-# (D-109), and the step adds it there.
+# ``units.run`` (config/local.yaml): enabling an OFF unit is a production step, and the step
+# adds it there.
 MANIFEST: dict[str, tuple[Role, str]] = {
     "argus-collector.service": (Role.RUN, "the collector (R5)"),
     "argus-worker.service": (Role.RUN, "the context worker (R8)"),
@@ -89,8 +89,6 @@ def roles_for(run: Iterable[str] | None = None) -> dict[str, tuple[Role, str]]:
             roles[name] = (role, why)
     return roles
 
-
-# --------------------------------------------------------------------------- rendering
 
 PLACEHOLDER = re.compile(r"@([A-Z][A-Z_]*)@")
 _REQUIRED = ("ROOT", "UV")
@@ -397,9 +395,6 @@ def working_directory_of(text: str) -> Path | None:
         if sep and key.strip() == "WorkingDirectory" and value.strip():
             return Path(value.strip())
     return None
-
-
-# --------------------------------------------------------------------------- the installer
 
 
 @dataclass(frozen=True)

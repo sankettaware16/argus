@@ -1,4 +1,4 @@
-"""Index resolution (plan §5.3): exact daily log indices from a time range, checked against a
+"""Index resolution: exact daily log indices from a time range, checked against a
 listing of what exists. A day the range needs but the listing lacks is never skipped silently:
 an older day was deleted by ILM (``source_expired``), today's or a later one does not exist yet
 (``source_not_ready``). Only a daily family (a ``site`` family whose pattern ends in ``*``) has

@@ -1,12 +1,8 @@
-"""Permanent links (Phase 3 plan §7.1, §7.5; Q-A1): ``/go/case/<uuid>`` and
-``/go/investigation/<uuid>`` on the address people use (``web.public_url``: DQ29's host name
-once it has its certificate). Kibana case descriptions and notices carry them, so their form
-never changes; where they lead may (the classic pages, or ``/app`` once the switch is on).
-
-The session cookie is SameSite=Strict, so a browser does not send it on a link followed from
-another site (Kibana). A link arriving from another site therefore answers with a tiny page
-that opens the target from this site (a meta refresh, no script): that second navigation
-carries the cookie, and a signed-in person lands on the page instead of the sign-in form."""
+"""Permanent links: ``/go/case/<uuid>`` and ``/go/investigation/<uuid>`` on the address people use
+(``web.public_url``). Kibana case descriptions and notices carry them, so their form never changes;
+where they lead may. The session cookie is SameSite=Strict, so a link arriving from another site
+answers with a tiny page (a meta refresh, no script) that opens the target from this site, and a
+signed-in person lands on the page instead of the sign-in form."""
 
 from __future__ import annotations
 
@@ -44,7 +40,7 @@ def install(app: FastAPI, page: Callable[..., Response], requirement: Any) -> No
 
     def mangled(request: Request) -> Response:
         """A link cut short or mistyped (a wrapped e-mail, a lost character): a plain page,
-        never the validator's words (Q-A1 review F8)."""
+        never the validator's words."""
         return page(request, "error.html", None, message=MANGLED, status=404)
 
     @app.get("/go/investigation/{investigation_id}", include_in_schema=False,
@@ -63,7 +59,7 @@ def install(app: FastAPI, page: Callable[..., Response], requirement: Any) -> No
             return mangled(request)
         resolve: Callable[[uuid.UUID], str | None] | None = request.app.state.case_page
         target = resolve(parsed) if resolve is not None else None
-        if target is None:  # no case pages yet (Q-B3): the link's form is fixed already
+        if target is None:  # no case pages yet: the link's form is fixed already
             return page(request, "error.html", None, message="No such case.", status=404)
         return arrive(request, target)
 

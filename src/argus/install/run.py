@@ -1,4 +1,4 @@
-"""``argus init``'s steps, in order (P4-D2, D-295 to D-299). Each is idempotent: a rerun keeps
+"""``argus init``'s steps, in order. Each is idempotent: a rerun keeps
 what exists, says "kept", and repairs only what is missing or wrong; nothing is overwritten
 without a ``--force-<thing>`` flag or an explicit answer. The side effects (commands, TLS, the
 SIEM, systemd) come from a ``Host``, which the tests replace with fakes."""
@@ -220,7 +220,7 @@ class Init:
     def env(self) -> None:
         self.step(2, ".env (the database passwords; never shown)")
         before = set(files.read_env(self.o.env_file))
-        # The web's own login (Q-A2) only for a new database: an installation whose .env holds
+        # The web's own login only for a new database: an installation whose .env holds
         # a database password may keep the web's elsewhere (a credential folder), and a new one
         # would replace it. A .env with only compose's names (a second ARGUS here) is new.
         new = not before & {"ARGUS_DATABASE__PASSWORD", "ARGUS_DATABASE__OWNER_PASSWORD"}

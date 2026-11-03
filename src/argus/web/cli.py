@@ -1,6 +1,6 @@
-"""``argus web`` (the Inbox: the loopback, or TLS on the network, D-104), ``argus user ...``
+"""``argus web`` (the Inbox: the loopback, or TLS on the network), ``argus user ...``
 (reviewer accounts, and ``user link`` for ELK sign-in), ``argus sessions ...`` (end every session;
-make the web's secret) and ``argus break-glass ...`` (the emergency account, Q-E2)."""
+make the web's secret) and ``argus break-glass ...`` (the emergency account)."""
 
 from __future__ import annotations
 
@@ -27,19 +27,19 @@ CAPABILITY_HELP = (
     " review, everything needs view)"
 )  # fmt: skip
 
-user_app = typer.Typer(no_args_is_help=True, help="Reviewer accounts for the Inbox (R7).")
+user_app = typer.Typer(no_args_is_help=True, help="Reviewer accounts for the Inbox.")
 sessions_app = typer.Typer(
-    no_args_is_help=True, help="Sessions of the Inbox: end them all, make the web's secret (Q-E2)."
+    no_args_is_help=True, help="Sessions of the Inbox: end them all, make the web's secret."
 )
 break_glass_app = typer.Typer(
     no_args_is_help=True,
-    help="The emergency account for when ELK cannot be asked: view and review only (Q-E2).",
+    help="The emergency account for when ELK cannot be asked: view and review only.",
 )
 
 
 def web_engine(settings: Settings) -> AsyncEngine:
     """The engine the web runs on: its own login (``database.api_user``, only the grants the
-    web needs, Q-A2) when ``web.database_role`` is ``api``, else the runtime login. Exit code 2
+    web needs) when ``web.database_role`` is ``api``, else the runtime login. Exit code 2
     while that login's password is missing."""
     from argus.cli import _engine  # argus.cli imports this module: import at call time
 
@@ -48,8 +48,8 @@ def web_engine(settings: Settings) -> AsyncEngine:
 
 def web(config: ConfigOption = None) -> None:
     """Serve the Inbox: on the loopback address (reviewers use an SSH forward, e.g.
-    ``ssh -L 8765:127.0.0.1:8765 <this machine>``), or with TLS on the network (D-104). With
-    ``web.elk_signin`` people sign in with their own ELK accounts (Q-E2)."""
+    ``ssh -L 8765:127.0.0.1:8765 <this machine>``), or with TLS on the network. With
+    ``web.elk_signin`` people sign in with their own ELK accounts."""
     import uvicorn
 
     from argus.web.app import create_app
@@ -73,7 +73,7 @@ def web(config: ConfigOption = None) -> None:
     from argus.cases.signing import KeyFileError
 
     watch = None
-    try:  # what proves a case quiet (Q-C2); without it no case can be called quiet
+    try:  # what proves a case quiet; without it no case can be called quiet
         from argus.cases import watchrun
 
         watch = watchrun.context_for(settings)
@@ -111,8 +111,8 @@ def web(config: ConfigOption = None) -> None:
 
 
 def signins_reading(settings: Settings, privacy: Any, watch: Any) -> Any:
-    """What the pages need to show who used a device (AR6): the rules, the classifier that says
-    which addresses are internal (the privacy layer's, else the watch's), the campus resolvers.
+    """What the pages need to show who used a device: the rules, the classifier that says
+    which addresses are internal (the privacy layer's, else the watch's), the internal resolvers.
     None when there is no classifier: the card is then off."""
     from argus.signins import view
 
@@ -125,7 +125,7 @@ def _at_a_terminal() -> bool:
 
 
 def _identity_lane(settings: Settings, engine: AsyncEngine) -> Any:
-    """The identity lane the web checks people with (Q-E1): on the web's own database login,
+    """The identity lane the web checks people with: on the web's own database login,
     with ARGUS's reader key for the security-index check after a 401 (without it a 401 is never
     a denial, only "unavailable")."""
     from argus.config.errors import ConfigError
@@ -331,7 +331,7 @@ def user_grant(
     capabilities: Annotated[list[str], typer.Argument(help=CAPABILITY_HELP)],
     config: ConfigOption = None,
 ) -> None:
-    """Let a local account do more (Q-A1); its sessions see the change at their next request."""
+    """Let a local account do more; its sessions see the change at their next request."""
     _change_capabilities(username, capabilities, True, config)
 
 
@@ -349,7 +349,7 @@ def grade(
     count: Annotated[int, typer.Option("--count", "-n", min=1, max=500)] = 30,
     config: ConfigOption = None,
 ) -> None:
-    """R7 gate: grade random investigations (is each one correctly grouped?). Answers are
+    """Grade random investigations (is each one correctly grouped?). Answers are
     saved to data/gate/grading-<UTC time>.csv; the share of yes is printed at the end."""
     import csv
     import json
@@ -416,9 +416,6 @@ def grade(
     typer.echo(f"\n{yes} of {len(answers)} correctly grouped ({share:.0f}%); saved to {out}")
 
 
-# --------------------------------------------------------------------------- ELK sign-in
-
-
 DifferentPersonOption = Annotated[
     bool,
     typer.Option(
@@ -435,10 +432,10 @@ def user_link(
     yes_different_person: DifferentPersonOption = False,
     config: ConfigOption = None,
 ) -> None:
-    """Link a local account to the person's ELK account (Q-E2; the same as `argus identity link
+    """Link a local account to the person's ELK account (the same as `argus identity link
     USER --elk NAME`). Their next ELK sign-in finds this account (its ``users.id`` and all its
     history); the local password stays until that sign-in has worked. A local account could
-    always answer gold items; in ELK mode only a named owner may (DQ15), so linking takes
+    always answer gold items; in ELK mode only a named owner may, so linking takes
     ``answer_gold`` away: give it back with ``argus user grant <account> answer_gold`` to those
     who should keep it."""
     link_account(load(config), username, elk_username, different_person=yes_different_person)
@@ -520,7 +517,7 @@ def sessions_keygen(
     """Make the web's secret: 32 random bytes as 64 hex digits, in a file only this user can
     read (``web.secret_file`` names it). It keys the sealed ELK credentials and the names of
     failed sign-ins; lose it and every session must sign in again. Give it to ``argus-web``
-    alone (plan §7.9)."""
+    alone."""
     from argus.cases import signing
 
     try:

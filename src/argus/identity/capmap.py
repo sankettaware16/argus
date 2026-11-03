@@ -1,34 +1,12 @@
-"""The capability map (Q-E1, plan §7.2): what a person may do in ARGUS, from what ELK says
-their own credential holds. Versioned, and built on **actions**, never role names: a role
-called anything that grants the actions counts, one that is called "reviewer" and grants
-nothing counts for nothing.
+"""The capability map: what a person may do in ARGUS, from what their own ELK credential holds.
 
-Version 1 was written for Kibana 8.19.12's Security feature ``siemV2`` and Cases feature
-``securitySolutionCasesV3`` (their actions read from the local tier with
-``GET /api/security/privileges?includeActions``, Q-D1); those ids are the defaults of
-``site.kibana_features``, which ``argus discover`` fills from Kibana's own features list for
-another Kibana. A Kibana upgrade that renames either feature changes its ``ui:`` actions, so
-the map grants nothing until the ids are updated: it fails closed rather than guess.
-
-| Capability | Checked with the person's credential |
-|---|---|
-| view | ``login:``, ``ui:siemV2/show``; ``read`` on the alerts (alias and backing indices) |
-| see_logs | ``read`` on the log indices (``acme-logs-*``) |
-| review | ``index`` and ``maintenance`` on the alerts (the alert-status privileges) |
-| manage_cases | ``createCase``, ``updateCase``, ``createComment`` and their ``ui:`` actions |
-| reopen | ``reopenCase`` and ``ui:securitySolutionCasesV3/case_reopen`` |
-| approve | the ``argus`` action ``argus:approve`` (with manage_cases) |
-| admin | the ``argus`` action ``argus:admin`` |
-
-``answer_gold`` is not ELK's to give: it is review plus being named a gold-key owner in ARGUS
-(D-080), so the caller adds it. Prerequisites (``web.capabilities.NEEDS``) apply on top: no
-capability counts without view.
-
-**Monotone and failing closed.** A privilege counts only when the answer says ``true`` for
-exactly what was asked; anything missing, malformed or not ``true`` is not held. More held
-privileges never give fewer capabilities. The **cluster canaries** are the other way round:
-anything the answer does not say is ``false`` counts as held, so an account the answer leaves
-unclear is treated as an admin account (DQ15 (a)).
+Versioned and built on **actions**, never role names. Capabilities: view, see_logs, review,
+manage_cases, reopen, approve, admin (each checked with Kibana's ``ui:`` and API actions and index
+privileges on the alerts and logs; see ``needs_for``). ``answer_gold`` is not ELK's to give: it is
+review plus being a gold-key owner in ARGUS. The Kibana feature ids are the defaults of
+``site.kibana_features``; a Kibana upgrade that renames a feature grants nothing until the ids are
+updated (fail closed). A privilege counts only when the answer says ``true``; the **cluster
+canaries** are the other way round: an account the answer leaves unclear counts as an admin account.
 """
 
 from __future__ import annotations
@@ -46,10 +24,10 @@ SECURITY_FEATURE = "siemV2"
 CASES_FEATURE = "securitySolutionCasesV3"
 KIBANA_APP = "kibana-.kibana"  # Kibana's application in Elasticsearch's privilege store
 ARGUS_APP = "argus"
-ARGUS_RESOURCE = "*"  # argus_approver and argus_admin grant on "*" (deploy/elk)
+ARGUS_RESOURCE = "*"  # argus_approver and argus_admin grant on "*"
 CASES = "cases:securitySolution/"
 
-# The cluster privileges an everyday account must not hold (DQ15 (a)). ``all`` is a superuser's.
+# The cluster privileges an everyday account must not hold. ``all`` is a superuser's.
 SUPERUSER_CANARY = "all"
 ADMIN_CANARIES = (
     "manage",
@@ -204,8 +182,8 @@ def _complete(table: Mapping[str, Any], names: Iterable[str], where: str) -> Non
 def read(answer: Any, targets: Targets) -> Privileges:
     """The map applied to a ``_has_privileges`` answer. Anything the answer does not state as
     ``true`` is not held; any canary it does not state as ``false`` is held. An answer that
-    does not state every privilege asked (a truncated or partial one) is ``IncompleteAnswerError``
-    (review E1-5): the caller treats it as unavailable, not as the person's verdict."""
+    does not state every privilege asked (a truncated or partial one) is ``IncompleteAnswerError``:
+    the caller treats it as unavailable, not as the person's verdict."""
     kibana = _held(answer, "application", KIBANA_APP, targets.resource)
     argus = _held(answer, "application", ARGUS_APP, ARGUS_RESOURCE)
     alerts = [_held(answer, "index", name) for name in targets.alerts]

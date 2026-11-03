@@ -1,4 +1,4 @@
-"""Keyed, deterministic pseudonyms for names, domains and identifiers (R2, D-030).
+"""Keyed, deterministic pseudonyms for names, domains and identifiers.
 
 Every function is a pure function of (key, kind, value): the same original always becomes the same
 pseudonym, so references between alerts, source events, TI documents and cassettes stay intact.
@@ -17,7 +17,7 @@ import string
 import unicodedata
 from collections.abc import Callable, Iterable
 
-# Public suffixes with more than one label that occur in campus and Internet traffic. Anything else
+# Public suffixes with more than one label that occur in everyday traffic. Anything else
 # keeps only its last label as the suffix. (A full Public Suffix List is not needed for fixtures:
 # the suffix is kept purely so pseudonymous domains stay recognisably domain-shaped.)
 MULTI_LABEL_SUFFIXES = frozenset(
@@ -164,11 +164,9 @@ class Tokenizer:
         """Format-preserving, one-to-one, never the input itself.
 
         ``D = F⁻¹ ∘ (+1 mod N) ∘ F`` (``F`` a keyed Feistel permutation of all N strings of this
-        length and alphabet) is a single cycle through all of them, so it moves every string.
-        It is walked until the result is of the same id class as the input (all digits, hex with
-        a letter, upper-case hex with a letter, other base64url): every class maps onto itself,
-        so ids of two classes never share a pseudonym (``0f`` and ``11``), and a cycle through a
-        class of two or more ids still moves each of them."""
+        length and alphabet) is a single cycle through all of them, so it moves every string. It is
+        walked until the result is of the same id class as the input, so ids of two classes never
+        share a pseudonym (``0f`` and ``11``)."""
         base, size = len(alphabet), len(alphabet) ** len(value)
         number = 0
         for char in value:
@@ -246,13 +244,13 @@ class DomainMapper:
     * names are normalised first (``normalize_domain``): Unicode labels become punycode, so
       ``straße.de`` and ``xn--strae-oqa.de`` are one domain and ``strasse.de`` another;
     * allowlisted public vendor/CDN domains (and their subdomains) are kept verbatim, unless the
-      labels in front of the kept suffix carry a campus name (``example-backups.s3.amazonaws.com``,
-      ``www.example.edu.cdn.example``, also in punycode or with dashes): those labels become
-      tokens;
-    * campus domains (``*.example.edu``) become ``<label tokens>.univ.example``; a second campus
-      domain becomes ``<label tokens>.c2.univ.example`` and so on, in policy order;
+      labels in front of the kept suffix carry one of the organisation's names
+      (``example-backups.s3.amazonaws.com``, ``www.example.edu.cdn.example``, also in punycode or
+      with dashes): those labels become tokens;
+    * the organisation's own domains (``*.example.edu``) become ``<label tokens>.univ.example``; a
+      second one becomes ``<label tokens>.c2.univ.example`` and so on, in policy order;
     * every other label becomes an 8-character keyed token; the public suffix is kept, unless it
-      carries a campus name itself (``printer.campus``).
+      carries one of the organisation's names itself (``printer.campus``).
     """
 
     def __init__(
@@ -275,12 +273,12 @@ class DomainMapper:
         )
         terms = {_squash(t) for t in sensitive_terms}
         for campus in ordered:
-            decoded = _unpuny(campus)  # an IDN campus name is compared as its letters
+            decoded = _unpuny(campus)  # an IDN name is compared as its letters
             terms |= {
                 _squash(campus.split(".")[0]),
                 _squash(decoded.split(".")[0]),
             }  # the first label
-            terms |= {_squash(campus), _squash(decoded)}  # the whole domain: cu-ac-in
+            terms |= {_squash(campus), _squash(decoded)}  # the whole domain: example-edu
         self._sensitive = tuple(sorted(t for t in terms if len(t) >= 3))
 
     def map(self, domain: str) -> str:
@@ -305,7 +303,7 @@ class DomainMapper:
             head, suffix = ".".join(labels[:-1]), labels[-1]
         else:
             return self.label(name)
-        if self._is_sensitive(suffix):  # not a public suffix: a campus name in last place
+        if self._is_sensitive(suffix):  # not a public suffix: an organisation name in last place
             return ".".join(self.label(label) for label in labels)
         return self._join(head, suffix)
 
@@ -314,8 +312,8 @@ class DomainMapper:
         return self._tokens.token("label", label.lower(), "", 8)
 
     def _is_sensitive(self, head: str) -> bool:
-        """Whether ``head`` carries a campus name, a whole campus domain or a policy literal, in
-        any spelling (the squashed whole campus domain covers ``x.campus.ac.in.cdn``)."""
+        """Whether ``head`` carries an organisation name, a whole organisation domain or a policy
+        literal, in any spelling (the squashed whole domain covers ``x.example.edu.cdn``)."""
         squashed = _squash(_unpuny(head))
         return any(term in squashed for term in self._sensitive)
 

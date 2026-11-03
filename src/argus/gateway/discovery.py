@@ -1,14 +1,9 @@
-"""The gateway's discovery templates (P4-D1, D-238): the few metadata reads ``argus discover``
-makes to propose a ``site`` section from an Elastic ARGUS is not configured for yet.
+"""The gateway's discovery templates: the few metadata reads ``argus discover`` makes.
 
-They are reads of names and mappings, never of documents: which indices, aliases and data streams
-exist (``discover.indices``, two fixed patterns), what a handful of well-known fields are mapped
-as in one index (``discover.field_mapping``, the fields allowlisted below, at most
-``MAX_FIELDS``), the ILM policies' delete ages (``discover.ilm``, only when the key holds
-``read_ilm``: the privilege is asked first, because a 403 would stop ARGUS's access to the SIEM)
-and that privilege check (``discover.privileges``). All are light, in the discovery family, sent
-with the ``discover`` purpose (NORMAL health only, the collector's budget) and capped in the size
-of what they keep: a cluster with thousands of indices is cut, and the cut is said.
+They read names and mappings, never documents: which indices, aliases and data streams exist, how
+a few allowlisted fields are mapped, the ILM delete ages (only when the key holds ``read_ilm``,
+asked first because a 403 would stop ARGUS's access) and that privilege check. All are light, sent
+with the ``discover`` purpose (NORMAL health only) and capped in size.
 """
 
 from __future__ import annotations

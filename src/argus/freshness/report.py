@@ -1,7 +1,7 @@
-"""The shadow's numbers (Q-F1, DQ19): what the readings show per source, how many 72-hour
+"""The shadow's numbers: what the readings show per source, how many 72-hour
 windows they would prove with and without the candidate bridge, the verdicts the log zeros
-got, and the would-be proposals (``assess``). For the lead and the user's audit only: no page
-or API shows them (plan §3 rule 12)."""
+got, and the would-be proposals (``assess``). For the operator's audit only: no page
+or API shows them."""
 
 from __future__ import annotations
 
@@ -154,7 +154,7 @@ FROM gold_labels l ORDER BY l.investigation_id, l.id DESC
 async def assess(conn: AsyncConnection, now: datetime, *, bridged: bool) -> dict[str, Any]:
     """Run the deterministic engine on every dossier with a would-be verified zero, with and
     without those zeros; store each pair (``freshness_proposals``); count the would-be benign
-    proposals and, on the gold set, the true positives among them (the gate: 0)."""
+    proposals and, on the gold set, the true positives among them (must be 0)."""
     from argus.assess.engine import NAME, Engine, learn
 
     assessor = Engine(await learn(conn), now)
@@ -188,7 +188,7 @@ async def assess(conn: AsyncConnection, now: datetime, *, bridged: bool) -> dict
 
 # ----------------------------------------------------------------------------- the audit
 
-AUDIT_N = 37  # D-092: a lower bound of at least 90 % needs at least 37 items
+AUDIT_N = 37  # a lower bound of at least 90 % needs at least 37 items
 AUDIT_BAR = 0.90
 SHEET = ("investigation_id", "version", "pack", "would_propose", "proposed", "signals",
          "correct", "true_positive")  # fmt: skip
@@ -196,11 +196,11 @@ YES, NO = "yes", "no"
 
 
 def sheet(proposals: Iterable[Mapping[str, Any]], *, bridged: bool) -> list[dict[str, str]]:
-    """The user's audit sheet: every proposal the shadow's zeros would turn benign that the
+    """The audit sheet: every proposal the shadow's zeros would turn benign that the
     engine did not already propose benign on its own (with or without the bridge's zeros),
-    with ``correct`` and ``true_positive`` left for the user to answer yes or no. Rows the
+    with ``correct`` and ``true_positive`` left for the reviewer to answer yes or no. Rows the
     engine already proposed benign without a zero are not the shadow's work and would only
-    pad the audit (review F4)."""
+    pad the audit."""
     out = []
     for p in proposals:
         if bool(p["bridged"]) != bridged or p["outcome"] not in BENIGN or p["actual"] in BENIGN:
@@ -221,7 +221,7 @@ def sheet(proposals: Iterable[Mapping[str, Any]], *, bridged: bool) -> list[dict
 
 
 def score(rows: Sequence[Mapping[str, str]]) -> dict[str, Any]:
-    """The audit against the switch-on's bar (plan §5 Q-F1, D-092): every item answered, no
+    """The audit against the switch-on's bar: every item answered, no
     true positive among the would-be benign proposals, and a Wilson lower bound (95 %) of at
     least 90 % of them correct at n >= 37."""
     from argus.evaluation.harness import Rate

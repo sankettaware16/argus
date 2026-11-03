@@ -1,31 +1,14 @@
-"""One measuring session through the gateway (Q-A3, plan §5 and §7.8, DQ21 (a) under D-110).
+"""One measuring session through the gateway.
 
-A person runs it at a terminal, in NORMAL health, never 00:00-01:30 UTC. It sends ARGUS's own
-production templates (never a template's first production run: D-056, D-069), each a few times
-with different windows or subjects, so that each is measured on a cache miss, through
-``Gateway.run`` with the ``measure`` purpose: the shared budget, the heavy cap, the breaker, the
-kill switch and the ledger apply as to every ARGUS request. On top, this session's own rules,
-stricter than the budget:
-
-* at most 50 requests of any kind (its probes and index listings included) and 10 heavy ones,
-  counted where requests leave (``CappedTransport``), so no code path can exceed them;
-* heavy requests at least 10 s apart (6 a minute at most, all of ARGUS counted);
-* at most 3 s of server time in any 60 s, all of ARGUS counted from the ledger: a request
-  starts only when the last minute leaves room for the most it can be charged, which the
-  session bounds by its own timeout (Elasticsearch stops at 1 s, 2 s for a heavy one; the
-  wire waits 0.3 s more and a timeout is charged in full), so even a request that runs to its
-  timeout fits;
-* before every request, and again whenever the gateway asks after a wait: the kill switches,
-  the breaker, the quiet hours, the SIEM's health and the newest probe reading (probed again when
-  older than a minute); any CAUTION signal (a reading at a CAUTION threshold, a search queue, a
-  rise in rejections or breaker trips, an unknown reading, a failed or stale probe, a budget
-  still coming back) **ends the session**, as does any failed request. The gateway is never
-  let retry one of its requests (review F1): a retry would be charged on top of the room the
-  first attempt was paced for, and it would go into a cluster that just failed to answer.
-
-``verify`` then reads the ledger and the probe readings back and checks what the gate asks: at
-most 6 heavy requests and 3 s of server time in every minute, no reading past CAUTION (up to
-5 minutes after the session when ARGUS used more than 1.5 s in a minute: §7.8's attribution).
+A person runs it at a terminal, in NORMAL health, never in the quiet hours. It sends ARGUS's own
+production templates (only ones already sent in production), each a few times with different
+windows or subjects, through ``Gateway.run`` with the ``measure`` purpose, so the shared budget,
+heavy cap, breaker, kill switch and ledger apply. On top, its own stricter rules: at most 50
+requests and 10 heavy ones (counted where requests leave, ``CappedTransport``), heavy requests at
+least 10 s apart, at most 3 s of server time in any 60 s (all of ARGUS counted from the ledger),
+and before every request the kill switches, breaker, quiet hours, health and a fresh probe. Any
+CAUTION signal or failed request **ends the session**, and the gateway is never let retry.
+``verify`` then reads the ledger and probe readings back and checks the session's limits.
 """
 
 from __future__ import annotations
@@ -42,7 +25,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 # Every module that registers a template ARGUS sends: ``cost_of`` reads the registry, and an
-# unknown name counts as heavy, so each must be imported in this process (review F2; a test
+# unknown name counts as heavy, so each must be imported in this process (a test
 # compares this process's registry with every ``@register`` in the package).
 from argus import site
 from argus.collector.templates import AlertCounts, AlertStates, CountsParams, StatesParams
@@ -50,7 +33,7 @@ from argus.context import beacon, dns, live_check, paths, source_events  # noqa:
 from argus.context.bounds import quiet
 from argus.context.proxy import ProxyDestination, ProxyHost, WindowParams, _days
 from argus.context.web import FollowParams, WebFollowups
-from argus.freshness import template as _freshness_template  # noqa: F401  (Q-F1: its cost)
+from argus.freshness import template as _freshness_template  # noqa: F401  (its cost)
 from argus.gateway.builtin import AlertIds, AlertIdsParams, AlertsMget, MgetParams
 from argus.gateway.errors import (
     DeadlinePassedError,
@@ -66,7 +49,7 @@ from argus.gateway.templates import REGISTRY, CostClass, Params, Purpose, Templa
 from argus.gateway.transport import Transport, WireRequest, WireResponse
 from argus.reference.templates import NewestParams, TiLookup, TiNewest, lookup_params
 from argus.reference.ti import variants
-from argus.signins import template as _signins_template  # noqa: F401  (AR6: its cost)
+from argus.signins import template as _signins_template  # noqa: F401  (its cost)
 
 COMPONENT = "measure"  # the session's ledger rows: its requests and its own probes
 MINUTE = timedelta(minutes=1)
@@ -78,7 +61,7 @@ LOG_WINDOW = timedelta(hours=1)
 
 @dataclass(frozen=True)
 class Limits:
-    """The session's own rules (plan §5 Q-A3); the budget's still apply underneath."""
+    """The session's own rules; the budget's still apply underneath."""
 
     max_requests: int = 50  # every request, its probes and index listings included
     max_heavy: int = 10
@@ -101,7 +84,7 @@ class Limits:
     busy_pause: timedelta = timedelta(seconds=5)
     max_wait: timedelta = timedelta(seconds=120)  # the longest wait for room
     max_duration: timedelta = timedelta(minutes=20)
-    # §7.8: a move to CAUTION within 5 minutes after ARGUS used more than 1,500 ms in a minute
+    # a move to CAUTION within 5 minutes after ARGUS used more than 1,500 ms in a minute
     # counts against ARGUS, so verify watches the readings that long after such a session
     attribution: timedelta = timedelta(minutes=5)
     attribution_ms: int = 1_500
@@ -157,7 +140,7 @@ class Planned:
 class Subjects:
     """What the session asks about, from the newest stored alerts (no request to the SIEM)."""
 
-    host: str | None = None  # a campus proxy host (squid)
+    host: str | None = None  # a proxy host (squid)
     destination: str | None = None  # a public destination (squid)
     client: str | None = None  # a web client (nginx)
     mget: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (backing index, ids) batches
@@ -352,7 +335,7 @@ def caution_signals(
 ) -> list[str]:
     """Every sign that the SIEM is not plainly NORMAL now; empty: go on. ``memory`` is the
     effective health memory; ``baseline`` the session's first reading (counters must not rise
-    from it). Unknown is not healthy (D-023): a missing reading is a signal too."""
+    from it). Unknown is not healthy: a missing reading is a signal too."""
     found: list[str] = []
     if memory.state is not HealthState.NORMAL:
         reasons = f" ({', '.join(memory.reasons)})" if memory.reasons else ""
@@ -417,7 +400,7 @@ class StaleReadingError(AgainError):
 
 
 class NoRetryError(RefusedError):
-    """The gateway would retry a request of the session: it never may (review F1). Raised
+    """The gateway would retry a request of the session: it never may. Raised
     from the session's check, which the gateway asks before a retry; the row keeps the
     first attempt's charge, and the session ends."""
 
@@ -674,7 +657,7 @@ class Session:
 
     async def _check(self, now: datetime) -> None:
         """The gateway asks this again after any wait and once the lease is held: the quiet
-        hours, the kill switches and every CAUTION signal, as before the request (review F6),
+        hours, the kill switches and every CAUTION signal, as before the request,
         so a wait never carries a request past them. A reading that went stale meanwhile
         sends the request back to be probed first."""
         if quiet(now):
@@ -784,7 +767,7 @@ class Session:
 class Verdict:
     problems: tuple[str, ...]
     facts: tuple[str, ...]
-    # §7.8's attribution window had not passed when this was judged: verify again after it
+    # the attribution window had not passed when this was judged: verify again after it
     pending_until: datetime | None = None
 
     @property
@@ -795,7 +778,7 @@ class Verdict:
 def sends(row: RecentRequest) -> int:
     """Requests a ledger row sent to the SIEM: its attempts, less one the session's cap refused
     (the cap refuses before sending). A row the cap refused on its first attempt sent none;
-    one whose retry it refused sent its first attempt (review F3)."""
+    one whose retry it refused sent its first attempt."""
     return max(row.attempts - (row.outcome == SessionCapError.reason), 0)
 
 
@@ -844,14 +827,13 @@ def verify(
     requests_sent: int | None = None,
     now: datetime | None = None,
 ) -> Verdict:
-    """The gate's check of a session from what was stored: ``rows`` are the ledger's rows (all
-    of ARGUS) from a minute before ``start`` to a minute after ``end``, ``probes`` the readings
-    from ``start`` to ``watch_until`` (``end`` plus a minute, or plus §7.8's 5 minutes when ARGUS
-    used more than 1,500 ms in a minute). Every 60 s that holds a request of the session is
-    checked, for all of ARGUS and for the session alone; every reading must be NORMAL with no
-    CAUTION signal. ``requests_sent`` is the session's own count (its file): the ledger must
-    hold at least as many. Judged at ``now`` before the readings' window ends, the verdict is
-    only provisional (``pending_until``)."""
+    """The check of a session from what was stored: ``rows`` are the ledger's rows (all of ARGUS)
+    around the session, ``probes`` the readings from ``start`` to ``watch_until`` (``end`` plus a
+    minute, or 5 minutes when ARGUS used more than 1,500 ms in a minute). Every 60 s that holds a
+    request of the session is checked, for all of ARGUS and for the session alone; every reading
+    must be NORMAL with no CAUTION signal; the ledger must hold at least ``requests_sent``
+    requests. Judged before the readings' window ends, the verdict is only provisional
+    (``pending_until``)."""
     config = config or HealthConfig()
     problems: list[str] = []
     around = [row for row in rows if start - MINUTE <= row.at <= end + MINUTE]
@@ -915,7 +897,7 @@ def verify(
 
 
 def watch_until(end: datetime, busiest_ms: int, limits: Limits = LIMITS) -> datetime:
-    """The end of the readings that count against a session: a minute after it, or §7.8's
+    """The end of the readings that count against a session: a minute after it, or
     5 minutes when ARGUS used more than ``attribution_ms`` in one of its minutes."""
     return end + (limits.attribution if busiest_ms > limits.attribution_ms else MINUTE)
 

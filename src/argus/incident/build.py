@@ -1,20 +1,11 @@
-"""The deterministic writer (AR7, D-190): :class:`argus.incident.gather.CaseFacts` in, the
-:class:`argus.incident.model.IncidentReport` out. Pure: no database, no clock (``Context.as_at`` is
-passed in), no network, no model. The same facts always give the same report, which is what keeps a
-case's report stable until its evidence changes.
-
-How the words are made. Every sentence of the narrative is **a fact's own sentence** (the writer
-registers the fact with the figures it states, then says it) or a short connective sentence that
-cites facts and adds no number (:mod:`argus.incident.book`). A model, when one is used
-(:mod:`argus.incident.prose`), only rewords the summary from facts and may add none. What the
-report says in numbers comes from SQL (the aggregates of :mod:`argus.incident.gather`) and from the
-stored answers of the checks that ran; the writer never estimates.
-
-The parts: :mod:`argus.incident.verdict` (the verdict and what it rests on),
-:mod:`argus.incident.parts` (timeline, actors, assets, evidence, indicators) and
-:mod:`argus.incident.story` (hypotheses, actions, the summary). This module adds the header: the
-incident id and the Kibana case's tags.
-"""
+"""The deterministic writer: :class:`argus.incident.gather.CaseFacts` in, the
+:class:`argus.incident.model.IncidentReport` out. Pure: no database, no clock, no network, no model;
+the same facts always give the same report, which keeps a case's report stable until its evidence
+changes. Every sentence is **a fact's own sentence** or a short connective sentence that cites facts
+and adds no number (:mod:`argus.incident.book`); a model (:mod:`argus.incident.prose`) only rewords
+the summary. Numbers come from SQL and stored answers; the writer never estimates. The parts are in
+:mod:`argus.incident.verdict`, :mod:`argus.incident.parts` and :mod:`argus.incident.story`; this
+module adds the header: the incident id and the Kibana case's tags."""
 
 from __future__ import annotations
 
@@ -42,8 +33,8 @@ PHASE = {"suspected": "triage", "closed": "resolved", "contained": "contained"}
 
 def incident_id(f: CaseFacts) -> str:
     """``<prefix>-<yyyy>-<mmdd>-<nn>``: the day (in the site's zone) the case was made, and its
-    rank among that day's cases. The prefix is ``site.incident_id_prefix`` (``IR`` by default: the
-    hand-made case's form, ``<prefix>-2026-1027-01``)."""
+    rank among that day's cases. The prefix is ``site.incident_id_prefix`` (``IR`` by default;
+    for example ``IR-2026-1027-01``)."""
     local = f.case.created_at.astimezone(site.zone())
     return f"{site.incident_prefix()}-{local:%Y}-{local:%m%d}-{f.order:02d}"
 
@@ -59,7 +50,7 @@ def _families(scene: Scene) -> list[str]:
 
 
 def _zone(scene: Scene) -> str | None:
-    """The site zone of the first campus device, from the asset map (``site.zone``)."""
+    """The site zone of the first internal device, from the asset map (``site.zone``)."""
     cls = scene.ctx.classifier
     if cls is None or not scene.devices:
         return None
@@ -88,8 +79,8 @@ def _phase(scene: Scene) -> str:
 
 
 def tags(scene: Scene, ident: str, outcome: str | None) -> tuple[str, ...]:
-    """The Kibana case's ``key:value`` tags (docs/runbooks/kibana-incident-case.md), the incident
-    id first. AR8 sends them; the report only says them."""
+    """The Kibana case's ``key:value`` tags, the incident
+    id first. The case team sends them; the report only says them."""
     found = [ident, "incident"]
     if outcome in VERDICT_TAG:
         found.append(VERDICT_TAG[outcome])
@@ -135,7 +126,7 @@ def build(facts: CaseFacts, ctx: Context) -> m.IncidentReport:
     opened = OPENED.get(case.cause, case.cause) + "; "
     if case.opened_at is not None:
         opened += "confirmed as a case by a person"
-    elif said.kind == "person":  # a person reviewed the report (D-193, D-229): not "unconfirmed"
+    elif said.kind == "person":  # a person reviewed the report: not "unconfirmed"
         opened += f"a person reviewed the report ({said.words})"
     else:
         opened += "no person has confirmed it yet"

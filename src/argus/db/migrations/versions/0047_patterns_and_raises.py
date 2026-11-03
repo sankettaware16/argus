@@ -1,23 +1,10 @@
-"""One investigator run per pattern; raise by evidence (AR2 and AR2b, D-160).
+"""One investigator run per pattern; raise by evidence.
 
-* ``assessment_shares``: the investigations an investigator run stands for. One row for the run's
-  own investigation and one for each other investigation of the same pattern
-  (``display.signature``, the Patterns page's key) and IST day, so a pattern is run once a day and
-  its reading is shown on the others as "same pattern as ...". Display only: the other
-  investigations get no assessment, so nothing is ever scored, closed or written back from a
-  shared run. Removed with the run or the investigation (``ON DELETE CASCADE``).
-* ``investigation_raises``: the generic flags (a threat-list hit, success after an attack, a
-  beacon-like regularity, risky ports) found on an investigation's newest dossier. An unreviewed
-  investigation with a flag is in Needs attention whatever its severity. One row per
-  investigation, replaced when a newer dossier is read.
-* ``cases.cause`` gains ``raised``: the suspected case ARGUS suggests from evidence across
-  investigations (a host's rules or days, or actors that hit the same rare targets). It stays
-  suspected until a person confirms it; ARGUS opens nothing.
-
-``argus_runtime`` reads both tables, inserts shares (no UPDATE, no DELETE) and writes the raise
-columns; the web's role reads both.
-
-The role names are written out, not imported (see 0003).
+``assessment_shares``: the investigations an investigator run stands for (its own and each other
+investigation of the same pattern and local day), shown as "same pattern as ..."; display only.
+``investigation_raises``: the generic flags found on an investigation's newest dossier; an
+unreviewed investigation with a flag is in Needs attention. ``cases.cause`` gains ``raised``: a
+suspected case ARGUS suggests from evidence across investigations.
 
 Revision ID: 0047
 Revises: 0046

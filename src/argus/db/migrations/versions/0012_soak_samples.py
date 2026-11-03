@@ -1,4 +1,4 @@
-"""Soak samples: hourly snapshots the Phase 1 exit gate is judged from (R16)
+"""Soak samples: hourly snapshots the soak test is judged from
 
 Revision ID: 0012
 Revises: 0011

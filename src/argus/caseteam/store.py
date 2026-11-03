@@ -1,14 +1,10 @@
 # ruff: noqa: S608 - the f-strings put fixed column lists in the SQL; values are bound
-"""The case team's database access (AR8, D-195, migration 0053).
+"""The case team's database access.
 
-Every function takes the connection of the transaction it belongs to, and the time from the
-caller (a fake clock in the tests). The writer's login moves the posts and steps; the web's login
-records approvals; the runtime login records the verdict comments it read. Steps only move
-forward: ``planned -> sending -> sent -> verified``, into doubt (``ambiguous``, then ``resend``
-when a person must decide) or out of the way (``skipped``, ``superseded``); a step's text and
-payload are never changed once written (the alerts an attach left out, D-288, are recorded in its
-``kibana_ids`` and read through :func:`attach_view`).
-"""
+Every function takes the connection of the transaction it belongs to and the time from the caller.
+The writer's login moves the posts and steps, the web's records approvals, the runtime login the
+verdict comments it read. Steps only move forward (``planned -> sending -> sent -> verified``, into
+doubt or out of the way); a step's text and payload never change once written."""
 
 from __future__ import annotations
 
@@ -113,9 +109,6 @@ def _step_row(r: Any) -> StepRow:
         r.sent_at,
         r.verified_at,
     )
-
-
-# --------------------------------------------------------------------------- posts and steps
 
 
 async def post_of(conn: AsyncConnection, case_id: uuid.UUID) -> PostRow | None:
@@ -303,7 +296,7 @@ async def settle(
 
 
 def left_out_of(row: StepRow) -> frozenset[str]:
-    """The alerts of an attach that were left out of its call (D-288: closed alerts while Sync
+    """The alerts of an attach that were left out of its call (closed alerts while Sync
     alerts was on), as recorded in its ``kibana_ids``."""
     return frozenset(str(a) for a in row.kibana_ids.get("left_out", ()))
 
@@ -394,7 +387,7 @@ async def release_post(conn: AsyncConnection, case_id: uuid.UUID) -> None:
 async def posted_state(conn: AsyncConnection, case_id: uuid.UUID) -> Posted | None:
     """What the case already holds, from the steps that went through: the units of each part, the
     files' hashes, the alerts attached, the verdict posted last, and what ARGUS last wrote as the
-    title, the description and each comment (the posting, or its newest edit: D-236). None until
+    title, the description and each comment (the posting, or its newest edit). None until
     the case is open."""
     post = await post_of(conn, case_id)
     if post is None or post.kibana_case_id is None:
@@ -463,9 +456,6 @@ async def posted_state(conn: AsyncConnection, case_id: uuid.UUID) -> Posted | No
     )
 
 
-# --------------------------------------------------------------------------- counts
-
-
 _IN_DOUBT_OPEN = (
     "EXISTS (SELECT 1 FROM case_team_steps s WHERE s.case_id = p.case_id AND s.kind = 'open'"
     " AND s.state IN ('sending', 'sent', 'ambiguous', 'resend')"
@@ -503,9 +493,6 @@ async def opened_total(conn: AsyncConnection) -> int:
             )
         ).scalar_one()
     )
-
-
-# --------------------------------------------------------------------------- what a case holds
 
 
 async def case_row(conn: AsyncConnection, case_id: uuid.UUID) -> Any:
@@ -560,7 +547,7 @@ async def alerts_of(conn: AsyncConnection, case_id: uuid.UUID, limit: int) -> li
 
 
 _OPEN_STEP = "'planned', 'sending', 'sent', 'ambiguous', 'resend', 'held'"
-# A case a person deleted in Kibana (the read-back's mirror, P4-B1, D-270) is neither updated nor
+# A case a person deleted in Kibana (the read-back's mirror) is neither updated nor
 # opened again: the poster leaves it alone and ``argus case team status`` says why.
 KIBANA_DELETED = (
     "EXISTS (SELECT 1 FROM kibana_mirror k WHERE k.case_id = c.id AND k.deleted_at IS NOT NULL)"
@@ -585,7 +572,7 @@ _CANDIDATES = text(
     "   OR (c.state IN ('suspected', 'open', 'assigned') AND n.id IS NOT NULL"
     "       AND (p.case_id IS NULL OR p.kibana_case_id IS NULL)"
     "       AND coalesce(person.decision, '') <> 'rejected'"
-    # a confirm of a true positive holds while the newest report says true positive (D-229)
+    # a confirm of a true positive holds while the newest report says true positive
     "       AND ((person.decision = 'confirmed' AND person.outcome = 'true_positive'"
     "             AND n.verdict_outcome = 'true_positive')"
     "         OR (n.verdict_outcome = 'true_positive' AND n.kind IN ('person', 'proposal', 'case')"
@@ -657,9 +644,6 @@ async def names(conn: AsyncConnection, user_ids: Sequence[int]) -> dict[int, str
         text("SELECT id, display_name FROM users WHERE id = ANY(:ids)"), {"ids": list(user_ids)}
     )
     return {int(r.id): r.display_name for r in rows}
-
-
-# --------------------------------------------------------------------------- approvals
 
 
 @dataclass(frozen=True)
@@ -737,9 +721,6 @@ async def add_approval(
         },
     )
     return int(made.scalar_one())
-
-
-# --------------------------------------------------------------------------- verdict comments
 
 
 async def seen_has(conn: AsyncConnection, comment_id: str, text_hash: str) -> bool:

@@ -1,4 +1,4 @@
-"""Where the evaluation ladder's measures live and how they are put together (Q-G2).
+"""Where the evaluation ladder's measures live and how they are put together.
 
 Each runner writes its measure under ``data/gate/q-g2/<provider>/`` (never committed):
 ``drill.json`` (``argus llm drill``), ``agent.json`` and ``agent-r1.json`` (``argus gold agent
@@ -59,8 +59,8 @@ def unwrapped(data: Mapping[str, Any] | None, llm: LlmConfig, notes: list[str], 
 
 
 def require_licence(llm: LlmConfig) -> str | None:
-    """Why an evaluation may not call these providers yet: a campus provider without the
-    decision recording its licence's confirmation (plan §12 item 21), else None."""
+    """Why an evaluation may not call these providers yet: a local provider without the
+    decision recording its licence's confirmation, else None."""
     for p in llm.providers:
         if p.trust is Trust.CAMPUS and p.licence is None:
             return (f"{p.name}: the model's licence confirmation is not recorded: set"
@@ -162,7 +162,7 @@ async def build(
         notes.append(f"drill.json: measured {drill.get('model')!r}, not this model: not used")
         drill = None
     if drill is not None and drill.get("setup") != robustness.setup_of(provider):
-        # F7: another setup run (its address or certificate); its checks say nothing of this
+        # another setup run (its address or certificate); its checks say nothing of this
         notes.append("drill.json: measured another setup of the machine (its address or"
                      " certificate changed): not used; run `argus llm drill` again")  # fmt: skip
         drill = None
@@ -171,7 +171,7 @@ async def build(
         out["robustness"] = drill.get("cases") or None
     if cloud is not None:
         (other,) = cloud.providers
-        if other.name == provider.name or other.trust is not Trust.CLOUD:  # F6
+        if other.name == provider.name or other.trust is not Trust.CLOUD:
             raise ValueError(f"the comparison run must be a cloud provider's, not {other.name}")
     mine = unwrapped(read(here / "agent.json"), llm, notes, "agent.json")
     if cloud is not None and mine is not None:

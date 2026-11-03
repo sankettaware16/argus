@@ -1,4 +1,4 @@
-"""What the wave and "Check more" read from and write to Postgres (Q-F3): the investigation's
+"""What the wave and "Check more" read from and write to Postgres: the investigation's
 newest dossier, the rule's profile, the assessor's answer, the answers already stored, the queue
 of requests (``investigation_checks``) and the new dossier a wave leaves.
 
@@ -401,8 +401,8 @@ async def enqueue(
               "e": entity, "by": requested_by, "now": now}  # fmt: skip
     if kind == "check" and source == "person":
         # a person's check names only what a person gives: the table's defaults are its kind, its
-        # source and its status, and the web's login may insert no more than these columns
-        # (migration 0040), so "Check more" works from the web as well as from the service
+        # source and its status, and the web's login may insert no more than these columns, so
+        # "Check more" works from the web as well as from the service
         statement = (
             "INSERT INTO investigation_checks (investigation_id, version, template, entity,"
             " requested_by, requested_at) VALUES (:i, :v, :t, :e, :by, :now)"
@@ -585,7 +585,7 @@ async def checks_today(conn: AsyncConnection, requested_by: str) -> int:
     )
 
 
-LIMIT_STATE = "AR001"  # the SQLSTATE of the table's own limit on checks (migration 0040)
+LIMIT_STATE = "AR001"  # the SQLSTATE of the table's own limit on checks
 
 
 def limit_said(exc: DBAPIError) -> str | None:

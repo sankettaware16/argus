@@ -1,22 +1,12 @@
-"""``web.path_outcomes`` (Q-F4, plan §5 WS-F, §7.3): did an attacked path succeed? For one
-client, one hosted site and up to 10 of the paths the alerts show it tried, what nginx
-answered: the statuses per path, and for each path the sizes of its successful (2xx) answers.
+"""``web.path_outcomes``: did an attacked path succeed? For one client, one hosted site and up to
+10 tried paths, what nginx answered: statuses per path and the sizes of the 2xx answers.
 
-A site that answers every path with the same page (a catch-all: many single-page apps do)
-returns 200 for ``/.env`` too, so a 2xx alone is not a success. A path counts as having
-succeeded only when one of its 2xx answers differs in size from the 2xx answers of the other
-paths tried; a 2xx shared by two or more of them is most likely the site's catch-all. Paths
-nginx serves as one file (``/.env``, ``//.env``, ``/%2eenv``) count as one path there, so one
-real file asked for under two spellings is never taken for a catch-all. With nothing else
-answered to compare with, or without answer sizes, a 2xx is only a possible success.
-
-An aggregation on nginx's logs, so heavy: one daily index, a 10 s timeout, at most 120
-buckets, an answer within the 16 KiB snapshot. The client, the site and the paths bound the
-work; the prevalence gate refuses the paths every site serves (``/``, ``/favicon.ico`` ...).
-Field names are the captured nginx mapping's: ``url.path`` is ``keyword``, ``url.domain`` is
-text with ``url.domain.keyword`` (``ignore_above`` 256), ``http.response.status_code`` is
-``integer``, ``http.response.body.bytes`` is ``long``. A path longer than 256 characters is not
-asked about (ARGUS's own bound, for the snapshot): its outcome cannot be told.
+A site that answers every path with the same page returns 200 for ``/.env`` too, so a 2xx alone is
+not a success: a path counts as succeeded only when a 2xx differs in size from the other paths'
+2xx answers; a shared 2xx is most likely the catch-all. An aggregation on nginx's logs, so heavy:
+one daily index, a 10 s timeout, at most 120 buckets, an answer within the 16 KiB snapshot. The
+prevalence gate refuses the paths every site serves. A path longer than ``ignore_above`` is not
+asked about.
 """
 
 from __future__ import annotations
@@ -47,11 +37,11 @@ from argus.site import Fields, Role, all_fields, fields_for, source_for
 
 LONGEST = timedelta(hours=6)
 MAX_PATHS = 10
-PATH_CHARS = 256  # the captured mapping's ignore_above; a family says its own (path_chars)
+PATH_CHARS = 256  # the default ignore_above; a family says its own (path_chars)
 STATUSES = 5
 SIZES = 5
 TIMEOUT = timedelta(seconds=10)
-# Paths every site serves: a query on them reads a site's whole traffic (plan §7.3).
+# Paths every site serves: a query on them reads a site's whole traffic.
 COMMON_PATHS = frozenset(
     {"/", "/index.html", "/index.php", "/favicon.ico", "/robots.txt", "/sitemap.xml"}
 )
@@ -272,8 +262,8 @@ def outcomes(aggs: Mapping[str, Any] | None, paths: Sequence[str]) -> list[PathO
 def read(
     version: int, params: PathParams, ref: Mapping[str, Any], snapshot: Mapping[str, Any]
 ) -> list[SignalValue]:
-    """Counts of the paths by outcome. A zero is never "no success" from the logs alone
-    (D-023); requests logged without a status make the counts lower bounds."""
+    """Counts of the paths by outcome. A zero is never "no success" from the logs alone;
+    requests logged without a status make the counts lower bounds."""
     aggs = snapshot.get("aggregations")
     found = outcomes(aggs, params.paths)
     a = aggs if isinstance(aggs, Mapping) else {}

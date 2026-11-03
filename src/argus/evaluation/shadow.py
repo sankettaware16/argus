@@ -1,14 +1,9 @@
-"""The shadow (Q-G2, plan §7.4): a model answers live items for one helper task, and its
-answers are stored in ``llm_shadow``, never shown (§3 rule 12): no page or API reads the
-table and the web's role has no grant on it. They serve the evaluation ladder only.
+"""The shadow: a model answers live items for one helper task, and its answers are stored in
+``llm_shadow``, never shown (no page or API reads the table). They serve the evaluation ladder only.
 
-Live items are the newest dossiers of recent investigations not yet answered by this model
-for this task. Each goes through ``taskrun`` (the privacy layer as for the agent, an
-evaluation call: low priority, overnight, the evaluation budget). ``fallback`` (DQ22 (ii),
-the cloud-outage fallback) takes only items the agent would route to its small tier and
-without a floor signal. The row keeps the answer as it came back, still pseudonymized (the
-pseudonyms' values are not kept, so it is never revealed), with production's outcome at the
-time for comparison.
+Live items are the newest dossiers not yet answered by this model for this task, each sent through
+``taskrun`` as an evaluation call. ``fallback`` takes only items the agent would route to its small
+tier and without a floor signal. The row keeps the answer pseudonymized, with production's outcome.
 """
 
 from __future__ import annotations
@@ -94,7 +89,7 @@ class ShadowRun:
     stored: int = 0
     asked_unstored: int = 0  # asked, but another run had stored the item meanwhile
     usable: int = 0
-    skipped: int = 0  # not sendable (P1), too large, or not the fallback's items
+    skipped: int = 0  # not sendable (privacy check), too large, or not the fallback's items
     stopped: str | None = None
 
 
@@ -141,7 +136,7 @@ async def run(
         if request is None:
             out.skipped += 1
             continue
-        if spec.task == tasks.FALLBACK:  # DQ22 (ii): small-tier items without floor signals
+        if spec.task == tasks.FALLBACK:  # small-tier items without floor signals
             reasons = engine.floor(case.body, item.first_seen, item.spike)
             if reasons or not taskrun.small_tier(case.body, reasons, request):
                 out.skipped += 1
@@ -178,7 +173,7 @@ async def run(
         out.asked_unstored += 1 - done.rowcount  # another run stored it meanwhile
         out.stored += done.rowcount
         out.usable += int(check.usable and done.rowcount == 1)
-        if answer.wait is not None:  # F1: the model failed it (stored as unusable): wait or stop
+        if answer.wait is not None:  # the model failed it (stored as unusable): wait or stop
             delay = answer.wait.until.timestamp() - clock()
             if delay > max_wait_s:
                 out.stopped = f"no capacity until {answer.wait.until:%Y-%m-%d %H:%M} UTC"
@@ -196,7 +191,7 @@ _LATENCY = """
 SELECT latency_ms, lease_ms FROM llm_shadow
 WHERE task = :task AND provider = :provider AND model = :model AND (usable OR lease_ms > 0)
 ORDER BY id
-"""  # every call that reached the model, answered or not (F1)
+"""  # every call that reached the model, answered or not
 
 
 async def measure(conn: AsyncConnection, task: str, provider: str, model: str

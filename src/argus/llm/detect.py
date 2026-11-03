@@ -1,22 +1,9 @@
-"""Identifiers in text (P1, D-075, D-076): what must never reach a model in clear. Shared by
-the pseudonymizer (which replaces them) and the egress validator (which blocks any that
-remain).
-
-A ``Campus`` says what is internal: private and campus address space, the asset map's
-networks, campus domains, and known names (asset names; host and user names of a request).
-``find(text, campus)`` returns every identifier with its span and kind:
-- an address in any run of dotted or dashed numbers (every window of four parts, so ports,
-  OIDs and glued dots hide nothing), with leading zeros, octal or hex parts, inet_aton short
-  forms, as one decimal, octal or hex integer, or partial (``10.1.2…``, ``10.1.2.x``);
-- IPv6 tried from every colon of a candidate, with IPv4 inside (mapped, compatible, 6to4,
-  NAT64, Teredo); ``in-addr.arpa`` and ``ip6.arpa`` forms;
-- MAC addresses, campus domains, names, e-mail, ``~user`` paths, credentials and tokens in
-  URLs, ≥ 32-hex or UUID strings, roll numbers, secrets;
-- copies hidden by percent, HTML, backslash and ``%u`` escapes, Unicode forms, defanging
-  (``[.]``), zero-width characters, base64 (also UTF-16), hex strings or punycode, one
-  inside another (``DEPTH``).
-Every pattern runs in linear time: a model's answer is not length-capped like a request.
-"""
+"""Identifiers in text: what must never reach a model in clear. Shared by the pseudonymizer (which
+replaces them) and the egress validator (which blocks any that remain). ``find(text, campus)``
+returns every identifier with its span and kind: addresses in any spelling (dotted, octal, hex,
+IPv6 forms), MAC addresses, own domains, names, e-mail, credentials, tokens, hex ids and secrets,
+also behind percent, HTML or backslash escapes, Unicode forms, defanging, base64, hex or
+punycode, up to ``DEPTH`` deep. Every pattern runs in linear time."""
 
 from __future__ import annotations
 
@@ -78,12 +65,11 @@ def _words(name: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class Campus:
-    """What counts as internal. ``networks``: campus public prefixes and the asset map's
-    networks (private space is always internal); ``domains``: campus domain suffixes;
-    ``assets``: asset names; ``hosts``/``users``: a request's own names. Names match as
-    words, ignoring case, their words joined by blanks, ``-`` or ``_``; ``ordinary`` words
-    are never taken for a one-word name. Names are never printed (a repr may end up in a
-    log)."""
+    """What counts as internal. ``networks``: the organisation's public prefixes and the asset
+    map's networks (private space is always internal); ``domains``: its domain suffixes;
+    ``assets``: asset names; ``hosts``/``users``: a request's own names. Names match as words,
+    ignoring case, their words joined by blanks, ``-`` or ``_``; ``ordinary`` words are never
+    taken for a one-word name. Names are never printed (a repr may end up in a log)."""
 
     networks: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = ()
     domains: tuple[str, ...] = field(default_factory=site.own_domains)
@@ -314,10 +300,10 @@ def _macs(text: str, out: list[Found]) -> None:
 
 
 def _domains(text: str, campus: Campus, out: list[Found]) -> None:
-    """A campus domain or subdomain, also inside a longer name (``moodle.example.edu.evil.
-    example``: its campus part is campus), but not glued to more letters or digits
-    (``example.education``) nor another domain ending alike (``xexample.edu``). Found by the
-    suffix, then extended to the left: linear time."""
+    """A domain of the organisation or a subdomain, also inside a longer name
+    (``moodle.example.edu.evil.example``: its own part is internal), but not glued to more
+    letters or digits (``example.education``) nor another domain ending alike (``xexample.edu``).
+    Found by the suffix, then extended to the left: linear time."""
     low = text.lower()
     for domain in campus.domains:
         for hit in re.finditer(re.escape(domain), low):

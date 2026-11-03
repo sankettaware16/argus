@@ -1,5 +1,5 @@
-"""``argus discover``: propose the ``site`` section from the Elastic ARGUS is pointed at
-(P4-D1, D-238). Read-only; see ``docs/runbooks/discover.md``."""
+"""``argus discover``: propose the ``site`` section from the Elastic ARGUS is pointed at.
+Read-only; see ``docs/runbooks/discover.md``."""
 
 from __future__ import annotations
 

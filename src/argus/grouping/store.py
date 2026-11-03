@@ -1,4 +1,4 @@
-"""Grouping inside the collector's page transaction (plan §7.1, §7.2, D-051).
+"""Grouping inside the collector's page transaction.
 
 ``group`` inserts the investigations the alerts belong to, locks them (and the next day's
 buckets, whose ``continues`` link may change) in id order, links the alerts, and then
@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from argus.grouping.assign import GROUPING_VERSION, assign
 from argus.normalize import NormalizedAlert
 
-COALESCE = timedelta(minutes=30)  # §7.4: at most one job per investigation per 30 minutes
+COALESCE = timedelta(minutes=30)  # at most one job per investigation per 30 minutes
 
 
 @dataclass(frozen=True)

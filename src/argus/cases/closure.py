@@ -1,13 +1,8 @@
-"""The shared closure payload builder (plan §5 Q-C3): the exact writes a closure or merge will
-plan, which a request binds to (by its hash), the approver sees (Q-B3's preview must equal
-it), the close step checks again and the send-time check compares with each outbox row.
-
-The payload is ARGUS-level intent, as :mod:`argus.cases.kibana` plans it: for a mirrored case
-one W3 change (closed status, the reason's tags, ARGUS's own tags only) and the closing comment
-as a template with the reason; nothing for a case Kibana does not hold. It depends only on the
-case as it is when the closure is requested and the reason (and a merge's target), never on
-the time, so the same request always builds the same payload.
-"""
+"""The shared closure payload builder: the exact writes a closure or merge will plan, which a
+request binds to by hash, the approver sees, and the send-time check compares with each outbox row.
+For a mirrored case: one W3 change (closed status, the reason's tags) and the closing comment as a
+template with the reason; nothing for a case Kibana does not hold. It depends only on the case as
+requested and the reason (and a merge's target), never on the time."""
 
 from __future__ import annotations
 

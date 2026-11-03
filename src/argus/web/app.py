@@ -1,4 +1,4 @@
-"""The Inbox web app (plan §6 R7, §9; D-052; Phase 3 Q-A1): the classic JSON API under /api,
+"""The Inbox web app: the classic JSON API under /api,
 the typed API under /api/v1 (argus.web.v1), and server-rendered pages, all built on
 ``queries`` and ``reviews``. Same origin only (Origin and Sec-Fetch-Site checked on every
 change), CSP self, sessions in HttpOnly SameSite=Strict cookies, a CSRF token on every change,
@@ -129,7 +129,7 @@ def client_of(request: Request) -> str:
 
 
 def client_allowed(host: str | None, networks: Sequence[Any]) -> bool:
-    """Whether a client's address is in one of the allowed networks (D-104): the loopback and
+    """Whether a client's address is in one of the allowed networks: the loopback and
     those configured. An unknown or unreadable address is refused."""
     try:
         address = ipaddress.ip_address(host or "")
@@ -149,7 +149,7 @@ SECURITY_HEADERS = {
     "Cache-Control": "no-store",
     "Cross-Origin-Opener-Policy": "same-origin",
 }
-NO_SCRIPT_PAGES = frozenset({"/signin", "/stepup"})  # CSP script-src 'none' (plan §7.5)
+NO_SCRIPT_PAGES = frozenset({"/signin", "/stepup"})  # CSP script-src 'none'
 ViewName = Literal["attention", "open", "reviewed", "all", "known"]
 SortName = Literal["newest", "oldest", "urgent", "reviewed"]
 SORT_TITLES = {
@@ -165,9 +165,6 @@ VIEW_TITLES = {
     "all": "All",
     "known": "Notified, still active",
 }
-
-
-# --------------------------------------------------------------------------- API models
 
 
 class Strict(BaseModel):
@@ -311,10 +308,9 @@ def _out(summary: queries.Summary) -> InvestigationOut:
     )
 
 
-# --------------------------------------------------------------------------- requirements
-
-# What each classic route needs (Q-A1): declared once here, checked by the dependency itself.
-# Every person who could sign in before Q-A1 still holds each of these (LOCAL_DEFAULT).
+# What each classic route needs: declared once here, checked by the dependency itself.
+# Every person who could sign in before capabilities existed still holds each of these
+# (LOCAL_DEFAULT).
 PAGE_VIEW = need(Capability.VIEW, Surface.PAGE)
 PAGE_SESSION = need(None, Surface.PAGE)
 FORM_REVIEW = need(Capability.REVIEW, Surface.FORM, csrf=True)
@@ -368,11 +364,8 @@ def forbidden_page_text(capability: str) -> str:
             " Ask an ARGUS admin.")  # fmt: skip
 
 
-# --------------------------------------------------------------------------- the app
-
-
 def _investigator_takes_requests() -> bool:
-    """The AI investigator's file lets a person's request start it (Q-H1); False when its
+    """The AI investigator's file lets a person's request start it; False when its
     files are refused."""
     from argus.agent import loader
     from argus.agent.registry import Trigger
@@ -381,7 +374,7 @@ def _investigator_takes_requests() -> bool:
 
 
 def _investigator_state() -> dict[str, Any]:
-    """The AI investigator as this server's files make it (Q-H1), for the health page:
+    """The AI investigator as this server's files make it, for the health page:
     ``ready`` (its files are the versions pinned in code), with who runs in which version;
     ``off`` (switched off in code) or ``refused`` (its files), with the loader's reason.
     Whether the pinned versions were approved is doctor's drift check (git), not this."""
@@ -400,14 +393,14 @@ def create_app(
     engine: AsyncEngine,
     settings: WebSettings | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-    privacy: Any = None,  # the P1 privacy layer: without it, no on-demand assessments
+    privacy: Any = None,  # the privacy layer: without it, no on-demand assessments
     lane: Checker | None = None,  # the identity lane: ELK sign-in (``web.elk_signin``)
     lane_clock: Callable[[], datetime] | None = None,  # the lane's clock (deadlines), if not UTC
-    watch: Any = None,  # Q-C2's ``watchrun.Context``: what proves a case quiet (else nothing does)
+    watch: Any = None,  # ``watchrun.Context``: what proves a case quiet (else nothing does)
     watch_mode: str | None = None,  # ``cases.watch``: off, local or on (said on the case page)
-    outside_view: Any = None,  # AR3: how the outside cache is read (``outside.*``); else defaults
-    team: Any = None,  # AR8: the case team's ``PostConfig`` (the Kibana case preview); else off
-    signins: Any = None,  # AR6: ``signins.view.Reading`` (who used a device); else the card is off
+    outside_view: Any = None,  # how the outside cache is read (``outside.*``); else defaults
+    team: Any = None,  # the case team's ``PostConfig`` (the Kibana case preview); else off
+    signins: Any = None,  # ``signins.view.Reading`` (who used a device); else the card is off
 ) -> FastAPI:
     web = settings or WebSettings()
     tls = web.tls_cert is not None
@@ -436,7 +429,7 @@ def create_app(
     app.state.session_modes = ("elk", "break_glass") if elk else ("local",)
     # a case's permanent link (``/go/case/<uuid>``, in Kibana's case description) leads to its page
     app.state.case_page = lambda case_id: f"/app/cases/{case_id}"
-    # the switch to /app (Q-B4): with it on, an investigation's permanent link opens it there
+    # the switch to /app: with it on, an investigation's permanent link opens it there
     fallback = web.classic == "fallback"
     app.state.investigation_page = (
         (lambda inv_id: f"/app/investigations/{inv_id}")
@@ -446,8 +439,9 @@ def create_app(
     # the key that signs approvals (``argus approvals keygen``): without one the queue is read
     # only and a decision answers 503
     app.state.signer = Signer(load_key(web.approval_key_file)) if web.approval_key_file else None
-    # what proves a case quiet, asked of the request's own connection: Q-C2's finder (the stored
-    # answers of the still-active watch, checked once more against the database as it is now)
+    # what proves a case quiet, asked of the request's own connection: the quiet-window finder
+    # (the stored answers of the still-active watch, checked once more against the database as it
+    # is now)
     # when the server has the watch's context, else nothing does
     app.state.watch_context = watch
     app.state.watch_mode = watch_mode
@@ -506,13 +500,13 @@ def create_app(
     @app.exception_handler(InterfaceError)
     @app.exception_handler(PoolTimeoutError)
     async def database_down(request: Request, exc: Exception) -> Response:
-        """An outage of ARGUS's own database (Q-A1 review F5): said plainly, in the form the
+        """An outage of ARGUS's own database: said plainly, in the form the
         route answers in; never the driver's message."""
         log.warning("web: %s %s: the database is unavailable (%s)", request.method,
                     request.url.path, type(exc).__name__)  # fmt: skip
         if getattr(getattr(exc, "orig", None), "sqlstate", None) in RETRY_STATES:
             # two requests locked the same rows in opposite orders and the database ended this
-            # one: nothing of it was saved, and asking again is right (Q-B3 review R3-3)
+            # one: nothing of it was saved, and asking again is right
             if v1_path(request):
                 return error_out(409, "conflict", AT_THE_SAME_MOMENT)
             return JSONResponse({"detail": AT_THE_SAME_MOMENT}, status_code=409)
@@ -588,8 +582,8 @@ def create_app(
             return JSONResponse({"detail": detail.get(exc.code, exc.detail)},
                                 status_code=exc.status)  # fmt: skip
         if exc.code == "unauthenticated":  # a page: back to it after signing in
-            # the path and query as the browser sent them, still percent-encoded (Q-B1 review
-            # F8): decoded, a route holding a domain would be non-ASCII (refused by safe_next)
+            # the path and query as the browser sent them, still percent-encoded: decoded, a route
+            # holding a domain would be non-ASCII (refused by safe_next)
             # and an encoded "?" would start a query (request.url.query is fooled by it too)
             raw = request.scope.get("raw_path")
             path = raw.decode("latin-1") if isinstance(raw, bytes) else request.url.path
@@ -603,7 +597,7 @@ def create_app(
             return to_signin(request, back=None if back == "/" else back, why=ended)
         if exc.code == "csrf":
             return page(request, "error.html", exc.reviewer, message=EXPIRED, status=403)
-        if exc.code != "forbidden":  # ELK could not be asked, or a step-up is due (Q-E2)
+        if exc.code != "forbidden":  # ELK could not be asked, or a step-up is due
             return page(request, "error.html", exc.reviewer, message=exc.detail,
                         status=exc.status)  # fmt: skip
         capability = exc.capability.value if exc.capability is not None else "?"
@@ -611,7 +605,7 @@ def create_app(
                     message=forbidden_page_text(capability))  # fmt: skip
 
     def classic_answer(request: Request) -> Response | None:
-        """The switch to /app (Q-B4, ``web.classic``): a classic page's address leads to its page
+        """The switch to /app (``web.classic``): a classic page's address leads to its page
         in the app unless the browser chose the fallback (``/classic``); a classic form is refused
         with a pointer to the same action there. Nothing else is touched. The path is the one
         the router matches (decoded), not the URL's, so no spelling reaches a route unseen."""
@@ -656,11 +650,11 @@ def create_app(
         in_app = spa.is_app_path(path)
         own_cache = response.headers.get("cache-control") if in_app else None
         response.headers.update(SECURITY_HEADERS)
-        if own_cache is not None:  # /app's files and page say how long they keep (Q-B1)
+        if own_cache is not None:  # /app's files and page say how long they keep
             response.headers["Cache-Control"] = own_cache
         if path in NO_SCRIPT_PAGES:
             response.headers["Content-Security-Policy"] = security.CSP_NO_SCRIPT
-        elif in_app:  # Trusted Types on /app (plan §7.5)
+        elif in_app:  # Trusted Types on /app
             response.headers["Content-Security-Policy"] = spa.CSP_APP
         if in_app or api_path(request):
             build_id = app.state.spa.build_id()
@@ -674,7 +668,7 @@ def create_app(
             token,
             httponly=True,
             samesite="strict",
-            secure=tls,  # over HTTPS only once the app has TLS (D-104)
+            secure=tls,  # over HTTPS only once the app has TLS
             path="/",
             max_age=int(web.session_absolute.total_seconds()),
         )
@@ -684,19 +678,17 @@ def create_app(
                                samesite="strict")  # fmt: skip
 
     def set_device(response: Response, raw: str | None) -> None:
-        """The browser remembers a good sign-in (plan §7.2): a locked name still lets it try."""
+        """The browser remembers a good sign-in: a locked name still lets it try."""
         if raw is not None:
             response.set_cookie(device_cookie, raw, httponly=True, samesite="strict",
                                 secure=tls, path="/", max_age=DEVICE_DAYS * 86400)  # fmt: skip
-
-    # ------------------------------------------------------------------ the classic API
 
     async def sign_in(request: Request, conn: AsyncConnection, username: str,
                       password: str) -> Outcome:  # fmt: skip
         """Every sign-in path's one check (/signin, /login, /api/login): one at a time per
         name and client, the one throttle, the one identity provider, one audit trail (the
         refusals are written in the request's own transaction and answered, never raised, so
-        they commit with the answer and no second connection is taken: Q-A1 review F1). A
+        they commit with the answer and no second connection is taken). A
         failure is answered ``web.failure_delay_s`` after the request arrived."""
         out = await signer.attempt(conn, username, password, client=client_of(request),
                                    device_cookie=request.cookies.get(device_cookie))  # fmt: skip
@@ -871,8 +863,6 @@ def create_app(
     async def api_health(reviewer: ApiReviewer, conn: Conn) -> dict[str, Any]:
         return {**await queries.health(conn, clock()), "investigator": _investigator_state()}
 
-    # ------------------------------------------------------------------ /api/v1
-
     app.state.v1_router = v1.build(clock=clock, privacy=privacy, packs=packs,
                                    cost_caps=(cap, paid_share, daily_cap))  # fmt: skip
     app.include_router(app.state.v1_router)
@@ -893,8 +883,6 @@ def create_app(
 
     app.openapi = classic_spec  # type: ignore[method-assign]
 
-    # ------------------------------------------------------------------ sign-in, step-up
-
     def signin_page(
         request: Request,
         *,
@@ -906,7 +894,7 @@ def create_app(
     ) -> HTMLResponse:
         """The sign-in form, with this browser's login-CSRF token in it and in its cookie: the
         one its cookie holds while that is usable, so every sign-in form open in the browser
-        works (Q-A1 review F6); a new one after each sign-in."""
+        works; a new one after each sign-in."""
         token = security.reused_signin_token(request.cookies.get(signin_cookie))
         response = page(request, "signin.html", None, error=error, notice=notice,
                         signin_token=token, next=back, username=name, status=status)  # fmt: skip
@@ -991,7 +979,7 @@ def create_app(
             clear_cookie(response)
             return response
 
-        # One step-up of a session at a time (its row locked; review F4): a burst gets three
+        # One step-up of a session at a time (its row locked): a burst gets three
         # guesses. Never the sign-in locks here: a sign-in takes those, then ends this
         # browser's earlier session (its row), and the two would wait for each other.
         if not await auth.step_up_open(conn, me.token_hash):  # a third failure came first
@@ -1018,7 +1006,7 @@ def create_app(
                                   client=client, counted=counted, why=why)  # fmt: skip
             if counted:
                 await throttle.raise_alarm_if_due(conn)
-            # a refused step-up voids the person's approvals (plan §7.1, Q-C3)
+            # a refused step-up voids the person's approvals
             await identity.record_if_allowed(
                 conn,
                 identity.LiveCheck(me.user_id, "denied", "elk" if elk else "local", clock()),
@@ -1068,8 +1056,6 @@ def create_app(
         return page(request, "access.html", me,
                     v=access.describe(me, clock(), web.session_idle))  # fmt: skip
 
-    # ------------------------------------------------------------------ permanent links
-
     links.install(app, page, LINK)
 
     @app.get("/classic", include_in_schema=False)
@@ -1085,8 +1071,6 @@ def create_app(
             response.set_cookie(classic.COOKIE, "1", httponly=True, samesite="strict",
                                 secure=tls, path="/")  # fmt: skip
         return response
-
-    # ------------------------------------------------------------------ pages
 
     @app.get("/login", include_in_schema=False, dependencies=[Depends(SIGN_IN)])
     async def login_page(
@@ -1147,7 +1131,7 @@ def create_app(
         sort: SortName | None = None,
     ) -> Response:
         entity = (kind, value) if kind in ("ip", "host", "domain", "user") and value else None
-        order = sort or ("reviewed" if view == "reviewed" else "newest")  # D-095
+        order = sort or ("reviewed" if view == "reviewed" else "newest")
         found = await queries.inbox(
             conn,
             view,
@@ -1234,7 +1218,7 @@ def create_app(
         if it is still exactly as the reviewer saw it; the others are left and counted."""
         if outcome and outcome not in OUTCOME_LABELS:
             return page(request, "error.html", reviewer, message="Unknown outcome.", status=422)
-        if not outcome:  # a group decision is a label for each of them (D-067)
+        if not outcome:  # a group decision is a label for each of them
             return page(
                 request, "error.html", reviewer,
                 message="Choose an outcome for the group.", status=422,
@@ -1439,7 +1423,7 @@ def create_app(
         if outcome and outcome not in OUTCOME_LABELS:
             return page(request, "error.html", reviewer, message="Unknown outcome.", status=422)
         gold = also_gold == "1" and bool(outcome)
-        if gold and not reviewer.can(Capability.ANSWER_GOLD):  # audited, as v1's (review F7)
+        if gold and not reviewer.can(Capability.ANSWER_GOLD):  # audited, as v1's
             raise forbidden(reviewer, Capability.ANSWER_GOLD, Surface.FORM)
         try:
             await add_review(
@@ -1470,7 +1454,7 @@ def create_app(
             return await detail_page(
                 request, reviewer, conn, investigation_id, message=str(exc), status=422
             )
-        if gold:  # the review's outcome is also the person's gold answer (D-080)
+        if gold:  # the review's outcome is also the person's gold answer
             try:
                 await gold_store.answer(
                     conn, investigation_id, reviewer.user_id, outcome, note, set_name=gold_store.ANY
@@ -1602,14 +1586,12 @@ def create_app(
             investigation_id=investigation_id,
         )
 
-    # ------------------------------------------------------------------ /app (Q-B1)
-
     build = spa.Build(web.spa_dir if web.spa_dir is not None else spa.BUILD_DIR)
     app.state.spa = build
     NOT_FOUND = "no such file in the app"  # noqa: N806
 
     def app_file(request: Request, relative: str) -> Response:
-        """One of the build's files, or a plain 404 (never the page: plan §7.5)."""
+        """One of the build's files, or a plain 404 (never the page)."""
         found = build.file(relative)
         if found is None:
             return Response(NOT_FOUND, status_code=404, media_type="text/plain")
@@ -1634,7 +1616,7 @@ def create_app(
                                    samesite="strict")  # fmt: skip
         return response
 
-    # GET and HEAD (review F7, RFC 9110): HEAD answers with GET's status and headers; the
+    # GET and HEAD (RFC 9110): HEAD answers with GET's status and headers; the
     # server sends no body for it
     read = ["GET", "HEAD"]
 
@@ -1664,7 +1646,7 @@ def create_app(
 
 # Validation errors whose message pydantic builds from the schema alone (limits, the allowed
 # values, a pattern, our own validators' fixed sentences): shown as pydantic words them. Every
-# other kind gets a sentence of ours, so no answer quotes the input (Q-A1 review F3: a
+# other kind gets a sentence of ours, so no answer quotes the input (a
 # discriminated union's message quotes the tag it was sent).
 _SCHEMA_ONLY = frozenset({
     "missing", "extra_forbidden", "string_type", "string_too_short", "string_too_long",

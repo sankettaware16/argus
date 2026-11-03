@@ -1,30 +1,11 @@
-"""Which investigations belong to a case (Q-C2, plan §5 and §7.1, DQ4): deterministic, never by
-model similarity, stricter for content-delivery networks and clouds, and never silent when a
-match is ambiguous.
+"""Which investigations belong to a case: deterministic, never by model similarity, and never
+silent when a match is ambiguous.
 
-An investigation **matches** a case through a key they share:
-
-* an *actor*: one of the investigation's actors (a campus host, an account, an attacker's
-  address: identity fields only, see :mod:`argus.cases.opener`) is an actor of the case;
-* a *c2* or other *indicator*: an address or name the investigation involves is one the case
-  holds as such.
-
-A match is **strong** (the investigation may join) unless the shared value is **shared
-infrastructure**: an address in a content-delivery or cloud network, a name on one of their
-services, or a value that appears in very many unrelated investigations
-(:data:`COMMON_INVESTIGATIONS`, the prevalence gate's own limit). Such a match is **weak**: the
-address says nothing about who is behind it, so the investigation is only *suggested* to the
-case, with the reason, and a person decides.
-
-:func:`resolve` picks what to do with all the cases an investigation matches:
-
-* one case holds the strongest strong match (``actor`` before ``c2`` before ``indicator``): join it;
-* two or more cases hold equally strong matches: **ambiguous**, join none, suggest them all;
-* only weak matches: join none, suggest them.
-
-Whatever is not joined but matched is a *suggestion* (``tie``, ``shared`` or ``also``). The
-result does not depend on the order the cases are given in.
-"""
+An investigation matches a case through a shared key: an *actor* or a *c2*/*indicator*. A match is
+**strong** unless the value is shared infrastructure (a content-delivery or cloud network, or a
+value in very many investigations), which is **weak** and only suggests. :func:`resolve` joins the
+one case with the strongest strong match (``actor`` before ``c2`` before ``indicator``); ties and
+weak matches join none and suggest the cases, whatever the order they are given in."""
 
 from __future__ import annotations
 
@@ -83,9 +64,6 @@ class CaseKeys(Protocol):
     def indicators(self) -> Mapping[tuple[str, str], str]: ...
 
 
-# --------------------------------------------------------------------------- shared infrastructure
-
-
 class _SharedFile(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -141,7 +119,7 @@ def _name(value: str) -> str:
 @dataclass(frozen=True)
 class Shared:
     """Shared infrastructure: network ranges, domain suffixes, the autonomous systems of the big
-    hosting and cloud providers (many unrelated customers behind one number: D-174), and the
+    hosting and cloud providers (many unrelated customers behind one number), and the
     values seen in very many investigations (``common``, found in the database, see
     :func:`common_values`)."""
 
@@ -218,9 +196,6 @@ async def common_values(
         },
     )
     return frozenset((str(k), str(v)) for k, v in rows)
-
-
-# --------------------------------------------------------------------------- matching
 
 
 @dataclass(frozen=True)

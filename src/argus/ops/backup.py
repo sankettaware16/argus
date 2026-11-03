@@ -1,19 +1,12 @@
-"""Backups of ARGUS's database (Q-A2): a nightly dump, a weekly restore drill, a dump before
-every migration (``argus db upgrade`` and ``downgrade``), all local: nothing reaches the SIEM.
+"""Backups of ARGUS's database: a nightly dump, a weekly restore drill and a dump before every
+migration, all local (nothing reaches the SIEM).
 
-A dump and its fingerprints come from one snapshot. A REPEATABLE READ transaction exports its
-snapshot, fingerprints every table in it (a row count and an order-free hash of the rows), every
-sequence and the schema (columns, constraints, indexes, triggers with their enabled state,
-functions, privileges), and pg_dump reads that same snapshot (``--snapshot``). So the services
-keep running, and the fingerprints describe exactly what the dump holds. The drill restores a
-dump into a scratch database, fingerprints it the same way and compares: identical, or the
-tables that differ.
-
-Dumps hold production data (raw alerts, sessions' hashes): they stay under ``backup.dir`` as
-mode 0600 files in mode 0700 folders, never committed (``data/`` is gitignored). Each dump has a
-manifest next to it (its fingerprints, size, SHA-256, revision); drills are appended to
-``drills.jsonl``. A file lock lets one dump or drill run at a time.
-"""
+A dump and its fingerprints (row counts and order-free hashes of every table, sequences, the
+schema) come from one exported REPEATABLE READ snapshot that pg_dump also reads (``--snapshot``), so
+the services keep running and the fingerprints describe exactly what the dump holds. The drill
+restores a dump into a scratch database and compares fingerprints. Dumps hold production data:
+mode 0600 files in 0700 folders under ``backup.dir``, never committed, each with a manifest; drills
+are appended to ``drills.jsonl``; a file lock lets one dump or drill run at a time."""
 
 from __future__ import annotations
 
@@ -70,9 +63,6 @@ _SCHEMAS = "n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname 
 
 class BackupError(Exception):
     """A dump or a drill did not complete; the message says why (no secret, no row)."""
-
-
-# --------------------------------------------------------------------------- fingerprints
 
 
 @dataclass(frozen=True)
@@ -236,9 +226,6 @@ async def _quoted(conn: AsyncConnection, schema: str, name: str) -> str:
     return str(quoted.scalar_one())
 
 
-# --------------------------------------------------------------------------- tools
-
-
 @dataclass(frozen=True)
 class Tools:
     """How pg_dump and pg_restore run (``backup.tools``): in the db container over its local
@@ -327,9 +314,6 @@ def _private(path: Path) -> Iterator[Any]:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "wb") as handle:
         yield handle
-
-
-# --------------------------------------------------------------------------- files
 
 
 @dataclass
@@ -480,9 +464,6 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-# --------------------------------------------------------------------------- dump
-
-
 async def dump(settings: Settings, kind: Kind, *, now: datetime | None = None) -> Manifest:
     """Dump ARGUS's database with its fingerprints, from one snapshot; then prune. The engine
     logs in as the owner (it reads every table). Returns the manifest."""
@@ -554,15 +535,12 @@ async def _revision(conn: AsyncConnection) -> str | None:
     return None if row is None else str(row[0])
 
 
-# --------------------------------------------------------------------------- retention
-
-
 def kept(
     found: Sequence[Manifest], backup: BackupSettings, now: datetime | None = None
 ) -> set[Path]:
     """The manifests retention keeps: per kind its newest (``keep_<kind>``), and the newest
     ``keep_verified`` that a drill restored; of those, none older than ``backup.max_age``
-    (dumps hold what the retention purge removes, Q-A4), except the newest dump a drill
+    (dumps hold what the retention purge removes), except the newest dump a drill
     restored, or the newest dump while none was: there is always one to restore from."""
     now = datetime.now(UTC) if now is None else now
     keep: set[Path] = set()
@@ -610,9 +588,6 @@ def prune(
                 if apply:
                     partial.unlink(missing_ok=True)
     return removed
-
-
-# --------------------------------------------------------------------------- drill
 
 
 @dataclass(frozen=True)
@@ -720,9 +695,6 @@ async def _drop_stale_scratch(admin: AsyncEngine, now: datetime) -> None:
             made = datetime.fromtimestamp(int(match["at"]), UTC)
             if now - made > STALE_SCRATCH:
                 await conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
-
-
-# --------------------------------------------------------------------------- status
 
 
 @dataclass(frozen=True)

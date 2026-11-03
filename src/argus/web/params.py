@@ -45,7 +45,7 @@ def dashboard_filters(
     kind: KindName | Literal[""] | None = None,
     value: Annotated[str | None, Query(max_length=300, pattern=CLEAN)] = None,
 ) -> dashboard.Filters:
-    """The dashboard's filters (D-103): a span, then "any of" lists, a rule and an entity. A
+    """The dashboard's filters: a span, then "any of" lists, a rule and an entity. A
     custom span is kept within 2020 to 2100 and to at most 366 days (its last days)."""
     start, end, kind = start or None, end or None, kind or None
     both = start is not None and end is not None

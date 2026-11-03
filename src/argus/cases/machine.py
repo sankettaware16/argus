@@ -1,36 +1,14 @@
-"""The case lifecycle (plan §7.1): a pure transition function, and the replay that rebuilds a
-case from its events.
+"""The case lifecycle: a pure transition function, and the replay that rebuilds a case from its
+events.
 
-States: suspected (ARGUS only) → open (owner ARGUS) ↔ assigned (owner a person) → contained;
-any confirmed state → closed by an approved closure; suspected → closed by a reviewer's
-dismissal; closed → open (or suspected, if it was never confirmed) by a person's reopen. Every
-arrow is a person's action except ARGUS's own: a suspected case from its proposal, a case
-opened from a person's true-positive verdict (or a suspected case confirmed by one), linking
-members, and "new activity" (contained → open). Activity after closure never reopens a case:
-it gets a linked new case.
-
-Besides the states, an open or assigned case can be **notified** (AR4b, D-169, D-176): a person
-records that the device's owner was told, which keeps the state and leaves the work queues (the
-case is then tracked as a known infection, :mod:`argus.cases.knownrun`). Notices and network
-blocks are facts on the case, not states: personal laptops cannot be forced clean, so the case
-stays open and watched.
-
-A case can also **split** (D-211): a person moves investigations out of it, into a case they open
-or an existing one, with :class:`Unlink` (event ``unlinked``, the state kept). The members leave,
-and so do the actor indicators only they carried, so a case that grouped two separate devices can
-hold one of them (the owner's notice then covers that device alone). The other half is the
-target's :class:`Open` or :class:`Link`, both naming where the investigations came from.
-
-A case's title can change (D-230, :class:`Retitle`, event ``retitled``, any state, the state kept):
-a person renames it with a reason, and ARGUS refreshes the title it wrote itself when the case's
-facts change (:mod:`argus.cases.naming`). Who wrote the title is the actor of the newest
-``suspected``, ``opened`` or ``retitled`` event; the service refuses ARGUS's retitle of a title a
-person wrote.
-
-:func:`decide` checks who may act and whether the move is allowed, and returns the case after
-it, the event's details and the Kibana writes it plans; it never reads or writes anything.
-The database checks the same edges again (migration 0026's ``argus_case_guard``).
-"""
+States: suspected (ARGUS only) → open (owner ARGUS) ↔ assigned (owner a person) → contained; any
+confirmed state → closed by an approved closure; suspected → closed by a reviewer's dismissal;
+closed → open (or suspected) by a person's reopen. Every arrow is a person's action except ARGUS's
+own (a suspected case from its proposal, linking members, "new activity": contained → open);
+activity after closure gets a linked new case. A case can also be **notified** (the owner was told:
+a fact, not a state), **split** (:class:`Unlink`) or **retitled** (:class:`Retitle`). :func:`decide`
+checks who may act and whether the move is allowed and returns the case after it, the event's
+details and the Kibana writes; it never reads or writes anything."""
 
 from __future__ import annotations
 
@@ -104,9 +82,6 @@ class CaseRefused(Exception):  # noqa: N818 - a refusal, not an error
         self.message = message
 
 
-# --------------------------------------------------------------------------- commands
-
-
 @dataclass(frozen=True)
 class Open:
     """A new case: suspected (ARGUS's own true-positive proposal) or open (a person's verdict,
@@ -134,9 +109,9 @@ class Confirm:
 
 @dataclass(frozen=True)
 class ConfirmByVerdict:
-    """ARGUS acts on a person's true-positive verdict with an impact or campus-host signal on
-    an investigation that is, or now joins, a suspected case (plan §7.1: "new or suspected →
-    open"). Kibana waits for someone who may open cases there, as for a case the verdict opens."""
+    """ARGUS acts on a person's true-positive verdict with an impact or internal-host signal on
+    an investigation that is, or now joins, a suspected case (a suspected case becomes open).
+    Kibana waits for someone who may open cases there, as for a case the verdict opens."""
 
     review_id: int
     by_user_id: int
@@ -201,7 +176,7 @@ class Link:
 
 @dataclass(frozen=True)
 class Unlink:
-    """A person moves investigations out of a case (D-211): into a case they open for them or an
+    """A person moves investigations out of a case: into a case they open for them or an
     existing one (``target_id``, which the caller has made or locked; the event names it). The
     members leave, and so do the actor indicators only they carried (``indicators``, which the
     service works out and the machine only checks are on the case); C2 and other indicators stay,
@@ -216,10 +191,10 @@ class Unlink:
 
 @dataclass(frozen=True)
 class Notify:
-    """A person records that the device's owner (or its department, hostel or lab) was told
-    (D-169): ``told`` says who, ``how`` the way, ``at`` when (default now). ``managed``: the case's
-    devices are campus-managed machines (the caller works it out from the asset map; unknown is
-    not managed). A second notice (a reminder followed) is another ``Notify``."""
+    """A person records that the device's owner (or the team that looks after it) was told:
+    ``told`` says who, ``how`` the way, ``at`` when (default now). ``managed``: the case's
+    devices are organisation-managed machines (the caller works it out from the asset map; unknown
+    is not managed). A second notice (a reminder followed) is another ``Notify``."""
 
     told: str
     how: NoticeHow
@@ -230,7 +205,7 @@ class Notify:
 
 @dataclass(frozen=True)
 class WithdrawNotice:
-    """A person withdraws a notice they recorded by mistake (D-181): ``who`` is who withdraws it,
+    """A person withdraws a notice they recorded by mistake: ``who`` is who withdraws it,
     ``reason`` why. The case is not notified any more: the fingerprint stops absorbing, and what
     was decided known stays decided (nothing comes back as new work). The notice rows stay, as
     the record of what was said; the case event ``notice_withdrawn`` is the audit of this."""
@@ -252,8 +227,8 @@ class RecordBlock:
 
 @dataclass(frozen=True)
 class AddressMoved:
-    """The same device came back from a new campus address (DHCP): ARGUS notes it on the case,
-    adds the new address as a device and takes the investigation in (D-169 point 6)."""
+    """The same device came back from a new internal address (DHCP): ARGUS notes it on the case,
+    adds the new address as a device and takes the investigation in."""
 
     old: str
     new: str
@@ -266,7 +241,7 @@ class AddressMoved:
 
 @dataclass(frozen=True)
 class Retitle:
-    """A new title for the case (D-230): a person's own words (with the reason), or ARGUS's
+    """A new title for the case: a person's own words (with the reason), or ARGUS's
     refreshed title when the case's facts changed (the service refuses ARGUS's when a person set
     the title). Any state; nothing is mirrored to Kibana (a title is posted once, at creation)."""
 
@@ -288,7 +263,7 @@ class RequestClosure:
 
 @dataclass(frozen=True)
 class ProposeClosure:
-    """ARGUS proposes closing a case (Q-C3) for a reason with positive evidence: a verified
+    """ARGUS proposes closing a case for a reason with positive evidence: a verified
     quiet window (``remediated_verified``, ``attempt_no_impact``) or people's reviews (the
     benign and false-positive reasons, ``evidence`` saying which). A person approves it."""
 
@@ -376,9 +351,6 @@ class Step:
     @property
     def mirror_create(self) -> bool:
         return any(w.op == "create" for w in self.writes)
-
-
-# --------------------------------------------------------------------------- deciding
 
 
 def _refuse(code: Code, message: str) -> CaseRefused:
@@ -931,7 +903,7 @@ def _extra(**values: Any) -> dict[str, Any]:
 
 
 def _needs_notice(case: Case, reason: Reason) -> None:
-    """ARGUS proposes "stopped after notice" only for a case whose owner was told (D-169); a
+    """ARGUS proposes "stopped after notice" only for a case whose owner was told; a
     person may ask for it for any case (they may have told the owner outside ARGUS)."""
     if reason == "stopped_after_notice" and case.notified_at is None:
         raise _refuse("conflict", "ARGUS proposes stopped after notice for a notified case only")
@@ -947,7 +919,7 @@ def _merge_target(case: Case, target: uuid.UUID, target_state: State) -> None:
 
 
 def _check_evidence(reason: Reason, note: str | None, window: QuietWindow | None) -> str | None:
-    """Plan §7.1's closure table: the positive evidence each reason needs before it is asked."""
+    """The closure table: the positive evidence each reason needs before it is asked."""
     if reason in ("remediated_verified", "attempt_no_impact") and (
         window is None or not window.verified
     ):
@@ -961,8 +933,6 @@ def _check_evidence(reason: Reason, note: str | None, window: QuietWindow | None
     }.get(reason, "a note")
     return _text(note, what, required=required)
 
-
-# --------------------------------------------------------------------------- replay
 
 _SET_FIELDS = tuple(
     f.name for f in fields(Case) if f.name not in ("id", "version", "members", "indicators")

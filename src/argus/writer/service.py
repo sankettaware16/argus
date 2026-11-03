@@ -1,4 +1,4 @@
-"""Putting the writer together from the settings, and what must hold before it writes (Q-D4)."""
+"""Putting the writer together from the settings, and what must hold before it writes."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ CREDENTIAL = "approval-signing.key"
 
 def verifier_of(settings: Settings) -> signing.Verifier | None:
     """The approval keys the writer verifies with: ``kibana.writer.approval_keys``, else the
-    credential the unit loads (``$CREDENTIALS_DIRECTORY/approval-signing.key``, Q-A5)."""
+    credential the unit loads (``$CREDENTIALS_DIRECTORY/approval-signing.key``)."""
     paths = list(settings.kibana.writer.approval_keys)
     folder = os.environ.get("CREDENTIALS_DIRECTORY")
     if not paths and folder and (Path(folder) / CREDENTIAL).is_file():

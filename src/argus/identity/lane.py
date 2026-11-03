@@ -1,29 +1,11 @@
-"""The identity lane (Q-E1, plan §5 and §7.2): ``identity.whoami`` and ``identity.verify``
-with a person's own ELK credential.
+"""The identity lane: ``whoami`` and ``verify`` with a person's own ELK credential.
 
-Each call, in this order, stops at the first refusal:
-
-1. **Before any request** (``names``): reserved and service names, names ELK cannot hold,
-   passwords under 10 characters: refused (``IdentityRefusedError``), no request, no budget.
-2. **The identity gate** (``reach``): while its own requests found the SIEM unreachable or
-   overloaded, unavailable (``IdentityUnavailableError``) at once. Never the SIEM's health
-   state, a STOP from ARGUS's own key or a stale probe (DQ9 (b)).
-3. **The lane** (``LaneGate``): the ``identity`` and global kill switches, the identity lane's
-   own budget and its 6 checks a minute, of which a sign-in leaves 2 to re-checks (§7.8). A
-   switch is ARGUS's own refusal (unavailable, ``stopped``); a lane that frees up too late is
-   unavailable, ``busy``.
-4. **One request** through the identity transport, with the person's header for that request
-   only; no retry. A row in the request ledger without the name.
-5. **The answer:** a 2xx is read strictly (``whoami``: realm ``native``, enabled, the exact
-   name, an ``argus_uid``, no ``argus_service``; ``verify``: the capability map, superusers and
-   admin accounts as DQ15 says, no entry without view). **A 403 is a denial. A 401 is a denial
-   only after the security-index check** (with ARGUS's own key, through the gateway): while the
-   index is not usable every native user gets 401, so a 401 then, or when the check cannot be
-   made, is unavailable. Anything else (a timeout, no connection, 5xx, 429, a redirect, an
-   answer that is not what was asked) is unavailable.
-
-Only a denial (``IdentityDeniedError``) is Elasticsearch refusing the credential, so only it
-counts towards Q-E2's throttle (``counts``); refusals and "unavailable" never do.
+Each call stops at the first refusal: (1) names and passwords ARGUS never sends (``names``), no
+request; (2) the identity gate (``reach``): unavailable while its own requests found the SIEM
+unreachable or overloaded; (3) the lane's kill switches and budget (``LaneGate``); (4) one request
+through the identity transport with the person's header, no retry; (5) the answer, read strictly.
+A 403 is a denial; a 401 is a denial only after the security-index check, else unavailable. Only a
+denial counts towards the sign-in throttle.
 """
 
 from __future__ import annotations
@@ -73,21 +55,21 @@ TEMPLATES: Mapping[Route, tuple[str, int]] = {
     Route.WHOAMI: ("identity.whoami", 1),
     Route.VERIFY: ("identity.verify", capmap.MAP_VERSION),
 }
-KEPT_FOR_RECHECKS = 2  # of the lane's 6 checks a minute (plan §7.8)
+KEPT_FOR_RECHECKS = 2  # of the lane's 6 checks a minute
 ESTIMATE_MS = 50  # the light class's estimate: what a call that answered costs at least
 INDEX_CHECK_FRESH = timedelta(seconds=15)  # a usable security index is believed this long
 
 
 class Kind(StrEnum):
     SIGNIN = "signin"  # a first check: leaves KEPT_FOR_RECHECKS a minute to re-checks
-    RECHECK = "recheck"  # an open session's re-check (Q-E2)
+    RECHECK = "recheck"  # an open session's re-check
 
 
 class AdminAccounts(StrEnum):
-    """DQ15: an account holding an admin canary (not a superuser)."""
+    """An account holding an admin canary (not a superuser)."""
 
-    REFUSE = "refuse"  # (a): refused; the admin uses a second, ordinary account
-    WITHOUT_CUSTODY = "without_custody"  # (b): let in, ARGUS keeps no copy of the password
+    REFUSE = "refuse"  # refused; the admin uses a second, ordinary account
+    WITHOUT_CUSTODY = "without_custody"  # let in, ARGUS keeps no copy of the password
 
 
 # --------------------------------------------------------------------------- outcomes
@@ -137,14 +119,14 @@ class Access:
 
     username: str
     capabilities: frozenset[Capability]
-    admin_account: bool  # let in under DQ15 (b): no custody
+    admin_account: bool  # let in without custody of the password
     map_version: int
     checked_at: datetime
 
     @property
     def custody(self) -> bool:
-        """May ARGUS keep this person's credential for re-checks (DQ16 (a))? Never for an
-        admin account (DQ15 (b))."""
+        """May ARGUS keep this person's credential for re-checks? Never for an
+        admin account."""
         return not self.admin_account
 
 
@@ -301,7 +283,7 @@ class IdentityLane:
             raise IdentityUnavailableError(reach.reason or "unreachable")
         # a sign-in leaves two checks a minute to re-checks; its first request (whoami) leaves
         # one more, so that its second (verify) is not the one refused "busy" after the
-        # password was already checked (review E1-8; two sign-ins at once still fit)
+        # password was already checked (two sign-ins at once still fit)
         kept = 0
         if kind is Kind.SIGNIN:
             kept = KEPT_FOR_RECHECKS + (1 if route is Route.WHOAMI else 0)
@@ -396,7 +378,7 @@ class IdentityLane:
             if not isinstance(body, Mapping):
                 raise IdentityUnavailableError("answer_not_json")
             return body
-        # only Elasticsearch's own refusal counts (review E1-3): a proxy's or firewall's
+        # only Elasticsearch's own refusal counts: a proxy's or firewall's
         # 401/403 (an HTML page, another error type) is "unavailable", never a denial
         if status in (401, 403) and "security_exception" not in error_types(
             parse_json(sent.response.body)
@@ -428,7 +410,7 @@ class IdentityLane:
 
 
 def _charge_failure(failure: GatewayError, timeout_s: float, elapsed_s: float) -> int:
-    """What a request without an answer costs the lane (plan §7.8): no connection nothing,
+    """What a request without an answer costs the lane: no connection nothing,
     a timeout its whole timeout, anything else max(round trip, the light estimate)."""
     if isinstance(failure, TransportFailedError) and not failure.reached:
         return 0
@@ -472,7 +454,7 @@ def read_identity(body: Any, username: str) -> Identity:
     kind = body.get("authentication_type")
     enabled = body.get("enabled")
     # a field the answer does not state is an incomplete answer, not a verdict about the
-    # person (review E1-5); a field it states against the rule is a refusal
+    # person; a field it states against the rule is a refusal
     if None in (realm_type, lookup_type, kind) or not isinstance(enabled, bool):
         raise IdentityUnavailableError("answer_incomplete")
     if realm_type != "native" or lookup_type != "native":
@@ -483,7 +465,7 @@ def read_identity(body: Any, username: str) -> Identity:
         raise IdentityRefusedError("disabled")
     metadata = body.get("metadata")
     metadata = metadata if isinstance(metadata, Mapping) else {}
-    if "argus_service" in metadata:  # the plan: no such metadata at all (review E1-6)
+    if "argus_service" in metadata:  # a person's account carries no such metadata at all
         raise IdentityRefusedError("service_account")
     uid = metadata.get("argus_uid")
     if not isinstance(uid, str) or not _is_uuid(uid):

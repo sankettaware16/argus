@@ -1,5 +1,5 @@
-"""Building the LLM gateway for a running ARGUS (P5): config, keys, transport, store. The
-default transport has one client per provider, each with its own trust (Q-G1)."""
+"""Building the LLM gateway for a running ARGUS: config, keys, transport, store. The default
+transport has one client per provider, each with its own trust."""
 
 from __future__ import annotations
 

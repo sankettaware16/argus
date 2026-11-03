@@ -1,1 +1,1 @@
-"""R6: grouping alerts into investigations (D-051)."""
+"""Grouping alerts into investigations."""

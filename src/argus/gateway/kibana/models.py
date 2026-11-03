@@ -1,25 +1,10 @@
-"""Strict body models of every Kibana write and the checks of every Kibana answer (Q-D2).
+"""Strict body models of every Kibana write and the checks of every Kibana answer.
 
-Bodies: pydantic models with ``extra="forbid"`` and strict types, so a body can hold only what
-ARGUS means to send (plan §5 Q-D2):
-
-- a create always carries ``owner`` ``securitySolution``, connector ``none`` and
-  ``settings: {syncAlerts: false}`` (Kibana requires ``settings`` on a create; DQ6 (a)), and
-  never assignees (403 on Basic), custom fields or a category;
-- an update (PATCH) names one case by id and version and never carries ``settings``,
-  assignees, custom fields, a connector or a category; ARGUS's own tags are ``argus`` and
-  ``argus:*`` (people's tags are kept by the planner, Q-D4, and pass through as they are);
-- an alert attachment names at most ``MAX_ALERTS_PER_CALL`` alerts (5, until production
-  numbers), each with its concrete index;
-- the alert status route takes ids only (``signal_ids``), never a query, at most
-  ``MAX_STATUS_ALERTS_PER_CALL`` (100); the lane's ``status_per_call`` (5 until production
-  numbers) is what a call may use.
-
-Answers: each read and write has a check of what Kibana must answer (types, ids, the values
-just sent); a 2xx answer that fails it is an ``AnswerMismatchError``, never success. A status
-change or an attach answered with Sync alerts on is one (DQ6 (a): someone switched it on in
-Kibana, so the write may have rewritten alert statuses): its class pauses. The re-read before
-such a write, which sends nothing while Sync alerts is on, is the writer's (Q-D4, plan §7.1).
+Bodies are pydantic models with ``extra="forbid"``: a create always carries owner
+``securitySolution``, connector ``none`` and ``settings: {syncAlerts: false}`` and never assignees,
+custom fields or a category; an update names one case by id and version; attachments and status
+changes are bounded per call. Answers: each read and write has a check of what Kibana must answer;
+a 2xx answer that fails it (or has Sync alerts on) is an ``AnswerMismatchError``, never success.
 """
 
 from __future__ import annotations
@@ -43,11 +28,11 @@ from argus import site
 from argus.gateway.kibana.errors import AnswerMismatchError
 
 OWNER: Final = "securitySolution"
-MAX_ALERTS_PER_CALL = 5  # plan §7.1: ≤ 5 alerts a call until production numbers
-MAX_TEAM_ALERTS_PER_CALL = 100  # the case team's (WC, D-209); the hand-made case did 100 a call
-MAX_STATUS_ALERTS_PER_CALL = 100  # the most a status call may ever name (D-061); ``WriteCaps``
-# ``status_per_call`` (5 until production numbers, ``writeback.batch``) is what a call may use
-MAX_TITLE = 160  # Kibana 8.19.12's limits (tests/kibana/test_cases_contract.py::test_limits)
+MAX_ALERTS_PER_CALL = 5  # alerts attached a call
+MAX_TEAM_ALERTS_PER_CALL = 100  # the case team's attach
+MAX_STATUS_ALERTS_PER_CALL = 100  # the most a status call may ever name; ``WriteCaps``
+# ``status_per_call`` (``writeback.batch``) is what a call may use
+MAX_TITLE = 160  # Kibana's limits (a contract test checks them)
 MAX_TEXT = 30_000
 MAX_TAGS = 200
 MAX_TAG = 256
@@ -64,7 +49,7 @@ CLOSING_REASONS = frozenset(
         "created_in_error",
         "stopped_after_notice",
     }
-)  # plan §7.1
+)
 _CASE_ID = r"^[A-Za-z0-9_-]{1,64}$"
 _ALERT_ID = r"^[A-Za-z0-9_-]{1,128}$"
 _ALERT_INDEX = r"^\.internal\.alerts-security\.alerts-[a-z0-9_-]{1,64}-[0-9]{6}$"
@@ -219,7 +204,7 @@ class CaseChange(_Strict):
     @model_serializer(mode="wrap")
     def _only_what_changes(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """A field ARGUS does not change is left out: Kibana refuses ``null`` for every one of
-        them (found on the local tier: 400 'Invalid value "null" supplied to cases,title')."""
+        them (400 'Invalid value "null" supplied to cases,title')."""
         data: dict[str, Any] = handler(self)
         return {key: value for key, value in data.items() if value is not None}
 
@@ -294,7 +279,7 @@ class AlertStatusChange(_Strict):
 
 def closing_tags(tags: Sequence[str]) -> str | None:
     """The reason code of a closure's tags, or None unless they carry ``argus:state:closed``,
-    ``argus:closed`` and exactly one ``argus:reason:<code>`` of the nine (plan §7.1) and no
+    ``argus:closed`` and exactly one ``argus:reason:<code>`` of the nine and no
     other ``argus:state:``."""
     reasons = [t.removeprefix("argus:reason:") for t in tags if t.startswith("argus:reason:")]
     states = [t for t in tags if t.startswith("argus:state:")]
@@ -303,8 +288,8 @@ def closing_tags(tags: Sequence[str]) -> str | None:
     return reasons[0] if reasons[0] in CLOSING_REASONS else None
 
 
-# --------------------------------------------------------------------------- the case team (AR8)
-# Seven service users post one incident case (D-158, D-250); their bodies are as strict as
+# --------------------------------------------------------------------------- the case team
+# Seven service users post one incident case; their bodies are as strict as
 # ARGUS's own.
 
 TEAM_USERS: Final = (
@@ -332,7 +317,7 @@ MAX_TAGS_PER_CALL = 10
 
 
 class TeamCaseCreate(_Strict):
-    """The lead opens the incident case (AR8, D-157): the hand-made case's ID first, then its
+    """The lead opens the incident case: the hand-made case's ID first, then its
     ``key:value`` tags. Like an ARGUS case it is made with Sync alerts off, no connector and the
     security owner; unlike one it carries no ``argus:*`` tag (the writer's sync keeps off it)."""
 
@@ -367,7 +352,7 @@ class TeamCaseCreate(_Strict):
 
 
 class TeamCasePatch(CasesPatch):
-    """The lead corrects the case it opened (D-236): PATCH /api/cases with exactly one case, its
+    """The lead corrects the case it opened: PATCH /api/cases with exactly one case, its
     Kibana version, and a new title and/or description; never tags, severity, status, assignees
     or settings (a closure or a reopening is a person's, and the case team never writes one)."""
 
@@ -382,7 +367,7 @@ class TeamCasePatch(CasesPatch):
 
 
 class TeamCommentPatch(_Strict):
-    """A user corrects the comment they wrote (D-236): PATCH /api/cases/{case}/comments with the
+    """A user corrects the comment they wrote: PATCH /api/cases/{case}/comments with the
     comment's id and Kibana version, its type and owner unchanged, and the new text."""
 
     id: Annotated[str, Field(pattern=_CASE_ID)]
@@ -468,7 +453,7 @@ def check_case(answer: Any, *, case_id: str | None = None) -> Mapping[str, Any]:
 
 
 def _by(case: Mapping[str, Any], author: str | None) -> None:
-    """Every case ARGUS writes to is one it made (plan §3 rule 5): its author is ARGUS's."""
+    """Every case ARGUS writes to is one it made: its author is ARGUS's."""
     if author is not None and case["created_by"].get("username") != author:
         raise _mismatch("the case was made by someone else")
 
@@ -535,13 +520,12 @@ def check_attached(
 
 
 def check_alert_status(answer: Any, sent: AlertStatusChange) -> Mapping[str, Any]:
-    """The route answers with its update_by_query body, and a 200 alone says nothing (Q-D5).
-    A clean answer names every alert sent and updates every one: ``total`` and ``updated`` both
-    equal the number of ids (Kibana rewrites an alert that already has the status as
-    ``updated``, never ``noops``, and an id it does not find is a ``total`` of 0 with a 200:
-    tests/kibana/test_alert_writes.py). Anything else is a mismatch that pauses the class:
-    fewer or more alerts, ``failures``, ``version_conflicts``, ``noops``, ``deleted``, a
-    ``timed_out`` (the flood-stage block answers with failures in a 200 body)."""
+    """The route answers with its update_by_query body, and a 200 alone says nothing. A clean answer
+    names every alert sent and updates every one: ``total`` and ``updated`` both equal the number of
+    ids (Kibana rewrites an alert that already has the status as ``updated``, and an id it does not
+    find is a ``total`` of 0 with a 200). Anything else (fewer or more alerts, ``failures``,
+    ``version_conflicts``, ``noops``, ``deleted``, ``timed_out``) is a mismatch that pauses the
+    class."""
     if not isinstance(answer, Mapping):
         raise _mismatch("not an update report")
     updated, total = answer.get("updated"), answer.get("total")
@@ -650,7 +634,7 @@ def check_team_commented(answer: Any, case_id: str, sent: str, username: str) ->
 def check_team_patched(answer: Any, sent: CasesPatch) -> Mapping[str, Any]:
     """The answer to the lead's edit is the updated cases: the one just sent, still the lead's,
     at a new version, with the title and description as sent. Sync alerts may be on: a person's
-    setting (D-272), and a title or description changes no alert."""
+    setting, and a title or description changes no alert."""
     if not isinstance(answer, list) or len(answer) != 1:
         raise _mismatch("not exactly one case")
     change = sent.cases[0]
@@ -693,9 +677,9 @@ def check_team_attached(
     answer: Any, case_id: str, sent: AlertAttachment, expect_total: int
 ) -> Mapping[str, Any]:
     """The answer to an attach is the case: it holds at least the alerts expected. Sync alerts
-    may be on only for an open case (D-288): then Kibana sets the attached alerts to *open*, which
+    may be on only for an open case: then Kibana sets the attached alerts to *open*, which
     changes only an alert a person had closed, and the poster leaves those out beforehand. On any
-    other status an attach with Sync alerts on would change the alerts' status (D-272)."""
+    other status an attach with Sync alerts on would change the alerts' status."""
     case = _team_case(answer, case_id)
     sync = case["settings"].get("syncAlerts")
     if sync is not False and not (sync is True and case.get("status") == "open"):

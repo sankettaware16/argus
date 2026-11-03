@@ -1,14 +1,10 @@
-"""ARGUS's verdict on a case, with its confidence and what it rests on (AR7, D-190).
+"""ARGUS's verdict on a case, with its confidence and what it rests on.
 
-The verdict is read, never decided here, in this order: **people's reviews** of the case's
-investigations (a person's word beats ARGUS's); else the **proposals** the AI investigator or the
-decision engine made on them (the AI's before the engine's, an investigation's own before one
-shared from its pattern, AR2); else ARGUS's **readings** (AR1: an answer that was not a proposal,
-shown as such); else the case itself (a person confirmed it, so it is a real problem); else "no
-verdict yet". The outcome that most investigations hold wins; the confidence is the mean of the
-AI's own for those investigations (the decision engine gives none). What the verdict rests on is
-counted from the stored flags and answers, never estimated.
-"""
+The verdict is read, never decided here, in this order: people's reviews of the case's
+investigations; else the proposals the AI investigator or the decision engine made on them; else
+ARGUS's readings; else the case itself (a person confirmed it); else "no verdict yet". The outcome
+most investigations hold wins; the confidence is the mean of the AI's own. What it rests on is
+counted from the stored flags and answers, never estimated."""
 
 from __future__ import annotations
 

@@ -1,19 +1,12 @@
-"""Reading the SIEM's answer to :class:`~argus.signins.template.SigninsDay` (AR6, D-216), strictly.
+"""Reading the SIEM's answer to :class:`~argus.signins.template.SigninsDay`, strictly.
 
-The gateway has already refused an answer that timed out, lost shards or ended early
-(``PartialResultError``). What is left is the shape: every address in the answer is one that was
-asked about, every count is a whole non-negative number, every time is inside the day, the hours add
-up to the events. An answer that is not exactly that raises :class:`BadAnswer` and is stored as
-incomplete, never as "none seen": unknown is not negative.
-
-Text that came from the logs is made storable first (:func:`text_of`): an account name or a browser
-string with a NUL, a lone surrogate or a control character would make the database refuse the whole
-answer, and an attacker can type any account name into a failed sign-in (D-222). Sign-in events
-whose account name is missing or unusable are counted, and a lookup that has them is incomplete
-(``unnamed_events``, D-223): the named accounts are right, the day is not whole.
-
-Nothing here logs or raises with an account name in its message.
-"""
+The gateway has already refused an answer that timed out, lost shards or ended early. What is
+left is the shape: every address was asked about, every count is a whole non-negative number,
+every time is inside the day, the hours add up. Anything else raises :class:`BadAnswer` and is
+stored as incomplete, never as "none seen". Text from the logs is made storable first
+(:func:`text_of`): an attacker can type any account name into a failed sign-in. Events whose
+account name is missing or unusable are counted and make the lookup incomplete
+(``unnamed_events``). Nothing here logs or raises with an account name in its message."""
 
 from __future__ import annotations
 
@@ -207,7 +200,7 @@ def parse(params: DayParams, body: Any, looked_at: datetime) -> Parsed:
             more = 1
         sightings.extend(listed)
         unnamed = address_events - sum(s.events for s in listed) - other
-        if unnamed > 0:  # sign-ins by no account name: the day is not whole (D-223)
+        if unnamed > 0:  # sign-ins by no account name: the day is not whole
             lookups.append(
                 m.Lookup(address, params.day, looked_at, False, 0, 0, m.UNNAMED, unnamed=unnamed)
             )

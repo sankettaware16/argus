@@ -1,38 +1,13 @@
-"""A notified case as a known infection (AR4b, D-169, D-176): the pure rules.
+"""A notified case as a known infection: the pure rules.
 
-A university's devices are mostly personal laptops: the security team finds one and tells its owner,
-and cannot wipe or isolate it, so the alerts keep coming after the true positive is reported. ARGUS
-must not flood people with what they know, and must speak when something changes. Once a person
-records that the owner was told (a ``notified`` case), the case is a **fingerprint**
-(:class:`Print`):
-
-* its **devices** (campus addresses, and the host names and users the data has),
-* its **destinations**: the case's servers and names, with the registered parents (families) of
-  its names, the evidence flags it carried, the university services it touched and the most data
-  it moved (the last three are what the case's investigations showed when the notice was
-  recorded, :mod:`argus.cases.knownrun` takes them).
-
-An investigation of one of the case's devices (:class:`Subject`) is then, by :func:`evaluate`,
-
-* **changed** when it brings something the fingerprint does not hold: a flagged destination
-  (an address or a name, or the family of a name) that is new, a kind of evidence flag the case
-  never carried, a university service as a target, or much more traffic than at the notice
-  (only when the evidence carries bytes: otherwise the volume is not judged, and the result says
-  so). It is in Needs attention with the reason "changed since notice: ...", and what it brought
-  becomes known, so each change speaks once. A change is durable (D-181): it stays a change, with
-  its reason, until a person reviews the investigation (:func:`settle`);
-* **known** when it is the notified device's alone (every device it lists is one the case holds),
-  reaches something the case already holds and brings nothing new: it joins the case silently, is
-  counted, and is neither raised nor given to the AI investigator. Destinations it reaches that
-  are neither held nor flagged are noted on the case as new (``Adds.seen``), not raised;
-* **nothing** of the case's otherwise (its device alerted about something unrelated, or it lists
-  another person's device too: the normal pipeline decides).
-
-Nothing here reads a clock or a database. :func:`reminders`, :func:`stopped` and :func:`moved`
-are the other rules: a notice still active after 7 days or 21 is a suggestion (never an alarm),
-no matching activity for 14 days is a proposal to close, and the same indicators from a new
-campus address soon after an old one went quiet are probably the same device.
-"""
+Once a person records that a device's owner was told, the case is a **fingerprint**
+(:class:`Print`): its devices and its destinations (servers, names, families, evidence flags,
+services, data moved). An investigation of its device is **changed** when it brings something new
+(raised once, and a change until a person reviews it), **known** when it brings nothing new (joins
+silently, counted, never raised), else not the case's. :func:`reminders`, :func:`stopped` and
+:func:`moved` are the clock rules: reminders after 7 and 21 days, a proposal to close after 14
+quiet days, and a new address with the same indicators as one that went quiet is probably the
+same device."""
 
 from __future__ import annotations
 
@@ -66,7 +41,7 @@ DESTINATION = "destination"
 FAMILY = "family"
 SERVICE = "service"
 BYTES = "bytes"
-NEW_DESTINATION = "new_destination"  # reached, not flagged, not held: counted on the case (D-181)
+NEW_DESTINATION = "new_destination"  # reached, not flagged, not held: counted on the case
 
 
 class Rules(BaseModel):
@@ -82,7 +57,9 @@ class Rules(BaseModel):
     move_gap: timedelta = timedelta(hours=2)
     move_similarity: float = Field(default=0.8, gt=0, le=1)
     volume_factor: float = Field(default=10.0, gt=1)
-    managed_types: frozenset[str] = frozenset({"lab", "computer-room"})  # D-180
+    managed_types: frozenset[str] = frozenset(
+        {"lab", "computer-room"}
+    )  # site types that count as managed
     reopen_days: int = Field(default=30, ge=1)  # a "stopped" case still starts a change check
 
 
@@ -113,7 +90,7 @@ class Print:
 
     def lone_address(self) -> Key | None:
         """The one address of the case when it holds exactly one device: the only case where a
-        new address can be the same device moving (D-181). Host and user keys are read as the
+        new address can be the same device moving. Host and user keys are read as the
         same machine's; a case with two addresses never merges a third."""
         addresses = [k for k in self.devices if k[0] == "ip"]
         return addresses[0] if len(addresses) == 1 else None
@@ -125,12 +102,12 @@ class Subject:
 
     investigation_id: uuid.UUID
     version: int
-    devices: frozenset[Key]  # the campus devices and the host and user keys it names
+    devices: frozenset[Key]  # the internal devices and the host and user keys it names
     destinations: frozenset[Key]  # outside addresses and names it involves (never shared or
     # popular ones: those are held by every case)
     flagged: frozenset[Key] = frozenset()  # of them (or their parents), on a list or detected
     flags: tuple[str, ...] = ()  # the evidence flags of its newest dossier
-    services: frozenset[Key] = frozenset()  # university services among its entities
+    services: frozenset[Key] = frozenset()  # internal services among its entities
     bytes: int | None = None  # the data its hosts sent, when the evidence carries it
     first_event_at: datetime | None = None
     last_event_at: datetime | None = None
@@ -229,10 +206,10 @@ def _few(values: Sequence[str]) -> str:
 
 
 def own_device(fp: Print, subject: Subject) -> bool:
-    """Whether an investigation is the notified device's alone (D-181): it names the case's device
+    """Whether an investigation is the notified device's alone: it names the case's device
     by an address or a host name (a user shared with another machine does not), and every device
-    it lists is one the case holds. A campus address the case does not hold is another person's
-    laptop or a lateral move: never absorbed, the normal pipeline decides. A university service
+    it lists is one the case holds. An internal address the case does not hold is another person's
+    laptop or a lateral move: never absorbed, the normal pipeline decides. An internal service
     among the entities is judged by its own rule (:func:`evaluate`), not as a device."""
     if not any(k[0] in IDENTITY_KINDS for k in subject.devices & fp.devices):
         return False
@@ -304,7 +281,7 @@ class Settled:
 
 
 def settle(prior: Prior | None, verdict: Verdict, version: int, *, reviewed: bool) -> Settled:
-    """What to record for an investigation the pass decided (D-181): a change is durable. An
+    """What to record for an investigation the pass decided: a change is durable. An
     investigation decided ``changed`` stays changed, with its reason, whatever the next version
     decides, until a person reviews a version of it at or after the change (``reviewed``); only
     then may a later version be known. A later change adds its reason to the one kept.
@@ -330,7 +307,7 @@ def settle(prior: Prior | None, verdict: Verdict, version: int, *, reviewed: boo
 
 def resurfaced(subject: Subject, moves: Mapping[str, datetime]) -> list[str]:
     """The old addresses of moves (address -> when the new address first alerted) that the
-    investigation lists and that alerted again after the move (D-181): the case has two devices,
+    investigation lists and that alerted again after the move: the case has two devices,
     not one that moved."""
     if subject.last_event_at is None:
         return []
@@ -350,9 +327,6 @@ def partition(
     return out
 
 
-# --------------------------------------------------------------------------- the clock's rules
-
-
 def still_active(last_activity: datetime | None, now: datetime, rules: Rules) -> bool:
     """Whether matching activity was seen within the last ``active_days``."""
     return last_activity is not None and now - last_activity <= timedelta(days=rules.active_days)
@@ -366,7 +340,7 @@ def reminders(
     last_activity: datetime | None,
     rules: Rules,
 ) -> list[Reminder]:
-    """The suggestions a notified case that is still active earns (D-169 point 4): "notify
+    """The suggestions a notified case that is still active earns: "notify
     again" once it has been ``renotify_days`` since the only notice, and "ask for network-side
     action" once ``network_days`` have passed, when no block is recorded. Never alarms."""
     if not still_active(last_activity, now, rules):
@@ -410,7 +384,7 @@ def moved(
     old: Iterable[Gone],
     rules: Rules,
 ) -> Gone | None:
-    """The device a new address probably is (D-169 point 6): the one old device that went quiet
+    """The device a new address probably is: the one old device that went quiet
     before the new address's first alert, at least ``move_gap`` and no more than ``move_window``
     before it (a device that started an hour after another stopped is more likely a second
     device), with the same set of destinations (``move_similarity``). Two equally good old
@@ -427,7 +401,7 @@ def moved(
 
 
 def managed(types: Iterable[str | None], rules: Rules) -> bool:
-    """Whether the devices are campus-managed: every one lies in an asset-map network whose
+    """Whether the devices are organisation-managed: every one lies in an asset-map network whose
     ``site.type`` is one of ``managed_types`` (an unknown type, or no map entry, is not)."""
     seen = list(types)
     return bool(seen) and all(t is not None and t.lower() in rules.managed_types for t in seen)
@@ -437,7 +411,7 @@ def still_active_line(
     alerts: int, days: int, notified_at: datetime, blocked_at: datetime | None,
     stamp: Callable[[datetime], str],
 ) -> str:  # fmt: skip
-    """The case's status line, in the words of D-169: "still active, N alerts in D days since
+    """The case's status line: "still active, N alerts in D days since
     notice", or, once a block is recorded, "blocked at the network; the device is still infected;
     owner notified on <date>"."""
     told = stamp(notified_at)

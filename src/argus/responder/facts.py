@@ -1,33 +1,8 @@
-"""What a case shows, as a closed list of facts the catalogue's families are keyed on (Q-H2).
-
-Each fact is something the packs already establish, read from the database only (the web's
-login can run it: it reads tables the pages read, never ``signals``):
-
-* ``c2_indicator``: the case holds a command-and-control address or name (role ``c2``), put
-  there by threat intelligence or by a person (Q-C1, Q-C2);
-* ``sensitive_file_served`` / ``attack_path_served``: a ``web.path_outcomes`` answer stored for
-  one of the case's investigations shows a path of the kind (``web.categories``: config or
-  backup files; traversal, admin pages, command injection, CMS probes) got a 2xx answer unlike
-  the site's others (``paths.SUCCESS``: not the catch-all page, not "cannot compare"). That check
-  needs a site and is off in production until its first run passes, so the same fact also holds
-  when a log record ARGUS stored shows a 2xx answer to a path of the kind: a stored
-  ``web.followups`` answer (the client's successful answers after the alert) or an alert that
-  records its own one path and 2xx status (D-240). Only a path the case itself is about counts that
-  way: one an alert of the case attacked or a stored path check asked about (D-245: a client's
-  other 2xx answers, a public page or an image, say nothing about an attack). A path a stored
-  ``web.path_outcomes`` answer decided was not served (the catch-all page, or refused) never
-  counts that way;
-* ``auth_failures``: an alert of a member investigation records a failed authentication
-  (``event.category`` authentication with ``event.outcome`` failure) or its rule is tagged
-  MITRE T1110 brute force (``kibana.alert.rule.threat``: threshold and sequence alerts copy no
-  ``event.*`` fields, but they do carry the rule's tags);
-* ``mail_user``: the case holds a user that is an e-mail address (the catalogue asks for a
-  second fact before it advises about an account: an e-mail-shaped name alone is not an incident).
-
-A fact is about what happened, not whether it still does: stored answers are never rewritten, so
-a family stays matched after the action (the verifier says whether it went quiet). No rule name
-or id is read: a rule cannot be hardcoded here (plan §3).
-"""
+"""What a case shows, as a closed list of facts the catalogue's families are keyed on, read from
+the database only: ``c2_indicator``, ``sensitive_file_served`` / ``attack_path_served`` (a 2xx
+answer to a path of the kind that the case is about), ``auth_failures`` and ``mail_user``. A fact
+is about what happened, not whether it still does. No rule name or id is read: a rule cannot be
+hardcoded here."""
 
 from __future__ import annotations
 
@@ -159,7 +134,7 @@ def sensitive_file(path: str) -> bool:
     the known file names, or its final extension is one of the backup/config extensions (so
     ``/files/backup.old.pdf`` and ``/docs/config.php.txt`` are not; ``/x/.env`` and
     ``/web.config`` are). A 2xx answer to such a path is a served secret whatever the alert
-    recorded (D-287); the fuzzier categories still need the case to be about the path (D-245)."""
+    recorded; the fuzzier categories still need the case to be about the path."""
     from argus.context import paths as outcome
 
     last = outcome.same_file(path).rstrip("/").rsplit("/", 1)[-1].lower()
@@ -191,12 +166,10 @@ def from_parts(
     asked: Iterable[str] = (),
 ) -> Facts:
     """The facts from a case's indicators ``(kind, value, role)``, its members' alerts and the
-    paths a stored ``web.path_outcomes`` answer showed served (pure). ``answered``: paths a log
-    record stored with the case shows with a 2xx status (:func:`answered_by_followups`; an
-    alert's own one is read here). They count as served only if the case is about them (an alert
-    of the case recorded the path, or a stored path check asked about it: ``asked``) and not if
-    ``denied`` (a stored ``web.path_outcomes`` answer decided the path was the catch-all page, or
-    refused): a client's 2xx answer to any other page is no sign of an attack (D-245)."""
+    paths a stored ``web.path_outcomes`` answer showed served (pure). ``answered``: paths a stored
+    log record shows with a 2xx status. They count as served only if the case is about them (an
+    alert of the case recorded the path, or a stored check ``asked`` about it) and not if
+    ``denied`` (a stored answer decided the path was the catch-all page, or refused)."""
     from argus.context import paths as outcome
     from argus.context import web
 
@@ -207,7 +180,7 @@ def from_parts(
     about = attacked_paths(docs, asked)
     about_the_case = [
         p for p in answered if outcome.same_file(p) in about or sensitive_file(web.decode(p))
-    ]  # a served secrets file counts on its own (D-287): threshold alerts record no path
+    ]  # a served secrets file counts on its own: threshold alerts record no path
     own = [p for d in docs for p in answered_by_alert(d)]  # the alert is about its own path
     served = [*served, *(p for p in (*about_the_case, *own) if outcome.same_file(p) not in wrong)]
     if any(role == "c2" for _, _, role in held):

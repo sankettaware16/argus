@@ -1,14 +1,9 @@
-"""The Kibana lane's only path builder (Q-D2): every path ARGUS can send to Kibana.
+"""The Kibana lane's only path builder: every path ARGUS can send to Kibana.
 
-One function, ``wire_path``, turns an endpoint and its ids into (method, path), exhaustively:
-each endpoint has its own case and an endpoint without one is an error, never a fallback.
-Every path starts with the space prefix ``/s/<space>/api/`` (plan §7.10, tenant isolation: a
-credential of two spaces would otherwise act in the default space, and the alert status route
-answers 200 there having changed nothing). No path deletes, pushes, writes the case
-configuration or reaches ``/internal/``: such endpoints do not exist here, and ``refusal``
-names the reason for any path that would (the validator and the transport ask it again).
-``built`` is the allowlist the transport holds every request to: the (method, path) must be one
-``wire_path`` builds, for some endpoint and well-formed ids.
+``wire_path`` turns an endpoint and its ids into (method, path), exhaustively; every path starts
+with ``/s/<space>/api/`` (tenant isolation). No path deletes, pushes, writes the case
+configuration or reaches ``/internal/``: ``refusal`` names the reason for any that would, and
+``built`` is the allowlist the transport holds every request to.
 """
 
 from __future__ import annotations
@@ -38,10 +33,10 @@ class KEndpoint(StrEnum):
     CASE_CREATE = "case_create"  # POST api/cases
     CASES_UPDATE = "cases_update"  # PATCH api/cases
     CASE_COMMENT = "case_comment"  # POST api/cases/{case}/comments (comments, alerts)
-    CASE_COMMENT_EDIT = "case_comment_edit"  # PATCH api/cases/{case}/comments (the case team, AR8)
-    CASE_FILES = "case_files"  # POST api/cases/{case}/files (multipart; the case team, AR8)
+    CASE_COMMENT_EDIT = "case_comment_edit"  # PATCH api/cases/{case}/comments (the case team)
+    CASE_FILES = "case_files"  # POST api/cases/{case}/files (multipart; the case team)
     ALERTS_STATUS = "alerts_status"  # POST api/detection_engine/signals/status
-    ALERTS_TAGS = "alerts_tags"  # POST api/detection_engine/signals/tags (the case team, AR8)
+    ALERTS_TAGS = "alerts_tags"  # POST api/detection_engine/signals/tags (the case team)
     SPACES = "spaces"  # GET  api/spaces/space (argus discover: the spaces)
     FEATURES = "features"  # GET  api/features (argus discover: the Security and Cases feature ids)
 
@@ -182,8 +177,8 @@ def built(method: str, path: str, space: str) -> bool:
     return any(m == method and p.fullmatch(path) for _, m, p in _endpoint_routes(space))
 
 
-# The case team's six users (AR8) only create the incident case, comment, upload a file, tag
-# alerts and, since D-236, correct what they posted (the lead's PATCH of the case's title and
+# The case team's users only create the incident case, comment, upload a file, tag
+# alerts and correct what they posted (the lead's PATCH of the case's title and
 # description, a user's PATCH of their own comment); nothing else is sent with their keys. Files,
 # alert tags and comment edits are theirs alone: no other key of ARGUS sends those routes.
 TEAM_ENDPOINTS = frozenset(

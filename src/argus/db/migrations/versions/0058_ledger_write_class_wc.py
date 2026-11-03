@@ -1,8 +1,8 @@
-"""The request ledger accepts the case team's write class ``WC`` (AR8, D-195; D-231).
+"""The request ledger accepts the case team's write class ``WC``.
 
-0029's check on ``siem_requests.write_class`` named W1, W2, W3, WA and WT; AR8 added the class in
+0029's check on ``siem_requests.write_class`` named W1, W2, W3, WA and WT; the class was added in
 code (``WriteClass.WC``) but not here, so the case team's first live write was sent and its ledger
-row refused (2026-10-30).
+row refused.
 
 Revision ID: 0058
 Revises: 0057

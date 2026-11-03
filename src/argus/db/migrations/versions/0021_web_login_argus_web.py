@@ -1,12 +1,10 @@
-"""the web's own login: the group role argus_web gets exactly what the web needs (Q-A2)
+"""the web's own login: the group role argus_web gets exactly what the web needs
 
-The web (the Inbox, its /api, later /api/v1 and /app) logs in as ``argus_api`` once
-``web.database_role`` is ``api``: a member of the group role ``argus_web``, which ``argus db
-bootstrap`` creates and which may read what the pages show and write sessions, reviews, gold
-answers, requested assessments and audit events, nothing else. ``argus.db.roles.API_GRANTS``
-lists it for ``argus doctor``, which also checks that the web's login can touch no other table.
-A review locks its investigation's row (SELECT ... FOR UPDATE), which needs UPDATE on one
-column: ``investigations.updated_at``, which nothing decides on.
+The web logs in as ``argus_api`` (a member of ``argus_web``, made by ``argus db bootstrap``) once
+``web.database_role`` is ``api``. The role reads what the pages show and writes sessions, reviews,
+gold answers, requested assessments and audit events, nothing else (``argus.db.roles.API_GRANTS``,
+checked by ``argus doctor``). A review locks its investigation's row, which needs UPDATE on
+``investigations.updated_at``, which nothing decides on.
 
 Revision ID: 0021
 Revises: 0020

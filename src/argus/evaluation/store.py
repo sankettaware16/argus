@@ -1,4 +1,4 @@
-"""The gold set in the store (P2, D-080): frozen items and a person's append-only answers.
+"""The gold set in the store: frozen items and a person's append-only answers.
 
 - ``import_set`` stores a chosen set once (``gold_select`` writes the manifest), each item
   checked against the dossier it was chosen at; a set that exists is never changed;

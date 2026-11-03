@@ -1,16 +1,9 @@
-"""A case can be retitled (D-230): the case event of a new title.
+"""A case can be retitled: the case event of a new title.
 
-Case titles were fixed words ("Contact with a threat-listed address from a campus host"); they now
-name the incident (:mod:`argus.cases.naming`), and ARGUS refreshes the titles it wrote when a
-case's facts change, while a person's title is theirs. Each change is a case event.
-
-* ``case_events.kind`` gains ``retitled``: the event of a new title, with the old and the new title
-  and who in its details. It keeps the state (the case guard checks versions and edges, and the
-  kind's own CHECK allows a same-state event that is neither a creation, a closure nor a
-  reopening). No table is added, and the grants stay: ``argus_runtime`` could update
-  ``cases.title`` since 0026.
-
-Downgrading is refused while a case event is a ``retitled``: the case events are append-only.
+Case titles were fixed words; they now name the incident (:mod:`argus.cases.naming`), and ARGUS
+refreshes the titles it wrote when a case's facts change, while a person's title is theirs.
+``case_events.kind`` gains ``retitled``. No table is added and the grants stay. Downgrading is
+refused while a case event is a ``retitled``.
 
 Revision ID: 0059
 Revises: 0058

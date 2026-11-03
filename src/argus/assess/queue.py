@@ -1,20 +1,9 @@
-"""The assessment queue (P3; plan §3, §5.4, D-084): one row per (investigation, view,
-assessor) is both the work and its result.
-
-- ``enqueue`` adds a row for an unreviewed investigation's current dossier view, once: the
-  view's hash is the key, so a re-derivation that changes nothing an assessor reads is never
-  assessed again, and a reviewed investigation is never queued.
-- ``claim`` leases due rows (``FOR UPDATE SKIP LOCKED``; expired leases are claimed again;
-  a row whose workers died ``MAX_LOST`` times is given up). The claim count fences: only the
-  current claim may finish (``LeaseLostError`` otherwise, and the effect rolls back with
-  the transaction).
-- ``propose`` / ``no_decision`` finish a claim; ``fail`` retries with backoff, then gives
-  up; ``defer`` (a model's budget or provider cooling down) gives the lease back without
-  counting a failure: no lease is held while waiting (plan §3 P3).
-- ``current`` is the newest finished assessment of an investigation at its current
-  version; ``accept`` records a person's review of it as a *confirmed proposal* (plan
-  §2.8), fenced: a stale assessment cannot be accepted (``AssessmentConflict``).
-"""
+"""The assessment queue: one row per (investigation, view, assessor) is both the work and its
+result. ``enqueue`` adds a row once per current view (the view hash is the key); ``claim`` leases
+due rows (``FOR UPDATE SKIP LOCKED``) and the claim count fences every finish
+(``LeaseLostError``); ``propose`` / ``no_decision`` finish a claim, ``fail`` retries with backoff,
+``defer`` gives the lease back without a failure; ``current`` is the newest finished assessment
+and ``accept`` records a person's review of it (``AssessmentConflict`` if stale)."""
 
 from __future__ import annotations
 
@@ -39,7 +28,7 @@ class LeaseLostError(Exception):
     """This worker's claim is no longer the row's current claim."""
 
 
-class AssessmentConflict(Exception):  # noqa: N818 - the plan's name, like DossierConflict
+class AssessmentConflict(Exception):  # noqa: N818 - an outcome, like DossierConflict
     """The assessment is not the investigation's current one (it changed, or was reviewed)."""
 
 
@@ -82,8 +71,8 @@ async def enqueue(
     priority: int = 0,
 ) -> bool:
     """Queue an assessment of this view, unless it exists or the investigation has moved on,
-    or is reviewed (``even_reviewed``: a person asked for it, D-095). ``priority`` 1 (a
-    person's request, D-097) is claimed before anything else waiting, deferred or not.
+    or is reviewed (``even_reviewed``: a person asked for it). ``priority`` 1 (a
+    person's request) is claimed before anything else waiting, deferred or not.
     Returns whether a row was added."""
     row = await conn.execute(
         text(
@@ -217,7 +206,7 @@ async def defer(
     """Give the lease back until ``until`` (a budget or a provider cooling down): no failure
     is counted and no lease is held while waiting. The wait is at most MAX_DEFER: what
     blocked a call can clear long before the time given (another provider's quota, a
-    reservation settled lower), and one deferral must not park an item for days (D-106).
+    reservation settled lower), and one deferral must not park an item for days.
     The reason is kept in ``error`` (cleared when the assessment finishes)."""
     await _current_claim(conn, job, now)
     await conn.execute(
@@ -300,7 +289,7 @@ async def accept(
 
 async def requeue(conn: AsyncConnection, assessor: str, stamp: str, now: datetime) -> int:
     """Queue again the finished assessments of ``assessor`` not decided under ``stamp`` (what
-    it learned changed: a new label can open or close a key, plan §5.3), for investigations
+    it learned changed: a new label can open or close a key), for investigations
     still unreviewed at that version. Returns how many."""
     rows = await conn.execute(
         text(

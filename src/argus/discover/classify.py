@@ -1,15 +1,10 @@
-"""Telling what a family of indices is (P4-D1): pure functions from names and mappings to a role,
-a confidence and the evidence, for ``argus discover``.
+"""Telling what a family of indices is: pure functions from names and mappings to a role, a
+confidence and the evidence, for ``argus discover``.
 
-A role's **score** is the points of its name hints (the words of the index or data stream name:
-``nginx``, ``dns``, ``sso``) and of its field hints (the well-known fields the mapping has:
-``url.path``, ``dns.question.name``, ``user.name``). Evidence only adds: a hint present never
-lowers a score, and a confidence is a function of a score and its two parts that never falls as
-they rise (``confidence_of``); the property tests hold both. A role is proposed only when its
-score reaches ``MIN_SCORE``; the best role wins, and a role within ``RIVAL_GAP`` points of it is
-reported as a rival (the person checks it) without lowering the confidence.
-
-Nothing here talks to Elasticsearch: the listing and the mappings come in as data.
+A role's score is the points of its name hints and of its field hints. Evidence only adds, and a
+confidence never falls as the score rises. A role is proposed only when its score reaches
+``MIN_SCORE``; the best role wins and a role within ``RIVAL_GAP`` is reported as a rival.
+Nothing here talks to Elasticsearch.
 """
 
 from __future__ import annotations

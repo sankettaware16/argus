@@ -1,31 +1,13 @@
-"""The Elastic Gateway (plan §5.1 to 5.3, D-048): the only path from ARGUS to the SIEM.
+"""The Elastic Gateway: the only path from ARGUS to the SIEM.
 
-``Gateway.run`` decides, in this order, and stops at the first refusal; nothing is sent
-unless every step said yes:
-
-1. the deadline has not passed;
-2. no kill switch stops this work, and the SIEM's health state (``effective``: a stale probe is
-   not trusted) allows it;
-3. the template builds its request and the gateway names the exact indices it wants;
-4. the validator accepts the **final** request (body, URL parameters, indices);
-5. a live-test session, if this gateway runs in one, has requests left;
-6. the overload breaker is closed (health probes pass it);
-7. the log indices exist (only now is the listing probe sent);
-8. the budget admits it (waiting, within the deadline, when it says wait; steps 2 and 6 are
-   asked again after every wait); then the breaker's trial is taken, if one is due.
-
-Then it sends, retries at most once (connection reset, 502, 503; never a timeout; steps 2 and
-6 again before the retry), checks the answer (typed errors, complete results; a 401/403 puts
-the SIEM in STOP at once), charges the server time it cost and writes a ledger row for every
-request that reached the SIEM. Whatever happens, the budget lease is settled.
-
-Lanes (plan §7.8, Q-D2): the budget of step 8 is the lane of the request's purpose
-(``lanes.lane_of``): the collector's lane is the original budget, every other lane has a
-bucket of its own, so a debt slows only its own lane. Freshness reads are refused in the quiet
-hours (00:00-01:30 UTC); identity checks run in every health state on their own lane (DQ9 (b)),
-and the identity purpose carries identity checks only (``IDENTITY_ENDPOINTS``).
-``LaneGate`` gives a client that is not this gateway (Q-E1's checks with a person's
-credential) the same admission: kill switch, health rule, lane budget, settled once.
+``Gateway.run`` stops at the first refusal; nothing is sent unless every step says yes: the
+deadline, the kill switches and the SIEM's health, the template's request and exact indices, the
+validator on the **final** request, the live-test session's limits, the overload breaker, the
+index listing, and the budget of the purpose's lane (``lanes.lane_of``). The kill switches, health
+and breaker are asked again after every budget wait and before a retry. It retries at most once,
+checks the answer (typed errors, complete results; a 401/403 puts the SIEM in STOP), charges the
+server time and writes a ledger row per request. ``LaneGate`` gives other clients (the identity
+checks) the same lane admission.
 """
 
 from __future__ import annotations
@@ -82,12 +64,12 @@ from argus.gateway.validator import FORCED_SEARCH_PARAMS, FinalRequest, encode_b
 from argus.site import LogFamily
 
 PROBE_PURPOSES = frozenset({Purpose.PROBE, Purpose.SELFTEST})
-# never 00:00-01:30 UTC (plan §7.8); a discovery is a person's command, but it may wait a minute
+# never in the quiet hours; a discovery is a person's command, but it may wait a minute
 # for the budget, so the gateway asks again at every request, not only the command at its start
 QUIET_PURPOSES = frozenset({Purpose.FRESHNESS, Purpose.DISCOVER})
-OWN_HEALTH = frozenset({Purpose.IDENTITY})  # its own reachability, not the SIEM's (§7.8)
+OWN_HEALTH = frozenset({Purpose.IDENTITY})  # its own reachability, not the SIEM's
 # The only requests the identity purpose may carry: sign-in and capability checks and the
-# security index's health (DQ9 (b)). Anything else labelled identity would skip the SIEM's health.
+# security index's health. Anything else labelled identity would skip the SIEM's health.
 IDENTITY_ENDPOINTS = frozenset(
     {Endpoint.AUTHENTICATE, Endpoint.HAS_PRIVILEGES, Endpoint.SECURITY_HEALTH}
 )
@@ -207,7 +189,7 @@ class Targets:
 
 @dataclass(frozen=True)
 class LiveLimits:
-    """The stricter limits of a human-issued live-test session (plan §10)."""
+    """The stricter limits of a human-issued live-test session."""
 
     session_id: str
     max_size: int = 10
@@ -246,7 +228,7 @@ class Gateway:
         self.listing_ttl = listing_ttl
         self.live = live
         self.rng = rng or random.Random()  # noqa: S311 - retry jitter, not a secret
-        # the ledger's component for the index listings it sends itself (Q-A3: the measuring
+        # the ledger's component for the index listings it sends itself (the measuring
         # session's gateway names its own, so they count as the session's)
         self.listing_component = listing_component
         self._listings: dict[str, tuple[datetime, frozenset[str]]] = {}
@@ -271,7 +253,7 @@ class Gateway:
         start, after every budget wait, once the lease is held, before a retry), so a wait
         never outlives it; it raises a RefusedError to stop the request. ``request_timeout``
         caps the request's own timeout (Elasticsearch's and the wire's) below the template's,
-        while ``deadline`` still bounds everything, budget waits included (Q-A3)."""
+        while ``deadline`` still bounds everything, budget waits included."""
         now = self.clock()
         if now >= deadline:
             raise DeadlinePassedError("the deadline passed before the request started")
@@ -293,7 +275,7 @@ class Gateway:
         if spec.family is Family.LOG and (
             seen.health == HealthState.STOP or "global" in seen.stopped
         ):
-            # no log request in STOP or under the global switch, a probe's neither (Q-D2)
+            # no log request in STOP or under the global switch, a probe's neither
             raise StoppedError("log reads wait: the SIEM is in STOP or ARGUS is stopped")
         if check is not None:
             await check(now)
@@ -594,7 +576,7 @@ class Gateway:
                     check_status(response.status, payload, missing=missing)
                 except TransportFailedError as exc:
                     timed_out = isinstance(exc, TimedOutError)
-                    if not exc.reached:  # no connection: the SIEM did no work (D-093)
+                    if not exc.reached:  # no connection: the SIEM did no work
                         charged = 0
                     else:
                         charged = int(timeout * 1000) if timed_out else self._ms(sent_at)
@@ -659,7 +641,7 @@ class Spend:
 
 
 class LaneGate:
-    """A lane's admission for a client that is not ``Gateway`` (Q-E1: identity checks with a
+    """A lane's admission for a client that is not ``Gateway`` (identity checks with a
     person's own credential): the purpose's kill switch and health rule, the lane's budget
     (waiting within the deadline, the rules asked again after every wait), and one settle of
     what the call cost. The collector's lane and probes have their own path (``Gateway.run``).

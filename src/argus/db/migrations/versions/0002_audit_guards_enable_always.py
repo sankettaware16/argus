@@ -1,8 +1,7 @@
 """audit guard triggers fire in every session (ENABLE ALWAYS)
 
 Ordinary triggers are skipped while ``session_replication_role = replica``, which a superuser can
-set for its own session with no DDL. ENABLE ALWAYS makes the append-only guards fire anyway
-(D-029). ``argus doctor`` checks for this state.
+set with no DDL. ENABLE ALWAYS makes the append-only guards fire anyway; ``argus doctor`` checks.
 
 Revision ID: 0002
 Revises: 0001

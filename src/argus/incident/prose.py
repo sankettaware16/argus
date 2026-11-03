@@ -1,27 +1,14 @@
-"""Optional prose for the incident report's summary (AR7, D-190): a model rewords verified facts,
-and ARGUS's guardian decides whether its words are used.
+"""Optional prose for the incident report's summary: a model rewords verified facts, and ARGUS's
+guardian decides whether its words are used.
 
-The deterministic summary is always there and is the whole summary unless this works. Prose is
-off by default (``incident.prose``) and needs the LLM gateway and the privacy view. What a model
-may do, and what stops it:
-
-* **It sees facts, not data.** Only the facts that have a ``safe`` form (no campus address, host or
-  account: counts, durations, kinds, the strongest outside verdict) are shown, each with its id,
-  through the egress validator like any request. Nothing it reads can be an identifier it could
-  repeat.
-* **It writes sentences that cite facts** (``{"sentences": [{"text", "cites"}]}``): at most
-  :data:`MAX_SENTENCES`, each citing at least one shown fact and only shown facts.
-* **The guardian checks every sentence** (:func:`accept`), in code: it must be plain text (no
-  markup, link or control character), carry no identifier-shaped token (an address, a name, a hash,
-  an e-mail), claim no number that the facts it cites do not hold (the Reporter's strict extractor,
-  :mod:`argus.reporter.figures`: digits, number words, percentages, times, units), and not say the
-  opposite of the verdict. One sentence refused refuses the whole answer; the deterministic summary
-  stands and the report says why in ``prose_note``.
-* **A model that is absent, refuses, times out or errs changes nothing**: the same fallback.
-
-A sentence that passes is stored as the model's (``by: model``) beside the deterministic one; the
-report's hash ignores it, so wording never makes a new version by itself.
-"""
+The deterministic summary is always there. Prose is off by default (``incident.prose``) and needs
+the LLM gateway and the privacy view. The model sees only facts that have a ``safe`` form (no
+internal address, host or account), each with its id. It writes sentences that cite shown facts
+(at most :data:`MAX_SENTENCES`). The guardian (:func:`accept`) checks every sentence in code: plain
+text, no identifier-shaped token, no number the cited facts do not hold, nothing opposite to the
+verdict; one sentence refused refuses the answer. A model that is absent, refuses, times out or
+errs changes nothing. Accepted sentences are stored as the model's beside the deterministic ones,
+and the report's hash ignores them."""
 
 from __future__ import annotations
 

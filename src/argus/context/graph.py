@@ -1,14 +1,10 @@
-"""The context graph (plan §8, D-054).
+"""The context graph.
 
-``START → run_kind → load → resolve_family → local_context → derive_local_signals →
-plan_wave → (Send per task → collect_evidence, or straight on) → validate_evidence →
-(↺ plan_wave while waves remain) → derive_signals → persist_dossier → END``
-
-The state holds references only (evidence refs keyed by task key, a bounded facts digest);
-snapshots live in Postgres. Every node's output is measured as the saver stores it, and a
-state over ``STATE_LIMIT`` is a bug. Nothing here retries or times out: the gateway owns
-both. What a run needs besides its state (database, gateway, packs, the job's claim, the
-deadline) comes from the runtime context, which is never checkpointed.
+``START → run_kind → load → resolve_family → local_context → derive_local_signals → plan_wave →
+(Send per task → collect_evidence) → validate_evidence → (↺ plan_wave while waves remain) →
+derive_signals → persist_dossier → END``. The state holds references only; snapshots live in
+Postgres, and a state over ``STATE_LIMIT`` is a bug. Nothing here retries or times out: the gateway
+owns both. The database, gateway, packs, claim and deadline come from the runtime context.
 """
 
 from __future__ import annotations
@@ -91,7 +87,7 @@ class RunAborted(Exception):  # noqa: N818
 
 
 class Gate:
-    """The run's share of the gateway (plan §8 ``max_concurrency``): at most ``slots`` calls
+    """The run's share of the gateway (``max_concurrency``): at most ``slots`` calls
     at once, and none after any call failed in a way that ends the run: the tasks still
     waiting park until LangGraph cancels them (only the first failure surfaces). LangGraph's
     own ``max_concurrency`` is not used: when a task fails, the tasks waiting for a slot would
@@ -126,15 +122,15 @@ class Ctx:
     engine: AsyncEngine
     gateway: EvidenceGateway | None
     packs: PackRegistry
-    claim: Claim | None  # None: evidence only (the P6 agent), never a dossier
+    claim: Claim | None  # None: evidence only (the investigation agent), never a dossier
     deadline: datetime
     clock: Callable[[], datetime]
     history: timedelta = timedelta(days=5)
     no_remote: bool = False  # deferred 24 h: remote tasks are recorded deferred, not run
     hooks: NodeHooks | None = None
     gate: Gate | None = None  # the run's share of the gateway
-    origin: str = "pack"  # who asks for the evidence (evidence_requests.origin, Q-F2)
-    freshness: Policy | None = None  # verified zeros (Q-F1): None is off
+    origin: str = "pack"  # who asks for the evidence (evidence_requests.origin)
+    freshness: Policy | None = None  # verified zeros: None is off
 
 
 class GraphState(TypedDict):
@@ -294,7 +290,7 @@ async def plan_wave(state: GraphState, ctx: Ctx) -> dict[str, Any]:
         else:
             mode = "skip_budget"
         planned.append({**task, "mode": mode})
-    if planned:  # each request's E-id, numbered in the plan's order (Q-F2)
+    if planned:  # each request's E-id, numbered in the plan's order
         async with ctx.engine.begin() as conn:
             await store.register_requests(
                 conn, _inv(state), state["version"], planned, ctx.origin, ctx.clock()
@@ -376,7 +372,7 @@ async def evidence_step(
         raise SourceUnavailable("no_gateway")
     # The slot covers the call and the write: a call is in flight until its result is stored.
     async with ctx.gate.slot() if ctx.gate else contextlib.nullcontext():
-        record["asked_at"] = ctx.clock()  # a verified zero needs a reading from before (Q-F1)
+        record["asked_at"] = ctx.clock()  # a verified zero needs a reading from before
         try:
             result = await ctx.gateway.run(
                 template,
@@ -509,7 +505,7 @@ async def persist_dossier(state: GraphState, ctx: Ctx) -> dict[str, Any]:
 
 
 def route_after_dossier(state: GraphState) -> str:
-    return END  # Phase 2 appends decide → reason → validate_findings → persist_assessment
+    return END  # the dossier is the end of this graph
 
 
 # ----------------------------------------------------------------------------- graph

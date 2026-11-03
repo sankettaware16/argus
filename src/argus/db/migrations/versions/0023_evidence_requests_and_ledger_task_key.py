@@ -1,9 +1,7 @@
-"""Evidence requests (Q-F2): an opaque id (E1, E2 …) for every evidence request of an
-investigation, the evidence rows that exist given theirs, and the task key on the ledger
+"""Evidence requests: an opaque id (E1, E2 ...) per request, and the task key on the ledger
 
-The web's group role (``argus_web``, 0021) may read what report@2 shows: the evidence rows,
-their ids and the ledger rows that answered them (``WEB_GRANTS``, in
-``argus.db.roles.API_GRANTS``).
+The web's group role (``argus_web``, 0021) may read what report@2 shows: the evidence rows, their
+ids and the ledger rows that answered them (``WEB_GRANTS``, in ``argus.db.roles.API_GRANTS``).
 
 Revision ID: 0023
 Revises: 0022
@@ -89,7 +87,7 @@ def upgrade() -> None:
     )
     # Every evidence row stored so far gets its id, numbered per investigation in the order
     # the requests were first made. Who asked is not stored with evidence: a task key some
-    # dossier lists was the dossier's own check, any other the investigator's (P6).
+    # dossier lists was the dossier's own check, any other the investigator's.
     op.execute(BACKFILL)
     op.create_foreign_key(
         op.f("fk_evidence_investigation_id_task_key_evidence_requests"),

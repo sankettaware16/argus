@@ -1,5 +1,5 @@
 """The gateway's own templates: health probes, identity self-test, index listing, and the
-collector's two alert reads (R5 builds on them; a change to a body is a version bump)."""
+collector's two alert reads (a change to a body is a version bump)."""
 
 from __future__ import annotations
 
@@ -298,10 +298,10 @@ class AlertsMget(Template):
         return RequestPlan(self.spec(), body={"ids": list(params.ids)}, names=(params.index,))
 
 
-# --------------------------------------------------------------------------- Q-D2's reads
-# Elasticsearch reads of the Kibana lane (plan §5 Q-D2): which alerts list which cases (Q-D3's
-# discovery of people's cases), the licence (before write runs and at Q-D3's first read) and the
-# security index's health (the check before a sign-in's 401 counts, plan §7.2, Q-E2).
+# --------------------------------------------------------------------------- Kibana-lane reads
+# Elasticsearch reads of the Kibana lane: which alerts list which cases (the discovery of
+# people's cases), the licence (before write runs and at the first read) and the
+# security index's health (the check before a sign-in's 401 counts).
 
 CASE_ID = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
 ALERT_ID = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
@@ -404,7 +404,7 @@ class ClusterLicense(Template):
 @register
 class SecurityIndexHealth(Template):
     """The security index's health. A native user's 401 while it is not green may be the index,
-    not the password (plan §2, §7.2): Q-E2 counts a refusal only after this check."""
+    not the password: a refusal is counted only after this check."""
 
     name = "health.security_index"
     version = 1

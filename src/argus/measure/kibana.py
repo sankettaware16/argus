@@ -1,14 +1,9 @@
-"""Kibana's costs on the local tier, relative only (Q-A3, plan §7.8, DQ21 (a) under D-110).
+"""Kibana's costs on the local tier, relative only.
 
-The local Kibana 8.19.12 tier (Q-D1) is not the SIEM: its absolute times say nothing about
-production, so every call is reported as a multiple of a baseline call (``GET /api/status``)
-timed in the same rounds, interleaved so that drift on this shared machine cancels out. The
-calls are the ones ARGUS's Kibana lanes will make (case reads, and the case writes of W1 and
-W2), against the tier's space (``site.space``), on cases tagged ``argus-measure`` that it
-makes itself. Production's own costs are measured during Q-D3's read-only days and each canary
-(plan §7.8), and allowances are adopted only then.
-
-Only a loopback ``https`` URL is accepted: this code never reaches the SIEM.
+The local Kibana tier is not the SIEM, so every call is reported as a multiple of a baseline call
+(``GET /api/status``) timed in the same interleaved rounds. The calls are the ones ARGUS's Kibana
+lanes make, against the tier's space, on cases tagged ``argus-measure`` that it makes itself. Only
+a loopback ``https`` URL is accepted: this code never reaches the SIEM.
 """
 
 from __future__ import annotations

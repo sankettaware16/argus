@@ -1,11 +1,8 @@
-"""The case record's types (plan §7.1): states, reasons, actors and their capabilities, and the
-replayable state of a case.
-
-Capabilities are actions, not role names, named as Q-A1 names them (Q-E1 maps ELK's Kibana
-privileges onto them). The terminal's ``argus case`` commands act with
-:data:`LOCAL_CAPABILITIES` (everything but approving) and no Kibana privileges, so a case opened
-there waits for someone who may open cases in Kibana.
-"""
+"""The case record's types: states, reasons, actors and their capabilities, and the replayable
+state of a case. Capabilities are actions, not role names (ELK's Kibana privileges are mapped onto
+them). The terminal's ``argus case`` commands act with :data:`LOCAL_CAPABILITIES` (everything but
+approving) and no Kibana privileges, so a case opened there waits for someone who may open cases in
+Kibana."""
 
 from __future__ import annotations
 
@@ -42,20 +39,20 @@ SEVERITIES: tuple[Severity, ...] = get_args(Severity)
 REASONS: tuple[Reason, ...] = get_args(Reason)
 CONFIRMED: frozenset[State] = frozenset({"open", "assigned", "contained"})
 # A reviewer dismisses a suspected case (it was never confirmed, nothing is in Kibana) with one
-# of these; the rest need evidence and an approver (plan §7.1's closure table).
+# of these; the rest need evidence and an approver.
 DISMISS_REASONS: frozenset[Reason] = frozenset(
     {"rule_false_positive", "benign_expected", "benign_policy", "created_in_error", "duplicate"}
 )
 # Closure reasons a person may request (``duplicate`` comes only from a merge).
 REQUEST_REASONS: frozenset[Reason] = frozenset(REASONS) - {"duplicate"}
-# What ARGUS itself proposes (Q-C3), each with positive evidence: a verified quiet window,
+# What ARGUS itself proposes, each with positive evidence: a verified quiet window,
 # people's reviews of every member, or 14 days of no matching activity after the owner was told
-# (D-169); a person still approves. Never the two-person reasons.
+# ; a person still approves. Never the two-person reasons.
 PROPOSE_REASONS: frozenset[Reason] = frozenset(
     {"remediated_verified", "attempt_no_impact", "rule_false_positive", "benign_expected",
      "benign_policy", "stopped_after_notice"}
 )  # fmt: skip
-# Two different people (plan §7.1); every other reason needs one approver.
+# Two different people; every other reason needs one approver.
 TWO_PERSON_REASONS: frozenset[Reason] = frozenset({"remediated_unverified", "risk_accepted"})
 SEVERITY_RANK = {name: rank for rank, name in enumerate(SEVERITIES)}
 NOTE_LIMIT = 4000
@@ -63,18 +60,18 @@ TITLE_LIMIT = 200
 
 
 class Capability(StrEnum):
-    """Q-A1's capability names (users.capabilities; Q-E1 maps Kibana privileges onto them)."""
+    """The capability names (users.capabilities); Kibana privileges are mapped onto them."""
 
     VIEW = "view"
     REVIEW = "review"  # dismiss a suspected case; notes (a reviewer)
     MANAGE = "manage_cases"  # open, confirm, take, assign, release, contain, link, merge,
     # publish to Kibana, request a closure
     REOPEN = "reopen"
-    APPROVE = "approve"  # DQ12 (b): the approver capability
+    APPROVE = "approve"  # the approver capability
 
 
 LOCAL_CAPABILITIES: frozenset[str] = frozenset(c.value for c in Capability) - {Capability.APPROVE}
-# A Kibana case is created for a person only if their fresh check showed both (plan §7.1).
+# A Kibana case is created for a person only if their fresh check showed both.
 KIBANA_TO_OPEN: frozenset[str] = frozenset({"createCase", "createComment"})
 KIBANA_FRESH = timedelta(minutes=5)
 WAITING_FOR_KIBANA = "Waiting for someone who may open cases in Kibana"
@@ -82,14 +79,14 @@ WAITING_FOR_KIBANA = "Waiting for someone who may open cases in Kibana"
 
 @dataclass(frozen=True)
 class Actor:
-    """Who acts: a person (``user:<id>``, D-052's users.id, so a renamed login keeps its
+    """Who acts: a person (``user:<id>``, the users.id, so a renamed login keeps its
     history) or ARGUS itself (``argus:<part>``). The name is what the audit trail records."""
 
     name: str
     user_id: int | None
     capabilities: frozenset[str]
     via: str
-    kibana: frozenset[str] = frozenset()  # Kibana privileges from a live check (Q-E1)
+    kibana: frozenset[str] = frozenset()  # Kibana privileges from a live check
     kibana_checked_at: datetime | None = None
 
     @classmethod
@@ -169,10 +166,10 @@ class Case:
     merged_into_id: uuid.UUID | None = None
     attention: str | None = None
     kibana_wait: str | None = None
-    # The first time the device's owner was told (AR4b, D-169, D-176): the case is then tracked
+    # The first time the device's owner was told: the case is then tracked
     # quietly while it lives as open or assigned. Cleared when it is contained or closed.
     notified_at: datetime | None = None
-    blocked_at: datetime | None = None  # the first network-side block recorded for it (D-169)
+    blocked_at: datetime | None = None  # the first network-side block recorded for it
     mirrored: bool = False  # a Kibana create was planned: later changes are mirrored too
     members: frozenset[uuid.UUID] = field(default_factory=frozenset)
     indicators: frozenset[Indicator] = field(default_factory=frozenset)
@@ -190,7 +187,7 @@ class Case:
 @dataclass(frozen=True)
 class QuietWindow:
     """Whether the case's actors and indicators were verifiably quiet for 72 hours of complete
-    coverage (Q-C2 with Q-F1). Until Q-F1 is on, nothing is verified."""
+    coverage. Until log coverage is measured, nothing is verified."""
 
     verified: bool
     reason: str
@@ -204,7 +201,7 @@ NO_QUIET_WINDOW = QuietWindow(
 @dataclass(frozen=True)
 class ApprovalFacts:
     """An approval request and its decisions, as the database holds them; ``approved`` counts
-    only approvers not revoked since they approved (Q-C3)."""
+    only approvers not revoked since they approved."""
 
     request_id: int
     case_id: uuid.UUID

@@ -1,13 +1,10 @@
-"""The freshness lane's reader (Q-F1, plan §5 WS-F): one size-1 search per log source every
-5 minutes (every 15 in DEGRADED; none in STOP or 00:00-01:30 UTC), each stored as a reading,
-each source's watermark advanced.
+"""The freshness lane's reader: one size-1 search per log source every 5 minutes (every 15 in
+DEGRADED; none in STOP or the quiet hours), each stored as a reading, each watermark advanced.
 
-It runs inside the collector's process as one of its jobs (``argus collect run``), only when
-``freshness.mode`` is ``shadow`` or ``on``. Every request goes through ``Gateway.run`` with
-``Purpose.FRESHNESS``: the ``freshness`` and global kill switches, the breaker, the SIEM's
-health, the quiet hours and the freshness lane's own budget all apply there (Q-D2); this
-module only keeps the schedule and stores what came back. A request the gateway refused or
-that failed is stored too, with its reason, and leaves a gap in the readings.
+It runs inside the collector's process (``argus collect run``) when ``freshness.mode`` is
+``shadow`` or ``on``. Every request goes through ``Gateway.run`` with ``Purpose.FRESHNESS``, so the
+kill switches, breaker, health, quiet hours and the lane's budget apply. A refused or failed
+request is stored too, with its reason, and leaves a gap in the readings.
 """
 
 from __future__ import annotations
@@ -86,16 +83,16 @@ class Reader:
             return []
         every = self.degraded_interval if state is HealthState.DEGRADED else self.interval
         due = [s for s in self.sources if s not in self.last or now - self.last[s] >= every]
-        # the longest overdue first; ``step`` reads one a call, so the four sources spread
-        # over the lane's minutes instead of spending its whole 100 ms at once (review F2)
+        # the longest overdue first; ``step`` reads one a call, so the sources spread
+        # over the lane's minutes instead of spending its whole 100 ms at once
         return sorted(due, key=lambda s: self.last.get(s, datetime.min.replace(tzinfo=UTC)))
 
     async def step(self) -> list[Stored]:
-        """One reading at most: the most overdue source that is due (F2)."""
+        """One reading at most: the most overdue source that is due."""
         now = self.clock()
         memory = effective(await self.gateway.state.health(), now, self.gateway.health_config)
         out = []
-        for source in self.due(memory.state, now)[:1]:  # one reading a step (F2)
+        for source in self.due(memory.state, now)[:1]:  # one reading a step
             self.last[source] = now
             stored = await self.read(source, memory.state.value)
             async with self.engine.begin() as conn:
@@ -129,7 +126,7 @@ class Reader:
         if doc is None:
             return Stored(Reading(source, at, EMPTY), sent, None, health, result.took_ms)
         ingested, event_at = doc
-        if ingested > at + FUTURE_SLACK:  # a skewed clock, never a watermark (review F9)
+        if ingested > at + FUTURE_SLACK:  # a skewed clock, never a watermark
             return Stored(Reading(source, at, FAILED), sent, "future_ingested", health)
         reading = Reading(source, at, OK, ingested, event_at)
         return Stored(reading, sent, None, health, result.took_ms)
@@ -137,7 +134,7 @@ class Reader:
 
 async def current_lags(engine: AsyncEngine, now: datetime) -> dict[str, timedelta]:
     """Each source's lag now, from its newest reading with a document (the probe's input
-    for the health trip wire, DQ19, once ``freshness.mode`` is on)."""
+    for the health trip wire, once ``freshness.mode`` is on)."""
     async with engine.connect() as conn:
         return lags(await store.latest(conn), await store.latest_ok(conn), now)
 

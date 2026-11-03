@@ -1,40 +1,15 @@
-"""A person's ``Verdict:`` comment on a posted case becomes a label (AR8, D-158, D-195, D-200,
-D-202, D-210).
+"""A person's ``Verdict:`` comment on a posted case becomes a label.
 
 The case's last comment asks a person to "Confirm or reject in a comment". A person writes, from
-their own account::
-
-    Verdict: true positive
-    Verdict: false positive: it is the department's backup tool, the vendor confirmed it
-
-Kibana sync reads a posted case's comments when the case changed (:func:`read_all`, on the reader
-key and the Kibana lane's budget) and records each such comment **once**:
-
-* the author must be a **person**: a comment by any of the six ARGUS users, or by ``argus``, is
-  never read as a verdict (ARGUS's own verdict comment quotes the form), and the author's Kibana
-  name must be the ELK name of exactly one enabled ARGUS person, else the comment is kept as
-  ``unmatched`` and no label is written; it is looked at again when such a person appears;
-* that person must **hold the review capability** in ARGUS, decided as the web decides it
-  (:func:`argus.caseteam.store.access_of`: the account's stored capabilities, or in ELK mode the
-  snapshot of their ELK session): a comment-only Kibana account, or an ARGUS account without
-  ``review``, is ``refused`` with its reason and writes no label;
-* a comment **edited by someone other than its author** is ``refused``, never attributed to its
-  author; an edit by the author is that author's newest verdict (the newest of a person's
-  verdicts wins, older unread ones are ``ignored``);
-* the label is written **through the path AR7's Confirm and Reject use**
-  (:func:`argus.incident.review.decide`): a verdict that agrees with the report's is a Confirm, one
-  that does not is a Reject with the outcome the person holds and their reason (a false positive
-  needs one), so the review events, the decision record and the engine's learning are the same.
-  That path keeps a person's earlier, different review of an investigation when the new verdict
-  is a Confirm; what it did (labelled, already so, kept) is stored with the comment and is what
-  the lead's note says. Two people who disagree are both recorded through it;
-* the comment and its label are one transaction, keyed by the comment's id and text: a crash
-  cannot label twice, and an edited comment is read again as the new text it is;
-* it closes nothing: the lead writes a note and closing stays a person's approval (W3).
-
-Only the comments Kibana lists are read (a page of 100, the oldest first, at most 5 pages); a
-comment is text, never an instruction, and its author's words are kept escaped.
-"""
+their own account, ``Verdict: true positive`` or ``Verdict: false positive: <reason>``. Kibana sync
+reads a posted case's comments when the case changed (:func:`read_all`) and records each **once**:
+the author must be a person (not one of ARGUS's users) whose Kibana name is the ELK name of exactly
+one enabled ARGUS person who holds ``review`` (else ``unmatched`` or ``refused``, no label); a
+comment edited by someone else is ``refused``; a person's newest verdict wins. The label is written
+**through the path the report's Confirm and Reject use** (:func:`argus.incident.review.decide`), in
+one transaction keyed by the comment's id and text, so a crash cannot label twice. It closes
+nothing: the lead writes a note and closing stays a person's approval. A comment is text, never an
+instruction."""
 
 from __future__ import annotations
 
@@ -447,7 +422,7 @@ async def read_all(
                     "SELECT p.case_id, p.kibana_case_id FROM case_team_posts p JOIN cases c"
                     " ON c.id = p.case_id WHERE p.kibana_case_id IS NOT NULL"
                     " AND c.state <> 'closed'"
-                    # a case a person deleted in Kibana (the mirror knows, P4-B1) has no comments
+                    # a case a person deleted in Kibana (the mirror knows) has no comments
                     # to read: asking would stop the pass at it, before the older cases
                     " AND NOT EXISTS (SELECT 1 FROM kibana_mirror k WHERE k.case_id = c.id"
                     " AND k.deleted_at IS NOT NULL)"

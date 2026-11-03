@@ -1,8 +1,8 @@
-"""The display registry and the digest (plan §5.4, D-058).
+"""The display registry and the digest.
 
 ``config/signals.yaml`` says how each signal reads: a label, a sentence, one line on how to
 read it. The digest is a bounded, deterministic text of a dossier: what the Inbox shows
-first and, in Phase 2, the only input a model gets. It is computed when shown, from the
+first and the only input a model gets. It is computed when shown, from the
 dossier and the registry, so rewording a label never changes a dossier's hash.
 """
 
@@ -117,10 +117,10 @@ FEW = 3  # a named field enters a pattern's signature only with at most this man
 def signature(
     rule_id: str, key_fields: Sequence[str], body: Mapping[str, Any]
 ) -> tuple[tuple[Any, ...], list[tuple[str, list[str]]]]:
-    """What an investigation has in common with others it can be decided with (plan §5.4):
+    """What an investigation has in common with others it can be decided with:
     the rule, each step's outcome, a threat-list hit, and the values of the fields the rule's
-    own steps name (when an investigation has few of them), not counting its grouping key
-    (D-072). Returns the signature and the shared values, to show."""
+    own steps name (when an investigation has few of them), not counting its grouping key.
+    Returns the signature and the shared values, to show."""
     report = body.get("report") or {}
     steps = report.get("steps") or []
     statuses = tuple((s.get("number"), s.get("status")) for s in steps)

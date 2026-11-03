@@ -1,24 +1,15 @@
-"""Which addresses to look up, and in what requests (AR6, D-216). Pure: a fake clock and fake rows
-are enough to test the whole of it.
+"""Which addresses to look up, and in what requests. Pure: a fake clock and fake rows test all of
+it.
 
-A **want** is an investigation's internal address with the window of the investigation. The pairs
-(address, day) it needs are the UTC days its window touches that the SSO logs still hold, without a
-usable lookup:
-
-* a day that is over (its end plus the ingest margin has passed) is looked up, and once more when
-  that lookup was made before ``final_after`` had passed since the day's end (the logs of its last
-  minutes arrive late); after that it is final (D-224);
-* the current day is looked up when it has not been, or when the last lookup is an hour old and did
-  not read as far as the window needs (an address whose investigation is quiet is not asked again);
-* a lookup that came back incomplete is tried again after :data:`RETRY_AFTER` (the reasons in
-  :data:`argus.signins.model.BACKOFF` later); an answer that could not be stored three times is
-  left alone (D-222), and a day whose logs are gone is never asked again;
-* nothing is planned between 00:00 and 01:30 UTC (index creation and ILM deletes).
-
-The pairs are ordered by tier (members of a case that is not closed, then raised or high and
-critical ones, then the rest), newest investigation first, grouped by day into requests of at most
-``batch`` addresses, and the first ``max_requests`` requests are the pass's.
-"""
+A **want** is an investigation's internal address with its window. The (address, day) pairs it needs
+are the UTC days its window touches that the SSO logs still hold, without a usable lookup: a day
+that is over is looked up, and once more when the lookup was made before ``final_after`` had passed
+(late logs); the current day when it has not been, or the last lookup is an hour old and did not
+read as far as the window needs; an incomplete lookup again after :data:`RETRY_AFTER`; never an
+answer that could not be stored three times, nor a day whose logs are gone; nothing between 00:00
+and 01:30 UTC. Pairs are ordered by tier (members of an open case, then raised or high, then the
+rest), newest first, grouped by day into requests of at most ``batch`` addresses; the first
+``max_requests`` are the pass's."""
 
 from __future__ import annotations
 

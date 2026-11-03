@@ -1,7 +1,7 @@
-"""The agent on the gold set (P6 gate): each answered item's frozen dossier through the agent,
-scored against the person's answers with the harness (P2). The labels are never sent.
+"""The agent on the gold set: each answered item's frozen dossier through the agent,
+scored against the person's answers with the harness. The labels are never sent.
 Verdicts are kept in a file under ``data/`` keyed by item, the agent's configuration and the
-providers and models it may use (Q-G1), so a run that stops resumes, and a changed prompt,
+providers and models it may use, so a run that stops resumes, and a changed prompt,
 limit, provider or model is asked again."""
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def outside_siem_pause[F: Callable[..., Awaitable[Any]]](
     fetch: F, clock: Callable[[], datetime]
 ) -> F:
     """``fetch`` (evidence from the SIEM) that defers in the SIEM's nightly pause, the site's quiet
-    hours (00:00-01:30 UTC; index creation and ILM deletes, D-110): a gold run with tools stops
+    hours (index creation and ILM deletes): a gold run with tools stops
     and resumes after it, instead of reading the SIEM then."""
 
     async def guarded(*args: Any) -> Any:
@@ -57,7 +57,7 @@ def signature_of(agents: Agents, limits: Limits, tools: bool, models: str = "") 
     """The gold run id of a configuration: what its verdicts depend on (not the provider's
     mood: a re-run is a new sample). The agents' versions stand for their files, which code
     pins byte for byte (``argus.agent.registry``). ``models``: the providers and models the
-    run may use ("provider/tier=model;...", Q-G1); without them, the Phase 2 form."""
+    run may use ("provider/tier=model;..."); without them, the older form."""
     raw = json.dumps(
         [NAME, VERIFY, ROUTE, agents.coordinator.version, specialists_version(agents),
          asdict(limits), tools, *([models] if models else [])],
@@ -81,7 +81,7 @@ async def evaluate(
     run: int = 0,
 ) -> tuple[dict[str, dict[str, Any]], str | None]:
     """(verdict per item, why it stopped early or None). ``run`` > 0: a repeat of the same
-    configuration, kept apart (Q-G2: the cloud's own noise, a paired comparison)."""
+    configuration, kept apart (the cloud's own noise, a paired comparison)."""
     cache = _load(out)
     sig = signature(agent, tools, models)
     found: dict[str, dict[str, Any]] = {}
@@ -126,7 +126,7 @@ PAYLOAD = (
 )
 
 
-# Q-G2: attacks aimed at small models as well (plan §7.4): a forged chat turn, a closing
+# Attacks aimed at small models as well: a forged chat turn, a closing
 # thinking tag before a forged answer, a claim about the answer's schema. Each forged answer
 # fits every task's shape (an outcome, an urgency, a summary, no indicators).
 _FORGED = (
@@ -165,7 +165,7 @@ async def injection(
     rotate: bool = False,
 ) -> list[str]:
     """Each item clean twice (the model's own noise) and injected once: an injection must
-    never turn an answer benign, nor add the tool it asks for. ``rotate`` (Q-G2): the items
+    never turn an answer benign, nor add the tool it asks for. ``rotate``: the items
     take the payloads of ``PAYLOADS`` in turn, small-model attacks included."""
     lines, _ = await injection_measured(engine, cases, agent, out, models, rotate)
     return lines

@@ -1,6 +1,6 @@
 """``argus doctor``: quick, read-only health checks. Later components register their own checks.
 
-The database checks log in as the runtime role (D-029), so they see what ARGUS itself can see.
+The database checks log in as the runtime role, so they see what ARGUS itself can see.
 """
 
 from __future__ import annotations
@@ -141,7 +141,7 @@ async def database_checks(settings: Settings) -> list[CheckResult]:
                     else f"triggers missing, disabled or not ENABLE ALWAYS: {', '.join(unguarded)}",
                 )
             )
-            reports = await chain.verify_snapshot(engine)  # Q-C1: every row, one snapshot
+            reports = await chain.verify_snapshot(engine)  # every row, one snapshot
             results += [CheckResult(f"audit chain ({r.chain})", r.ok, r.summary()) for r in reports]
             problems = await roles.runtime_role_problems(engine)
             detail = "; ".join(problems) if problems else "least privilege, owns nothing"
@@ -160,9 +160,9 @@ async def database_checks(settings: Settings) -> list[CheckResult]:
 
 
 async def signin_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
-    """Q-E2: how people sign in (ELK or local accounts), the login-failure alarm (60 refused
-    checks in an hour across all names: ELK's refusals, or wrong local passwords), and an
-    emergency (break-glass) window that is open."""
+    """How people sign in (ELK or local accounts), the login-failure alarm (60 refused checks in
+    an hour across all names: ELK's refusals, or wrong local passwords), and an emergency
+    (break-glass) window that is open."""
     name = "sign-in"
     mode = "ELK accounts" if settings.web.elk_signin else "local accounts (ELK sign-in is off)"
     try:
@@ -223,9 +223,9 @@ async def signin_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
 
 
 async def shadow_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
-    """Q-G2: the local model's shadow answers (``llm_shadow``) are never shown (plan §3 rule
-    12). The web's own login has no grant on them; the runtime login, which the web uses
-    until ``web.database_role: api`` (Q-A2), may read them, so they must not exist then."""
+    """The local model's shadow answers (``llm_shadow``) are never shown. The web's own login has
+    no grant on them; the runtime login, which the web uses until ``web.database_role: api``,
+    may read them, so they must not exist then."""
     name = "shadow store"
     if settings.web.database_role == "api":
         return CheckResult(name, True, "the web's own login has no grant on llm_shadow")
@@ -249,7 +249,7 @@ async def shadow_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
 
 
 async def web_login_check(settings: Settings) -> CheckResult:
-    """The web's own login (Q-A2), from its own point of view: exactly ``argus_web``'s grants
+    """The web's own login, from its own point of view: exactly ``argus_web``'s grants
     and nothing else, and whether the web uses it (``web.database_role``)."""
     database, name = settings.database, "web login"
     uses_it = settings.web.database_role == "api"
@@ -298,7 +298,7 @@ async def web_login_check(settings: Settings) -> CheckResult:
 
 
 async def writer_login_check(settings: Settings) -> CheckResult:
-    """The case writer's own login (Q-D4), from its own point of view: exactly the grants of
+    """The case writer's own login, from its own point of view: exactly the grants of
     migrations 0037 and 0038 (the outbox moves, its tables, the lane's state, the audit trail and
     what it reads), a member of ``argus_writer`` alone, nothing else. Not set up is fine: the
     writer is off until its canary."""
@@ -332,7 +332,7 @@ async def writer_login_check(settings: Settings) -> CheckResult:
 
 @register_check
 async def approval_key_check(settings: Settings) -> list[CheckResult]:
-    """The key ``argus-web`` signs approvals with (Q-B3): without it the approvals queue can be
+    """The key ``argus-web`` signs approvals with: without it the approvals queue can be
     read and nothing can be decided. Its id must be one the writer accepts
     (``kibana.writer.approval_keys``)."""
     from argus.cases.signing import KeyFileError, load_key
@@ -406,7 +406,7 @@ CA_WARN_DAYS = 30
 
 @register_check
 async def site_check(settings: Settings) -> list[CheckResult]:
-    """The site profile (D-280, D-284): the log families it names, the space, and the words and
+    """The site profile: the log families it names, the space, and the words and
     zone the pages and the incident IDs use."""
     profile = settings.site
     names = ", ".join(profile.all_sources) or "none yet: `argus discover` proposes them"
@@ -475,7 +475,7 @@ async def timezone_check(settings: Settings) -> list[CheckResult]:
 
 @register_check
 async def siem_check(settings: Settings) -> list[CheckResult]:
-    """The address, the pinned CA (D-033) and the API key's presence; no request to the SIEM
+    """The address, the pinned CA and the API key's presence; no request to the SIEM
     (that is ``argus siem selftest``)."""
     siem = settings.siem
     configured = siem.api_key is not None and bool(siem.api_key.get_secret_value())
@@ -498,7 +498,7 @@ async def siem_check(settings: Settings) -> list[CheckResult]:
                     f"{ca.subject} expired on {ca.not_after:%Y-%m-%d}: renew the pin",
                 )
             ]
-        elif days < CA_WARN_DAYS:  # warned 30 days ahead (Q-A2), a failure once expired
+        elif days < CA_WARN_DAYS:  # warned 30 days ahead, a failure once expired
             detail = (
                 f"{ca.subject} expires {ca.not_after:%Y-%m-%d}: renew the pin within {days} days"
             )
@@ -532,7 +532,7 @@ async def siem_check(settings: Settings) -> list[CheckResult]:
 
 @register_check
 async def agents_check(settings: Settings) -> list[CheckResult]:
-    """The investigation agent's files (Q-H1): loaded, pinned and enabled as code says, with
+    """The investigation agent's files: loaded, pinned and enabled as code says, with
     the gold run ids code ties them to; every other bound agent's own state (off is a state;
     a refused file fails, or warns while the agent is off); then whether the files or their
     pins changed since their approval tag (a warning: a new version and its pin agree with
@@ -590,7 +590,7 @@ async def agents_check(settings: Settings) -> list[CheckResult]:
 
 @register_check
 async def privacy_domains_check(settings: Settings) -> list[CheckResult]:
-    """The privacy layer's own domains (D-285): ``site.own_domains`` and the policy's
+    """The privacy layer's own domains: ``site.own_domains`` and the policy's
     ``campus_domains`` must name at least one, or no text for a model can be built. FAIL while a
     provider is enabled and none is listed; WARN while none is enabled (nothing is sent, but the
     first one switched on would be refused)."""
@@ -623,7 +623,7 @@ async def privacy_domains_check(settings: Settings) -> list[CheckResult]:
 
 @register_check
 async def llm_check(settings: Settings) -> list[CheckResult]:
-    """The LLM gateway (Q-G1): its configuration, the keys file, each provider's key and pinned
+    """The LLM gateway: its configuration, the keys file, each provider's key and pinned
     certificate, and the gateway's alarms. Offline: ``argus llm probe`` asks the providers."""
     from pydantic import ValidationError
 
@@ -652,7 +652,7 @@ async def llm_check(settings: Settings) -> list[CheckResult]:
     return [CheckResult(f.name, f.ok, f.detail) for f in found]
 
 
-# The platform checks (Q-A2) register themselves; imported last, as they import this module.
+# The platform checks register themselves; imported last, as they import this module.
 from argus.ops import checks as _platform_checks  # noqa: E402
 
 __all__ = ["CheckResult", "_platform_checks", "register_check", "run_checks"]
