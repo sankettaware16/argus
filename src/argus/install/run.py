@@ -5,20 +5,27 @@ SIEM, systemd) come from a ``Host``, which the tests replace with fakes."""
 
 from __future__ import annotations
 
+import base64
+import contextlib
 import dataclasses
+import getpass
+import ipaddress
+import os
+import re
 import shutil
+import socket
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from argus.config.settings import ConfigError, Settings, load_settings
-from argus.install import files, prereq, roles
+from argus.install import files, prereq, roles, webcert
 from argus.install.answers import Asker, InitError
 from argus.install.siem import GatewayReads, SiemReads
 from argus.install.trust import RealTls, Tls, establish, host_port
@@ -34,6 +41,10 @@ LLM_HEADER = (
     "# `argus init`. keys_file: null means no keys: every LLM feature is off.\n"
 )
 HEALTH_WAIT_S = 120
+WEB_CERT = Path("data/tls/argus.crt")
+WEB_KEY = Path("data/tls/argus.key")
+WEB_CREDENTIAL = "database.api_password"
+BACKUPS = ("argus-backup.timer", "argus-backup-drill.timer")
 
 
 @dataclass(frozen=True)
@@ -116,6 +127,57 @@ def _uv() -> str | None:
         return None
 
 
+def _local_ip(towards: str) -> str | None:
+    """The address of this machine on the route to ``towards`` (no packet is sent)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect((towards, 9))
+            address: str = probe.getsockname()[0]
+    except OSError:
+        return None
+    return None if address.startswith("127.") else address
+
+
+def _people(config: Path) -> int:
+    import asyncio
+
+    from sqlalchemy import text
+
+    from argus.db.engine import create_engine
+
+    async def count() -> int:
+        engine = create_engine(load_settings(config).database)
+        try:
+            async with engine.connect() as conn:
+                found = await conn.execute(text("SELECT count(*) FROM users WHERE kind = 'person'"))
+                return int(found.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(count())
+
+
+def _add_person(config: Path, username: str, name: str, password: str) -> None:
+    import asyncio
+
+    from argus.db.engine import create_engine
+    from argus.web import auth
+    from argus.web.capabilities import Capability
+
+    async def add() -> None:
+        engine = create_engine(load_settings(config).database)
+        try:
+            async with engine.begin() as conn:
+                await auth.add_user(conn, username, name, password, list(Capability))
+                await auth.audit(conn, actor="cli", action="user.add", target_type="user",
+                                 target_id=username, details={"capabilities": ["all"],
+                                                              "by": "argus init"})  # fmt: skip
+        finally:
+            await engine.dispose()
+
+    asyncio.run(add())
+
+
 @dataclass
 class Host:
     say: Callable[[str], None]
@@ -132,6 +194,10 @@ class Host:
     upgrade: Callable[[Path], None] = _upgrade
     doctor: Callable[[Path], int] = _doctor
     uv: Callable[[], str | None] = _uv
+    local_ip: Callable[[str], str | None] = _local_ip
+    people: Callable[[Path], int] = _people
+    add_person: Callable[[Path, str, str, str], None] = _add_person
+    user: Callable[[], str] = getpass.getuser
 
 
 class Init:
@@ -173,15 +239,24 @@ class Init:
         self.keys(kibana_url)
         self.site(siem_url)
         self.llm()
-        self.units()
-        self.step(9, "argus doctor")
+        address = self.web(siem_url)
+        started = self.units()
+        self.step(10, "argus doctor")
         code = self.host.doctor(self.o.config)
-        self.say(
-            "\ninit: done; doctor shows no failure"
-            if code == 0
-            else "\ninit: set up, but doctor found a failure (above): fix it and run argus init"
-            " again (it keeps everything that is done)"
-        )
+        if code:
+            self.say(
+                "\ninit: set up, but doctor found a failure (above): fix it and run argus init"
+                " again (it keeps everything that is done)"
+            )
+        elif started:
+            where = (
+                f"https://{address}:{self.settings().web.port}/"
+                if address
+                else (f"http://127.0.0.1:{self.settings().web.port}/ on this machine")
+            )
+            self.say(f"\ninit: done; ARGUS is running. Open {where} and sign in")
+        else:
+            self.say("\ninit: done; ARGUS is set up but not started: argus init --start starts it")
         return code
 
     def prerequisites(self) -> None:
@@ -216,6 +291,30 @@ class Init:
             self.say(f"   {label}: {finding.text}")
         if not all(f.ok for f in found):
             raise InitError("a prerequisite is missing (above): fix it and run argus init again")
+        self.moved()
+
+    def moved(self) -> None:
+        """A checkout copied or cloned from another machine names that one's folder and uv in
+        config/local.yaml: they become this checkout's, or its units would run the other."""
+        local = files.read_yaml(self.o.local_file)
+        old = files.get(local, "units.root")
+        changes: dict[str, Any] = {}
+        if isinstance(old, str) and Path(old).resolve() != self.o.root.resolve():
+            base = old.rstrip("/")
+            for name, value in _strings(local):
+                if value == base or value.startswith(base + "/"):
+                    changes[name] = str(self.o.root) + value[len(base) :]
+        uv = files.get(local, "units.uv")
+        if isinstance(uv, str) and not Path(uv).is_file():
+            found = self.host.uv()
+            if found is not None:
+                changes["units.uv"] = found
+        if changes:
+            files.update_yaml(self.o.local_file, changes)
+            self.say(
+                f"   moved: config/local.yaml named {old} (another checkout); {len(changes)}"
+                f" paths now name this one ({', '.join(changes)})"
+            )
 
     def env(self) -> None:
         self.step(2, ".env (the database passwords; never shown)")
@@ -249,7 +348,11 @@ class Init:
                 raise InitError(f"`docker compose up -d db` failed: {last}")
             self.say("   docker compose: db is up")
             self.wait_healthy()
-        self.host.bootstrap(self.o.config)
+        folder = self.web_credentials()
+        with _credentials(folder):
+            self.host.bootstrap(self.o.config)
+        if folder is not None:
+            self.say(f"   the web's own login: its password from {folder}")
         self.host.upgrade(self.o.config)
         env = files.read_env(self.o.env_file)
         local = files.read_yaml(self.o.local_file)
@@ -260,6 +363,17 @@ class Init:
         ):
             files.update_yaml(self.o.local_file, {"web.database_role": "api"})
             self.say("   the web logs in with its own login (web.database_role: api, Q-A2)")
+
+    def web_credentials(self) -> Path | None:
+        """The web unit's credentials folder when it holds the web's database password and .env
+        does not: `argus db bootstrap` must see it to make the web's own login."""
+        if files.read_env(self.o.env_file).get(files.WEB_PASSWORD):
+            return None
+        folder = files.get(files.read_yaml(self.o.local_file), "units.web.credentials")
+        if not isinstance(folder, str):
+            return None
+        path = Path(folder) if Path(folder).is_absolute() else self.o.root / folder
+        return path if (path / WEB_CREDENTIAL).is_file() else None
 
     def wait_healthy(self) -> None:
         waited = 0.0
@@ -344,14 +458,13 @@ class Init:
             self.say("   The key ARGUS needs (read-only; narrowed after discovery):\n")
             self.say(_indent(roles.es_request(names)))
             self.say(_indent(roles.HOW))
-            key = self.ask.secret("siem.api_key", "Paste the SIEM key (not shown)")
+            key = self.api_key("siem.api_key", "Paste the SIEM key (not shown)", "the SIEM key")
             assert key is not None
-            _key_shape(key, "the SIEM key")
             register_secret(key)
             files.update_env(self.o.env_file, {SIEM_KEY: key}, replace=frozenset({SIEM_KEY}))
             self.say("   SIEM key: stored in .env (ARGUS_SIEM__API_KEY)")
         changes: dict[str, Any] = {}
-        self.expiry("siem.api_key_expires", "When does the SIEM key expire (YYYY-MM-DD)", changes)
+        self.expiry("siem.api_key_expires", "When does the SIEM key expire", changes)
         if kibana_url is not None:
             if env.get(KIBANA_KEY) and not self.o.force_key:
                 self.say("   Kibana key: kept (in .env)")
@@ -360,15 +473,14 @@ class Init:
                 self.say("\n   Kibana's read-only key (Cases read; the read-back of cases):\n")
                 self.say(_indent(roles.kibana_request(settings.site, every_space=not have_site)))
                 self.say(_indent(roles.HOW))
-                key = self.ask.secret("kibana.api_key", "Paste Kibana's key (not shown)",
-                                      required=False)  # fmt: skip
+                key = self.api_key("kibana.api_key", "Paste Kibana's key (not shown)",
+                                   "Kibana's key", required=False)  # fmt: skip
                 if key is None and env.get(KIBANA_KEY):
                     self.say("   Kibana key: kept (in .env)")
                     changes["kibana.enabled"] = True
                 elif key is None:
                     self.say("   Kibana key: none (Kibana stays off; argus init again to add it)")
                 else:
-                    _key_shape(key, "Kibana's key")
                     register_secret(key)
                     files.update_env(self.o.env_file, {KIBANA_KEY: key},
                                      replace=frozenset({KIBANA_KEY}))  # fmt: skip
@@ -377,7 +489,7 @@ class Init:
             if changes.get("kibana.enabled"):
                 self.expiry(
                     "kibana.api_key_expires",
-                    "When does Kibana's key expire (YYYY-MM-DD)",
+                    "When does Kibana's key expire",
                     changes,
                     setting="kibana.reader_api_key_expires",
                 )
@@ -413,13 +525,36 @@ class Init:
         current = files.get(files.read_yaml(self.o.local_file), setting)
         if current is not None and not self.ask.given(name):
             return
-        value = self.ask.optional(name, question, None if current is None else str(current))
-        if value is None:
-            return
-        try:
-            changes[setting] = date.fromisoformat(value)
-        except ValueError:
-            raise InitError(f"{name} is a date, YYYY-MM-DD", 2) from None
+        question += ': YYYY-MM-DD, "expiration" from the answer, or 90d'
+        while True:
+            value = self.ask.optional(name, question, None if current is None else str(current))
+            if value is None:
+                return
+            try:
+                changes[setting] = expiry_date(value, datetime.now(UTC).date())
+                return
+            except ValueError:
+                problem = (
+                    f"{name}: {value!r} is not a date: give YYYY-MM-DD, the number after"
+                    ' "expiration" in the answer, or a number of days such as 90d'
+                )
+                if self.ask.scripted:
+                    raise InitError(problem, 2) from None
+                self.say(f"   not taken: {problem}")
+
+    def api_key(self, name: str, question: str, what: str, required: bool = True) -> str | None:
+        """An API key in its encoded form, asked again at the terminal until it is one."""
+        while True:
+            value = self.ask.secret(name, question, required=required)
+            if value is None:
+                return None
+            key = clean_key(value)
+            problem = key_problem(key)
+            if problem is None:
+                return key
+            if self.ask.scripted:
+                raise InitError(f"{what}: {problem}", 2)
+            self.say(f"   not taken: {problem}")
 
     def site(self, siem_url: str) -> None:
         self.step(6, "the organisation and its Elastic (config/site.yaml)")
@@ -589,7 +724,8 @@ class Init:
             raise InitError(f"config/llm.yaml does not load: {type(exc).__name__}") from None
         present = load_keys(path, {k for p in config.providers for k in p.keys})
         keyed = [p.name for p in config.providers if any(k in present for k in p.keys)]
-        files.update_yaml(overlay, {"keys_file": str(path)}, header=LLM_HEADER)
+        files.update_yaml(overlay, {"keys_file": str(_relative(path, self.o.root))},
+                          header=LLM_HEADER)  # fmt: skip
         if keyed:
             self.say(f"   keys for {', '.join(keyed)}: written config/llm.local.yaml")
         else:
@@ -599,13 +735,134 @@ class Init:
             )
             self.say(_NO_MODEL)
 
-    def units(self) -> None:
-        self.step(8, "the services (systemd user units)")
+    def web(self, siem_url: str) -> str | None:
+        """The web's address, certificate and allowed clients, then its first person; the
+        address people open, or None when it stays on the loopback."""
+        self.step(8, "the web: where people open it, its certificate, the first person")
+        local = files.read_yaml(self.o.local_file)
+        port = self.settings().web.port
+        current = files.get(local, "units.web.public_url")
+        hosts = list(files.get(local, "units.web.allowed_hosts") or [])
+        default = None
+        if isinstance(current, str):
+            default = _host_of(current)
+        elif hosts:
+            default = str(hosts[0])
+        elif files.get(local, "units.root") is None:  # a new installation: offer this machine
+            default = self.host.local_ip(_host_of(siem_url) or "")
+        if self.ask.scripted and not self.ask.given("web.address"):
+            address = default if isinstance(current, str) or hosts else None
+        else:
+            address = self.ask.optional(
+                "web.address",
+                "The address people open ARGUS at: this machine's IP or name (none: this machine"
+                " only, reached with ssh -L)",
+                default,
+            )
+        if address is None:
+            self.say(
+                f"   the web listens on 127.0.0.1:{port} only; from another machine:"
+                f" ssh -L {port}:127.0.0.1:{port} <this machine>, then http://127.0.0.1:{port}/"
+            )
+            self.first_person()
+            return None
+        address = address.strip().lower()
+        changes: dict[str, Any] = {"units.web.host": "0.0.0.0"}  # noqa: S104 - TLS and allowlists
+        cert = self.o.root / str(files.get(local, "units.web.tls_cert") or WEB_CERT)
+        key = self.o.root / str(files.get(local, "units.web.tls_key") or WEB_KEY)
+        if webcert.covers(cert, address) and key.is_file():
+            self.say(f"   certificate: kept {_relative(cert, self.o.root)} (it names {address})")
+        else:
+            ca_cert = self.ask.optional(
+                "web.ca_cert",
+                "Your organisation's CA certificate, to sign the web's certificate so browsers"
+                " trust it (none: a self-signed one, which browsers warn about once)",
+            )
+            ca = None
+            if ca_cert is not None:
+                ca_key = self.ask.text("web.ca_key", "That CA's private key file (it stays put)")
+                ca = (Path(ca_cert).expanduser(), Path(ca_key).expanduser())
+            name = self.settings().site.organisation.short_name or None
+            by = webcert.make(address, cert, key, ca, organisation=name)
+            self.say(f"   certificate: made {_relative(cert, self.o.root)} for {address},"
+                     f" signed by {by}")  # fmt: skip
+        changes["units.web.tls_cert"] = str(_relative(cert, self.o.root))
+        changes["units.web.tls_key"] = str(_relative(key, self.o.root))
+        changes["units.web.allowed_hosts"] = hosts if address in hosts else [address]
+        networks = files.get(local, "units.web.allowed_networks")
+        if not networks:
+            networks = self.ask.items(
+                "web.networks",
+                "The networks people open it from (CIDR; others are refused)",
+                _networks_of(address),
+            )
+            if not networks:
+                raise InitError("web.networks: at least one network may open the web", 2)
+        changes["units.web.allowed_networks"] = list(networks)
+        url = f"https://{address}" + ("" if port == 443 else f":{port}")
+        changes["units.web.public_url"] = url
+        changes["web.tls_pin_sha256"] = webcert.pin(cert)
+        for shared in ("allowed_hosts", "public_url"):  # a copy for custody's web unit
+            if files.has(local, f"web.{shared}"):
+                changes[f"web.{shared}"] = changes[f"units.web.{shared}"]
+        written = files.update_yaml(self.o.local_file, changes)
+        self.say(f"   {url}: {'written ' + ', '.join(written) if written else 'kept'}")
+        self.writer_links(url, changes["units.web.allowed_hosts"])
+        self.first_person()
+        return address
+
+    def writer_links(self, url: str, hosts: list[str]) -> None:
+        """The case team's switches file may name the web too (its links in Kibana cases): a
+        copy from another machine would send people there."""
+        path = self.o.root / "local" / "argus-writer.env"
+        env = files.read_env(path)
+        wanted = {"ARGUS_WEB__PUBLIC_URL": url, "ARGUS_WEB__ALLOWED_HOSTS": ",".join(hosts)}
+        stale = {k: v for k, v in wanted.items() if k in env and env[k] != v}
+        if stale:
+            files.update_env(path, stale, replace=frozenset(stale))
+            self.say(f"   local/argus-writer.env: {', '.join(stale)} now name this web")
+
+    def first_person(self) -> None:
+        """A first account for the web, when it has none."""
+        if self.host.people(self.o.config) > 0:
+            return
+        username = self.ask.optional(
+            "web.person",
+            "Your sign-in name for the web (lowercase; none: add people later with argus user add)",
+        )
+        if username is None:
+            self.say("   no one can sign in yet: argus user add <name> --name '<Full Name>'")
+            return
+        name = self.ask.text("web.person_name", "Your name as ARGUS shows it", username)
+        while True:
+            asked = f"A password for {username} (10 or more characters)"
+            password = self.ask.secret("web.person_password", asked)
+            assert password is not None
+            again = password if self.ask.scripted else self.ask.secret(
+                "web.person_password", "The same password again")  # fmt: skip
+            problem = None if password == again else "the two passwords differ"
+            if problem is None and not 10 <= len(password) <= 256:
+                problem = "a password has 10 to 256 characters"
+            if problem is None:
+                break
+            if self.ask.scripted:
+                raise InitError(f"web.person_password: {problem}", 2)
+            self.say(f"   not taken: {problem}")
+        register_secret(password)
+        try:
+            self.host.add_person(self.o.config, username, name, password)
+        except ValueError as exc:
+            raise InitError(f"web.person: {exc}", 2) from None
+        self.say(f"   {username}: created, with every capability (argus user grant changes it)")
+
+    def units(self) -> bool:
+        """Install the units and, when asked, start them; whether ARGUS runs now."""
+        self.step(9, "the services (systemd user units)")
         if not self.ask.confirm("units.install", "Install the systemd user units?", True):
             if files.get(files.read_yaml(self.o.local_file), "units.run") is None:
                 files.update_yaml(self.o.local_file, {"units.run": []})  # runs none: no fault
             self.say("   not installed (argus units install --apply installs them later)")
-            return
+            return False
         start = self.o.start or self.ask.confirm(
             "units.start", "Start ARGUS's services now?", False
         )
@@ -619,10 +876,18 @@ class Init:
         if files.get(local, "units.uv") is None:
             changes["units.uv"] = uv
         run = files.get(local, "units.run")
+        sync = self.kibana_sync()
         if start:
-            wanted = list(dict.fromkeys([*(run or []), *units.CORE]))
+            wanted = list(dict.fromkeys([*(run or []), *units.CORE, *sync]))
+            if all(b not in wanted for b in BACKUPS) and self.ask.confirm(
+                "units.backups",
+                "Back up ARGUS's database every night (and check a restore every week)?",
+                True,
+            ):
+                wanted += BACKUPS
             if run != wanted:
                 changes["units.run"] = wanted
+            run = wanted
         elif run is None:
             changes["units.run"] = []
         if changes:
@@ -641,16 +906,42 @@ class Init:
         ):
             self.say("   warn: systemd did not reload (no user systemd here?)")
         if not start:
-            self.say(
-                "   not started (by your choice): argus init --start starts the collector, the"
-                " worker, the web and the assessments"
-            )
-            return
-        code = self.host.systemctl(["enable", "--now", *units.CORE])
+            self.say("   not started (by your choice): argus init --start starts them")
+            return False
+        names = list(run or units.CORE)
+        code = self.host.systemctl(["enable", "--now", *names])
         if code:
             raise InitError("systemctl --user enable --now failed: systemctl --user status argus-*")
-        self.say(f"   started: {', '.join(units.CORE)}")
-        self.say("   so they also run while you are logged out: loginctl enable-linger $USER")
+        self.say(f"   started: {', '.join(names)}")
+        self.linger()
+        return True
+
+    def kibana_sync(self) -> list[str]:
+        """With Kibana's key, the read-back's unit and the two files it reads (an empty
+        switches file, an empty credentials folder: the key stays in .env); its name to run."""
+        if not self.settings().kibana.enabled:
+            return []
+        folder = self.o.root / "local" / "creds-sync"
+        switches = self.o.root / "local" / "argus-kibana-read.env"
+        if not folder.is_dir():
+            folder.mkdir(mode=0o700, parents=True)
+        if not switches.exists():
+            files.write_private(
+                switches, "# argus-kibana-sync's own settings (ARGUS_... lines); may be empty\n"
+            )
+        return ["argus-kibana-sync.service"]
+
+    def linger(self) -> None:
+        """Without linger the services stop when this account logs out and wait for a login
+        after a reboot; turning it on needs an administrator."""
+        user = self.host.user()
+        done = self.host.run(["loginctl", "show-user", user, "--property=Linger"])
+        if done.returncode == 0 and done.stdout.strip() == "Linger=yes":
+            return
+        self.say(
+            f"   warn: the services stop when {user} logs out and do not start after a reboot:"
+            f" an administrator runs `sudo loginctl enable-linger {user}` once"
+        )
 
 
 _NO_MODEL = (
@@ -682,9 +973,90 @@ def _need(values: list[str], name: str) -> list[str]:
     return values
 
 
-def _key_shape(key: str, what: str) -> None:
+def _strings(data: Any, prefix: str = "") -> Iterator[tuple[str, str]]:
+    """Every string value of a YAML mapping, by dotted name (lists are left alone)."""
+    if isinstance(data, dict):
+        for key, value in data.items():
+            yield from _strings(value, f"{prefix}{key}.")
+    elif isinstance(data, str):
+        yield prefix.rstrip("."), data
+
+
+@contextlib.contextmanager
+def _credentials(folder: Path | None) -> Iterator[None]:
+    """``CREDENTIALS_DIRECTORY`` set to ``folder`` for the block, as systemd sets it for a unit."""
+    if folder is None:
+        yield
+        return
+    before = os.environ.get("CREDENTIALS_DIRECTORY")
+    os.environ["CREDENTIALS_DIRECTORY"] = str(folder)
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop("CREDENTIALS_DIRECTORY", None)
+        else:
+            os.environ["CREDENTIALS_DIRECTORY"] = before
+
+
+def _host_of(url: str) -> str | None:
+    from urllib.parse import urlsplit
+
+    return urlsplit(url).hostname
+
+
+def _networks_of(address: str) -> list[str]:
+    """The private range an address is in (the organisation's network), else the address."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return []
+    for block in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"):
+        if ip in ipaddress.ip_network(block):
+            return [block]
+    return [f"{ip}/{ip.max_prefixlen}"]
+
+
+_DAYS = re.compile(r"(\d{1,4})\s*d(ays?)?", re.IGNORECASE)
+
+
+def expiry_date(value: str, today: date) -> date:
+    """A key's expiry from what a person has at hand: YYYY-MM-DD, Elasticsearch's
+    ``expiration`` (milliseconds since 1970, or seconds) or a number of days (90d)."""
+    text = value.strip().strip('"').rstrip(",")
+    if text.isdigit() and len(text) >= 9:
+        number = int(text)
+        seconds = number / 1000 if number > 10**11 else number
+        return datetime.fromtimestamp(seconds, UTC).date()
+    days = _DAYS.fullmatch(text)
+    if days:
+        return today + timedelta(days=int(days.group(1)))
+    return date.fromisoformat(text)
+
+
+def clean_key(value: str) -> str:
+    """A pasted key without what a copy from Kibana's console brings along: quotes, a trailing
+    comma, the ``"encoded":`` name."""
+    text = value.strip().rstrip(",").strip()
+    if text.startswith('"encoded"') and ":" in text:
+        text = text.split(":", 1)[1].strip().rstrip(",").strip()
+    return text.strip('"').strip("'").strip()
+
+
+def key_problem(key: str) -> str | None:
+    """Why ``key`` is not an API key's encoded form (base64 of ``id:secret``), or None."""
     if len(key) < 16 or any(c.isspace() for c in key) or not key.isascii():
-        raise InitError(f"{what} does not look like an API key's encoded form", 2)
+        return "it does not look like an API key's encoded form"
+    try:
+        raw = base64.b64decode(key + "=" * (-len(key) % 4), validate=True)
+    except ValueError:
+        raw = b""
+    if b":" not in raw:
+        return (
+            'this is the "api_key" or "id" of the answer: paste the value of "encoded" (the'
+            " longest one)"
+        )
+    return None
 
 
 def _indent(text: str) -> str:

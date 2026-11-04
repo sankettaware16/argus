@@ -790,6 +790,16 @@ class ReconciliationOut(Out):
     outcome: str
 
 
+class KibanaSyncOut(Out):
+    """The Kibana read-back (``argus-kibana-sync``), from its newest recorded cycle."""
+
+    state: Literal["none", "ok", "partial", "failed", "late"]
+    last_cycle_at: datetime | None
+    last_outcome: str | None
+    last_reason: str | None
+    last_complete_at: datetime | None
+
+
 class HealthOut(Out):
     siem_state: str
     siem_reasons: list[str]
@@ -807,6 +817,7 @@ class HealthOut(Out):
     dossiers: int
     checkpoint_threads: int
     checkpoint_bytes: int
+    kibana_sync: KibanaSyncOut
 
 
 class TermOut(Out):

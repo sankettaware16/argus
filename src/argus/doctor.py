@@ -9,9 +9,11 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 from alembic.script.revision import RevisionError
 from alembic.util import CommandError
+from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -25,7 +27,7 @@ from argus.db import migrate, roles
 from argus.db.engine import create_engine
 from argus.db.errors import DB_ERRORS, is_connection_failure, short_db_error
 from argus.gateway.transport import ca_summary
-from argus.observability.redaction import redact_text
+from argus.observability.redaction import redact_text, register_secret
 from argus.site import Role
 
 
@@ -150,7 +152,7 @@ async def database_checks(settings: Settings) -> list[CheckResult]:
             results.append(
                 CheckResult("runtime role", not problems, f"{settings.database.user}: {detail}")
             )
-            results.append(await web_login_check(settings))
+            results.append(await web_login_check(as_the_web_runs(settings)))
             results.append(await writer_login_check(settings))
             results.append(await shadow_check(engine, settings))
             results.append(await signin_check(engine, settings))
@@ -248,6 +250,27 @@ async def shadow_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
     )
 
 
+def as_the_web_runs(settings: Settings) -> Settings:
+    """The settings as ``argus-web`` runs with them: its unit's database role, approval key and
+    credentials folder (``units.web``) over the shared ``web`` section, which doctor reads
+    outside the unit."""
+    unit, web, database = settings.units.web, settings.web, settings.database
+    changes: dict[str, object] = {}
+    if unit.database_role is not None:
+        changes["database_role"] = unit.database_role
+    if unit.approval_key_file is not None and web.approval_key_file is None:
+        changes["approval_key_file"] = Path(unit.approval_key_file)
+    if unit.credentials is not None and not roles.api_login_configured(database):
+        try:
+            password = (Path(unit.credentials) / "database.api_password").read_text().strip()
+        except OSError:
+            password = ""
+        if password:
+            register_secret(password)
+            database = database.model_copy(update={"api_password": SecretStr(password)})
+    return settings.model_copy(update={"web": web.model_copy(update=changes), "database": database})
+
+
 async def web_login_check(settings: Settings) -> CheckResult:
     """The web's own login, from its own point of view: exactly ``argus_web``'s grants
     and nothing else, and whether the web uses it (``web.database_role``)."""
@@ -337,7 +360,7 @@ async def approval_key_check(settings: Settings) -> list[CheckResult]:
     (``kibana.writer.approval_keys``)."""
     from argus.cases.signing import KeyFileError, load_key
 
-    name, path = "approval signing key (web)", settings.web.approval_key_file
+    name, path = "approval signing key (web)", as_the_web_runs(settings).web.approval_key_file
     if path is None:
         return [
             CheckResult(

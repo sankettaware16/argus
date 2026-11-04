@@ -7,6 +7,7 @@ configured login is cluster-wide and may be production's."""
 
 from __future__ import annotations
 
+import base64
 import os
 import secrets
 import shutil
@@ -22,7 +23,7 @@ from psycopg import sql
 
 from argus.config.settings import DatabaseSettings
 from argus.install.answers import ScriptedAnswers, load_answers
-from argus.install.run import Host, Options, run_init
+from argus.install.run import BACKUPS, Host, Options, run_init
 from argus.ops import units
 from tests.conftest import REPO_ROOT, hide_in_reports
 from tests.integration.conftest import TEST_ROLE_PATTERN, TEST_ROLE_PREFIX, admin_connect
@@ -82,7 +83,8 @@ def _answers(tmp_path: Path, tls: FakeTls, **extra: Any) -> Path:
     keys = {}
     for name in ("siem", "kibana"):
         key = tmp_path / f"{name}.key"
-        value = f"{name}-key-" + secrets.token_urlsafe(24)
+        raw = f"{name}-key:" + secrets.token_urlsafe(24)  # id:api_key, as Kibana's "encoded"
+        value = base64.b64encode(raw.encode()).decode()
         hide_in_reports(value)
         key.write_text(value + "\n", encoding="utf-8")
         key.chmod(0o600)
@@ -223,7 +225,9 @@ def test_init_starts_the_services_only_when_asked(
     code, said, systemctl = _init(checkout, answers, tls, siem)
     capsys.readouterr()
     local = yaml.safe_load((checkout / "config" / "local.yaml").read_text())
-    assert local["units"]["run"] == list(units.CORE)
-    assert systemctl == ["daemon-reload", "enable --now " + " ".join(units.CORE)]
+    # Kibana is set up, so its read-back starts too, and the nightly backups with it
+    wanted = [*units.CORE, "argus-kibana-sync.service", *BACKUPS]
+    assert local["units"]["run"] == wanted
+    assert systemctl == ["daemon-reload", "enable --now " + " ".join(wanted)]
     assert "loginctl enable-linger" in said
     assert code in (0, 1)  # the fake systemctl enabled nothing: doctor may say so

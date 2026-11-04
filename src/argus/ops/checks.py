@@ -541,10 +541,15 @@ def unit_results(
         and s.enabled
         and not any(d.changes(s.name) for d in changed)
     )
+    # A new installation whose services were installed but not started yet (`argus init`
+    # without --start) is waiting for a person, not broken: once one runs, the rest must too.
+    waiting = not any(s.enabled for s in states if s.role is units.Role.RUN)
     for state in states:
         found = units.problems(state)
         if found is not None:
             detail, warning = found
+            if waiting and found == units.NOT_ENABLED:
+                detail, warning = "installed, not started yet (`argus init --start`)", True
             flagged.append(CheckResult(f"unit {state.name}", warning, detail, warn=warning))
     for name in unlisted:
         flagged.append(
@@ -561,7 +566,10 @@ def unit_results(
     )
     if chosen == 0:
         summary += "; none runs yet (units.run is empty: `argus init --start` starts them)"
-    results = [CheckResult("service units", not any(not r.ok for r in flagged), summary)]
+    elif waiting:
+        summary += "; none started yet: `argus init --start` starts them"
+    ok = not any(not r.ok for r in flagged)
+    results = [CheckResult("service units", ok, summary, warn=ok and waiting and chosen > 0)]
     return results + flagged
 
 

@@ -80,12 +80,12 @@ async def test_the_downgrade_is_refused_while_the_visualiser_has_a_step_and_roun
     await put(writer_engine, case, 1, "comment", "argus-visualiser", "## Incident at a glance")
     with pytest.raises(Exception, match="refused"):
         await migrate.downgrade(migrated_engine, "0061")
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     async with migrated_engine.begin() as conn:
         await conn.execute(text("DELETE FROM case_team_steps WHERE author = 'argus-visualiser'"))
     await migrate.downgrade(migrated_engine, "0061")
     with pytest.raises(IntegrityError, match="author_valid"):  # the six again
         await put(writer_engine, case, 2, "comment", "argus-visualiser", "x")
     await migrate.upgrade(migrated_engine)
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     await put(writer_engine, case, 3, "comment", "argus-visualiser", "x")

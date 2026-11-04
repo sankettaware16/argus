@@ -34,7 +34,7 @@ original deployment, analysts anywhere).
 
 - **On the network, over HTTPS**: a certificate, the host names browsers use, and the client
   networks allowed, all three required. See
-  [install.md](install.md#73-open-it-on-the-network-tls).
+  [install.md](install.md#73-your-own-certificate-and-the-firewall).
 
 The app lives at `/app`; the address `/` and the older page addresses lead there. Light and dark
 follow the browser's system setting. It is tested in current Chromium (Chrome, Edge) and Firefox.

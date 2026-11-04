@@ -185,8 +185,9 @@ LOCAL_HEADER = (
 
 def update_yaml(path: Path, changes: Mapping[str, Any], header: str = LOCAL_HEADER) -> list[str]:
     """Set each dotted name of ``changes`` in the YAML file at ``path``; the names that changed.
-    The file is rewritten only when one did; its leading comment lines are kept (others are
-    not: a file init rewrites is init's)."""
+    The file is rewritten only when one did. Each value is edited in place, so the file's
+    comments, order and layout stay; a file whose shape the line editor cannot follow is
+    rewritten whole (its leading comment lines kept)."""
     data = read_yaml(path)
     changed = [
         name for name, value in changes.items() if not has(data, name) or get(data, name) != value
@@ -195,10 +196,17 @@ def update_yaml(path: Path, changes: Mapping[str, Any], header: str = LOCAL_HEAD
         return []
     for name in changed:
         put(data, name, changes[name])
+    text = path.read_text(encoding="utf-8") if path.is_file() else header + "\n"
+    edited: str | None = text
+    for name in changed:
+        edited = edit_yaml(edited, name, changes[name]) if edited is not None else None
+    if edited is not None and _loads(edited) == data:
+        write_public(path, edited)
+        return changed
     lead = header
     if path.is_file():
         kept = []
-        for line in path.read_text(encoding="utf-8").splitlines(keepends=True):
+        for line in text.splitlines(keepends=True):
             if not line.startswith("#"):
                 break
             kept.append(line)
@@ -206,3 +214,98 @@ def update_yaml(path: Path, changes: Mapping[str, Any], header: str = LOCAL_HEAD
     body = yaml.safe_dump(data, default_flow_style=False, sort_keys=False, width=100)
     write_public(path, lead + "\n" + body)
     return changed
+
+
+def _loads(text: str) -> Any:
+    try:
+        return yaml.safe_load(text) or {}
+    except yaml.YAMLError:
+        return None
+
+
+def _flow(value: Any) -> str | None:
+    """``value`` on one line as YAML writes it (a list in brackets); None for a mapping."""
+    if isinstance(value, Mapping):
+        return None
+    dumped = yaml.safe_dump(value, default_flow_style=True, width=10**6).strip()
+    return dumped.removesuffix("...").strip()
+
+
+def _indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def _blank(line: str) -> bool:
+    stripped = line.strip()
+    return not stripped or stripped.startswith("#")
+
+
+def _block_end(lines: list[str], start: int, indent: int) -> int:
+    """The index after the block that begins below ``lines[start]``: the lines indented deeper
+    than ``indent`` (blank and comment lines inside it included, trailing ones not)."""
+    end = start + 1
+    last = start + 1
+    while end < len(lines):
+        if not _blank(lines[end]):
+            if _indent_of(lines[end]) <= indent and not lines[end].lstrip().startswith("- "):
+                break
+            if _indent_of(lines[end]) < indent:
+                break
+            last = end + 1
+        end += 1
+    return last
+
+
+def _find(lines: list[str], key: str, start: int, end: int, indent: int) -> int | None:
+    for i in range(start, end):
+        line = lines[i]
+        if _blank(line) or _indent_of(line) != indent:
+            continue
+        if line.lstrip().startswith(f"{key}:") and (
+            line.lstrip()[len(key) + 1 : len(key) + 2] in ("", " ", "\n")
+        ):
+            return i
+    return None
+
+
+def edit_yaml(text: str, dotted: str, value: Any) -> str | None:
+    """``text`` with ``dotted`` set to ``value`` by editing its lines (comments and layout kept);
+    None when the file's shape is not one this can follow (the caller rewrites it whole)."""
+    flow = _flow(value)
+    if flow is None:
+        return None
+    lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+    parts = dotted.split(".")
+    start, end, indent = 0, len(lines), 0
+    for depth, part in enumerate(parts):
+        at = _find(lines, part, start, end, indent)
+        if at is None:
+            child = indent
+            rest = parts[depth:]
+            new = []
+            for n, name in enumerate(rest):
+                pad = " " * (child + 2 * n)
+                new.append(f"{pad}{name}: {flow}\n" if n == len(rest) - 1 else f"{pad}{name}:\n")
+            lines[end:end] = new
+            return "".join(lines)
+        line = lines[at]
+        here = _indent_of(line)
+        if depth == len(parts) - 1:
+            after = line.lstrip()[len(part) + 1 :]
+            comment = ""
+            if " #" in after:
+                comment = "  #" + after.split(" #", 1)[1].rstrip("\n")
+            stop = _block_end(lines, at, here)
+            lines[at:stop] = [f"{' ' * here}{part}: {flow}{comment}\n"]
+            return "".join(lines)
+        rest_of_line = line.lstrip()[len(part) + 1 :].split(" #", 1)[0].strip()
+        if rest_of_line:
+            return None  # a mapping written on one line: not followed here
+        start, end = at + 1, _block_end(lines, at, here)
+        children = [i for i in range(start, end) if not _blank(lines[i])]
+        indent = _indent_of(lines[children[0]]) if children else here + 2
+        if children and indent <= here:
+            return None
+    return None

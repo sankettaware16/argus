@@ -1314,6 +1314,8 @@ API_GRANTS: dict[str, TableGrant] = {
     "collector_cursors": TableGrant(select=True),
     "coverage_gaps": TableGrant(select=True),
     "dossiers": TableGrant(select=True),
+    # the status bar: whether the Kibana read-back runs
+    "kibana_sync_cycles": TableGrant(select=True),
     # the identity lane runs in the web: its gate state (the `identity` row), the
     # switches it obeys and its ledger rows. Its security-index check goes through the
     # Elasticsearch gateway, which keeps the budget, lanes, breaker and health rows of the same

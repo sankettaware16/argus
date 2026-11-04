@@ -73,12 +73,39 @@ export function SiemStatus() {
   );
 }
 
-/** Kibana sync (Q-D3) is not built yet: said plainly, never shown as working. */
+/** The Kibana read-back in words, from its newest cycle. */
+export const SYNC: Record<string, [Tone, string]> = {
+  none: ["neutral", "not running yet"],
+  ok: ["ok", "in sync"],
+  partial: ["warn", "partly read"],
+  failed: ["danger", "failing"],
+  late: ["warn", "late"],
+};
+
+/** Whether ARGUS reads Kibana's cases back (argus-kibana-sync), from the health poll. */
 export function SyncStatus() {
+  const health = useQuery({
+    queryKey: ["health"],
+    queryFn: async () => (await getHealth({ headers: BACKGROUND, throwOnError: true })).data,
+    refetchInterval: 60_000,
+  });
+  const sync = health.data?.kibana_sync;
+  if (!sync) {
+    return <span className="text-sm text-muted">Kibana sync: {health.isError ? "not available" : "loading"}</span>;
+  }
+  const [tone, word] = SYNC[sync.state] ?? (["neutral", "unknown"] as [Tone, string]);
+  const last = parse(sync.last_cycle_at);
+  const complete = parse(sync.last_complete_at);
+  const title = last
+    ? `Last read-back ${ago(last)} (${ist(last)}; ${utc(last)}): ${sync.last_outcome}` +
+      (sync.last_reason ? ` (${sync.last_reason})` : "") +
+      (complete ? `; last complete ${ago(complete)}` : "; none complete yet")
+    : "No read-back of Kibana's cases recorded yet: it runs as argus-kibana-sync once Kibana is set up";
   return (
-    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm" title="ARGUS does not read or write Kibana cases yet; it arrives with the case work of Phase 3">
+    <Link to="/health" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text no-underline hover:underline" title={title}>
       <span className="font-medium">Kibana sync</span>
-      <Badge tone="neutral">not set up yet</Badge>
-    </span>
+      <Badge tone={tone}>{word}</Badge>
+      {last && <span className="text-muted">read {ago(last)}</span>}
+    </Link>
   );
 }

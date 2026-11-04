@@ -5340,6 +5340,9 @@
             "title": "Jobs Waiting",
             "type": "integer"
           },
+          "kibana_sync": {
+            "$ref": "#/components/schemas/KibanaSyncOut"
+          },
           "last_reconciliation": {
             "anyOf": [
               {
@@ -5413,7 +5416,8 @@
           "jobs_failed",
           "dossiers",
           "checkpoint_threads",
-          "checkpoint_bytes"
+          "checkpoint_bytes",
+          "kibana_sync"
         ],
         "title": "HealthOut",
         "type": "object"
@@ -6480,6 +6484,78 @@
           "value"
         ],
         "title": "KeyField",
+        "type": "object"
+      },
+      "KibanaSyncOut": {
+        "additionalProperties": false,
+        "description": "The Kibana read-back (``argus-kibana-sync``), from its newest recorded cycle.",
+        "properties": {
+          "last_complete_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Complete At"
+          },
+          "last_cycle_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Cycle At"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "last_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reason"
+          },
+          "state": {
+            "enum": [
+              "none",
+              "ok",
+              "partial",
+              "failed",
+              "late"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "last_cycle_at",
+          "last_outcome",
+          "last_reason",
+          "last_complete_at"
+        ],
+        "title": "KibanaSyncOut",
         "type": "object"
       },
       "KnownOut": {

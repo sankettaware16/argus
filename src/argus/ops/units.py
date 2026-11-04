@@ -326,6 +326,9 @@ def _unit_files(folder: Path) -> list[Path]:
 _SUFFIXES = (".service", ".timer")
 
 
+NOT_ENABLED = ("installed but not enabled", False)
+
+
 def problems(state: UnitState) -> tuple[str, bool] | None:
     """What is wrong with one unit, and whether it is only a warning; None when nothing is."""
     if not state.in_repository:
@@ -336,7 +339,7 @@ def problems(state: UnitState) -> tuple[str, bool] | None:
         if not state.installed:
             return f"not installed: run {INSTALL} --apply", False
         if not state.enabled:
-            return "installed but not enabled", False
+            return NOT_ENABLED
     if state.role is Role.CHOICE and state.enabled:
         return (
             f"enabled, but units.run does not list it ({state.why}): add it there"

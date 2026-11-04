@@ -551,6 +551,27 @@ def test_a_fresh_install_that_runs_nothing_yet_has_no_failure(tmp_path: Path) ->
     assert ("unit argus-collector.service", "WARN") in labels(chosen)  # not listed in units.run
 
 
+def test_units_installed_but_not_started_yet_wait_for_a_person(tmp_path: Path) -> None:
+    """`argus init` answered no to starting: nothing runs yet, which is a warning; once one
+    runs, every other that units.run lists must run too."""
+    folder = tmp_path / "user"
+    folder.mkdir()
+    for name, text in RENDERED.items():
+        (folder / name).write_text(text)
+    waiting = _results(folder)
+    assert waiting[0].label == "WARN"
+    assert "none started yet: `argus init --start` starts them" in waiting[0].detail
+    assert all(r.ok for r in waiting)
+    assert ("unit argus-collector.service", "WARN") in labels(waiting)
+    assert any("not started yet" in r.detail for r in waiting[1:])
+    wants = folder / "default.target.wants"
+    wants.mkdir()
+    (wants / "argus-collector.service").symlink_to(folder / "argus-collector.service")
+    partly = _results(folder)
+    assert partly[0].label == "FAIL"
+    assert ("unit argus-worker.service", "FAIL") in labels(partly)
+
+
 def _installed_and_enabled(tmp_path: Path) -> Path:
     folder = tmp_path / "user"
     folder.mkdir()

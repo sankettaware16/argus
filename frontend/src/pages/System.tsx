@@ -14,7 +14,7 @@ import { count } from "../lib/format";
 import { OUTCOMES } from "../lib/labels";
 import { own } from "../lib/site";
 import { glossaryOptions, healthPageOptions, metricsOptions } from "../lib/queries";
-import { SIEM } from "../shell/Status";
+import { SIEM, SYNC } from "../shell/Status";
 
 function Row({ term, children }: { term: string; children: ReactNode }) {
   return (
@@ -37,6 +37,31 @@ function Gap({ g }: { g: GapOut }) {
       )}
       : alerts from this time may be missing until it closes.
     </li>
+  );
+}
+
+function SyncRow({ h }: { h: HealthOut }) {
+  const s = h.kibana_sync;
+  const [tone, word] = SYNC[s.state] ?? (["neutral", "unknown"] as [Tone, string]);
+  if (s.last_cycle_at == null) {
+    return (
+      <>
+        <Badge tone={tone}>{word}</Badge> <span className="text-muted">no cycle recorded; it runs as argus-kibana-sync once Kibana is set up</span>
+      </>
+    );
+  }
+  return (
+    <>
+      <Badge tone={tone}>{word}</Badge>, last cycle <Time value={s.last_cycle_at} /> ({s.last_outcome}
+      {s.last_reason != null && s.last_reason !== "" && <>: <UntrustedText value={s.last_reason} limits={{ maxChars: 80, maxLines: 1 }} /></>})
+      {s.last_complete_at != null ? (
+        <>
+          , last complete <Time value={s.last_complete_at} />
+        </>
+      ) : (
+        <>, none complete yet</>
+      )}
+    </>
   );
 }
 
@@ -64,6 +89,9 @@ function HealthBody({ h }: { h: HealthOut }) {
           {count(h.dossiers)} dossiers written
           {h.jobs_deferred > 0 && <>, {count(h.jobs_deferred)} waiting for the SIEM to be available</>}
           {h.jobs_failed > 0 && <>, {count(h.jobs_failed)} could not be completed</>}; {count(h.checkpoint_threads)} runs in progress ({count(Math.round(h.checkpoint_bytes / 1024))} KiB)
+        </Row>
+        <Row term="Kibana read-back">
+          <SyncRow h={h} />
         </Row>
         {r != null && (
           <Row term="Last check against the SIEM">

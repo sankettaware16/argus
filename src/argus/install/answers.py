@@ -23,7 +23,7 @@ KNOWN: dict[str, str] = {
     "siem.fingerprint": "the SHA-256 fingerprint of the CA the SIEM presents (siem.trust: chain)",
     "siem.api_key_file": "a file holding the read-only API key (the encoded form)",
     "siem.api_key_env": "an environment variable holding the read-only API key",
-    "siem.api_key_expires": "when the key expires, YYYY-MM-DD (as it was created)",
+    "siem.api_key_expires": "when the key expires: YYYY-MM-DD, the answer's expiration or 90d",
     "siem.log_patterns": "the index patterns of the logs, for the starting role (default logs-*)",
     "kibana.url": "Kibana's address, https://host:5601, or none",
     "kibana.trust": "how Kibana's certificate is trusted: same (the SIEM's CA), file, chain or"
@@ -32,7 +32,8 @@ KNOWN: dict[str, str] = {
     "kibana.fingerprint": "the SHA-256 fingerprint of the CA Kibana presents (kibana.trust: chain)",
     "kibana.api_key_file": "a file holding Kibana's read-only API key, or none",
     "kibana.api_key_env": "an environment variable holding Kibana's read-only API key",
-    "kibana.api_key_expires": "when Kibana's key expires, YYYY-MM-DD (as it was created)",
+    "kibana.api_key_expires": "when Kibana's key expires: YYYY-MM-DD, the answer's expiration"
+    " or 90d",
     "organisation.name": "the organisation's name",
     "organisation.short_name": "the security team's name (page header, PDF footer)",
     "organisation.kind": "what kind of organisation it is, a lower-case noun (default"
@@ -45,8 +46,19 @@ KNOWN: dict[str, str] = {
     "organisation.space": "the Kibana space that holds the Security alerts",
     "discovery.accept": "true: write what `argus discover` proposes to config/site.yaml",
     "llm.keys_file": "the LLM providers' keys file, or none (every LLM feature off)",
+    "web.address": "the address people open the web at (this machine's IP or name), or none for"
+    " the loopback only",
+    "web.ca_cert": "a CA certificate to sign the web's certificate with, or none (self-signed)",
+    "web.ca_key": "that CA's private key file (read once, never copied)",
+    "web.networks": "the networks people open the web from, CIDR",
+    "web.person": "the first person's sign-in name, or none",
+    "web.person_name": "the first person's name as ARGUS shows it",
+    "web.person_password_file": "a file holding the first person's password",
+    "web.person_password_env": "an environment variable holding the first person's password",
     "units.install": "true: install the systemd user units",
     "units.start": "true: enable and start the services",
+    "units.backups": "true: the nightly database backup and the weekly restore drill (when"
+    " starting)",
 }
 NONE_WORDS = frozenset({"", "none", "no", "-"})
 
@@ -114,7 +126,8 @@ def load_answers(path: Path) -> dict[str, Any]:
     if not isinstance(data, Mapping):
         raise InitError(f"{path} is not a YAML mapping of answers", 2)
     flat = _flatten(data)
-    for secret in ("siem.api_key", "kibana.api_key", "kibana.reader_api_key"):
+    for secret in ("siem.api_key", "kibana.api_key", "kibana.reader_api_key",
+                   "web.person_password"):  # fmt: skip
         if secret in flat:
             raise InitError(
                 f"{path} gives {secret} itself: a key never goes in the answers file; name a file"

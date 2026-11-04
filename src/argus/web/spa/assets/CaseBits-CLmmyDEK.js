@@ -1,1 +1,0 @@
-import{I as e}from"./UntrustedText-CIounRqU.js";import{Pn as t,Rn as n,c as r}from"./index-BrTbfnHm.js";var i=e();function a({state:e}){return(0,i.jsx)(r,{tone:t[e]??`neutral`,children:n(e)})}export{a as t};

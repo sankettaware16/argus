@@ -260,3 +260,34 @@ async def test_health_counts(app_engine: AsyncEngine, migrated_engine: AsyncEngi
     assert [g["kind"] for g in h["open_gaps"]] == ["argus_collector_lag"]
     assert h["last_reconciliation"] is None
     assert h["live_cursor"] is None
+
+
+async def _cycle(engine: AsyncEngine, started: datetime, outcome: str, reason: str | None) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO kibana_sync_cycles (started_at, finished_at, outcome, reason, reads,"
+                " changed, findings, stale) VALUES (:s, :f, :o, :r, 3, 0, 0, false)"
+            ),
+            {"s": started, "f": started + timedelta(seconds=20), "o": outcome, "r": reason},
+        )
+
+
+async def test_health_kibana_sync_from_the_newest_cycle(
+    web_engine: AsyncEngine, migrated_engine: AsyncEngine
+) -> None:
+    async with web_engine.connect() as conn:  # the web's own login reads the cycles
+        h = await queries.health(conn, NOW)
+    assert h["kibana_sync"] == {"state": "none", "last_cycle_at": None, "last_outcome": None,
+                                "last_reason": None, "last_complete_at": None}  # fmt: skip
+    await _cycle(migrated_engine, NOW - timedelta(minutes=50), "complete", None)
+    await _cycle(migrated_engine, NOW - timedelta(minutes=10), "partial", "budget")
+    async with web_engine.connect() as conn:
+        s = (await queries.health(conn, NOW))["kibana_sync"]
+    assert s["state"] == "partial"
+    assert (s["last_outcome"], s["last_reason"]) == ("partial", "budget")
+    assert s["last_cycle_at"] == NOW - timedelta(minutes=10) + timedelta(seconds=20)
+    assert s["last_complete_at"] == NOW - timedelta(minutes=50) + timedelta(seconds=20)
+    async with web_engine.connect() as conn:
+        late = (await queries.health(conn, NOW + timedelta(hours=2)))["kibana_sync"]
+    assert late["state"] == "late"

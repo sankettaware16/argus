@@ -109,8 +109,9 @@ async def _kibana_check(settings: Settings) -> list[str] | None:
     """The Kibana key's problems, or None when its lane could not take the check in time (the
     lane is paced: discovery's Kibana reads may have spent its minute)."""
     from argus.db.engine import create_engine
-    from argus.gateway.errors import DeadlinePassedError
+    from argus.gateway.errors import DeadlinePassedError, GatewayError
     from argus.gateway.kibana import selftest as core
+    from argus.gateway.kibana.errors import AnswerMismatchError
     from argus.gateway.kibana.service import build_kibana_gateway
     from argus.gateway.kibana.templates import KeyRole
     from argus.gateway.pgstore import PgStore
@@ -126,6 +127,20 @@ async def _kibana_check(settings: Settings) -> list[str] | None:
             )
         except DeadlinePassedError:
             return None
+        except AnswerMismatchError as exc:
+            return [_kibana_answer(str(exc))]
+        except GatewayError as exc:
+            return [f"Kibana did not answer the check ({type(exc).__name__}: {exc})"]
         return list(verdict.problems)
     finally:
         await engine.dispose()
+
+
+def _kibana_answer(message: str) -> str:
+    """What a wrong answer to the check means for the person at init."""
+    if "without version" in message:
+        return (
+            "Kibana answered as to someone who is not signed in: it did not accept the key."
+            ' Paste the value of "encoded" from the answer (the longest one), not "api_key" or "id"'
+        )
+    return f"Kibana's answer could not be read ({message})"

@@ -64,6 +64,11 @@ uv sync                     # the locked dependencies of that version
 uv run argus --version
 ```
 
+**The short way.** Steps 4 and 5 are what `argus init` does on an existing installation: run
+`uv run argus init`, press Enter at every question (it keeps every value, key and certificate,
+migrates the database, renders the units and makes any login or file a new version needs), and
+answer N to starting. Then continue at step 6. The steps below are the same by hand.
+
 ## 4. Migrate the database
 
 ```bash

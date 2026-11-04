@@ -127,7 +127,7 @@ async def test_a_downgrade_that_would_lose_a_split_is_refused(
     await do_split(app_engine, people["asha"], six.case, [six.b1])
     with pytest.raises(DBAPIError, match="append-only"):
         await migrate.downgrade(migrated_engine, "0054")
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     assert await web_trigger(migrated_engine, "case_members") == (True, "A")  # nothing was undone
 
 
@@ -168,7 +168,7 @@ async def test_a_clean_downgrade_takes_the_grants_and_the_update_trigger_back_an
     assert "TG_OP" not in str(body)  # 0042's function again
     assert await migrate.missing_guard_triggers(migrated_engine) == []
     await migrate.upgrade(migrated_engine)
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     assert await migrate.schema_drift(migrated_engine) == []
     assert await web_trigger(migrated_engine, "case_members") == (True, "A")
     assert await can_update(migrated_engine, "argus_runtime", "case_indicators", "role")

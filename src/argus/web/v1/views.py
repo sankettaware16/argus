@@ -487,6 +487,7 @@ def health(h: Mapping[str, Any]) -> m.HealthOut:
         jobs_waiting=h["jobs_waiting"], jobs_deferred=h["jobs_deferred"],
         jobs_failed=h["jobs_failed"], dossiers=h["dossiers"],
         checkpoint_threads=h["checkpoint_threads"], checkpoint_bytes=h["checkpoint_bytes"],
+        kibana_sync=m.KibanaSyncOut(**h["kibana_sync"]),
     )  # fmt: skip
 
 

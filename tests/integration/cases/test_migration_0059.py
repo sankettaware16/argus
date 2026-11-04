@@ -87,7 +87,7 @@ async def test_a_downgrade_that_would_lose_a_retitle_is_refused(
     await retitle(app_engine, people["asha"].actor(), six.case, "A new title", "clearer")
     with pytest.raises(DBAPIError, match="append-only"):
         await migrate.downgrade(migrated_engine, "0058")
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     assert "retitled" in await kind_rule(migrated_engine)  # nothing was undone
 
 
@@ -99,7 +99,7 @@ async def test_a_clean_downgrade_takes_the_kind_back_and_upgrades_again(
     assert "retitled" not in await kind_rule(migrated_engine)
     assert "unlinked" in await kind_rule(migrated_engine)  # 0055's kind is kept
     await migrate.upgrade(migrated_engine)
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     assert "retitled" in await kind_rule(migrated_engine)
     assert await migrate.schema_drift(migrated_engine) == []
     assert await roles.runtime_role_problems(app_engine) == []

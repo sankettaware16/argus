@@ -1,0 +1,1 @@
+import{I as e}from"./UntrustedText-BLr-MlVe.js";import{Fn as t,l as n,zn as r}from"./index-Bp0ztuSK.js";var i=e();function a({state:e}){return(0,i.jsx)(n,{tone:t[e]??`neutral`,children:r(e)})}export{a as t};

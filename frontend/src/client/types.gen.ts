@@ -2812,6 +2812,7 @@ export type HealthOut = {
      * Jobs Waiting
      */
     jobs_waiting: number;
+    kibana_sync: KibanaSyncOut;
     last_reconciliation: ReconciliationOut | null;
     /**
      * Live Cursor
@@ -3322,6 +3323,34 @@ export type KeyField = {
      * Value
      */
     value: unknown;
+};
+
+/**
+ * KibanaSyncOut
+ *
+ * The Kibana read-back (``argus-kibana-sync``), from its newest recorded cycle.
+ */
+export type KibanaSyncOut = {
+    /**
+     * Last Complete At
+     */
+    last_complete_at: string | null;
+    /**
+     * Last Cycle At
+     */
+    last_cycle_at: string | null;
+    /**
+     * Last Outcome
+     */
+    last_outcome: string | null;
+    /**
+     * Last Reason
+     */
+    last_reason: string | null;
+    /**
+     * State
+     */
+    state: 'none' | 'ok' | 'partial' | 'failed' | 'late';
 };
 
 /**

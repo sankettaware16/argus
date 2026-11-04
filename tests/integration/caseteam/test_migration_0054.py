@@ -123,7 +123,7 @@ async def test_the_clean_downgrade_is_refused_for_two_rows_of_a_comment_and_roun
         await conn.execute(text(SEEN), {"h": HASH, "c": case, "s": "ignored"})
     with pytest.raises(DBAPIError, match="two rows"):
         await migrate.downgrade(migrated_engine, "0053")
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
     async with migrated_engine.begin() as conn:  # the owner removes the second row
         await conn.execute(text("ALTER TABLE case_team_seen DISABLE TRIGGER USER"))
         await conn.execute(text("DELETE FROM case_team_seen WHERE status = 'ignored'"))
@@ -148,7 +148,7 @@ async def test_the_clean_downgrade_is_refused_for_two_rows_of_a_comment_and_roun
         )
     assert "counts" not in columns
     await migrate.upgrade(migrated_engine)
-    assert await migrate.current_revision(migrated_engine) == "0064"
+    assert await migrate.current_revision(migrated_engine) == "0065"
 
 
 # --------------------------------------------------------------------------- the doctor's guards

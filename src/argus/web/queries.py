@@ -747,6 +747,43 @@ async def by_entity(conn: AsyncConnection, limit: int = 200) -> list[dict[str, A
     return [dict(row._mapping) for row in rows]
 
 
+SYNC_LATE = timedelta(minutes=90)  # the read-back runs every 10 to 60 minutes outside STOP
+
+
+def sync_state(last: Mapping[str, Any] | None, now: datetime) -> str:
+    """The Kibana read-back in one word, from its newest cycle: ``none`` (no cycle recorded),
+    ``ok``, ``partial``, ``failed``, or ``late`` (none finished for longer than SYNC_LATE)."""
+    if last is None:
+        return "none"
+    if now - last["finished_at"] > SYNC_LATE:
+        return "late"
+    return {"complete": "ok", "partial": "partial"}.get(str(last["outcome"]), "failed")
+
+
+async def kibana_sync(conn: AsyncConnection, now: datetime) -> dict[str, Any]:
+    last = (
+        await conn.execute(
+            text(
+                "SELECT finished_at, outcome, reason FROM kibana_sync_cycles"
+                " ORDER BY started_at DESC LIMIT 1"
+            )
+        )
+    ).first()
+    complete = (
+        await conn.execute(
+            text("SELECT max(finished_at) FROM kibana_sync_cycles WHERE outcome = 'complete'")
+        )
+    ).scalar_one_or_none()
+    row = None if last is None else dict(last._mapping)
+    return {
+        "state": sync_state(row, now),
+        "last_cycle_at": None if row is None else row["finished_at"],
+        "last_outcome": None if row is None else row["outcome"],
+        "last_reason": None if row is None else row["reason"],
+        "last_complete_at": complete,
+    }
+
+
 async def health(conn: AsyncConnection, now: datetime) -> dict[str, Any]:
     from argus.gateway.health import HealthConfig, effective
     from argus.gateway.pgstore import health_from_json
@@ -809,4 +846,5 @@ async def health(conn: AsyncConnection, now: datetime) -> dict[str, Any]:
         "dossiers": counts[6],
         "checkpoint_threads": counts[7],
         "checkpoint_bytes": counts[8],
+        "kibana_sync": await kibana_sync(conn, now),
     }

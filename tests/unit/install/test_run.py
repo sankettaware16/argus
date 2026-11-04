@@ -42,6 +42,7 @@ class Run:
         self.compose = compose
         self.units = tmp_path / "units"
         self.tmp = tmp_path
+        self.people: list[tuple[str, str, str]] = []
 
     def host(self) -> Host:
         def systemctl(argv: list[str]) -> int:
@@ -54,7 +55,9 @@ class Run:
             sleep=lambda _s: None, tls=self.tls, siem=self.siem, unit_dir=self.units,
             systemctl=systemctl, bootstrap=lambda _c: self.db.append("bootstrap"),
             upgrade=lambda _c: self.db.append("upgrade"), doctor=lambda _c: self.doctor,
-            uv=lambda: "/usr/bin/uv",
+            uv=lambda: "/usr/bin/uv", local_ip=lambda _t: "192.0.2.10",
+            people=lambda _c: len(self.people),
+            add_person=lambda _c, u, n, pw: self.people.append((u, n, pw)), user=lambda: "argus",
         )  # fmt: skip
 
     def options(self, **kw: Any) -> Options:
@@ -123,7 +126,8 @@ def test_an_answers_file_sets_up_a_fresh_checkout(tmp_path: Path) -> None:
     assert sorted(p.name for p in run.units.iterdir()) == sorted(units.MANIFEST)
     assert run.systemctl == ["daemon-reload"]
     assert "POST /_security/api_key" in run.text
-    assert "init: done; doctor shows no failure" in run.text
+    assert "init: done; ARGUS is set up but not started: argus init --start starts it" in run.text
+    assert "no one can sign in yet" in run.text  # scripted, no web.person: nobody is made
     site = yaml.safe_load((run.root / "config" / "site.yaml").read_text())["site"]
     assert site["timezone"] == "Europe/Berlin"
     assert "own_networks" not in site  # none given
@@ -303,11 +307,28 @@ def test_units_left_out_run_nothing(tmp_path: Path) -> None:
     assert run.systemctl == []
 
 
-def test_start_enables_the_four_services(tmp_path: Path) -> None:
+def test_start_enables_the_four_services_and_the_backups(tmp_path: Path) -> None:
     run = Run(tmp_path)
     assert run.go(run.answers(), start=True) == 0
-    assert run.systemctl == ["daemon-reload", "enable --now " + " ".join(units.CORE)]
-    assert run.local()["units"]["run"] == list(units.CORE)
+    wanted = [*units.CORE, "argus-kibana-sync.service", "argus-backup.timer",
+              "argus-backup-drill.timer"]  # fmt: skip
+    assert run.systemctl == ["daemon-reload", "enable --now " + " ".join(wanted)]
+    assert run.local()["units"]["run"] == wanted
+    assert "sudo loginctl enable-linger argus" in run.text
+    # the read-back's unit reads these two: made for it, empty (Kibana's key stays in .env)
+    assert (run.root / "local" / "creds-sync").is_dir()
+    switches = run.root / "local" / "argus-kibana-read.env"
+    assert switches.stat().st_mode & 0o777 == 0o600
+
+
+def test_start_starts_every_unit_the_installation_runs(tmp_path: Path) -> None:
+    run = Run(tmp_path)
+    extra = ["argus-kibana-sync.service", "argus-case-team.timer"]
+    (run.root / "config" / "local.yaml").write_text(yaml.safe_dump({"units": {"run": extra}}))
+    run.commands.table[("loginctl",)] = (0, "Linger=yes\n")
+    assert run.go(run.answers(**{"units.backups": False}), start=True) == 0
+    assert run.systemctl[-1] == "enable --now " + " ".join([*extra, *units.CORE])
+    assert "enable-linger" not in run.text
 
 
 def test_compose_brings_the_database_up_and_waits_for_it(tmp_path: Path) -> None:
@@ -359,6 +380,8 @@ def test_a_person_at_the_terminal_is_asked_and_a_bad_value_is_asked_again(
         "prefix of incident": ["soc-ir", "SOC-IR"],
         "Kibana space": ["soc"],
         "keys file": ["none"],
+        "address people open": ["none"],
+        "sign-in name": ["none"],
     }
     asked: list[str] = []
 

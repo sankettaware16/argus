@@ -158,8 +158,11 @@ uv run argus init
 PostgreSQL in Docker and creates the schema, pins your SIEM's CA, prints the Dev Tools request for
 the read-only key and checks the key you paste, asks about your organisation, **discovers** your
 log families, Kibana space and threat-intel sources (metadata only), asks for your LLM keys file
-(optional), installs the systemd user units and ends with `argus doctor`. Rerun it any time: it
-keeps what is done. For a scripted install: `uv run argus init --answers answers.yaml`.
+(optional), sets up the web (the address people open, a certificate signed by your CA or
+self-signed, your own sign-in), installs the systemd user units, starts them if you say so, and
+ends with `argus doctor`. A key or date pasted in the wrong form is explained and asked again.
+Rerun it any time: it keeps what is done. For a scripted install:
+`uv run argus init --answers answers.yaml`.
 
 The whole path from a fresh machine, with every value and the file it lands in:
 [docs/install.md](docs/install.md#0-clean-setup-from-zero).
@@ -179,11 +182,13 @@ Where to get each key, step by step: [docs/llm.md](docs/llm.md#3-getting-each-ke
 ### Run
 
 ```bash
-uv run argus init --start                    # enable and start the four services
-sudo loginctl enable-linger "$USER"          # keep them running after you log out
-uv run argus user add alice                  # the first Inbox account
-ssh -L 8765:127.0.0.1:8765 you@argus-host    # from your computer; open http://127.0.0.1:8765/
+uv run argus init --start        # starts every service, the Kibana read-back and the nightly backup
 ```
+
+Init ends with the address to open (`https://<this machine>:8765/`) and you sign in with the name
+and password you gave it. If it says the services stop when you log out, an administrator runs
+`sudo loginctl enable-linger <account>` once. Installing on the SIEM's own machine, or moving
+ARGUS to another one: [docs/install.md](docs/install.md#13-argus-on-the-siems-own-machine).
 
 ## Usage
 
@@ -200,7 +205,7 @@ ARGUS runs as four services; people use it from the browser, operators from the 
 | `argus-collector` | probes the SIEM's health and takes in new alerts every minute, reconciles hourly |
 | `argus-worker` | gathers the evidence and writes a dossier for each queued investigation |
 | `argus-assess` | proposes outcomes (decision engine, then the optional AI investigator), suggests cases, writes incident reports and the weekly tuning report |
-| `argus-web` | the Inbox and its API, on `127.0.0.1:8765` by default |
+| `argus-web` | the Inbox and its API, over HTTPS on the address init set up (or `127.0.0.1:8765`) |
 
 Common tasks:
 

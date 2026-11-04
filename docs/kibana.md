@@ -84,30 +84,22 @@ uv run argus kibana sync status           # the read-back's state, open findings
 uv run argus kibana sync report           # cycles complete, staleness, the read load
 ```
 
-**As a service.** The shipped unit `argus-kibana-sync.service` reads two extra files from the
-checkout, an environment file and a credential folder (the layout of the project's first
-deployment, where the reader key lives apart from `.env`). On a standard install the key is in
-`.env` and `kibana.enabled` in `config/local.yaml`, so both can be empty, but they must exist:
+**As a service.** `argus init --start` starts `argus-kibana-sync.service` whenever Kibana is set
+up (its key given at step 5), and lists it in `units.run`. Its unit reads two extra files from
+the checkout, an environment file and a credential folder, for installations that keep the
+reader key apart from `.env`; init makes both, empty, so the key stays in `.env`
+(`local/creds-sync/`, mode 700, and `local/argus-kibana-read.env`, mode 600). To check it:
 
 ```bash
-cd ~/argus
-mkdir -p -m 700 local local/creds-sync
-install -m 600 /dev/null local/argus-kibana-read.env
-```
-
-Then list the unit in `units.run` (`config/local.yaml`) and start it:
-
-```yaml
-units:
-  run: [argus-collector.service, argus-worker.service, argus-web.service, argus-assess.service,
-        argus-kibana-sync.service]
-```
-
-```bash
-systemctl --user enable --now argus-kibana-sync
+systemctl --user status argus-kibana-sync --no-pager
 journalctl --user -u argus-kibana-sync -f
-uv run argus doctor
+uv run argus kibana sync status
 ```
+
+The web's status bar shows **Kibana sync** from the newest recorded cycle: *in sync* (complete,
+within the last 90 minutes), *partly read*, *failing*, *late* (none for 90 minutes), or *not
+running yet* before the first cycle. Hover over it for the time and outcome; *System → Health*
+has the same in a row.
 
 While `kibana.enabled` or `kibana.sync.enabled` is false, `kibana sync run` says so and exits 0
 (the unit stays stopped rather than restarting).

@@ -518,7 +518,7 @@ the `web` section of `local.yaml`.
 |---|---|---|
 | `units.root` | this checkout | The checkout the units run (absolute) |
 | `units.uv` | the uv running the command | The uv the units start ARGUS with (absolute) |
-| `units.run` | the four services | The units this installation runs. Doctor fails while one is not enabled. `argus init` writes `[]` until you start the services. |
+| `units.run` | the four services | The units this installation runs. Doctor warns while none of them is started yet and fails while some run and a listed one is not enabled. `argus init --start` writes it: the four services, the Kibana read-back when Kibana is set up, the backup timers unless declined, and whatever it listed already. |
 | `units.web.host`, `tls_cert`, `tls_key`, `allowed_hosts`, `allowed_networks`, `public_url`, `approval_key_file`, `database_role` | none | Rendered into the web unit's environment; a value left out drops its line |
 | `units.web.classic` | `fallback` | |
 

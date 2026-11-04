@@ -194,6 +194,7 @@ describe("Health", () => {
     open_gaps: [{ kind: "cursor_stall", subject: "live", start_at: "2026-10-25T20:00:00Z", detail: HOSTILE }],
     last_reconciliation: { finished_at: "2026-10-25T22:00:00Z", hours: 24, hours_mismatched: 2, recovered: 3, outcome: "ok" },
     alerts: 12000, quarantined: 4, investigations: 300, jobs_waiting: 5, jobs_deferred: 2, jobs_failed: 1, dossiers: 280, checkpoint_threads: 3, checkpoint_bytes: 20480,
+    kibana_sync: { state: "partial", last_cycle_at: "2026-10-25T23:40:00Z", last_outcome: "partial", last_reason: "budget", last_complete_at: "2026-10-25T23:20:00Z" },
   };
 
   it("says what is collected, stored and waiting, the last check against the SIEM and every open gap", async () => {
@@ -208,6 +209,35 @@ describe("Health", () => {
     expect(gap.textContent).toContain("cursor stall since");
     expect(gap.textContent).toContain("alerts from this time may be missing until it closes");
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("shows the Kibana read-back from its newest cycle, on the page and in the status bar", async () => {
+    server.use(get("/health", HEALTH));
+    const { container } = renderApp("/health");
+    await screen.findByText(/12,000 alerts/);
+    expect(container.textContent).toContain("partly read, last cycle");
+    expect(container.textContent).toContain("(partial: budget)");
+    expect(container.textContent).toContain("last complete");
+    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
+    expect(bar.textContent).toContain("partly read");
+    expect(bar.getAttribute("title")).toContain("last complete");
+  });
+
+  it("says the read-back has not run yet, never that it works", async () => {
+    server.use(get("/health", { ...HEALTH, kibana_sync: { state: "none", last_cycle_at: null, last_outcome: null, last_reason: null, last_complete_at: null } }));
+    const { container } = renderApp("/health");
+    await screen.findByText(/12,000 alerts/);
+    expect(container.textContent).toContain("not running yet no cycle recorded");
+    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
+    expect(bar.textContent).toContain("not running yet");
+    expect(bar.textContent).not.toContain("in sync");
+  });
+
+  it("calls a read-back in sync only when its newest cycle says so", async () => {
+    server.use(get("/health", { ...HEALTH, kibana_sync: { state: "ok", last_cycle_at: "2026-10-25T23:40:00Z", last_outcome: "complete", last_reason: null, last_complete_at: "2026-10-25T23:40:00Z" } }));
+    renderApp("/health");
+    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
+    await waitFor(() => expect(bar.textContent).toContain("in sync"));
   });
 
   it("says none are open and that nothing was collected yet", async () => {

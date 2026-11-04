@@ -33,14 +33,14 @@ this installation (the checkout, the uv, the web's settings from `units` in
 | `argus-collector.service` | service | the collector: health probe and new alerts every minute, workflow states every 15 min, reconciliation hourly, backfill | on (`--start`) |
 | `argus-worker.service` | service | evidence and dossiers for queued investigations | on |
 | `argus-assess.service` | service | proposals, case suggestions, incident reports, the AI investigator (with keys), weekly tuning | on |
-| `argus-web.service` | service | the Inbox, on `127.0.0.1:8765` | on |
-| `argus-backup.timer` | timer | `argus backup dump --kind nightly`, daily 21:30 UTC | off: enable it |
-| `argus-backup-drill.timer` | timer | `argus backup drill --latest`, Sundays 22:00 UTC | off: enable it |
+| `argus-web.service` | service | the Inbox, over HTTPS on the address `argus init` set up, or on `127.0.0.1:8765` | on |
+| `argus-backup.timer` | timer | `argus backup dump --kind nightly`, daily 21:30 UTC | on with `--start`, unless declined |
+| `argus-backup-drill.timer` | timer | `argus backup drill --latest`, Sundays 22:00 UTC | on with `--start`, unless declined |
 | `argus-report-daily.timer` | timer | `argus report daily`, 02:15 UTC | off |
 | `argus-report-weekly.timer` | timer | `argus report weekly`, Mondays 02:20 UTC | off |
 | `argus-purge.timer` | timer | `argus purge run --apply --scheduled`, 23:00 UTC | off (needs `retention.scheduled`) |
 | `argus-notices.timer` | timer | `argus notices run`, every 10 minutes | off (needs notices configured) |
-| `argus-kibana-sync.service` | service | the read-back of Kibana cases ([kibana.md](kibana.md#the-read-back)) | off |
+| `argus-kibana-sync.service` | service | the read-back of Kibana cases ([kibana.md](kibana.md#the-read-back)) | on with `--start` when Kibana is set up |
 | `argus-case-team.timer` | timer | the case team's posts to Kibana (a write) | off |
 | `argus-writer.service` | service | Kibana writes from the outbox (a write) | off |
 

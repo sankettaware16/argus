@@ -125,6 +125,8 @@ async def test_health_summary(seeded: AsyncEngine) -> None:
         "investigations": h["investigations"], "jobs_waiting": h["investigations"],
         "jobs_deferred": 0, "jobs_failed": 0, "dossiers": 0, "checkpoint_threads": 0,
         "checkpoint_bytes": h["checkpoint_bytes"],
+        "kibana_sync": {"state": "none", "last_cycle_at": None, "last_outcome": None,
+                        "last_reason": None, "last_complete_at": None},
     }  # fmt: skip
     assert h["checkpoint_bytes"] > 0  # the empty tables and their indexes
     assert h["investigations"] > 0

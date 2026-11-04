@@ -16,7 +16,7 @@ in its own PostgreSQL database on this machine.
 1. [Requirements](#1-requirements)
 2. [Prepare the machine](#2-prepare-the-machine): Docker and compose v2, uv, git
 3. [Prepare the SIEM side](#3-prepare-the-siem-side): what to have ready, the API keys
-4. [Run `argus init`](#4-run-argus-init): the nine steps, one by one
+4. [Run `argus init`](#4-run-argus-init): the ten steps, one by one
 5. [Scripted install: `argus init --answers`](#5-scripted-install-argus-init---answers)
 6. [Start the services](#6-start-the-services)
 7. [Create the first web user and open the Inbox](#7-create-the-first-web-user-and-open-the-inbox)
@@ -25,6 +25,9 @@ in its own PostgreSQL database on this machine.
 10. [A second ARGUS on the same machine](#10-a-second-argus-on-the-same-machine)
 11. [Writes stay off](#11-writes-stay-off)
 12. [Uninstalling](#12-uninstalling)
+13. [ARGUS on the SIEM's own machine](#13-argus-on-the-siems-own-machine)
+14. [Moving ARGUS to another machine](#14-moving-argus-to-another-machine)
+15. [Mistakes people make, and what init does about them](#15-mistakes-people-make-and-what-init-does-about-them)
 
 ---
 
@@ -35,6 +38,12 @@ type, what you need ready, and **which file each value lands in**. The numbered 
 explain every step in depth; this one is the map. Allow about an hour, most of it waiting for an
 administrator to run two Kibana requests.
 
+**Two people, two accounts.** Some steps need `sudo` (installing Docker, creating the account,
+opening a firewall port). Those run from **your own administrator account**. Everything else runs
+as the account ARGUS lives in, `argus`, which has **no password and no sudo** on purpose: the
+account that runs ARGUS cannot make itself root. You reach it with `sudo -iu argus` or with an
+SSH key; typing a password for `argus` never works, whatever you type.
+
 **Required:** a Linux machine, Docker, uv, git, your SIEM's address and CA, one read-only API
 key, at least one of your own domains, your time zone. **Optional:** Kibana's reader key, LLM
 keys, an asset map, outside threat-intel keys, TLS for the web, the case team.
@@ -43,12 +52,17 @@ keys, an asset map, outside threat-intel keys, TLS for the web, the case team.
 
 A Linux host with systemd: 2 vCPU / 4 GB RAM / 50 GB SSD at least, 4 vCPU / 8 GB / 100 GB
 recommended, Ubuntu 24.04 LTS preferred ([section 1](#1-requirements)). It must reach
-Elasticsearch (`:9200`) and optionally Kibana (`:5601`) over HTTPS. Create the account ARGUS will
-run as, and do everything below as that user (not root):
+Elasticsearch (`:9200`) and optionally Kibana (`:5601`) over HTTPS. It may be the SIEM's own
+machine ([section 13](#13-argus-on-the-siems-own-machine)). As your administrator account, create
+the account ARGUS will run as:
 
 ```bash
-sudo adduser argus
-sudo loginctl enable-linger argus      # its services keep running when nobody is logged in
+sudo useradd -m -s /bin/bash argus     # no password: nobody signs in to it with one
+sudo loginctl enable-linger argus      # its services run at boot and while nobody is logged in
+# optional, to reach it over SSH from your own computer (paste your public key):
+sudo install -d -m 700 -o argus -g argus /home/argus/.ssh
+echo 'ssh-ed25519 AAAA... you@laptop' | sudo tee /home/argus/.ssh/authorized_keys > /dev/null
+sudo chown argus:argus /home/argus/.ssh/authorized_keys && sudo chmod 600 /home/argus/.ssh/authorized_keys
 ```
 
 ### Step B. Prerequisites (10 minutes)
@@ -97,6 +111,9 @@ Every command from here on runs in `~/argus` as `uv run argus ...`.
 | The index patterns of your logs | `logs-*` | the starting key's role (and later `config/site.yaml`) |
 | Your organisation's name, its own domains (at least one), public networks, time zone, a case-id prefix | `Example Corp`, `example.org`, `192.0.2.0/24`, `Europe/Berlin`, `SOC-IR` | `config/site.yaml` (`site.*`) |
 | An administrator in Kibana for 5 minutes | | runs the two Dev Tools requests `argus init` prints |
+| The address people will open ARGUS at: this machine's IP or name | `192.168.10.20`, `argus.example.org` | `config/local.yaml` (`units.web.*`) |
+| Optional: your organisation's CA certificate and key, so browsers trust the web without a warning | `ca.crt`, `ca.key` | signs `data/tls/argus.crt`; the CA's key is read once and never copied |
+| A sign-in name and password for yourself in the web | `alex` | the database (users) |
 
 ### Step E. Run `argus init` (15–30 minutes)
 
@@ -104,8 +121,9 @@ Every command from here on runs in `~/argus` as `uv run argus ...`.
 uv run argus init
 ```
 
-It asks its questions in nine steps and stops with a one-line fix whenever something is missing;
-rerun it and it keeps what is done. Avoid 00:00–01:30 UTC (the SIEM's quiet hours: discovery
+It asks its questions in ten steps and stops with a one-line fix whenever something is missing;
+rerun it and it keeps what is done. A wrong answer at the terminal (a key or a date it cannot
+use) is explained and asked again. Avoid 00:00–01:30 UTC (the SIEM's quiet hours: discovery
 waits). What each step writes:
 
 | Init step | You give | It writes |
@@ -114,11 +132,12 @@ waits). What each step writes:
 | 2. `.env` | nothing: passwords are generated | **`.env`** (mode 600): `ARGUS_DATABASE__OWNER_PASSWORD`, `ARGUS_DATABASE__PASSWORD`, `ARGUS_DATABASE__API_PASSWORD`, the database names and port |
 | 3. the database | nothing | the Docker container `argus-db` (PostgreSQL 17 on `127.0.0.1:55432`), its volume `argus-pgdata`, the roles and the schema |
 | 4. addresses and trust | the SIEM's and Kibana's addresses; `file`, `chain` or `system` | `config/local.yaml` (`siem.url`, `siem.ca_file`, `kibana.url`, `kibana.ca_file`); `data/certs/siem-ca.crt` (and `kibana-ca.crt`) |
-| 5. the read-only keys | the log patterns; then the **`encoded`** value of each key an administrator creates from the request init prints ([section 3.2](#32-the-api-keys-argus-asks-for)); their expiry dates | **`.env`**: `ARGUS_SIEM__API_KEY`, `ARGUS_KIBANA__READER_API_KEY`; `config/local.yaml`: `siem.api_key_expires`, `kibana.reader_api_key_expires`, `kibana.enabled` |
+| 5. the read-only keys | the log patterns; then the **`encoded`** value of each key an administrator creates from the request init prints ([section 3.2](#32-the-api-keys-argus-asks-for)); when each expires: the date, the `expiration` number from the same answer, or `90d` | **`.env`**: `ARGUS_SIEM__API_KEY`, `ARGUS_KIBANA__READER_API_KEY`; `config/local.yaml`: `siem.api_key_expires`, `kibana.reader_api_key_expires`, `kibana.enabled` |
 | 6. the organisation and discovery | name, team name, domains, networks, time zone, case-id prefix; the Kibana space; accept the proposal | **`config/site.yaml`** (families, space, threat-intel sources, versions, the organisation) |
 | 7. the LLM keys (optional) | the path of your keys file, or `none` | **`config/llm.local.yaml`** (`keys_file`) |
-| 8. the services | install the units? start them? | `~/.config/systemd/user/argus-*.{service,timer}`; `config/local.yaml` (`units`) |
-| 9. doctor | nothing | nothing: init's exit code is doctor's |
+| 8. the web | the address people open it at (or `none`: this machine only); optionally your CA's certificate and key; the networks allowed; your sign-in name and password | `data/tls/argus.crt` and `argus.key` (mode 600); `config/local.yaml` (`units.web.*`, `web.tls_pin_sha256`); your account in the database |
+| 9. the services | install the units? start them? the nightly backup? | `~/.config/systemd/user/argus-*.{service,timer}`; `config/local.yaml` (`units`); with Kibana, `local/creds-sync/` and `local/argus-kibana-read.env` for the read-back |
+| 10. doctor | nothing | nothing: init's exit code is doctor's |
 
 For automation, the same answers in a YAML file: `uv run argus init --answers answers.yaml`
 ([section 5](#5-scripted-install-argus-init---answers)).
@@ -143,29 +162,42 @@ costs: [costs.md](costs.md).
 
 ### Step G. Start the services
 
+Answer **yes** to *Start ARGUS's services now?*, or run init again with `--start`:
+
 ```bash
-uv run argus init --start               # enables and starts the four services, records them in units.run
+uv run argus init --start
 systemctl --user status 'argus-*' --no-pager
 ```
 
-### Step H. The first user and the web
+It starts every service this installation runs: the collector, the worker, the assessments and
+the web; with Kibana, the read-back of cases (`argus-kibana-sync`); and, unless you say no, the
+nightly database backup and the weekly restore drill. It ends with the address to open:
+
+```
+init: done; ARGUS is running. Open https://192.168.10.20:8765/ and sign in
+```
+
+If it warns that the services stop when `argus` logs out, run the `loginctl` line from Step A.
+
+### Step H. Sign in
+
+Open the address init printed and sign in with the name and password you gave at step 8. With a
+self-signed certificate the browser warns once: check that the warning names the address you
+typed, then continue (or import your CA into the browser so it never warns). If you answered
+`none` at step 8, the web stays on this machine: from your own computer run
+`ssh -L 8765:127.0.0.1:8765 argus@<this machine>` and open <http://127.0.0.1:8765/>.
+
+More people: `uv run argus user add alice --name "Alice Example"`, then
+`uv run argus user grant alice manage_cases` ([section 7.1](#71-more-people)). To let approvals
+be recorded, make the approval key once:
 
 ```bash
-uv run argus user add alice --name "Alice Example"          # the password is asked twice
-uv run argus user grant alice manage_cases reopen approve admin
 mkdir -p -m 700 data/keys
-uv run argus approvals keygen data/keys/approval-signing.key   # lets approvals be recorded
+uv run argus approvals keygen data/keys/approval-signing.key
 ```
 
-Add the key to `config/local.yaml` (`web: {approval_key_file: data/keys/approval-signing.key}`)
-and restart the web (`systemctl --user restart argus-web`). Then, from your own computer:
-
-```bash
-ssh -L 8765:127.0.0.1:8765 argus@argus-host.example.org
-# open http://127.0.0.1:8765/ and sign in
-```
-
-To serve it on the network over HTTPS instead: [section 7.3](#73-open-it-on-the-network-tls).
+and set `units.web.approval_key_file` to its full path in `config/local.yaml`, then
+`uv run argus units install --apply --reload && systemctl --user restart argus-web`.
 
 ### Step I. Optional extras
 
@@ -173,9 +205,7 @@ To serve it on the network over HTTPS instead: [section 7.3](#73-open-it-on-the-
 |---|---|---|
 | Outside threat intel | free VirusTotal, Shodan, Censys keys ([llm.md](llm.md#35-other-optional-keys-outside-threat-intel)) | `.env`: `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` |
 | Your DNS resolvers | so they never join unrelated campaigns | `config/local.yaml`: `campaigns.resolvers` |
-| Backups on a timer | `systemctl --user enable --now argus-backup.timer argus-backup-drill.timer` ([operations.md](operations.md#backups)) | `config/local.yaml`: `units.run` |
-| Daily and weekly reports | `systemctl --user enable --now argus-report-daily.timer argus-report-weekly.timer` | `units.run` |
-| Kibana read-back | `argus-kibana-sync` ([kibana.md](kibana.md#the-read-back)) | `local/argus-kibana-read.env`, `units.run` |
+| Daily and weekly reports | `systemctl --user enable --now argus-report-daily.timer argus-report-weekly.timer`, and add both to `units.run` | `units.run` |
 | The case team in Kibana | `uv run argus case team provision`, then switch posting on ([case-team.md](case-team.md)) | `local/creds-writer/`, `local/argus-writer.env`, `config/local.yaml` |
 | The exact, narrower SIEM key | the role init printed after discovery; `uv run argus init --force-key` | `.env` |
 
@@ -189,7 +219,10 @@ uv run argus worker status          # dossiers being written
 ```
 
 In the Inbox, *Review → Not reviewed* fills as the worker writes dossiers; the backfill of
-`history.window` (5 days) follows over minutes to hours, within the load budget.
+`history.window` (5 days) follows over minutes to hours, within the load budget. The status bar
+at the top shows the AI spend, the SIEM's state and **Kibana sync** (the read-back's newest
+cycle: *in sync*, *partly read*, *failing*, *late*, or *not running yet* before its first
+cycle); *System → Health* has the details.
 
 ### Where every value lives
 
@@ -201,6 +234,8 @@ In the Inbox, *Review → Not reviewed* fills as the worker writes dossiers; the
 | `config/llm.local.yaml` | the path of your LLM keys file | `argus init` | no |
 | your LLM keys file (e.g. `~/secrets/llm-keys.env`) | the model keys, `NAME=value` | you | outside the checkout (mode 600) |
 | `data/certs/` | the pinned CA certificates | `argus init` | no |
+| `data/tls/argus.crt`, `argus.key` | the web's certificate and key (mode 600) | `argus init` (or you) | no |
+| `local/creds-sync/`, `local/argus-kibana-read.env` | the read-back's own credentials and switches (empty by default: its key stays in `.env`) | `argus init` | no |
 | `data/assets/asset_map.yaml` | your imported asset map | `argus assets import` | no (mode 600) |
 | `data/keys/` | the approval key, the web's secret | `argus approvals keygen`, `argus sessions keygen` | no (mode 600) |
 | `local/creds-writer/`, `local/argus-writer.env` | the case team's keys and the writer's switches | `argus case team provision`, you | no (mode 600) |
@@ -518,9 +553,11 @@ uv run argus init
 > 00:00-01:30 UTC: ARGUS asks it nothing optional now; run this again after 01:30 UTC)`.
 > Rerun it afterwards: everything done so far is kept.
 
-Init asks its questions in nine numbered steps. Whenever something is missing it stops with a
+Init asks its questions in ten numbered steps. Whenever something is missing it stops with a
 one-line fix; fix it and run `argus init` again: what is done is kept ("kept"), only what is
-missing is done. Enter keeps the value shown in brackets.
+missing is done. Enter keeps the value shown in brackets. A value it cannot use (a key in the
+wrong form, a date it cannot read, a password typed differently twice) is explained with
+`not taken: ...` and asked again.
 
 ### Step 1: prerequisites
 
@@ -540,6 +577,14 @@ ARGUS's own database); free disk (fails below 2 GiB, warns below 10 GiB). Each m
 names its fix, e.g.
 `MISSING: docker compose v2 is missing: install the compose plugin (https://docs.docker.com/compose/install/linux/)`.
 
+When `config/local.yaml` came from another machine (a copied checkout, a moved installation),
+its paths name that machine's folder. Init rewrites every path under the old `units.root` to this
+checkout, and a `units.uv` that does not exist here to this machine's uv:
+
+```
+   moved: config/local.yaml named /home/someone/argus (another checkout); 4 paths now name this one (units.root, ...)
+```
+
 ### Step 2: `.env` (the database passwords)
 
 ```
@@ -550,7 +595,9 @@ names its fix, e.g.
 Init creates `.env` (mode 600) with the database's names and new random passwords for:
 the schema owner (the container's superuser; only `argus db ...` and backups log in as it),
 ARGUS's runtime login (`argus_app`: every service), and the web's own login (`argus_api`, used
-only by the web). It never prints a secret and never overwrites a value already in `.env`.
+only by the web). It never prints a secret and never overwrites a value already in `.env`. When
+the web's password lives in the web unit's credentials folder instead (`units.web.credentials`,
+holding `database.api_password`), step 3 makes the web's login from there.
 (`REPLICA_ELASTIC_PASSWORD` is also written: `docker-compose.yml` names it for an optional
 development service, and compose refuses to read the file without it.)
 
@@ -612,8 +659,26 @@ The index patterns of your logs, for the key's starting role (comma-separated) [
       "encoded" from the answer: that is the key. It expires in 90 days (note the date).
 Paste the SIEM key (not shown):
    SIEM key: stored in .env (ARGUS_SIEM__API_KEY)
-When does the SIEM key expire (YYYY-MM-DD) (none to skip) [none]: 2027-02-01
+When does the SIEM key expire: YYYY-MM-DD, "expiration" from the answer, or 90d (none to skip) [none]: 90d
 ```
+
+Kibana's answer to the request looks like this; **only `encoded` is the key**:
+
+```
+{
+  "id": "aB3d...Pq2R",                 <- not the key
+  "name": "argus-reader",
+  "expiration": 1801550534086,         <- paste this at the expiry question, or type 90d
+  "api_key": "Q7mZ...8sYe",             <- not the key either (22 characters)
+  "encoded": "YUIzZEVm...OHNZZQ=="     <- the key: about 80 characters
+}
+```
+
+Init refuses the `api_key` or `id` value with `not taken: this is the "api_key" or "id" of the
+answer: paste the value of "encoded"` and asks again. A line copied whole
+(`"encoded": "czhD...",`) is fine: init strips the name, the quotes and the comma. **Never share
+a screenshot of this answer**: if one leaks, invalidate that key in Kibana (Stack Management → API
+keys) and make a new one.
 
 The same follows for Kibana's key if you gave Kibana's address (Enter skips it: Kibana stays
 off). Init then checks the key read-only through ARGUS's gateway: it must authenticate as an
@@ -688,7 +753,9 @@ prints the **exact** keys for your site:
 
 If Kibana's lane has already spent this minute's share on discovery, init says
 `Kibana key: not checked now (its lane is paced; discovery spent this minute's share): check it
-later with `argus kibana selftest`` and goes on.
+later with `argus kibana selftest`` and goes on. If Kibana does not accept the key, init says so
+in words: `Kibana answered as to someone who is not signed in: it did not accept the key. Paste
+the value of "encoded" ...`; run `argus init --force-key` with the right value.
 
 ### Step 7: the LLM providers' keys (optional)
 
@@ -705,30 +772,73 @@ Give the path of a file of `NAME=value` lines (mode 600) holding your providers'
 asset map** ([llm.md](llm.md#10-the-asset-map)): with a model key and no map, the assessment
 service refuses to start, because the privacy layer could not recognise your asset names.
 
-### Step 8: the services
+### Step 8: the web
 
 ```
-8. the services (systemd user units)
+8. the web: where people open it, its certificate, the first person
+The address people open ARGUS at: this machine's IP or name (none: this machine only, reached with ssh -L) (none to skip) [192.168.10.20]:
+Your organisation's CA certificate, to sign the web's certificate so browsers trust it (none: a self-signed one, which browsers warn about once) (none to skip) [none]:
+The networks people open it from (CIDR; others are refused) (comma-separated) [192.168.0.0/16]:
+   certificate: made data/tls/argus.crt for 192.168.10.20, signed by itself (self-signed)
+   https://192.168.10.20:8765: written units.web.host, units.web.tls_cert, ..., web.tls_pin_sha256
+Your sign-in name for the web (lowercase; none: add people later with argus user add) (none to skip): alex
+Your name as ARGUS shows it [alex]: Alex Example
+A password for alex (10 or more characters):
+The same password again:
+   alex: created, with every capability (argus user grant changes it)
+```
+
+- **The address** is offered from the route to your SIEM (this machine's address on that
+  network). Answer `none` to keep the web on `127.0.0.1` only, reached through an SSH tunnel.
+- **The certificate** names that address (and `localhost`). Give your organisation's CA
+  certificate and its private key to have it signed by that CA: browsers that already trust the
+  CA (as they do for Kibana, when Kibana's certificate comes from it) show no warning. The CA's
+  key is read once to sign and never copied. Init must be able to read it; if only root can, have
+  an administrator sign it instead ([section 13](#13-argus-on-the-siems-own-machine)) and put the
+  two files at `data/tls/argus.crt` and `data/tls/argus.key`: init keeps a certificate that
+  already names the address. Without a CA, the certificate is self-signed.
+- **The allowlists and the pin** are written together (`units.web.host`, `tls_cert`, `tls_key`,
+  `allowed_hosts`, `allowed_networks`, `public_url`, and `web.tls_pin_sha256` for doctor), so the
+  web's own checks pass the first time. When the address changes (a moved installation), the old
+  one is replaced everywhere, including the case team's links in `local/argus-writer.env`.
+- **The first person** gets every capability. Init asks only while the web has no account.
+
+Open the port in the machine's firewall for those networks if one is active
+(`sudo ufw status`; [section 7.3](#73-your-own-certificate-and-the-firewall)).
+
+### Step 9: the services
+
+```
+9. the services (systemd user units)
 Install the systemd user units? [Y/n]:
-Start ARGUS's services now? [y/N]:
+Start ARGUS's services now? [y/N]: y
+Back up ARGUS's database every night (and check a restore every week)? [Y/n]:
    24 new, 0 changed, 0 kept (/home/argus/.config/systemd/user)
-   not started (by your choice): argus init --start starts the collector, the worker, the web and the assessments
+   started: argus-collector.service, argus-worker.service, argus-web.service, argus-assess.service, argus-kibana-sync.service, argus-backup.timer, argus-backup-drill.timer
 ```
 
 Init renders the unit templates in `deploy/systemd/` for this checkout and this uv, and writes
-them to `~/.config/systemd/user/`. New units are installed **disabled**. It starts the four
-services only if you say so ([section 6](#6-start-the-services)).
+them to `~/.config/systemd/user/`. Answering yes starts **every unit this installation runs**:
+the four services, every unit already listed in `units.run`, the Kibana read-back when Kibana is
+set up (init makes the two files its unit reads), and the backups unless you decline them. They
+are recorded in `units.run`. Answer no and nothing starts: the units stay installed and
+disabled, doctor says *installed, not started yet* as a warning, and `argus init --start` starts
+them later ([section 6](#6-start-the-services)).
 
-### Step 9: `argus doctor`
+If lingering is off for the account, init says so with the one command an administrator runs
+(`sudo loginctl enable-linger argus`); without it the services stop when the account logs out
+and wait for a login after a reboot.
+
+### Step 10: `argus doctor`
 
 Init ends with `argus doctor` and **its exit code is doctor's**: 0 when no check fails.
 
 ```
-init: done; doctor shows no failure
+init: done; ARGUS is running. Open https://192.168.10.20:8765/ and sign in
 ```
 
-Warnings are expected on a fresh install: no backup yet, the backup timers not enabled, the
-approval key not set, no Node toolchain, `custody: not installed`. See
+Warnings are expected on a fresh install: no backup yet, the approval key not set, no Node
+toolchain, `custody: not installed`, threat-intel feeds not synced yet. See
 [troubleshooting.md](troubleshooting.md#doctor-on-a-fresh-install).
 
 ### The files init writes
@@ -738,11 +848,14 @@ approval key not set, no Node toolchain, `custody: not installed`. See
 | `.env` | Secrets only: the database passwords, `ARGUS_SIEM__API_KEY`, `ARGUS_KIBANA__READER_API_KEY` | 600 |
 | `config/local.yaml` | This installation: the SIEM's and Kibana's addresses and CA files, the keys' expiry dates, `kibana.enabled`, `web.database_role`, `units` | 644 |
 | `config/site.yaml` | Your organisation and its Elastic: families, space, threat intel, time zone, domains, networks | 644 |
-| `config/llm.local.yaml` | The path of your LLM keys file (or `keys_file: null`) | 644 |
+| `config/llm.local.yaml` | The path of your LLM keys file (relative to the checkout when it is inside it, or `keys_file: null`) | 644 |
 | `data/certs/siem-ca.crt` (and `kibana-ca.crt`) | The pinned CA certificates | 644 |
+| `data/tls/argus.crt`, `data/tls/argus.key` | The web's certificate and key | 644, 600 |
+| `local/creds-sync/`, `local/argus-kibana-read.env` | The read-back unit's credentials folder and switches, empty | 700, 600 |
 
 None of them is tracked by git. They are yours to edit; `argus doctor` checks them all, and a
-rerun of init keeps what is there.
+rerun of init keeps what is there. When init changes a value in `config/local.yaml` it edits that
+line in place: your comments and layout stay.
 
 ---
 
@@ -777,7 +890,7 @@ siem:
   # ca_file: /path/to/http_ca.crt    # trust: file
   log_patterns: [logs-*]             # the starting key's log patterns
   api_key_file: /home/argus/secrets/argus-reader.key   # mode 600; or api_key_env: ARGUS_READER_KEY
-  api_key_expires: 2027-02-01
+  api_key_expires: 2027-02-01        # or the answer's "expiration" (1801550534086), or 90d
 kibana:
   url: https://siem.example.org:5601     # or none
   trust: same                            # same | file | chain | system
@@ -797,9 +910,18 @@ discovery:
   accept: true                           # write the proposal to config/site.yaml
 llm:
   keys_file: none                        # or /home/argus/secrets/llm-keys.env
+web:
+  address: 192.168.10.20                   # left out: the web stays on 127.0.0.1
+  # ca_cert: /etc/pki/org-ca.crt         # with ca_key: signed by your CA; left out: self-signed
+  # ca_key: /etc/pki/org-ca.key
+  networks: [10.0.0.0/8]                 # left out: the private range the address is in
+  person: alex                           # left out: nobody is made (argus user add later)
+  person_name: Alex Example
+  person_password_file: /home/argus/secrets/alex.pw   # mode 600; or person_password_env
 units:
   install: true
   start: false
+  backups: true                          # with start: the nightly backup and the weekly drill
 ```
 
 Every answer:
@@ -813,7 +935,7 @@ Every answer:
 | `siem.fingerprint` | The SHA-256 fingerprint of the CA the SIEM presents (`siem.trust: chain`); case and separators do not matter |
 | `siem.api_key_file` | A file holding the read-only API key (the `encoded` form), mode 600 |
 | `siem.api_key_env` | An environment variable holding the read-only API key |
-| `siem.api_key_expires` | When the key expires, `YYYY-MM-DD` |
+| `siem.api_key_expires` | When the key expires: `YYYY-MM-DD`, the answer's `expiration` (milliseconds), or a number of days (`90d`) |
 | `siem.log_patterns` | The index patterns of the logs, for the starting role (default `logs-*`) |
 | `kibana.url` | Kibana's address, `https://host:5601`, or `none` |
 | `kibana.trust` | `same` (the SIEM's CA), `file`, `chain` or `system`; asked only when the SIEM's CA does not verify Kibana, or offered as `same` when it does |
@@ -821,7 +943,7 @@ Every answer:
 | `kibana.fingerprint` | The SHA-256 fingerprint of the CA Kibana presents (`kibana.trust: chain`) |
 | `kibana.api_key_file` | A file holding Kibana's read-only API key, or `none` |
 | `kibana.api_key_env` | An environment variable holding Kibana's read-only API key |
-| `kibana.api_key_expires` | When Kibana's key expires, `YYYY-MM-DD` |
+| `kibana.api_key_expires` | When Kibana's key expires, as for the SIEM's |
 | `organisation.name` | The organisation's name |
 | `organisation.short_name` | The security team's name (page header, PDF footer) |
 | `organisation.kind` | What kind of organisation it is, a lower-case noun (default `organisation`) |
@@ -833,8 +955,14 @@ Every answer:
 | `organisation.space` | The Kibana space that holds the Security alerts (must be one discovery found) |
 | `discovery.accept` | `true`: write what discovery proposes to `config/site.yaml` |
 | `llm.keys_file` | The LLM providers' keys file, or `none` (every LLM feature off) |
+| `web.address` | The address people open the web at (this machine's IP or name); left out, the web stays on the loopback |
+| `web.ca_cert`, `web.ca_key` | A CA certificate and its private key to sign the web's certificate; left out, it is self-signed |
+| `web.networks` | The networks people open the web from (CIDR); default: the private range the address is in |
+| `web.person`, `web.person_name` | The first person's sign-in name and display name; left out, nobody is made |
+| `web.person_password_file` / `_env` | The first person's password, from a file (mode 600) or an environment variable; never in the answers file |
 | `units.install` | `true`: install the systemd user units |
-| `units.start` | `true`: enable and start the four services |
+| `units.start` | `true`: enable and start every unit this installation runs |
+| `units.backups` | With `units.start`: `true` (default) adds the nightly backup and the weekly restore drill |
 
 Lists may also be written as one comma-separated string (`own_domains: example.org, example.net`).
 
@@ -845,26 +973,27 @@ failure; **2** an answer or the usage is wrong.
 
 ## 6. Start the services
 
-ARGUS runs as four long-running services (systemd **user** units of your account):
+ARGUS runs as four long-running services (systemd **user** units of your account), plus the
+Kibana read-back when Kibana is set up and the backup timers:
 
 | Unit | What it does |
 |---|---|
 | `argus-collector.service` | Probes the SIEM's health and polls for new alerts every minute, refreshes workflow states every 15 minutes, reconciles hourly, backfills `history.window` |
 | `argus-worker.service` | Gathers the evidence and writes a dossier for each queued investigation |
 | `argus-assess.service` | Proposes outcomes (decision engine, then the optional AI investigator), suggests cases, writes incident reports |
-| `argus-web.service` | The Inbox and its API, on `127.0.0.1:8765` |
+| `argus-web.service` | The Inbox and its API, on `127.0.0.1:8765` or the address of step 8 |
+| `argus-kibana-sync.service` | With Kibana: reads back what people did to the Kibana cases holding ARGUS's alerts, every 10 to 60 minutes |
+| `argus-backup.timer`, `argus-backup-drill.timer` | The nightly database dump (21:30 UTC) and the weekly restore drill (Sundays) |
 
 Start them:
 
 ```bash
 uv run argus init --start
-# or, by hand:
-systemctl --user enable --now argus-collector argus-worker argus-web argus-assess
 ```
 
-`argus init --start` also records the four in `units.run` in `config/local.yaml`; doctor then
-checks that each of them is installed and enabled. If you start them by hand, add them there
-yourself:
+`argus init --start` records them in `units.run` in `config/local.yaml`; doctor then checks that
+each of them is installed and enabled. If you start units by hand
+(`systemctl --user enable --now ...`), add them there yourself:
 
 ```yaml
 # config/local.yaml
@@ -873,7 +1002,7 @@ units:
 ```
 
 **Keep them running while you are logged out.** User units stop when your last session ends
-unless lingering is on:
+unless lingering is on (init warns when it is off; an administrator turns it on once):
 
 ```bash
 sudo loginctl enable-linger "$USER"
@@ -887,14 +1016,16 @@ systemctl --user status 'argus-*' --no-pager
 journalctl --user -u argus-collector -n 50 --no-pager
 ```
 
-The timers (nightly backup, weekly restore drill, reports, purge) are installed but not enabled:
-switch them on as described in [operations.md](operations.md#services-and-timers).
+The other timers (reports, purge, notices) are installed but not enabled: switch them on as
+described in [operations.md](operations.md#services-and-timers).
 
 ---
 
 ## 7. Create the first web user and open the Inbox
 
-### 7.1 The first user
+### 7.1 More people
+
+`argus init` made the first account (step 8). Add the others:
 
 ```bash
 uv run argus user add alice --name "Alice Example"
@@ -902,7 +1033,7 @@ uv run argus user add alice --name "Alice Example"
 ```
 
 Without `--capability`, an account can **view**, **see logs**, **review** and **answer gold-set
-items**. Give the first administrator more:
+items**. Give an administrator more:
 
 ```bash
 uv run argus user grant alice manage_cases reopen approve admin
@@ -912,9 +1043,11 @@ uv run argus user list
 The eight capabilities and what they allow are in
 [web-ui-guide.md](web-ui-guide.md#users-and-capabilities).
 
-### 7.2 Open it (loopback, the default)
+### 7.2 Open it
 
-The web listens on **`127.0.0.1:8765` only**. From your own computer, forward the port over SSH:
+With an address at step 8, open `https://<address>:8765/` (init prints it at the end). Without
+one, the web listens on **`127.0.0.1:8765` only**; from your own computer, forward the port over
+SSH:
 
 ```bash
 ssh -L 8765:127.0.0.1:8765 argus@argus-host.example.org
@@ -923,11 +1056,15 @@ ssh -L 8765:127.0.0.1:8765 argus@argus-host.example.org
 and open <http://127.0.0.1:8765/> in your browser. Sign in with the account you created; you
 land on the app at `/app`.
 
-### 7.3 Open it on the network (TLS)
+### 7.3 Your own certificate, and the firewall
+
+Init's step 8 sets all of this up. This section is for doing it by hand: a certificate from
+elsewhere (a public CA, your PKI team), or a change later.
 
 To serve the Inbox to reviewers directly, the web needs **all of**: a TLS certificate and key, the
 host names browsers use (`allowed_hosts`), and the client networks allowed (`allowed_networks`).
-ARGUS refuses to listen on anything but the loopback without them.
+ARGUS refuses to listen on anything but the loopback without them, and refuses a `public_url`
+whose host is not in `allowed_hosts`.
 
 The web unit takes these from `units.web` in `config/local.yaml`:
 
@@ -1043,7 +1180,7 @@ only what is missing or wrong. Nothing is overwritten without a flag or an expli
 | `--force-trust` | Pins the SIEM's and Kibana's CA again (a renewed certificate) |
 | `--force-key` | Asks for new keys and replaces them in `.env` (a rotated or narrowed key) |
 | `--force-site` | Runs discovery again and rewrites `config/site.yaml` |
-| `--start` | Enables and starts the four services |
+| `--start` | Enables and starts every unit this installation runs |
 | `--no-compose` | Uses a PostgreSQL that is already running (the one `.env` names) |
 | `--answers FILE` | Answers from a YAML file; never prompts |
 | `--config FILE` | Another config file than `config/argus.yaml` |
@@ -1128,3 +1265,99 @@ Then, in Kibana (Stack Management → API keys), invalidate the keys `argus-read
 cd ~ && rm -rf ~/argus
 sudo loginctl disable-linger "$USER"     # if nothing else of yours needs it
 ```
+
+---
+
+## 13. ARGUS on the SIEM's own machine
+
+ARGUS can run on the machine that runs Elasticsearch and Kibana. It is the simplest place: no
+second machine, the SIEM is local, and its outage stops ARGUS too, so nothing raises a false
+alarm. It is also production, so keep ARGUS small beside it:
+
+- **Its own account**, as in [Step A](#step-a-the-machine-5-minutes): `argus` with no password
+  and no sudo. Membership of the `docker` group is root-equivalent on the host; if that is too
+  much, use the custody layout ([architecture.md](architecture.md)).
+- **Disk.** On one disk shared with Elasticsearch, ARGUS's database (a few GB after weeks) and
+  its backups eat into Elasticsearch's watermark headroom. Keep `retention` and `backup.keep_*`
+  modest, and copy the nightly dumps off the machine ([operations.md](operations.md#backups)):
+  a disk failure would otherwise take the SIEM and ARGUS together.
+- **CPU and memory.** The units already cap memory (512 MB to 2 GB each) and run the batch work
+  at a lower priority. To give Elasticsearch priority, add a drop-in per unit, for example
+  `~/.config/systemd/user/argus-worker.service.d/caps.conf` with
+  `[Service]` / `CPUQuota=50%` / `CPUWeight=20` / `IOWeight=10`. (Doctor reports a drop-in as a
+  change to the unit; that is expected here.)
+- **The web's certificate from the SIEM's CA.** Kibana's browsers already trust the CA that
+  signed Kibana's certificate, so a web certificate from the same CA raises no warning. If the
+  CA's key is readable only by root, an administrator signs it (the key never leaves its folder):
+
+  ```bash
+  # as your administrator account; CA = the folder holding the SIEM's ca.crt and ca.key
+  D=$(mktemp -d) && cd "$D" && umask 077
+  openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+    -subj "/CN=ARGUS web" -keyout argus.key -out argus.csr
+  printf 'subjectAltName=IP:192.168.10.20,IP:127.0.0.1,DNS:localhost\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n' > argus.ext
+  sudo openssl x509 -req -in argus.csr -days 825 -sha256 -extfile argus.ext \
+    -CA "$CA/ca.crt" -CAkey "$CA/ca.key" -set_serial 0x$(openssl rand -hex 16) -out argus.crt
+  openssl verify -CAfile "$CA/ca.crt" argus.crt          # argus.crt: OK
+  sudo install -o argus -g argus -m 600 argus.key /home/argus/argus/data/tls/argus.key
+  sudo install -o argus -g argus -m 644 argus.crt /home/argus/argus/data/tls/argus.crt
+  cd / && rm -rf "$D"
+  ```
+
+  Then run `argus init` as `argus`: step 8 keeps a certificate that already names the address.
+  Check the CA's key file while you are there: it should be readable by root only
+  (`-rw-------`); if every account can read it, any of them can make certificates the SIEM's
+  users will trust.
+
+---
+
+## 14. Moving ARGUS to another machine
+
+Two ways, chosen before you start:
+
+- **Fresh**: the new machine starts with an empty database and reads back `history.window` of
+  alerts (5 days) on its first start. Past reviews, cases and the spending ledger stay with the
+  old machine's last dump.
+- **Carry the history**: restore the old machine's last dump on the new one
+  ([operations.md](operations.md#backups)), in a window where the old one is stopped.
+
+Either way:
+
+1. **Install the new machine** (Steps A to C). Clone the same repository and commit the old one
+   runs.
+2. **Copy what is not in git**, with `scp` or `rsync` straight between the machines, never
+   through chat or a ticket, keeping the modes: `.env` (secrets), your LLM keys file,
+   `data/assets/` (the asset map), `data/certs/` (the pinned CAs), and `local/` (the case team's
+   keys and switches, the web's and the read-back's credentials). Leave out `data/tls/`: the
+   certificate names the old address.
+3. **Run `argus init` without `--start`.** It rewrites the old checkout's paths in
+   `config/local.yaml` to this one, keeps the copied keys, asks the new web address and makes a
+   certificate for it, and updates the case team's links. Doctor then shows the services as
+   *installed, not started yet*.
+4. **Switch over in one short window.** On the old machine:
+   `systemctl --user disable --now 'argus-*.timer' 'argus-*.service'`, then
+   `uv run argus backup dump` for a last copy of its history. On the new one, at once:
+   `uv run argus init --start`. Never run both at the same time: they would post twice to the
+   same Kibana cases and spend the SIEM's budget twice.
+5. **Check** `uv run argus doctor`, the Inbox, and *System → Health* (alerts arriving, the
+   Kibana read-back's first cycle within the hour).
+
+---
+
+## 15. Mistakes people make, and what init does about them
+
+Seen in real installations; each is now caught or done for you:
+
+| What happened | What init does now |
+|---|---|
+| The `"api_key"` field (22 characters) or the `"id"` was pasted instead of `"encoded"` | Refuses it with `not taken: this is the "api_key" or "id" of the answer: paste the value of "encoded"`, and asks again |
+| The `"expiration"` number (`1801550534086`) was pasted at the expiry question, and init ended | Takes it (and `90d`, and a date); a value it cannot read is asked again |
+| Kibana answered "not signed in" to a wrong key and init printed a traceback | Says in words that Kibana did not accept the key |
+| `config/local.yaml` copied from another machine still named that machine's folders and web address | Rewrites the old folder's paths; step 8 replaces the old address, certificate and pin together |
+| `sed` on `config/local.yaml` missed values because init had rewritten its layout | Init edits values in place; comments and layout stay. You never need `sed` |
+| The web said "cannot reach its database": its own login was never made | Makes the web's login from the web unit's credentials folder |
+| `--start` started four services; the read-back, the case team and backups stayed off, and doctor failed | Starts every unit the installation runs, and the backups unless declined |
+| Answering *no* to starting made doctor print FAIL and init say "fix it" | *installed, not started yet* is a warning; init says how to start |
+| `sudo` was typed in the `argus` account and asked for a password that does not exist | The guide says which steps run as your administrator account; init prints the one `sudo` line linger needs |
+| A browser warned about the web's certificate | Step 8 signs it with your CA when you give one |
+| The status bar always said "Kibana sync: not set up yet" | It shows the read-back's newest cycle |

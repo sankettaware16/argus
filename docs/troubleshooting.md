@@ -45,7 +45,14 @@ uv run argus config validate            # the configuration, every problem liste
 | `answers.yaml does not answer siem.url (...)` | A scripted install lacks an answer: add it ([install.md](install.md#5-scripted-install-argus-init---answers)). Exit code 2. |
 | `answers.yaml gives siem.api_key itself: a key never goes in the answers file; name a file (siem.api_key_file) or an environment variable (siem.api_key_env) instead` | Put the key in a mode-600 file and name it. |
 | `siem.api_key_file: ... is readable by others (chmod 600)` | `chmod 600` the key file. |
-| `the SIEM key does not look like an API key's encoded form` | Paste the `encoded` value of the answer, not `id` or `api_key`. |
+| `not taken: this is the "api_key" or "id" of the answer: paste the value of "encoded" (the longest one)` | Kibana's answer has three strings; only `encoded` (about 80 characters) is the key. Init asks again. In an answers file the run stops (exit 2): put the `encoded` value in the key file. |
+| `not taken: siem.api_key_expires: '...' is not a date` | Give `YYYY-MM-DD`, the `expiration` number from Kibana's answer (`1801550534086`), or `90d`. |
+| `not taken: the two passwords differ` / `a password has 10 to 256 characters` | Type the web password again, the same twice, 10 characters or more. |
+| `cannot read the CA's key ... run argus init as an account that can read it, or answer none for a self-signed certificate` | The CA's key is root's: have an administrator sign the web's certificate ([install.md](install.md#13-argus-on-the-siems-own-machine)), put it at `data/tls/argus.crt` and `.key`, and rerun init (it keeps it). |
+| `... is not the key of ...` | The CA certificate and key you gave do not belong together. |
+| `moved: config/local.yaml named /old/path (another checkout); N paths now name this one` | Not an error: the copied settings now name this checkout. |
+| `warn: the services stop when argus logs out and do not start after a reboot: an administrator runs sudo loginctl enable-linger argus once` | Run that line from your administrator account (not as `argus`: it has no sudo). |
+| `[sudo] password for argus:` and nothing works | The `argus` account has no password and no sudo, by design. Run `sudo` lines from your own account (`exit`, then `ssh you@host`). |
 | `nothing written: run argus init again to answer differently, or write config/site.yaml yourself (argus discover --write) and run argus init again` | You declined discovery's proposal. |
 | `uv is not on PATH: set units.uv in config/local.yaml` | Set `units: {uv: /home/argus/.local/bin/uv}` (absolute). |
 | `warn: systemd did not reload (no user systemd here?)` | No user systemd session (e.g. `su` into the account). Log in as the user (SSH) or `sudo machinectl shell argus@`, then `systemctl --user daemon-reload`. |
@@ -137,9 +144,12 @@ days take a while within the budget.
 |---|---|
 | `Kibana key: not checked now (its lane is paced; discovery spent this minute's share): check it later with `argus kibana selftest`` | Not an error: run `uv run argus kibana selftest` a minute later. |
 | `Kibana's key is not what ARGUS needs: ...` | Make the key with init's printed request (Cases **read** in the space, nothing more), `argus init --force-key`. |
+| `Kibana answered as to someone who is not signed in: it did not accept the key` | The key in `.env` is wrong (often the `api_key` field). Check it: `curl --cacert data/certs/siem-ca.crt -H "Authorization: ApiKey <key>" https://<siem>:9200/_security/_authenticate` names `argus-kibana-reader` for a good key. Then `argus init --force-key`. |
+| The status bar says **Kibana sync: not running yet** | No read-back cycle is recorded yet. Check `systemctl --user status argus-kibana-sync` and `uv run argus kibana sync status`. The first cycle runs within minutes of the unit starting; while `kibana.enabled` or `kibana.sync.enabled` is false the unit says so and exits. |
+| **Kibana sync: late** or **failing** | Its newest cycle is over 90 minutes old, or failed: `journalctl --user -u argus-kibana-sync -n 50`; the SIEM in STOP pauses it on purpose. |
 | `PROBLEM: holds ...` from `argus kibana selftest` | The key holds a write privilege it must not: make a narrower key. |
 | `kibana.url is not configured (kibana: url: in the settings file)` | Kibana is enabled without an address: rerun `argus init` with Kibana's address, or set `kibana.enabled: false`. |
-| `argus-kibana-sync` fails at start: `Failed to load environment files` or `the credential directory ... does not exist` | The shipped unit expects `local/argus-kibana-read.env` and `local/creds-sync/`: create them ([kibana.md](kibana.md#the-read-back)). |
+| `argus-kibana-sync` fails at start: `Failed to load environment files` or `the credential directory ... does not exist` | The unit reads `local/argus-kibana-read.env` and `local/creds-sync/`: rerun `argus init` (it makes both when Kibana is set up). |
 | `argus kibana state` shows `STOPPED` | Kibana answered 401: renew the key, then `argus kibana resume --reason "..."`. |
 
 ## The services and units
@@ -148,14 +158,18 @@ days take a while within the budget.
 |---|---|
 | doctor `FAIL unit argus-web.service the installed copy differs from its rendered template (argus units install)` | You changed `units`, pulled a new version, or edited the installed file: `argus units install --apply --reload`, restart that service. |
 | doctor `FAIL unit ... not installed: run argus units install --apply` | Install the units. |
-| doctor `FAIL unit ... installed but not enabled` | A unit listed in `units.run` is not enabled: `systemctl --user enable --now <unit>`, or remove it from `units.run`. |
+| doctor `WARN unit ... installed, not started yet (argus init --start)` | Nothing runs yet, by your choice at init: `uv run argus init --start`. |
+| doctor `FAIL unit ... installed but not enabled` | Some units run, and this one, listed in `units.run`, does not: `uv run argus init --start`, or `systemctl --user enable --now <unit>`, or remove it from `units.run`. |
 | doctor `WARN unit ... enabled, but units.run does not list it (...): add it there (config/local.yaml) so doctor watches it` | Add the unit to `units.run`. |
 | doctor `FAIL unit ... enabled before its production step (...)` | A unit that waits for its own decision (purge, notices, reports, writer) is enabled but not in `units.run`. Add it to `units.run` if you meant it, else disable it. |
 | doctor `FAIL unit ... a drop-in changes it: ...` | Remove the drop-in; change `units` or the template instead. |
 | doctor `WARN services run the deployed code ... restart them` | The code changed after the services started: restart them. |
 | The services stop when you log out | `sudo loginctl enable-linger $USER`. |
 | `journalctl --user` shows nothing | Turn on persistent journald storage ([operations.md](operations.md#logs)). |
-| The web exits: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks (D-104); ...` | Complete `units.web` ([install.md](install.md#73-open-it-on-the-network-tls)) or return to the loopback. |
+| The web exits: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks; ...` | Rerun `argus init` and give the address at step 8, or complete `units.web` by hand ([install.md](install.md#73-your-own-certificate-and-the-firewall)). |
+| `units.web: public_url's host must be the loopback or one of allowed_hosts` | The address in `public_url` and `allowed_hosts` disagree (often after a move): rerun `argus init` and give the address at step 8; it writes both. |
+| The web page says **ARGUS cannot reach its database** | The web logs in with its own login (`units.web.database_role: api`) and that login does not exist or has another password: rerun `argus init` (it makes it from `ARGUS_DATABASE__API_PASSWORD` or the web's credentials folder), then `systemctl --user restart argus-web`. `journalctl --user -u argus-web -n 30` shows the database's answer. |
+| The browser warns about the certificate | Self-signed: import the certificate (or your CA) into the browsers, or rerun `argus init` with your CA at step 8 after deleting `data/tls/argus.crt`. Never type a password past a warning you did not expect. |
 
 ## Doctor on a fresh install
 
@@ -163,9 +177,10 @@ These are **expected** on a new installation and do not make doctor exit 1:
 
 | Line | Why, and when it goes away |
 |---|---|
-| `WARN backups no dump in data/backups yet: the nightly dump starts when argus-backup.timer is enabled (a production step)` | Enable the backup timers ([operations.md](operations.md#backups)). |
+| `WARN backups no dump in data/backups yet: ...` | The first nightly dump runs at 21:30 UTC (init enables the timer with `--start`); `argus backup dump` makes one now. |
 | `WARN restore drill never run: ...` | Goes with the first drill (`argus backup drill`, or the weekly timer). |
-| `WARN unit argus-backup.timer not enabled yet (...): a production step` | The same. |
+| `WARN unit argus-backup.timer not enabled yet (...): a production step` | You declined the backups at init: `systemctl --user enable --now argus-backup.timer argus-backup-drill.timer` and add both to `units.run`. |
+| `WARN service units ... none started yet: argus init --start starts them` | You answered no to starting: `uv run argus init --start`. |
 | `WARN approval signing key (web) web.approval_key_file is not set: ...` | Make the key when you want two-person approvals ([web-ui-guide.md](web-ui-guide.md#approvals)). |
 | `WARN node toolchain no Node at ... (the system Node is never used): the frontend cannot be built on this machine` | Only developers who rebuild the web app need Node ([development.md](development.md#the-web-app)). |
 | `WARN custody not installed: ...` | A root-owned hardening layout used by the project's own production; not needed for a standard installation. |
