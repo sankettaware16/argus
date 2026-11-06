@@ -47,6 +47,44 @@ export type Action = {
 };
 
 /**
+ * ActionDoneIn
+ *
+ * A next step was done, in your words (what was done, by whom).
+ */
+export type ActionDoneIn = {
+    /**
+     * Attestation
+     */
+    attestation: string;
+};
+
+/**
+ * ActionDoneOut
+ */
+export type ActionDoneOut = {
+    /**
+     * Action Id
+     */
+    action_id: string;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * State
+     */
+    state: string;
+};
+
+/**
  * AddressOut
  */
 export type AddressOut = {
@@ -157,6 +195,24 @@ export type AlertsOut = {
      * Total
      */
     total: number;
+};
+
+/**
+ * AlternativeOut
+ */
+export type AlternativeOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * State
+     */
+    state: 'ruled_out' | 'fits' | 'unknown';
+    /**
+     * Test
+     */
+    test: string;
 };
 
 /**
@@ -427,6 +483,28 @@ export type AssessmentOut = {
 };
 
 /**
+ * AssetOut
+ *
+ * What the asset map says of an address (its own fields, as the site wrote them).
+ */
+export type AssetOut = {
+    /**
+     * Fields
+     */
+    fields: {
+        [key: string]: string;
+    };
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Network
+     */
+    network: string;
+};
+
+/**
  * AssignIn
  */
 export type AssignIn = {
@@ -438,6 +516,38 @@ export type AssignIn = {
      * User Id
      */
     user_id: number;
+};
+
+/**
+ * AuditItemOut
+ *
+ * One item the digest handled, to spot-check in ten seconds: was ARGUS right?
+ */
+export type AuditItemOut = {
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Closed As
+     */
+    closed_as: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'alert_group';
+    /**
+     * Title
+     */
+    title: string;
 };
 
 /**
@@ -574,6 +684,51 @@ export type BlocklistOut = {
 };
 
 /**
+ * BulkDismissIn
+ *
+ * Close up to 25 possible incidents as "not an incident", for one reason, each at the
+ * version you looked at. All or nothing: a refusal of one closes none, and says which.
+ */
+export type BulkDismissIn = {
+    /**
+     * Items
+     */
+    items: Array<BulkItemIn>;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reason
+     */
+    reason: 'rule_false_positive' | 'benign_expected' | 'benign_policy' | 'attempt_no_impact' | 'created_in_error' | 'duplicate';
+};
+
+/**
+ * BulkDismissed
+ */
+export type BulkDismissed = {
+    /**
+     * Closed
+     */
+    closed: Array<CaseRowOut>;
+};
+
+/**
+ * BulkItemIn
+ */
+export type BulkItemIn = {
+    /**
+     * Expected Version
+     */
+    expected_version: number;
+    /**
+     * Id
+     */
+    id: string;
+};
+
+/**
  * CapabilityOut
  */
 export type CapabilityOut = {
@@ -640,6 +795,23 @@ export type CaseChanged = {
 };
 
 /**
+ * CaseConfirmIn
+ *
+ * Confirm a possible incident: the suspected case becomes an open case. (``ConfirmIn`` is
+ * the body of ``/proposals/confirm``: one schema name each.)
+ */
+export type CaseConfirmIn = {
+    /**
+     * Expected Version
+     */
+    expected_version: number;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
  * CaseCounts
  */
 export type CaseCounts = {
@@ -660,6 +832,10 @@ export type CaseCounts = {
      */
     closed: number;
     /**
+     * Incidents
+     */
+    incidents: number;
+    /**
      * Mine
      */
     mine: number;
@@ -675,6 +851,39 @@ export type CaseCounts = {
      * Suspected
      */
     suspected: number;
+    /**
+     * Work
+     */
+    work?: number;
+};
+
+/**
+ * CaseDecisionOut
+ *
+ * The decision bar of a possible incident (a suspected case): confirm it as an incident,
+ * say it is not one with a reason, or merge it into another case; each with whether this
+ * person may now. ``after`` says what becomes possible once it is confirmed.
+ */
+export type CaseDecisionOut = {
+    /**
+     * After
+     */
+    after: string;
+    confirm: DecisionActionOut;
+    dismiss: DecisionActionOut;
+    /**
+     * Dismiss Effect
+     */
+    dismiss_effect?: string | null;
+    /**
+     * Kibana After Confirm
+     */
+    kibana_after_confirm?: string | null;
+    merge: DecisionActionOut;
+    /**
+     * Reasons
+     */
+    reasons: Array<DismissChoiceOut>;
 };
 
 /**
@@ -714,6 +923,8 @@ export type CaseDetail = {
      * Closure Choices
      */
     closure_choices: Array<ClosureChoiceOut>;
+    decision: CaseDecisionOut | null;
+    engine?: EngineOut | null;
     /**
      * History
      */
@@ -722,6 +933,11 @@ export type CaseDetail = {
      * History Total
      */
     history_total: number;
+    hold?: HoldOut | null;
+    /**
+     * Incident Id
+     */
+    incident_id: string | null;
     /**
      * Indicators
      */
@@ -775,6 +991,10 @@ export type CaseDetail = {
      * Timeline Total
      */
     timeline_total: number;
+    /**
+     * Undo Until
+     */
+    undo_until?: string | null;
     watch: WatchStatusOut | null;
     whats_new: WhatsNewOut;
 };
@@ -807,6 +1027,15 @@ export type CaseIndicatorOut = {
      * Value
      */
     value: string;
+};
+
+/**
+ * CaseMarked
+ *
+ * The case as it is now, with its hold, waiting time and your last look.
+ */
+export type CaseMarked = {
+    case: CaseRowOut;
 };
 
 /**
@@ -895,7 +1124,7 @@ export type CasePage = {
     /**
      * View
      */
-    view: 'active' | 'attention' | 'mine' | 'suspected' | 'closed' | 'all' | 'notified' | 'queue';
+    view: 'active' | 'attention' | 'mine' | 'suspected' | 'closed' | 'all' | 'notified' | 'queue' | 'work' | 'incidents';
 };
 
 /**
@@ -952,6 +1181,7 @@ export type CaseReportOut = {
      * Generated At
      */
     generated_at: string | null;
+    glance?: GlanceOut | null;
     /**
      * Logs Hidden
      */
@@ -970,6 +1200,7 @@ export type CaseReportOut = {
     prose_by: string | null;
     reject: ReportActionOut;
     report: IncidentReport | null;
+    sent?: SentOut | null;
     /**
      * Stale
      */
@@ -1012,10 +1243,12 @@ export type CaseRowOut = {
      * Closure Reason
      */
     closure_reason: 'remediated_verified' | 'remediated_unverified' | 'risk_accepted' | 'attempt_no_impact' | 'rule_false_positive' | 'benign_expected' | 'benign_policy' | 'duplicate' | 'created_in_error' | 'stopped_after_notice' | null;
+    engine?: EngineOut | null;
     /**
      * First Alert At
      */
     first_alert_at: string | null;
+    hold?: HoldOut | null;
     /**
      * Id
      */
@@ -1054,6 +1287,7 @@ export type CaseRowOut = {
      */
     opened_at: string | null;
     owner: PersonRef | null;
+    seen?: SeenOut | null;
     /**
      * Severity
      */
@@ -1078,6 +1312,10 @@ export type CaseRowOut = {
      * Waiting For Approval
      */
     waiting_for_approval: number;
+    /**
+     * Waiting Since
+     */
+    waiting_since?: string | null;
 };
 
 /**
@@ -1168,6 +1406,31 @@ export type CaseSummaryOut = {
 };
 
 /**
+ * CaseTeamHealthOut
+ *
+ * Posting confirmed incidents to Kibana: ``failing`` (a request failed and waits for a
+ * person), ``waiting`` (confirmed incidents are not in Kibana yet), or ``ok``.
+ */
+export type CaseTeamHealthOut = {
+    /**
+     * Failing Since
+     */
+    failing_since: string | null;
+    /**
+     * Held
+     */
+    held: number;
+    /**
+     * Last Run At
+     */
+    last_run_at: string | null;
+    /**
+     * State
+     */
+    state: 'ok' | 'waiting' | 'failing';
+};
+
+/**
  * CaseTeamOut
  */
 export type CaseTeamOut = {
@@ -1222,6 +1485,18 @@ export type CaseTeamOut = {
      * Steps
      */
     steps: Array<TeamStepOut>;
+};
+
+/**
+ * CaughtUpOut
+ *
+ * Your "since" is now: Today counts what ARGUS handled from here.
+ */
+export type CaughtUpOut = {
+    /**
+     * Since
+     */
+    since: string;
 };
 
 /**
@@ -1877,6 +2152,10 @@ export type DashboardKpis = {
      */
     follow_up: number;
     /**
+     * Incident Cases
+     */
+    incident_cases: number;
+    /**
      * Incidents
      */
     incidents: number;
@@ -1900,6 +2179,10 @@ export type DashboardKpis = {
      * Open Critical
      */
     open_critical: number;
+    /**
+     * Possible Incidents
+     */
+    possible_incidents: number;
     /**
      * Reviewed
      */
@@ -2001,6 +2284,20 @@ export type DayAlertsOut = {
 };
 
 /**
+ * DecisionActionOut
+ */
+export type DecisionActionOut = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Why Not
+     */
+    why_not: string | null;
+};
+
+/**
  * DecisionDone
  */
 export type DecisionDone = {
@@ -2067,6 +2364,44 @@ export type DecisionRecordOut = {
 };
 
 /**
+ * DismissChoiceOut
+ */
+export type DismissChoiceOut = {
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Meaning
+     */
+    meaning: string;
+    /**
+     * Reason
+     */
+    reason: 'rule_false_positive' | 'benign_expected' | 'benign_policy' | 'attempt_no_impact' | 'created_in_error' | 'duplicate';
+};
+
+/**
+ * DismissIn
+ *
+ * Say a possible incident is not one, for a reason: the suspected case is closed.
+ */
+export type DismissIn = {
+    /**
+     * Expected Version
+     */
+    expected_version: number;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reason
+     */
+    reason: 'rule_false_positive' | 'benign_expected' | 'benign_policy' | 'attempt_no_impact' | 'created_in_error' | 'duplicate';
+};
+
+/**
  * DossierOut
  *
  * What ARGUS checked: the newest dossier, in the words the investigation page uses.
@@ -2124,6 +2459,147 @@ export type DossierOut = {
      * Version
      */
     version: number;
+};
+
+/**
+ * EngineCheckOut
+ */
+export type EngineCheckOut = {
+    /**
+     * State
+     */
+    state: 'checked' | 'ruled_out' | 'unknown';
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * EngineObjectOut
+ */
+export type EngineObjectOut = {
+    /**
+     * Kind
+     */
+    kind: 'device' | 'account' | 'site';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Role
+     */
+    role: 'affected' | 'actor';
+};
+
+/**
+ * EngineOut
+ */
+export type EngineOut = {
+    /**
+     * Active
+     */
+    active: boolean;
+    /**
+     * Alert Groups
+     */
+    alert_groups: number;
+    /**
+     * Alerts
+     */
+    alerts: number;
+    /**
+     * Alternatives
+     */
+    alternatives: Array<AlternativeOut>;
+    /**
+     * Band
+     */
+    band: 'P1' | 'P2' | 'P3' | 'P4';
+    /**
+     * Certainty
+     */
+    certainty: 'Likely' | 'Suspected' | 'Unclear' | 'Likely harmless';
+    /**
+     * Changed
+     */
+    changed: Array<string>;
+    /**
+     * Checks
+     */
+    checks: Array<EngineCheckOut>;
+    /**
+     * First Seen
+     */
+    first_seen: string;
+    /**
+     * Incident Id
+     */
+    incident_id: number;
+    /**
+     * Lane
+     */
+    lane: 'decisive' | 'burst' | 'slow' | 'campaign' | 'exposure';
+    /**
+     * Last Seen
+     */
+    last_seen: string;
+    /**
+     * Objects
+     */
+    objects: Array<EngineObjectOut>;
+    /**
+     * Priority
+     */
+    priority: number;
+    /**
+     * Raised By Ai
+     */
+    raised_by_ai: boolean;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Why
+     */
+    why: Array<WhyItemOut>;
+    /**
+     * Why Line
+     */
+    why_line: string;
+};
+
+/**
+ * EntityDayOut
+ *
+ * One day of the value in ARGUS's records: its alert groups (by the site's day their bucket
+ * is named for), and for an address the host names that day's alert groups named (from the
+ * SIEM, untrusted) and the accounts that signed in from it (by UTC day, as ARGUS keeps
+ * sign-ins; names only with ``see_logs``).
+ */
+export type EntityDayOut = {
+    /**
+     * Account Names
+     */
+    account_names: Array<string> | null;
+    /**
+     * Accounts
+     */
+    accounts: number | null;
+    /**
+     * Alert Groups
+     */
+    alert_groups: number;
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Hosts
+     */
+    hosts: Array<string>;
 };
 
 /**
@@ -2196,6 +2672,101 @@ export type EntityOut = {
      * Value
      */
     value: unknown;
+};
+
+/**
+ * EntityPageOut
+ *
+ * What ARGUS knows of a device, account, campus site or outside address: its incidents, its
+ * alert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps
+ * alert detail (it keeps every incident and decision).
+ */
+export type EntityPageOut = {
+    /**
+     * Address Class
+     */
+    address_class: string | null;
+    /**
+     * Alert Groups
+     */
+    alert_groups: Array<GroupRowOut>;
+    /**
+     * Alert Groups Total
+     */
+    alert_groups_total: number;
+    asset: AssetOut | null;
+    /**
+     * Days
+     */
+    days: Array<EntityDayOut>;
+    /**
+     * Dynamic
+     */
+    dynamic: boolean | null;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * History Days
+     */
+    history_days: number;
+    /**
+     * Incidents
+     */
+    incidents: Array<CaseRowOut>;
+    /**
+     * Incidents Total
+     */
+    incidents_total: number;
+    /**
+     * Kind
+     */
+    kind: 'device' | 'account' | 'site' | 'outside';
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Notes
+     */
+    notes: Array<EntityNoteOut>;
+    /**
+     * Notes Total
+     */
+    notes_total: number;
+    /**
+     * Noun
+     */
+    noun: string;
+    /**
+     * Open Incidents
+     */
+    open_incidents: number;
+    /**
+     * Owner Told
+     */
+    owner_told: boolean;
+    /**
+     * Reputation
+     */
+    reputation: Array<ReputationOut>;
+    /**
+     * Shared By
+     */
+    shared_by: number | null;
+    /**
+     * Stored Kind
+     */
+    stored_kind: 'ip' | 'host' | 'domain' | 'user';
+    /**
+     * Timeline
+     */
+    timeline: Array<TimelineEventOut>;
+    /**
+     * Value
+     */
+    value: string;
 };
 
 /**
@@ -2571,6 +3142,145 @@ export type GapOut = {
 };
 
 /**
+ * GlanceItemOut
+ *
+ * One bar or list item of the glance: a label from the report, its alerts (None: the
+ * report names it without a count), what the report says of it.
+ */
+export type GlanceItemOut = {
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Note
+     */
+    note: string;
+    /**
+     * Value
+     */
+    value: number | null;
+};
+
+/**
+ * GlanceLayerOut
+ *
+ * One stacked series of alerts over time: a rule (or all the rest), a value per bar.
+ */
+export type GlanceLayerOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Values
+     */
+    values: Array<number>;
+};
+
+/**
+ * GlanceOut
+ *
+ * The incident at a glance, as the Visualiser draws it (UI v2 A17), from the report shown
+ * (what the logs said is hidden for an account without ``see_logs``). Names of people never
+ * appear.
+ */
+export type GlanceOut = {
+    /**
+     * Activity
+     */
+    activity: string;
+    /**
+     * Actors
+     */
+    actors: number;
+    /**
+     * Actors More
+     */
+    actors_more: boolean;
+    /**
+     * Actors Title
+     */
+    actors_title: string;
+    /**
+     * Alerts
+     */
+    alerts: number;
+    /**
+     * Bucket
+     */
+    bucket: string;
+    /**
+     * Call
+     */
+    call: string;
+    /**
+     * Days
+     */
+    days: Array<string>;
+    /**
+     * Dwell
+     */
+    dwell: string;
+    /**
+     * First
+     */
+    first: string | null;
+    /**
+     * Last
+     */
+    last: string | null;
+    /**
+     * Layers
+     */
+    layers: Array<GlanceLayerOut>;
+    /**
+     * Listed
+     */
+    listed: number;
+    /**
+     * Rule Rows
+     */
+    rule_rows: Array<GlanceItemOut>;
+    /**
+     * Rules
+     */
+    rules: number;
+    /**
+     * Rules More
+     */
+    rules_more: boolean;
+    /**
+     * Severity
+     */
+    severity: string;
+    /**
+     * Targets
+     */
+    targets: number;
+    /**
+     * Targets More
+     */
+    targets_more: boolean;
+    /**
+     * Targets Title
+     */
+    targets_title: string;
+    /**
+     * Targets Word
+     */
+    targets_word: string;
+    /**
+     * Top Actors
+     */
+    top_actors: Array<GlanceItemOut>;
+    /**
+     * Top Targets
+     */
+    top_targets: Array<GlanceItemOut>;
+};
+
+/**
  * GoldAnswerIn
  */
 export type GoldAnswerIn = {
@@ -2773,6 +3483,72 @@ export type GroupItemOut = {
 };
 
 /**
+ * GroupRowOut
+ *
+ * An alert group (an investigation) that holds the value.
+ */
+export type GroupRowOut = {
+    /**
+     * Alerts
+     */
+    alerts: number;
+    case: InCaseOut | null;
+    /**
+     * First At
+     */
+    first_at: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Last At
+     */
+    last_at: string | null;
+    /**
+     * Rule Name
+     */
+    rule_name: string | null;
+};
+
+/**
+ * HandledCategoryOut
+ */
+export type HandledCategoryOut = {
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
+ * HandledOut
+ */
+export type HandledOut = {
+    audit: AuditItemOut | null;
+    /**
+     * Categories
+     */
+    categories: Array<HandledCategoryOut>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Since
+     */
+    since: string;
+};
+
+/**
  * HealthOut
  */
 export type HealthOut = {
@@ -2784,6 +3560,7 @@ export type HealthOut = {
      * Backfill Cursor
      */
     backfill_cursor: string | null;
+    case_team?: CaseTeamHealthOut | null;
     /**
      * Checkpoint Bytes
      */
@@ -2871,6 +3648,67 @@ export type HistoryItemOut = {
 };
 
 /**
+ * HoldIn
+ *
+ * I'm checking: what you wait on (one line, your words) and when it comes back (at most
+ * 14 days ahead).
+ */
+export type HoldIn = {
+    /**
+     * Expected Version
+     */
+    expected_version: number;
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Until
+     */
+    until: string;
+};
+
+/**
+ * HoldOut
+ *
+ * A person's "I'm checking" on a possible incident: it leaves everyone else's Needs you
+ * until ``until`` (or a material change, or P1).
+ */
+export type HoldOut = {
+    by: HolderOut;
+    /**
+     * Mine
+     */
+    mine: boolean;
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Since
+     */
+    since: string;
+    /**
+     * Until
+     */
+    until: string;
+};
+
+/**
+ * HolderOut
+ */
+export type HolderOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Username
+     */
+    username: string;
+};
+
+/**
  * Hypothesis
  */
 export type Hypothesis = {
@@ -2908,6 +3746,30 @@ export type HypothesisOut = {
      * Name
      */
     name: string;
+};
+
+/**
+ * InCaseOut
+ *
+ * The incident (case) an alert group belongs to: it is decided there, not on its own.
+ */
+export type InCaseOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Number
+     */
+    number: number;
+    /**
+     * State
+     */
+    state: 'suspected' | 'open' | 'assigned' | 'contained' | 'closed';
+    /**
+     * Title
+     */
+    title: string;
 };
 
 /**
@@ -2973,6 +3835,51 @@ export type IncidentReport = {
     timeline: ReportTimeline;
     users: ReportUsers;
     verdict: ReportVerdict;
+};
+
+/**
+ * IncidentReportRowOut
+ *
+ * A confirmed incident's report, newest version.
+ */
+export type IncidentReportRowOut = {
+    /**
+     * Case Id
+     */
+    case_id: string;
+    /**
+     * Case State
+     */
+    case_state: string;
+    /**
+     * Files
+     */
+    files: Array<ReportFileOut>;
+    /**
+     * Generated At
+     */
+    generated_at: string;
+    /**
+     * In Kibana
+     */
+    in_kibana: boolean;
+    /**
+     * Ir
+     */
+    ir: string | null;
+    /**
+     * Number
+     */
+    number: number;
+    sent: SentOut | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Version
+     */
+    version: number;
 };
 
 /**
@@ -3141,6 +4048,7 @@ export type InvestigationDetail = {
      * Assessments
      */
     assessments: Array<AssessmentOut>;
+    case?: InCaseOut | null;
     /**
      * Coverage
      */
@@ -3198,6 +4106,10 @@ export type InvestigationOut = {
      * Key Fields
      */
     key_fields: Array<KeyField>;
+    /**
+     * Key Words
+     */
+    key_words: string;
     known: KnownRefOut | null;
     /**
      * Last Event At
@@ -3243,6 +4155,10 @@ export type InvestigationOut = {
      * Severity
      */
     severity: string | null;
+    /**
+     * Title
+     */
+    title: string;
     /**
      * Version
      */
@@ -3458,6 +4374,78 @@ export type KnownRefOut = {
      * Why
      */
     why: string | null;
+};
+
+/**
+ * MemberReviewIn
+ */
+export type MemberReviewIn = {
+    /**
+     * Investigation Id
+     */
+    investigation_id: string;
+    /**
+     * Seen Review
+     */
+    seen_review: number | null;
+    /**
+     * Seen Version
+     */
+    seen_version: number;
+};
+
+/**
+ * MemberReviewOut
+ */
+export type MemberReviewOut = {
+    /**
+     * Investigation Id
+     */
+    investigation_id: string;
+    /**
+     * Review Id
+     */
+    review_id: number;
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
+ * MemberReviewsDone
+ */
+export type MemberReviewsDone = {
+    /**
+     * Reviews
+     */
+    reviews: Array<MemberReviewOut>;
+};
+
+/**
+ * MemberReviewsIn
+ *
+ * Mark several of one incident's alert groups at once: a verdict (an outcome) or "can't
+ * tell yet" (``follow_up``). Each names the version and the latest review you saw. "Real: act
+ * on it" (``true_positive``) only on a confirmed incident. All or nothing.
+ */
+export type MemberReviewsIn = {
+    /**
+     * Action
+     */
+    action: 'reviewed' | 'follow_up';
+    /**
+     * Items
+     */
+    items: Array<MemberReviewIn>;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Outcome
+     */
+    outcome?: 'benign_expected' | 'benign_policy' | 'rule_false_positive' | 'true_positive' | null;
 };
 
 /**
@@ -4453,6 +5441,14 @@ export type QueueCaseOut = {
      */
     number: number;
     /**
+     * Outside
+     */
+    outside: Array<string>;
+    /**
+     * Outside Total
+     */
+    outside_total: number;
+    /**
      * Severity
      */
     severity: 'low' | 'medium' | 'high' | 'critical';
@@ -5084,7 +6080,10 @@ export type ReportDecided = {
  * ReportDecisionOut
  *
  * What a person said about a version: confirmed, or rejected with the outcome they hold
- * instead and why. The labels written from it are counted in ``labelled``.
+ * instead and why. The labels written from it are counted in ``labelled``. ``held_from``: the
+ * earlier version it was made on, when it still holds for this one (the two differ only in the
+ * case's title or the accounts: a retitle renames what the person decided, it does not change
+ * it); None when it was made on this version.
  */
 export type ReportDecisionOut = {
     /**
@@ -5099,6 +6098,10 @@ export type ReportDecisionOut = {
      * Decision
      */
     decision: 'confirmed' | 'rejected';
+    /**
+     * Held From
+     */
+    held_from?: number | null;
     /**
      * Id
      */
@@ -5272,6 +6275,10 @@ export type ReportHeader = {
      */
     case_state: string;
     /**
+     * Certainty
+     */
+    certainty: string | null;
+    /**
      * Detected By
      */
     detected_by: string;
@@ -5280,6 +6287,10 @@ export type ReportHeader = {
      */
     first_alert_at: string | null;
     /**
+     * First Detected At
+     */
+    first_detected_at: string | null;
+    /**
      * Incident Id
      */
     incident_id: string;
@@ -5287,6 +6298,10 @@ export type ReportHeader = {
      * Last Alert At
      */
     last_alert_at: string | null;
+    /**
+     * Last Detected At
+     */
+    last_detected_at: string | null;
     /**
      * Opened In
      */
@@ -5373,6 +6388,10 @@ export type ReportMeta = {
      * As At
      */
     as_at: string;
+    /**
+     * Carried
+     */
+    carried: Array<string> | null;
     /**
      * Catalogue Version
      */
@@ -5750,6 +6769,10 @@ export type ReportTarget = {
      */
     served: Array<string>;
     /**
+     * Shared
+     */
+    shared: boolean;
+    /**
      * Value
      */
     value: string;
@@ -5836,6 +6859,10 @@ export type ReportVerdict = {
      */
     confidence_words: string | null;
     /**
+     * Investigations
+     */
+    investigations: number;
+    /**
      * Kind
      */
     kind: 'person' | 'proposal' | 'reading' | 'case' | 'none';
@@ -5843,6 +6870,10 @@ export type ReportVerdict = {
      * Outcome
      */
     outcome: 'benign_expected' | 'benign_policy' | 'rule_false_positive' | 'true_positive' | 'inconclusive' | null;
+    /**
+     * Reviewed
+     */
+    reviewed: number;
     /**
      * Sentences
      */
@@ -5901,6 +6932,52 @@ export type ReportsOut = {
      * Logs Hidden
      */
     logs_hidden: boolean;
+};
+
+/**
+ * ReportsPageOut
+ */
+export type ReportsPageOut = {
+    /**
+     * Has More
+     */
+    has_more: boolean;
+    /**
+     * Items
+     */
+    items: Array<IncidentReportRowOut>;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * ReputationOut
+ *
+ * What one outside source said of the value, when ARGUS last asked.
+ */
+export type ReputationOut = {
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Flagged
+     */
+    flagged: boolean;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Words
+     */
+    words: string;
 };
 
 /**
@@ -6183,6 +7260,148 @@ export type SamePatternOut = {
      * Investigation Id
      */
     investigation_id: string;
+};
+
+/**
+ * SearchEntityOut
+ */
+export type SearchEntityOut = {
+    /**
+     * Kind
+     */
+    kind: 'device' | 'account' | 'site' | 'outside';
+    /**
+     * Noun
+     */
+    noun: string;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * SearchOut
+ *
+ * One box: what the text looks like, the entity it names, and what holds it (at most five
+ * of each, with how many there are in all).
+ */
+export type SearchOut = {
+    /**
+     * Alert Groups
+     */
+    alert_groups: Array<GroupRowOut>;
+    /**
+     * Alert Groups Total
+     */
+    alert_groups_total: number;
+    entity: SearchEntityOut | null;
+    /**
+     * Guess
+     */
+    guess: 'number' | 'ir' | 'device_address' | 'outside_address' | 'domain' | 'name' | 'words';
+    /**
+     * Incidents
+     */
+    incidents: Array<CaseRowOut>;
+    /**
+     * Incidents Total
+     */
+    incidents_total: number;
+    /**
+     * Q
+     */
+    q: string;
+    /**
+     * Reports
+     */
+    reports: Array<IncidentReportRowOut>;
+    /**
+     * Reports Total
+     */
+    reports_total: number;
+};
+
+/**
+ * SeenDone
+ */
+export type SeenDone = {
+    /**
+     * Case Id
+     */
+    case_id: string;
+    seen: SeenOut;
+};
+
+/**
+ * SeenIn
+ *
+ * You looked at the case as the engine showed it at ``engine_version`` (None: a case the
+ * engine did not make): its changes up to then are not new to you any more.
+ */
+export type SeenIn = {
+    /**
+     * Engine Version
+     */
+    engine_version?: number | null;
+};
+
+/**
+ * SeenOut
+ *
+ * What the viewer last looked at of this case ("New since you last looked").
+ */
+export type SeenOut = {
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Case Version
+     */
+    case_version: number;
+    /**
+     * Engine Version
+     */
+    engine_version: number | null;
+};
+
+/**
+ * SentIn
+ *
+ * You sent the incident report (this version) to the CISO's office.
+ */
+export type SentIn = {
+    /**
+     * Report Version
+     */
+    report_version: number;
+    /**
+     * To
+     */
+    to: 'ciso';
+};
+
+/**
+ * SentOut
+ */
+export type SentOut = {
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * Report Version
+     */
+    report_version: number;
+    /**
+     * To
+     */
+    to: 'ciso';
 };
 
 /**
@@ -6512,6 +7731,74 @@ export type SpecialistOut = {
 };
 
 /**
+ * SpotCheckDone
+ */
+export type SpotCheckDone = {
+    /**
+     * Answer
+     */
+    answer: 'right' | 'wrong' | 'cant_tell';
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * Closed As
+     */
+    closed_as: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'incident' | 'alert_group';
+    score: SpotScoreOut;
+};
+
+/**
+ * SpotCheckIn
+ *
+ * Your answer to a spot-check: ARGUS's closing looks right, it is wrong (it should have
+ * been raised), or you cannot tell. ``kind`` is needed only when the id could be either.
+ */
+export type SpotCheckIn = {
+    /**
+     * Answer
+     */
+    answer: 'right' | 'wrong' | 'cant_tell';
+    /**
+     * Kind
+     */
+    kind?: 'incident' | 'alert_group' | null;
+};
+
+/**
+ * SpotScoreOut
+ *
+ * Your team's spot-checks over the last ``days`` days.
+ */
+export type SpotScoreOut = {
+    /**
+     * Checked
+     */
+    checked: number;
+    /**
+     * Days
+     */
+    days: number;
+    /**
+     * Wrong
+     */
+    wrong: number;
+};
+
+/**
  * StanceOut
  *
  * What ARGUS thinks of an investigation, in the order a person wants it (AR4, D-182): a
@@ -6727,6 +8014,20 @@ export type Summary = {
      * Text
      */
     text: string;
+};
+
+/**
+ * TakenByOut
+ */
+export type TakenByOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Username
+     */
+    username: string;
 };
 
 /**
@@ -6973,6 +8274,35 @@ export type ThreatTileOut = {
 };
 
 /**
+ * TimelineEventOut
+ *
+ * An alert group of the value, at its newest alert: the rule's name (from the SIEM,
+ * untrusted), its alerts, and the incident it is in (None: in none).
+ */
+export type TimelineEventOut = {
+    /**
+     * Alerts
+     */
+    alerts: number;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Case Number
+     */
+    case_number: number | null;
+    /**
+     * Investigation Id
+     */
+    investigation_id: string;
+    /**
+     * Rule Name
+     */
+    rule_name: string | null;
+};
+
+/**
  * TimelineItemOut
  */
 export type TimelineItemOut = {
@@ -7000,6 +8330,85 @@ export type TimelineItemOut = {
      * Until
      */
     until: string | null;
+};
+
+/**
+ * TodayCardOut
+ *
+ * One card of Today (the spec's ``Card``): the case that presents the incident (kind
+ * ``incident``); in shadow (``risk.present`` off) there is none, and the card is the engine's
+ * own incident (kind ``shadow``, ``id`` its incident id); a gray item is kind ``gray``.
+ */
+export type TodayCardOut = {
+    engine: EngineOut | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * In Kibana
+     */
+    in_kibana: boolean;
+    /**
+     * Kibana Wait
+     */
+    kibana_wait: string | null;
+    /**
+     * Kind
+     */
+    kind: 'incident' | 'alert_group' | 'shadow' | 'gray';
+    /**
+     * Notified At
+     */
+    notified_at: string | null;
+    /**
+     * Number
+     */
+    number: number | null;
+    /**
+     * State
+     */
+    state: 'suspected' | 'open' | 'assigned' | 'contained' | 'closed' | null;
+    taken_by: TakenByOut | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Waiting Since
+     */
+    waiting_since: string | null;
+};
+
+/**
+ * TodayOut
+ */
+export type TodayOut = {
+    /**
+     * Gray
+     */
+    gray: Array<TodayCardOut>;
+    handled: HandledOut;
+    /**
+     * Mode
+     */
+    mode: 'shadow' | 'present';
+    /**
+     * More Waiting
+     */
+    more_waiting: number;
+    /**
+     * Needs You
+     */
+    needs_you: Array<TodayCardOut>;
+    /**
+     * New Activity
+     */
+    new_activity: Array<TodayCardOut>;
 };
 
 /**
@@ -7062,6 +8471,18 @@ export type TuningReportOut = {
      * Week End
      */
     week_end: string;
+};
+
+/**
+ * UndoDismissIn
+ *
+ * Undo your own dismissal, right after it (within 15 minutes, nothing changed since).
+ */
+export type UndoDismissIn = {
+    /**
+     * Expected Version
+     */
+    expected_version: number;
 };
 
 /**
@@ -7329,6 +8750,24 @@ export type WhatsNewOut = {
 };
 
 /**
+ * WhyItemOut
+ */
+export type WhyItemOut = {
+    /**
+     * Op
+     */
+    op: '+' | '×';
+    /**
+     * Points
+     */
+    points: number;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * WithdrawNoticeIn
  *
  * Withdraw the notice recorded by mistake: who is withdrawing it (default: you) and why. The
@@ -7517,7 +8956,7 @@ export type ListCasesData = {
         /**
          * View
          */
-        view?: 'active' | 'attention' | 'mine' | 'suspected' | 'closed' | 'all' | 'notified' | 'queue';
+        view?: 'active' | 'attention' | 'mine' | 'suspected' | 'closed' | 'all' | 'notified' | 'queue' | 'work' | 'incidents';
         /**
          * Number
          */
@@ -7534,6 +8973,20 @@ export type ListCasesData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Taken By
+         *
+         * me, nobody, or a username
+         */
+        taken_by?: string;
+        /**
+         * Kibana
+         */
+        kibana?: 'in' | 'waiting' | 'failing';
+        /**
+         * Sort
+         */
+        sort?: 'activity' | 'waiting';
     };
     url: '/api/v1/cases';
 };
@@ -7567,6 +9020,55 @@ export type ListCasesResponses = {
 };
 
 export type ListCasesResponse = ListCasesResponses[keyof ListCasesResponses];
+
+export type BulkDismissCasesData = {
+    body: BulkDismissIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/cases/bulk-dismiss';
+};
+
+export type BulkDismissCasesErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type BulkDismissCasesError = BulkDismissCasesErrors[keyof BulkDismissCasesErrors];
+
+export type BulkDismissCasesResponses = {
+    /**
+     * Successful Response
+     */
+    200: BulkDismissed;
+};
+
+export type BulkDismissCasesResponse = BulkDismissCasesResponses[keyof BulkDismissCasesResponses];
 
 export type GetCaseData = {
     body?: never;
@@ -7615,6 +9117,68 @@ export type GetCaseResponses = {
 };
 
 export type GetCaseResponse = GetCaseResponses[keyof GetCaseResponses];
+
+export type MarkActionDoneData = {
+    body: ActionDoneIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+        /**
+         * Action Id
+         *
+         * a next step's catalogue id (<family>.<key>)
+         */
+        action_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/actions/{action_id}/done';
+};
+
+export type MarkActionDoneErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type MarkActionDoneError = MarkActionDoneErrors[keyof MarkActionDoneErrors];
+
+export type MarkActionDoneResponses = {
+    /**
+     * Successful Response
+     */
+    200: ActionDoneOut;
+};
+
+export type MarkActionDoneResponse = MarkActionDoneResponses[keyof MarkActionDoneResponses];
 
 export type AssignCaseData = {
     body: AssignIn;
@@ -7985,6 +9549,62 @@ export type RequestClosureResponses = {
 
 export type RequestClosureResponse = RequestClosureResponses[keyof RequestClosureResponses];
 
+export type ConfirmCaseData = {
+    body: CaseConfirmIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/confirm';
+};
+
+export type ConfirmCaseErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ConfirmCaseError = ConfirmCaseErrors[keyof ConfirmCaseErrors];
+
+export type ConfirmCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaseChanged;
+};
+
+export type ConfirmCaseResponse = ConfirmCaseResponses[keyof ConfirmCaseResponses];
+
 export type ContainCaseData = {
     body: ContainIn;
     path: {
@@ -8040,6 +9660,222 @@ export type ContainCaseResponses = {
 };
 
 export type ContainCaseResponse = ContainCaseResponses[keyof ContainCaseResponses];
+
+export type DismissCaseData = {
+    body: DismissIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/dismiss';
+};
+
+export type DismissCaseErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type DismissCaseError = DismissCaseErrors[keyof DismissCaseErrors];
+
+export type DismissCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaseChanged;
+};
+
+export type DismissCaseResponse = DismissCaseResponses[keyof DismissCaseResponses];
+
+export type ReleaseHoldData = {
+    body?: never;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/hold';
+};
+
+export type ReleaseHoldErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ReleaseHoldError = ReleaseHoldErrors[keyof ReleaseHoldErrors];
+
+export type ReleaseHoldResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaseMarked;
+};
+
+export type ReleaseHoldResponse = ReleaseHoldResponses[keyof ReleaseHoldResponses];
+
+export type HoldCaseData = {
+    body: HoldIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/hold';
+};
+
+export type HoldCaseErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type HoldCaseError = HoldCaseErrors[keyof HoldCaseErrors];
+
+export type HoldCaseResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaseMarked;
+};
+
+export type HoldCaseResponse = HoldCaseResponses[keyof HoldCaseResponses];
+
+export type ReviewCaseMembersData = {
+    body: MemberReviewsIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/members/reviews';
+};
+
+export type ReviewCaseMembersErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ReviewCaseMembersError = ReviewCaseMembersErrors[keyof ReviewCaseMembersErrors];
+
+export type ReviewCaseMembersResponses = {
+    /**
+     * Successful Response
+     */
+    201: MemberReviewsDone;
+};
+
+export type ReviewCaseMembersResponse = ReviewCaseMembersResponses[keyof ReviewCaseMembersResponses];
 
 export type MergeCaseData = {
     body: MergeIn;
@@ -8722,6 +10558,118 @@ export type RejectCaseReportResponses = {
 
 export type RejectCaseReportResponse = RejectCaseReportResponses[keyof RejectCaseReportResponses];
 
+export type MarkCaseSeenData = {
+    body: SeenIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/seen';
+};
+
+export type MarkCaseSeenErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type MarkCaseSeenError = MarkCaseSeenErrors[keyof MarkCaseSeenErrors];
+
+export type MarkCaseSeenResponses = {
+    /**
+     * Successful Response
+     */
+    200: SeenDone;
+};
+
+export type MarkCaseSeenResponse = MarkCaseSeenResponses[keyof MarkCaseSeenResponses];
+
+export type MarkReportSentData = {
+    body: SentIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/sent';
+};
+
+export type MarkReportSentErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type MarkReportSentError = MarkReportSentErrors[keyof MarkReportSentErrors];
+
+export type MarkReportSentResponses = {
+    /**
+     * Successful Response
+     */
+    201: SentOut;
+};
+
+export type MarkReportSentResponse = MarkReportSentResponses[keyof MarkReportSentResponses];
+
 export type DismissSuggestionData = {
     body?: never;
     path: {
@@ -8943,6 +10891,62 @@ export type ApproveCaseTeamResponses = {
 };
 
 export type ApproveCaseTeamResponse = ApproveCaseTeamResponses[keyof ApproveCaseTeamResponses];
+
+export type UndoDismissalData = {
+    body: UndoDismissIn;
+    path: {
+        /**
+         * Case Id
+         *
+         * a case's id
+         */
+        case_id: string;
+    };
+    query?: never;
+    url: '/api/v1/cases/{case_id}/undo-dismissal';
+};
+
+export type UndoDismissalErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type UndoDismissalError = UndoDismissalErrors[keyof UndoDismissalErrors];
+
+export type UndoDismissalResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaseChanged;
+};
+
+export type UndoDismissalResponse = UndoDismissalResponses[keyof UndoDismissalResponses];
 
 export type GetCostData = {
     body?: never;
@@ -9213,6 +11217,54 @@ export type ListEntitiesResponses = {
 
 export type ListEntitiesResponse = ListEntitiesResponses[keyof ListEntitiesResponses];
 
+export type GetEntityData = {
+    body?: never;
+    path: {
+        /**
+         * Kind
+         */
+        kind: 'device' | 'account' | 'site' | 'outside';
+        /**
+         * Value
+         *
+         * the address, host, domain or account name
+         */
+        value: string;
+    };
+    query?: never;
+    url: '/api/v1/entities/{kind}/{value}';
+};
+
+export type GetEntityErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetEntityError = GetEntityErrors[keyof GetEntityErrors];
+
+export type GetEntityResponses = {
+    /**
+     * Successful Response
+     */
+    200: EntityPageOut;
+};
+
+export type GetEntityResponse = GetEntityResponses[keyof GetEntityResponses];
+
 export type ListEntityNotesData = {
     body?: never;
     path?: never;
@@ -9420,6 +11472,58 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListIncidentReportsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Q
+         *
+         * an IR number, number or title
+         */
+        q?: string;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/incident-reports';
+};
+
+export type ListIncidentReportsErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ListIncidentReportsError = ListIncidentReportsErrors[keyof ListIncidentReportsErrors];
+
+export type ListIncidentReportsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReportsPageOut;
+};
+
+export type ListIncidentReportsResponse = ListIncidentReportsResponses[keyof ListIncidentReportsResponses];
 
 export type ListInvestigationsData = {
     body?: never;
@@ -10285,6 +12389,10 @@ export type ConfirmProposalsErrors = {
      */
     403: ErrorOut;
     /**
+     * the list holds a true positive (conflict): nothing was accepted
+     */
+    409: ErrorOut;
+    /**
      * the request does not match this contract
      */
     422: ErrorOut;
@@ -10473,6 +12581,50 @@ export type ListRulesResponses = {
 
 export type ListRulesResponse = ListRulesResponses[keyof ListRulesResponses];
 
+export type SearchData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Q
+         *
+         * an address, host, account, domain, rule, incident number or IR number
+         */
+        q: string;
+    };
+    url: '/api/v1/search';
+};
+
+export type SearchErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SearchError = SearchErrors[keyof SearchErrors];
+
+export type SearchResponses = {
+    /**
+     * Successful Response
+     */
+    200: SearchOut;
+};
+
+export type SearchResponse = SearchResponses[keyof SearchResponses];
+
 export type EndSessionData = {
     body?: never;
     path?: never;
@@ -10575,6 +12727,136 @@ export type GetSinceResponses = {
 };
 
 export type GetSinceResponse = GetSinceResponses[keyof GetSinceResponses];
+
+export type GetTodayData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/today';
+};
+
+export type GetTodayErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetTodayError = GetTodayErrors[keyof GetTodayErrors];
+
+export type GetTodayResponses = {
+    /**
+     * Successful Response
+     */
+    200: TodayOut;
+};
+
+export type GetTodayResponse = GetTodayResponses[keyof GetTodayResponses];
+
+export type AnswerSpotCheckData = {
+    body: SpotCheckIn;
+    path: {
+        /**
+         * Target Id
+         *
+         * the spot-checked incident or alert group
+         */
+        target_id: string;
+    };
+    query?: never;
+    url: '/api/v1/today/audit/{target_id}';
+};
+
+export type AnswerSpotCheckErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type AnswerSpotCheckError = AnswerSpotCheckErrors[keyof AnswerSpotCheckErrors];
+
+export type AnswerSpotCheckResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotCheckDone;
+};
+
+export type AnswerSpotCheckResponse = AnswerSpotCheckResponses[keyof AnswerSpotCheckResponses];
+
+export type MarkCaughtUpData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/today/caught-up';
+};
+
+export type MarkCaughtUpErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type MarkCaughtUpError = MarkCaughtUpErrors[keyof MarkCaughtUpErrors];
+
+export type MarkCaughtUpResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaughtUpOut;
+};
+
+export type MarkCaughtUpResponse = MarkCaughtUpResponses[keyof MarkCaughtUpResponses];
 
 export type ListTuningData = {
     body?: never;

@@ -54,13 +54,14 @@ class FreshnessRead(Freshness):
 
 def test_the_default_lanes_are_plan_7_8s_table() -> None:
     table = {
-        Lane.COLLECTOR: (1_800, 2_400_000, 1_600, 2),
+        Lane.COLLECTOR: (1_400, 1_800_000, 1_500, 2),
         Lane.INVESTIGATION: (400, 360_000, 300, 1),
         Lane.FRESHNESS: (100, 180_000, 0, 1),
         Lane.KIBANA_READ: (200, 240_000, 0, 1),
         Lane.KIBANA_WRITE: (200, 180_000, 0, 1),
         Lane.IDENTITY: (300, 120_000, 0, 1),
         Lane.MEASUREMENT: (0, 120_000, 100, 1),
+        Lane.CHECKING: (400, 600_000, 100, 1),
     }
     got = {
         lane: (s.per_minute_ms, s.per_day_ms, s.heavy_per_day, s.concurrency)

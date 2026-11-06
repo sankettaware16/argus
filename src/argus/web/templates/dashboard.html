@@ -38,7 +38,7 @@
       <label>Kind
         <select name="kind"><option value="">—</option>{% for kd, title in [("ip", "IP address"), ("host", "host"), ("domain", "domain"), ("user", "user")] %}<option value="{{ kd }}"{% if kd == f.kind %} selected{% endif %}>{{ title }}</option>{% endfor %}</select>
       </label>
-      <label class="grow">Value <input name="value" maxlength="300" value="{{ f.value or '' }}" placeholder="e.g. 10.8.235.157"></label>
+      <label class="grow">Value <input name="value" maxlength="300" value="{{ f.value or '' }}" placeholder="e.g. 10.201.7.13"></label>
       <label>From <input type="date" name="start" value="{{ f.start.isoformat() if f.start else '' }}"></label>
       <label>To <input type="date" name="end" value="{{ f.end.isoformat() if f.end else '' }}"></label>
     </div>
@@ -59,13 +59,15 @@
 <ul class="kpis" aria-label="Key numbers">
   <li><span class="kpi-label">Alerts</span><strong>{{ "{:,}".format(k.alerts) }}</strong>
     <span class="kpi-sub">{% if k.alerts_before %}{{ "+" if delta >= 0 else "−" }}{{ (100 * (delta | abs) / k.alerts_before) | round | int }}% vs the span before ({{ "{:,}".format(k.alerts_before) }}){% else %}none in the span before{% endif %}</span></li>
+  <li><a href="/app/cases?view=incidents"><span class="kpi-label">Incidents</span><strong>{{ "{:,}".format(k.incident_cases) }}</strong><span class="kpi-sub">confirmed cases not closed, now</span></a></li>
+  <li><a href="/app/cases?view=suspected"><span class="kpi-label">Possible incidents</span><strong>{{ "{:,}".format(k.possible_incidents) }}</strong><span class="kpi-sub">suspected cases waiting for a person, now</span></a></li>
   <li><span class="kpi-label">Investigations</span><strong>{{ "{:,}".format(k.cases) }}</strong><span class="kpi-sub">active in the span</span></li>
   <li><a href="{{ f.url(state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Open investigations</span><strong>{{ "{:,}".format(k.open) }}</strong><span class="kpi-sub">not reviewed, follow-up or changed</span></a></li>
   <li class="kpi-attention"><a href="/"><span class="kpi-label">Needs attention</span><strong>{{ "{:,}".format(k.attention) }}</strong><span class="kpi-sub">new work: severe, follow-up or changed</span></a></li>
   <li><a href="/?view=known"><span class="kpi-label">Notified, still active</span><strong>{{ "{:,}".format(k.known) }}</strong><span class="kpi-sub">known, counted and not raised ({{ d.notified | length }} case{{ "" if d.notified | length == 1 else "s" }})</span></a></li>
   <li class="kpi-critical"><a href="{{ f.url(severity=('critical',), state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Open critical</span><strong>{{ k.open_critical }}</strong><span class="kpi-sub">critical investigations not yet reviewed</span></a></li>
-  <li class="kpi-incident"><a href="{{ f.url(verdict=('true_positive',)) }}"><span class="kpi-label">Incidents</span><strong>{{ k.incidents }}</strong><span class="kpi-sub">a person said true positive</span></a></li>
-  <li class="kpi-suspected"><a href="{{ f.url(ai=('proposed_tp',), state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Suspected incidents</span><strong>{{ k.suspected }}</strong><span class="kpi-sub">ARGUS proposes true positive; to confirm</span></a></li>
+  <li class="kpi-incident"><a href="{{ f.url(verdict=('true_positive',)) }}"><span class="kpi-label">Called real by a person</span><strong>{{ k.incidents }}</strong><span class="kpi-sub">investigations a person said are true positives</span></a></li>
+  <li class="kpi-suspected"><a href="{{ f.url(ai=('proposed_tp',), state=('unreviewed', 'follow_up', 'changed_since_review')) }}"><span class="kpi-label">Called real by ARGUS</span><strong>{{ k.suspected }}</strong><span class="kpi-sub">investigations ARGUS proposes as true positives; to decide</span></a></li>
   <li><span class="kpi-label">Reviewed</span><strong>{{ "{:,}".format(k.reviewed) }}</strong><span class="kpi-sub">{% if k.cases %}{{ (100 * k.reviewed / k.cases) | round(1) }}% of the investigations{% else %}—{% endif %}</span></li>
   <li><span class="kpi-label">Time to first review</span><strong>{{ k.median_review_s | duration }}</strong><span class="kpi-sub">median, from the first alert</span></li>
   <li><span class="kpi-label">Assessed by ARGUS</span><strong>{% if k.cases %}{{ (100 * k.assessed / k.cases) | round | int }}%{% else %}—{% endif %}</strong><span class="kpi-sub">{{ "{:,}".format(k.assessed) }} of {{ "{:,}".format(k.cases) }} investigations</span></li>
@@ -106,7 +108,7 @@
   <h2>Top rules by alerts</h2>
   {% if d.rules %}
   <div class="table-scroll"><table class="list">
-    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col" class="num">Alerts</th><th scope="col" class="num">Investigations</th><th scope="col" class="num">Open</th><th scope="col" class="num">Incidents</th><th scope="col" class="num">Suspected</th><th scope="col"><span class="sr">Inbox</span></th></tr></thead>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col" class="num">Alerts</th><th scope="col" class="num">Investigations</th><th scope="col" class="num">Open</th><th scope="col" class="num">Real (a person)</th><th scope="col" class="num">Real (ARGUS)</th><th scope="col"><span class="sr">Inbox</span></th></tr></thead>
     <tbody>{% for r in d.rules %}<tr>
       <td><a href="{{ f.url(rule=r.rule_id) }}" title="Filter the dashboard on this rule">{{ r.rule | u(120) }}</a></td>
       <td>{% if r.severity %}<span class="sev sev-{{ r.severity }}">{{ r.severity }}</span>{% endif %}</td>
@@ -135,22 +137,22 @@
 {% macro cases_table(items, caption) %}
 <div class="table-scroll"><table class="list cards">
   <caption class="sr">{{ caption }}</caption>
-  <thead><tr><th scope="col">Investigation</th><th scope="col">Severity</th><th scope="col">Last alert</th><th scope="col" class="num">Alerts</th><th scope="col">State</th><th scope="col">Incident</th></tr></thead>
+  <thead><tr><th scope="col">Investigation</th><th scope="col">Severity</th><th scope="col">Last alert</th><th scope="col" class="num">Alerts</th><th scope="col">State</th><th scope="col">Called real</th></tr></thead>
   <tbody>{% for c in items %}<tr>
     <td><a href="/investigations/{{ c.id }}">{{ c.rule | u(120) }}</a><div class="sub">{% for fk, fv in c.key_fields %}<span class="mono">{{ fk | u(40) }} {{ fv | u(80) }}</span>{% if not loop.last %} · {% endif %}{% else %}single alert{% endfor %}</div></td>
     <td>{% if c.severity %}<span class="sev sev-{{ c.severity | u(10) }}">{{ c.severity | u(10) }}</span>{% endif %}</td>
     <td>{% if c.last_event_at %}<time title="{{ c.last_event_at | utc }}">{{ c.last_event_at | ist }}</time>{% endif %}</td>
     <td class="num">{{ c.alert_count }}</td>
     <td><span class="state state-{{ c.state }}">{{ state_titles[c.state] }}</span></td>
-    <td>{% if c.verdict == "true_positive" %}<span class="ai ai-true_positive">confirmed</span>{% elif c.ai == "proposed_tp" %}<span class="chip">suspected</span>{% else %}<span class="sub">—</span>{% endif %}</td>
+    <td>{% if c.verdict == "true_positive" %}<span class="ai ai-true_positive">by a person</span>{% elif c.ai == "proposed_tp" %}<span class="chip">by ARGUS</span>{% else %}<span class="sub">—</span>{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table></div>
 {% endmacro %}
 
 <section class="panel-card">
-  <h2>Incidents: confirmed and suspected</h2>
-  <p class="hint">Confirmed: a person's verdict is true positive. Suspected: ARGUS proposes true positive and nobody has decided yet; confirm or correct it on the investigation.</p>
-  {% if d.incidents %}{{ cases_table(d.incidents, "Incidents") }}{% else %}<p class="empty">No incident in this span.</p>{% endif %}
+  <h2>Investigations called real: by a person and by ARGUS</h2>
+  <p class="hint">By a person: their decision is “Real: act on it”. By ARGUS: ARGUS calls it real and nobody has decided yet; decide it on the investigation. Incidents themselves are cases: see Cases.</p>
+  {% if d.incidents %}{{ cases_table(d.incidents, "Investigations called real") }}{% else %}<p class="empty">None in this span.</p>{% endif %}
 </section>
 
 {% if d.notified %}

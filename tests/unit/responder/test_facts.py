@@ -11,7 +11,7 @@ from argus.responder import facts as fct
 from argus.responder.facts import FACTS, Facts
 
 C = cat.load()
-BEACON = [("ip", "10.8.235.157", "actor"), ("ip", "77.221.155.150", "c2")]
+BEACON = [("ip", "10.201.7.13", "actor"), ("ip", "77.221.155.150", "c2")]
 
 
 def keys(facts: Facts) -> list[str]:
@@ -22,7 +22,7 @@ def test_a_c2_indicator_is_the_ps1bot_family() -> None:
     facts = fct.from_parts(BEACON, [], [])
     assert facts.present == {"c2_indicator"}
     assert keys(facts) == ["c2_beacon"]
-    assert keys(fct.from_parts([("ip", "10.8.235.157", "actor")], [], [])) == []
+    assert keys(fct.from_parts([("ip", "10.201.7.13", "actor")], [], [])) == []
     assert keys(fct.from_parts([("ip", "77.221.155.150", "indicator")], [], [])) == []
 
 

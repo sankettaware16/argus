@@ -173,6 +173,10 @@ class InvestigationOut(Out):
     id: uuid.UUID
     rule_id: str
     rule_name: str | None
+    # the row's two lines in plain words, from the investigation's own facts (naming v2): who
+    # did what by its evidence flags (never the rule's name), and its key ("from 10.0.0.7")
+    title: str
+    key_words: str
     key_fields: list[KeyField]
     bucket_start: datetime
     alert_count: int
@@ -479,6 +483,15 @@ class SigninsOut(Out):
     devices_total: int
 
 
+class InCaseOut(Out):
+    """The incident (case) an alert group belongs to: it is decided there, not on its own."""
+
+    id: uuid.UUID
+    number: int
+    title: str
+    state: Literal["suspected", "open", "assigned", "contained", "closed"]
+
+
 class InvestigationDetail(Out):
     investigation: InvestigationOut
     coverage: list[CoverageOut]
@@ -492,6 +505,7 @@ class InvestigationDetail(Out):
     reviews: list[ReviewOut]  # newest first
     alert_fields: list[FieldCount]  # the columns a reviewer can add to the alerts
     signins: SigninsOut | None  # who used its devices; None: not set up on this server
+    case: InCaseOut | None = None  # the incident it belongs to (UI v2 A15); None: in none
 
 
 class EntityOut(Out):
@@ -800,6 +814,16 @@ class KibanaSyncOut(Out):
     last_complete_at: datetime | None
 
 
+class CaseTeamHealthOut(Out):
+    """Posting confirmed incidents to Kibana: ``failing`` (a request failed and waits for a
+    person), ``waiting`` (confirmed incidents are not in Kibana yet), or ``ok``."""
+
+    state: Literal["ok", "waiting", "failing"]
+    last_run_at: datetime | None  # the case team's newest round or request
+    failing_since: datetime | None  # when the oldest request still failed was sent
+    held: int  # confirmed incidents not in Kibana
+
+
 class HealthOut(Out):
     siem_state: str
     siem_reasons: list[str]
@@ -818,6 +842,7 @@ class HealthOut(Out):
     checkpoint_threads: int
     checkpoint_bytes: int
     kibana_sync: KibanaSyncOut
+    case_team: CaseTeamHealthOut | None = None  # posting confirmed incidents to Kibana (A5)
 
 
 class TermOut(Out):
@@ -940,8 +965,10 @@ class DashboardKpis(Out):
     attention: int  # new work
     known: int  # what notified cases' known infections keep out of it
     follow_up: int
-    incidents: int  # a person's verdict is true positive
-    suspected: int  # ARGUS proposes true positive and nobody has decided yet
+    incidents: int  # investigations a person's verdict calls a true positive
+    suspected: int  # investigations ARGUS proposes as true positive, nobody has decided yet
+    incident_cases: int  # incidents: confirmed cases not closed (now, whatever the filters)
+    possible_incidents: int  # possible incidents: suspected cases (now)
     reviewed: int
     assessed: int
     open_critical: int

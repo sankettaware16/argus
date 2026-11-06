@@ -70,6 +70,7 @@ class Purpose(StrEnum):
     KIBANA_READ = "kibana_read"  # the Kibana lane's reads
     KIBANA_WRITE = "kibana_write"  # case writes W1-W3
     DISCOVER = "discover"  # `argus discover`: a person's metadata reads, NORMAL only
+    CHECK = "check"  # the incident engine's checking lane (P4-F E3): NORMAL only, no quiet hours
 
 
 # The kill switch a purpose answers to, besides the global one. The re-measurement has no
@@ -90,6 +91,7 @@ COMPONENT = {
     Purpose.KIBANA_READ: "kibana",
     Purpose.KIBANA_WRITE: "cases",
     Purpose.DISCOVER: None,
+    Purpose.CHECK: "checking",
 }
 COMPONENTS = (
     "collector",
@@ -100,6 +102,7 @@ COMPONENTS = (
     "freshness",
     "cases",
     "identity",
+    "checking",
 )
 
 

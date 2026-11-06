@@ -1,5 +1,5 @@
 import type { Report, Value } from "../../client/types.gen";
-import { eidText, foundHeading, LINE_LABEL, LINE_TONE } from "../../lib/report";
+import { distinctLines, eidText, foundHeading, LINE_LABEL, LINE_TONE } from "../../lib/report";
 import { UntrustedText } from "../UntrustedText";
 import { Badge } from "../ui/badge";
 
@@ -28,37 +28,53 @@ export function Eids({ eids }: { eids: readonly string[] | undefined }) {
 
 /**
  * "What ARGUS found with extra SIEM queries" (plan §7.3): how many checks and how much SIEM
- * server time, then a line each: New, Nothing found, Could not tell, Failed, Not checked, Still
+ * server time, then a line each: Found, Nothing found, Could not tell, Failed, Not checked, Still
  * open (a colour is never the only sign: every line starts with its words), each with its
- * E-numbers and short provenance.
+ * E-numbers and short provenance. Each sentence once (P4-F U18): a line repeated in the report,
+ * or already shown above as a key fact (`shown`), is not said again; a version that made no new
+ * query and reused earlier answers (`cost.reused`) says its findings were reused from an earlier
+ * check.
  */
-export function FoundBox({ report, headingLevel = 3 }: { report: Report; headingLevel?: 2 | 3 }) {
+export function FoundBox({ report, headingLevel = 3, shown = [] }: { report: Report; headingLevel?: 2 | 3; shown?: readonly string[] }) {
   const found = report.found;
   const Heading = headingLevel === 2 ? "h2" : "h3";
+  const { items, above } = distinctLines(found.items, shown);
+  // only answers copied from an earlier version are reused: checks skipped for the SIEM's load,
+  // or deferred, also make no query, and their lines say they were not checked
+  const reused = found.checks === 0 && report.cost.reused > 0 && found.items.length > 0;
   return (
     <section aria-label="What ARGUS found with extra SIEM queries" className="rounded-card border border-info/40 bg-info-soft p-3">
       <Heading className="m-0 text-base font-semibold">What ARGUS found with extra SIEM queries</Heading>
-      <p className="m-0 mb-2 text-sm text-muted">{foundHeading(found.checks, found.server_ms)}. Compared with what the alerts alone say.</p>
+      <p className="m-0 mb-2 text-sm text-muted" data-testid="found-heading">
+        {reused ? "Reused from an earlier check: this version made no new SIEM query" : foundHeading(found.checks, found.server_ms)}. Compared with what the alerts alone say.
+      </p>
       {found.items.length === 0 ? (
         <p className="m-0 text-sm">No SIEM query was made for this investigation version.</p>
       ) : (
-        <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm">
-          {found.items.map((item, i) => (
-            <li key={i}>
-              <Badge tone={LINE_TONE[item.kind]} className="mr-1.5">
-                {LINE_LABEL[item.kind]}
-              </Badge>
-              <UntrustedText value={item.sentence} limits={{ maxChars: 600, maxLines: 6 }} />
-              <Eids eids={item.eids} />
-              <Values values={item.values} />
-              {item.note && (
-                <div className="font-mono text-xs text-muted italic">
-                  <UntrustedText value={item.note} limits={{ maxChars: 400, maxLines: 2 }} />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          {above > 0 && (
+            <p className="m-0 mb-2 text-sm text-muted" data-testid="found-above">
+              {above === 1 ? "One finding is" : `${above} findings are`} under Key facts above.
+            </p>
+          )}
+          <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm">
+            {items.map((item, i) => (
+              <li key={i}>
+                <Badge tone={LINE_TONE[item.kind]} className="mr-1.5">
+                  {LINE_LABEL[item.kind]}
+                </Badge>
+                <UntrustedText value={item.sentence} limits={{ maxChars: 600, maxLines: 6 }} />
+                <Eids eids={item.eids} />
+                <Values values={item.values} />
+                {item.note && (
+                  <div className="font-mono text-xs text-muted italic">
+                    <UntrustedText value={item.note} limits={{ maxChars: 400, maxLines: 2 }} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   );

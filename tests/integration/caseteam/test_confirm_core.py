@@ -153,5 +153,40 @@ async def test_every_new_version_stores_the_hash_without_its_accounts(
     assert [r.version for r in rows] == [1, 2]
     assert rows[0].core_hash == rows[1].core_hash  # only the accounts differ
     assert rows[0].content_hash != rows[1].content_hash
-    assert rows[0].core_hash == rows[0].content_hash  # no accounts: the hash it always was
+    # naming v2: the core leaves out the case's title too, so it is not the content hash
+    assert rows[0].core_hash != rows[0].content_hash
     assert m.core_hash is not None
+
+
+def renamed(report: Any) -> Any:
+    """The report with the case renamed by ARGUS (naming v2): only the title and the headline."""
+    header = report.header.model_copy(
+        update={"title": f"{report.header.incident_id} · Likely a clearer name",
+                "certainty": "Likely"}
+    )  # fmt: skip
+    summary = report.summary.model_copy(
+        update={"headline": "A new headline: Likely a clearer name"}
+    )
+    return report.model_copy(update={"header": header, "summary": summary})
+
+
+async def test_a_confirm_survives_a_version_that_only_renames_the_case(
+    app_engine: AsyncEngine,
+    migrated_engine: AsyncEngine,
+    writer_engine: AsyncEngine,
+    people: dict[str, Person],
+) -> None:
+    """A retitle renames what a person confirmed; it does not undo the confirm."""
+    from argus.incident import store as incident_store
+
+    case = await a_case(migrated_engine, app_engine, people["asha"], confirmed=True)
+    stored = await save_version(app_engine, case, renamed)
+    assert stored.version == 2
+    async with app_engine.connect() as conn:
+        first = await incident_store.version(conn, case, 1)
+        assert first is not None
+        assert m.core_hash(first.report) == m.core_hash(stored.report)
+        held = await incident_store.holding(conn, stored)
+    assert held is not None
+    assert (held.decision.decision, held.held_from) == ("confirmed", 1)
+    assert await candidates(writer_engine) == [case]

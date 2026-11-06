@@ -64,6 +64,7 @@ MAX_MEMBERS = 500  # members or indicators one change may add (a merge moves the
 NEW_ACTIVITY = "New activity after containment"
 RAISED_REASON = "ARGUS suggests this case: "  # how the reason of a suggested case starts
 ATTENTION_LIMIT = 500  # the column's limit (cases.notes_length)
+CLAIMS_KEPT = 24  # the claims a retitle event keeps (a title has at most about a dozen)
 TOLD_LIMIT = 200  # who was told, or who blocked
 WHERE_LIMIT = 100  # where a block was put
 NOTICE_PAST = timedelta(days=365)  # a notice or a block is dated within the last year...
@@ -104,7 +105,12 @@ class Open:
 
 @dataclass(frozen=True)
 class Confirm:
+    """A person confirms a suspected case. ``title_by_person`` (the service sets it from the
+    case's events) keeps a person's title in Kibana as they wrote it; ARGUS's loses its
+    certainty word there."""
+
     note: str | None = None
+    title_by_person: bool = False
 
 
 @dataclass(frozen=True)
@@ -122,8 +128,12 @@ class ConfirmByVerdict:
 
 @dataclass(frozen=True)
 class Dismiss:
+    """``posted``: the IR number the case team posted the case to Kibana under, if it may be
+    there (the service finds out). Such a case is not dismissed: its Kibana case would stay open."""
+
     reason: Reason
     note: str | None = None
+    posted: str | None = None
 
 
 @dataclass(frozen=True)
@@ -242,16 +252,22 @@ class AddressMoved:
 @dataclass(frozen=True)
 class Retitle:
     """A new title for the case: a person's own words (with the reason), or ARGUS's
-    refreshed title when the case's facts changed (the service refuses ARGUS's when a person set
-    the title). Any state; nothing is mirrored to Kibana (a title is posted once, at creation)."""
+    refreshed title when the case's facts changed materially (the service refuses ARGUS's when a
+    person set the title), with what changed (``change``: certainty, counts or words) and the
+    claims the new title rests on (naming v2: slot, words, fact), kept in the event. Any state;
+    the machine plans no Kibana write (the case team carries ARGUS's own title to a posted case)."""
 
     title: str
     reason: str | None = None
+    change: str | None = None
+    claims: tuple[Mapping[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
 class Publish:
-    pass
+    """A person opens a confirmed case in Kibana (``title_by_person``: as for :class:`Confirm`)."""
+
+    title_by_person: bool = False
 
 
 @dataclass(frozen=True)
@@ -286,6 +302,10 @@ class Close:
 
 @dataclass(frozen=True)
 class MergeInto:
+    """A person merges a case (a confirmed one with an approval); ARGUS (``argus:engine``)
+    merges only a suspected case it raised itself, when the incident engine joined the two
+    incidents behind the cases (P4-F E5)."""
+
     target_id: uuid.UUID
     target_state: State
     approval: ApprovalFacts | None  # needed for a confirmed case
@@ -580,7 +600,7 @@ def create(
         opener = command.kibana_by or (actor if actor.is_person else None)
         if opener is not None and opener.may_open_in_kibana(now):
             case = replace(case, mirrored=True)
-            writes = (kibana.create(case, span),)
+            writes = (kibana.create(case, span, by_person=actor.is_person),)
         else:
             case = replace(case, kibana_wait=WAITING_FOR_KIBANA)
     kind = "suspected" if command.suspected else "opened"
@@ -598,14 +618,14 @@ def decide(
     """The step ``command`` makes from ``case``, or CaseRefused. Pure. ``span`` (when the
     case's alerts were first and last seen) goes into a Kibana create's description."""
     match command:
-        case Confirm(note=note):
+        case Confirm(note=note, title_by_person=by_person):
             _person(actor, Capability.MANAGE, "confirming a case")
             _state(case, ("suspected",), "confirm")
             after = replace(case, state="open", opened_at=now, version=case.version + 1)
             writes: tuple[PlannedWrite, ...] = ()
             if actor.may_open_in_kibana(now):
                 after = replace(after, mirrored=True, kibana_wait=None)
-                writes = (kibana.create(after, span),)
+                writes = (kibana.create(after, span, by_person=by_person),)
             else:
                 after = replace(after, kibana_wait=WAITING_FOR_KIBANA)
             return Step("confirmed", case, after, _extra(note=_text(note, "a note")), writes)
@@ -625,11 +645,15 @@ def decide(
             )  # fmt: skip
             details = {"review": review, "verdict_by": f"user:{by}"}
             return Step("confirmed", case, after, details, (), added, (), marks)
-        case Dismiss(reason=reason, note=note):
+        case Dismiss(reason=reason, note=note, posted=posted):
             _person(actor, Capability.REVIEW, "dismissing a case")
             _state(case, ("suspected",), "dismiss")
             if reason not in DISMISS_REASONS:
                 raise _refuse("invalid", f"a suspected case is not dismissed as {reason}")
+            if posted is not None:
+                raise _refuse("conflict", f"the case team posted it to Kibana as {posted}, so it"
+                              " is not dismissed: confirm it as an incident, then ask for its"
+                              " closure")  # fmt: skip
             after = replace(
                 case, state="closed", closed_at=now, closure_reason=reason, attention=None,
                 version=case.version + 1,
@@ -783,7 +807,7 @@ def decide(
             )  # fmt: skip
             details = {"old": old, "new": new, "hours": hours, "summary": said}
             return Step("address_moved", case, after, details, (), added, (), marks)
-        case Retitle(title=new, reason=reason):
+        case Retitle(title=new, reason=reason, change=change, claims=claims):
             if actor.is_person:
                 _person(actor, Capability.MANAGE, "retitling a case")
             fixed = _title(new)
@@ -791,9 +815,12 @@ def decide(
                 raise _refuse("conflict", "the case has that title already")
             why = _text(reason, "a reason", required=actor.is_person)
             after = replace(case, title=fixed, version=case.version + 1)
-            details = _extra(old=case.title, new=fixed, by=actor.name, reason=why)
+            details = _extra(
+                old=case.title, new=fixed, by=actor.name, reason=why, change=change,
+                claims=[dict(c) for c in claims[:CLAIMS_KEPT]] or None,
+            )  # fmt: skip
             return Step("retitled", case, after, details, ())
-        case Publish():
+        case Publish(title_by_person=by_person):
             _person(actor, Capability.MANAGE, "opening the case in Kibana")
             _state(case, CONFIRMED, "open in Kibana")
             if case.mirrored:
@@ -803,7 +830,8 @@ def decide(
                     "forbidden", "your live Kibana check must show createCase and createComment"
                 )
             after = replace(case, mirrored=True, kibana_wait=None, version=case.version + 1)
-            return Step("published", case, after, {}, (kibana.create(after, span),))
+            write = kibana.create(after, span, by_person=by_person)
+            return Step("published", case, after, {}, (write,))
         case RequestClosure(reason=reason, note=note, window=window):
             _person(actor, Capability.MANAGE, "requesting a closure")
             _state(case, CONFIRMED, "request closing")
@@ -856,8 +884,10 @@ def decide(
                 _check_approval(case, approval, "merge", now)
                 if approval.target_case_id != target:
                     raise _refuse("conflict", "the approval is for another target")
-            else:
+            elif actor.is_person:
                 _person(actor, Capability.MANAGE, "merging a case")
+            elif case.cause != "raised":
+                raise _refuse("forbidden", "ARGUS merges only a suspected case it raised")
             after = replace(
                 case, state="closed", closed_at=now, closure_reason="duplicate",
                 closure_request_id=approval.request_id if case.confirmed and approval else None,
@@ -870,7 +900,7 @@ def decide(
                         tuple(sorted(case.members)))  # fmt: skip
         case MergedIn(source_id=source, members=members, indicators=indicators,
                       severity=severity):  # fmt: skip
-            if not actor.may(Capability.APPROVE):  # an approver completing a merge may
+            if actor.is_person and not actor.may(Capability.APPROVE):  # an approver may
                 _person(actor, Capability.MANAGE, "merging a case")
             _state(case, ("suspected", *CONFIRMED), "merge into")
             if source == case.id:

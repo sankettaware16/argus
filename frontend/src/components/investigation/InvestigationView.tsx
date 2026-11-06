@@ -8,6 +8,7 @@ import { count } from "../../lib/format";
 import { outcomeLabel } from "../../lib/labels";
 import { TABS, type Tab } from "../../lib/inboxQuery";
 import { investigationOptions, reportsOptions } from "../../lib/queries";
+import { keyFacts } from "../../lib/verdict";
 import { ApiError } from "../../lib/session";
 import { AiChip, StateChip } from "../chips";
 import { Loading, Problem } from "../Problem";
@@ -100,40 +101,45 @@ function Header({ detail, level }: { detail: InvestigationDetail; level: 1 | 2 }
           <UntrustedText value={inv.severity ?? "unknown"} limits={{ maxChars: 20, maxLines: 1 }} />
           {inv.risk_score !== null && inv.risk_score !== undefined ? ` (risk ${inv.risk_score})` : ""}
         </Strip>
-        <Strip label="Rule id">
-          <span className="font-mono">
-            <UntrustedText value={inv.rule_id} limits={{ maxChars: 120, maxLines: 1 }} />
-          </span>
-        </Strip>
         <Strip label="Day">
           from <Time value={inv.bucket_start} />
         </Strip>
         {inv.duplicate_count > 0 && <Strip label="Repeats">{count(inv.duplicate_count)} alerts report a detection already counted</Strip>}
         {inv.continues_id && (
           <Strip label="Continues">
-            <Link to="/investigations/$id" params={{ id: inv.continues_id }}>
+            <Link to="/alert-groups/$id" params={{ id: inv.continues_id }}>
               the same activity the day before
             </Link>
           </Strip>
         )}
-        <Strip label="Investigation ID">
-          <span className="font-mono text-xs break-all" data-testid="investigation-id">
-            {inv.id}
-          </span>{" "}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              const failed = () => announce("The investigation ID could not be copied; select it and copy by hand.", "warn");
-              const copying = navigator.clipboard?.writeText(inv.id);
-              if (copying === undefined) failed();
-              else copying.then(() => announce("Copied the investigation ID.", "ok"), failed);
-            }}
-          >
-            Copy
-          </Button>
-        </Strip>
       </dl>
+      <details className="text-sm" data-testid="ids">
+        <summary className="cursor-pointer text-muted">Details: the rule&apos;s and this alert group&apos;s IDs</summary>
+        <dl className="m-0 mt-1 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+          <Strip label="Rule id">
+            <span className="font-mono">
+              <UntrustedText value={inv.rule_id} limits={{ maxChars: 120, maxLines: 1 }} />
+            </span>
+          </Strip>
+          <Strip label="Investigation ID">
+            <span className="font-mono text-xs break-all" data-testid="investigation-id">
+              {inv.id}
+            </span>{" "}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                const failed = () => announce("The investigation ID could not be copied; select it and copy by hand.", "warn");
+                const copying = navigator.clipboard?.writeText(inv.id);
+                if (copying === undefined) failed();
+                else copying.then(() => announce("Copied the investigation ID.", "ok"), failed);
+              }}
+            >
+              Copy ID
+            </Button>
+          </Strip>
+        </dl>
+      </details>
     </header>
   );
 }
@@ -142,10 +148,12 @@ function Overview({ detail, id }: { detail: InvestigationDetail; id: string }) {
   const reports = useQuery(reportsOptions(id));
   const inv = detail.investigation;
   const first = reports.data?.items[0];
+  // the key facts the card above shows are not said again here (P4-F U18)
+  const shown = keyFacts(first, detail.dossier?.facts).map((f) => f.text);
   return (
     <div className="flex flex-col gap-3">
       {first ? (
-        <FoundBox report={first} />
+        <FoundBox report={first} shown={shown} />
       ) : reports.isPending ? (
         <Loading what="what ARGUS found with extra SIEM queries" />
       ) : reports.isError ? (

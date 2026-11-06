@@ -151,7 +151,7 @@ outside the checkout, and import an asset map first:
 ```bash
 mkdir -p -m 700 ~/secrets
 install -m 600 /dev/null ~/secrets/llm-keys.env
-nano ~/secrets/llm-keys.env           # GROQ_API_KEY=..., OPENROUTER_API_KEY=..., GEMINI_API_KEY=..., OPENAI_API_KEY=...
+nano ~/secrets/llm-keys.env           # GROQ_API_KEY=..., OPENROUTER_API_KEY=..., GEMINI_API_KEY=..., ANTHROPIC_API_KEY=..., OPENAI_API_KEY=...
 uv run argus assets import ~/secrets/asset_map.yaml
 uv run argus init                     # step 7: give ~/secrets/llm-keys.env
 uv run argus llm probe && uv run argus llm ping
@@ -203,7 +203,7 @@ and set `units.web.approval_key_file` to its full path in `config/local.yaml`, t
 
 | Extra | What to do | Lands in |
 |---|---|---|
-| Outside threat intel | free VirusTotal, Shodan, Censys keys ([llm.md](llm.md#35-other-optional-keys-outside-threat-intel)) | `.env`: `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` |
+| Outside threat intel | free VirusTotal, Shodan, Censys keys ([llm.md](llm.md#36-other-optional-keys-outside-threat-intel)) | `.env`: `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` |
 | Your DNS resolvers | so they never join unrelated campaigns | `config/local.yaml`: `campaigns.resolvers` |
 | Daily and weekly reports | `systemctl --user enable --now argus-report-daily.timer argus-report-weekly.timer`, and add both to `units.run` | `units.run` |
 | The case team in Kibana | `uv run argus case team provision`, then switch posting on ([case-team.md](case-team.md)) | `local/creds-writer/`, `local/argus-writer.env`, `config/local.yaml` |
@@ -1356,6 +1356,7 @@ Seen in real installations; each is now caught or done for you:
 | `config/local.yaml` copied from another machine still named that machine's folders and web address | Rewrites the old folder's paths; step 8 replaces the old address, certificate and pin together |
 | `sed` on `config/local.yaml` missed values because init had rewritten its layout | Init edits values in place; comments and layout stay. You never need `sed` |
 | The web said "cannot reach its database": its own login was never made | Makes the web's login from the web unit's credentials folder |
+| A new database never got the case team's login although its credential was copied over; the case team failed every run and doctor said PASS | Sets the case team's login from `local/creds-writer/database.writer_password` when it does not log in with it; doctor fails a case team set to run whose login does not work, and an enabled timer whose last run failed |
 | `--start` started four services; the read-back, the case team and backups stayed off, and doctor failed | Starts every unit the installation runs, and the backups unless declined |
 | Answering *no* to starting made doctor print FAIL and init say "fix it" | *installed, not started yet* is a warning; init says how to start |
 | `sudo` was typed in the `argus` account and asked for a password that does not exist | The guide says which steps run as your administrator account; init prints the one `sudo` line linger needs |

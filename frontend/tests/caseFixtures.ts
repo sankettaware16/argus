@@ -39,7 +39,7 @@ export function caseRow(more: Partial<CaseRowOut> = {}): CaseRowOut {
 }
 
 export function casePage(items: CaseRowOut[] = [caseRow()], more: Partial<CasePage> = {}): CasePage {
-  return { items, view: "active", offset: 0, limit: 100, has_more: false, counts: { active: items.length, notified: 0, attention: 1, mine: 2, suspected: 3, closed: 4, queue: 2, all: 9 }, ...more };
+  return { items, view: "active", offset: 0, limit: 100, has_more: false, counts: { active: items.length, notified: 0, attention: 1, mine: 2, suspected: 3, closed: 4, queue: 2, all: 9, incidents: items.length }, ...more };
 }
 
 const action = (name: CaseActionStateOut["action"], label: string, enabled = true, why_not: string | null = null): CaseActionStateOut => ({ action: name, label, enabled, why_not });
@@ -147,6 +147,8 @@ export function caseDetail(more: Partial<CaseDetail> = {}, row: Partial<CaseRowO
     suggestions_total: 0,
     watch: null,
     known: null,
+    decision: null,
+    incident_id: null,
     actions: ACTIONS,
     closure_choices: CHOICES,
     assignees: [
@@ -239,3 +241,18 @@ export function knownOut(more: Partial<KnownOut> = {}): KnownOut {
     ...more,
   };
 }
+
+/** The decision bar of a possible incident, as the server words it (casepages.DISMISS_CHOICES). */
+export const DECISION: NonNullable<CaseDetail["decision"]> = {
+  confirm: { enabled: true, why_not: null },
+  dismiss: { enabled: true, why_not: null },
+  merge: { enabled: true, why_not: null },
+  reasons: [
+    { reason: "benign_expected", label: "Expected activity", meaning: "It happened, and it is activity the university expects: a scheduled job, a known tool, a test." },
+    { reason: "attempt_no_impact", label: "A scan or attempt: nothing happened", meaning: "Someone probed or tried something, and nothing came of it." },
+    { reason: "benign_policy", label: "Allowed by policy", meaning: "It happened, and the university's policy allows it." },
+    { reason: "rule_false_positive", label: "The rule was wrong", meaning: "The detection rule fired on something that was not an attack." },
+    { reason: "duplicate", label: "A duplicate of another case", meaning: "Another case already covers it: name that case and this one is merged into it." },
+  ],
+  after: "An owner, containment and closure become available once a person confirms it as an incident.",
+};

@@ -82,16 +82,18 @@ describe("the list's query", () => {
 
 describe("titles", () => {
   it("names each page, an investigation too, and says when there is no such page", () => {
-    expect(titleFor("/")).toBe("Home");
+    expect(titleFor("/")).toBe("Today");
     expect(titleFor("/dashboard")).toBe("Dashboard");
     expect(titleFor("/dashboard/")).toBe("Dashboard");
     expect(titleFor("/inbox")).toBe("Inbox");
     expect(titleFor("/proposals")).toBe("Proposals");
     expect(titleFor("/design")).toBe("Design system");
-    expect(titleFor(`/investigations/${ID}`)).toBe("Investigation");
+    expect(titleFor(`/investigations/${ID}`)).toBe("Alert group");
+    expect(titleFor(`/alert-groups/${ID}`)).toBe("Alert group");
+    expect(titleFor(`/incidents/${ID}`)).toBe("Incident");
     expect(titleFor("/investigations")).toBe("Not found");
     expect(titleFor(`/investigations/${ID}/x`)).toBe("Not found");
     expect(titleFor("/nowhere")).toBe("Not found");
-    expect(titleFor("")).toBe("Home");
+    expect(titleFor("")).toBe("Today");
   });
 });

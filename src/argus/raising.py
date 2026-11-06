@@ -86,6 +86,34 @@ async def run(
     return done
 
 
+async def record_switch(
+    db: AsyncEngine, present: bool, now: datetime, warn: Callable[..., None]
+) -> bool:
+    """Whether the old feeds stop this pass (the suggester, the per-pattern runs and, through
+    ``risk_mode``, the raise into Needs attention): only with ``risk.present`` on and a presenter
+    pass (``argus risk run``) that recorded it on within ``argus.risk.present.ALIVE``, so the
+    queue never goes silent with nothing presenting. Otherwise the switch is recorded off (the
+    queue's pages raise as before), said when ``risk.present`` is on. A failure leaves the old
+    feeds on; it is said when ``risk.present`` is on (off, nothing was asked of the engine)."""
+    from argus.risk.present import ALIVE, presenting, record_mode
+
+    try:
+        async with db.begin() as conn:
+            if present and await presenting(conn, now):
+                return True
+            await record_mode(conn, False, now)
+    except Exception as exc:
+        if present:
+            warn(f"warning: the incident engine's switch was not recorded"
+                 f" ({type(exc).__name__})", err=True)  # fmt: skip
+        return False
+    if present:
+        minutes = int(ALIVE.total_seconds() // 60)
+        warn(f"warning: risk.present is on but no presenter pass (argus risk run) in the last"
+             f" {minutes} minutes: the old feeds stay on", err=True)  # fmt: skip
+    return False
+
+
 async def _titles(db: AsyncEngine, ctx: titling.Context, now: datetime, done: Done) -> None:
     """Case titles: ARGUS's own titles made again from the case's facts, changed when they
     differ (a person's title is never touched). A failure is said and the pass goes on."""

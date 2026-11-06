@@ -86,17 +86,19 @@ ARGUS admin. A warning is never "just the first time".
    - **What ARGUS checked:** the rule's own steps, answered or waiting;
    - **Alerts:** the alerts with the columns you choose; the raw alert on demand;
    - **History:** reviews and changes.
-4. **Decide** in *Your review*. Choose an **outcome**, add a short note if useful, then
-   **Mark reviewed**. If someone else got there first, nothing is saved and you see what
-   changed: read it again.
+4. **Decide** at the top of the page. When ARGUS makes a call and it is right, **Accept ARGUS's
+   call** (key `C`) is one click. Otherwise choose one of the five decisions (keys `1` to `5`),
+   add a short note if useful, then **Save decision**. **Come back to it** keeps the alert group
+   in Needs attention as a follow-up; *Can't tell yet* ticks it for you. If someone else got there
+   first, nothing is saved and you see what changed: read it again.
 
-| Outcome | Use it when | Example |
+| Decision (key) | Use it when | Example |
 |---|---|---|
-| **True positive** | Real, and someone must act | A lab PC beacons to an IP on a threat list |
-| **Benign: expected activity** | Real, but no action needed | An internet scanner got only 403/404 answers |
-| **Benign: allowed by policy** | Allowed by campus policy | An approved vulnerability scan by the IT team |
-| **Rule false positive** | The rule's claim is wrong | An "executable download" alert for Windows Update |
-| **Inconclusive** | You cannot tell yet | Not enough data; use **Needs follow-up** too |
+| **Real: act on it** (1) | Real, and someone must act; it may open or join an incident | A lab PC beacons to an IP on a threat list |
+| **Real but harmless** (2) | It happened, but no action is needed: an attempt that failed, or expected activity | An internet scanner got only 403/404 answers |
+| **Allowed by policy** (3) | Allowed by campus policy | An approved vulnerability scan by the IT team |
+| **Wrong alert** (4) | The rule's claim is wrong | An "executable download" alert for Windows Update |
+| **Can't tell yet** (5) | You cannot tell yet | Not enough data: it stays for a follow-up |
 
 5. **Patterns.** Many alike? Check the "In common" values, then decide for the whole group.
 6. **Browse** (*By rule*, *By host or IP*), **Not reviewed**, **Reviewed**, **All**: to find
@@ -107,8 +109,9 @@ Every change **ARGUS composes for you** shows **the exact request it will send**
 accepting a proposal, asking the AI investigator, deciding a group of alike investigations,
 confirming proposals, a case action (take, assign, release, contain, reopen, request closure,
 merge, check more) and an approval. Read it, then confirm. What you write yourself is saved
-from its own form without that step: your review (**Mark reviewed**, **Needs follow-up**,
-**Add note**), a gold-set answer, and notes on cases and addresses. A message says what
+from its own form without that step: your decision (**Save decision**, **Add note only**), a
+gold-set answer, and notes on cases and addresses. The exact request is one click away in every
+confirm dialog (**Show the exact request**). A message says what
 happened, and a failed change is never retried by itself.
 
 ## ARGUS's proposals
@@ -123,13 +126,15 @@ Each investigation has an **AI assessment** tab. Two assessors fill it:
   **Ask the AI investigator now** works on any investigation.
 
 Neither may propose a harmless outcome while a danger sign is present or unknown (the "floor").
-Then **Accept** if the proposal is right; if it is wrong, choose the right outcome in *Your
-review*, and your verdict teaches the engine. **No proposal** means ARGUS could not decide; the
+Then **Accept ARGUS's call** at the top of the page if it is right; if it is wrong, choose the
+right decision there, and your decision teaches the engine. The AI assessment tab only reads. **No proposal** means ARGUS could not decide; the
 tab says why.
 
 **Proposals** (about 10 minutes a week). Proposals are grouped by what decided them. Open the
 **audit sample** of a group (picked at random each day); if those are right, **Confirm all**.
-Only the listed ones are confirmed; anything that changed meanwhile is skipped.
+Only the listed ones are confirmed; anything that changed meanwhile is skipped. A group that
+ARGUS calls *Real: act on it* is never confirmed together: a real attack starts an incident, so
+each one is decided on its own page.
 
 **Tuning** (weekly). Per rule: how often it fires, how often a run hit its alert limit (alerts
 were lost), your verdicts, and suggested changes. A suggestion is kept only with evidence (an
@@ -141,10 +146,19 @@ against the monthly cap (`monthly_cap_usd` in `config/llm.yaml`). It turns amber
 `margin` share of it (80 % by default): from then on normal work uses only the free providers. **Metrics** has the details and says if the kill switch has stopped the AI.
 
 ## Cases
-A **case** is a confirmed problem: investigations ARGUS links by the same actor, indicator or
-command-and-control address. **Cases** lists them (open, needs attention, yours, suspected,
-closed, all). A case page reads in this order: summary, what's new, timeline, evidence,
-hypotheses, unknowns, actions, members, the Kibana mirror, notes, history.
+A **case** is one problem across days, hosts and rules: alert groups ARGUS links by the same
+actor, indicator or command-and-control address. An **incident** is a case a person confirmed; a
+**possible incident** is one ARGUS thinks may be an incident, waiting for a person. **Cases**
+opens on **Needs a decision**; the other tabs are Mine, Open, Owner told, Closed and All, and the
+*Next step* column says what each case asks for. A case page reads in this order: (for a possible
+incident) the decision, summary, report, what's new, timeline, evidence, hypotheses, unknowns,
+actions, members, the Kibana mirror, notes, history.
+- **Is this an incident?** On a possible incident the decision is at the top: **Confirm as
+  incident** (it becomes an open incident and waits for someone who may open it in Kibana, as
+  every confirmed case does), **Not an incident…** with a reason (expected activity; a scan or
+  attempt where nothing happened; allowed by policy; the rule was wrong; a duplicate of another
+  case, which is merged into it), or **Merge into…** another case. Owner, containment and
+  closure become available once it is confirmed.
 - **Take, Assign, Release, Contain** change who owns the case and its state.
 - **Request closure** needs a reason; a second person approves it in **Approvals** after
   confirming their password (a real-incident closure needs two different approvers).

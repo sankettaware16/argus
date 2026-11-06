@@ -31,11 +31,16 @@ T0 = datetime(2026, 10, 30, 10, 0, tzinfo=UTC)
 WRITE = Lane.KIBANA_WRITE
 
 
-def test_only_the_kibana_write_lane_has_a_burst_and_it_is_sixty_seconds() -> None:
-    assert dict(BURSTS) == {WRITE: 60_000}
+def test_the_kibana_write_lane_bursts_sixty_seconds_and_the_checking_lane_thirty() -> None:
+    assert dict(BURSTS) == {WRITE: 60_000, Lane.CHECKING: 30_000}
     spec = DEFAULT_LANES[WRITE]
     assert (spec.per_minute_ms, spec.per_day_ms, spec.burst_ms) == (200, 180_000, 60_000)
-    assert [lane for lane, s in DEFAULT_LANES.items() if s.burst_ms is not None] == [WRITE]
+    checking = DEFAULT_LANES[Lane.CHECKING]
+    assert (checking.per_minute_ms, checking.per_day_ms, checking.burst_ms) == (400, 600_000,
+                                                                                30_000)  # fmt: skip
+    assert [lane for lane, s in DEFAULT_LANES.items() if s.burst_ms is not None] == [
+        WRITE, Lane.CHECKING,
+    ]  # fmt: skip
 
 
 def test_the_burst_is_not_a_share_the_lanes_still_add_up_to_the_ceiling() -> None:

@@ -400,7 +400,7 @@ def _later_web_grants() -> list[str]:
     from argus.db import migrate
 
     out: list[str] = []
-    for path in sorted((Path(migrate.MIGRATIONS_DIR) / "versions").glob("00[0-9][0-9]_*.py")):
+    for path in sorted((Path(migrate.MIGRATIONS_DIR) / "versions").glob("0[0-9][0-9][0-9]_*.py")):
         if path.name[:4] <= "0021":
             continue
         spec = importlib.util.spec_from_file_location(f"argus_migration_{path.stem}", path)
@@ -421,7 +421,7 @@ def _later_web_revokes() -> list[tuple[str, tuple[str, ...]]]:
     from argus.db import migrate
 
     out: list[tuple[str, tuple[str, ...]]] = []
-    for path in sorted((Path(migrate.MIGRATIONS_DIR) / "versions").glob("00[0-9][0-9]_*.py")):
+    for path in sorted((Path(migrate.MIGRATIONS_DIR) / "versions").glob("0[0-9][0-9][0-9]_*.py")):
         if path.name[:4] <= "0021":
             continue
         spec = importlib.util.spec_from_file_location(f"argus_migration_{path.stem}", path)

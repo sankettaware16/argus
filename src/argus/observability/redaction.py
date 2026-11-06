@@ -254,6 +254,7 @@ _TEXT_RULES: tuple[tuple[re.Pattern[str], _Replacement], ...] = (
     # Well-known provider key formats.
     (re.compile(r"\bgsk_[A-Za-z0-9]{20,}"), "gsk_" + MASK),  # Groq
     (re.compile(r"\bsk-or-v1-[A-Za-z0-9]{20,}"), "sk-or-v1-" + MASK),  # OpenRouter
+    (re.compile(r"\bsk-ant-[A-Za-z0-9_\-]{20,}"), "sk-ant-" + MASK),  # Anthropic
     (re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_\-]{20,}"), "sk-" + MASK),  # OpenAI-style
     (re.compile(r"\bAIza[0-9A-Za-z_\-]{30,}"), "AIza" + MASK),  # Google API key
     (re.compile(r"\bAQ\.[A-Za-z0-9_\-]{20,}"), "AQ." + MASK),  # Google AI Studio key

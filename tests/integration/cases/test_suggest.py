@@ -122,7 +122,7 @@ async def test_the_amadey_shape_is_raised_and_becomes_one_suggested_case_as_it_a
     # within one assess cycle of the second investigation ...
     dry = await cycle(app_engine, dry=True)
     assert [suggest.describe(a) for a in dry.planned] == [
-        "suggested   2 investigations: Beaconing from 10.20.30.40"
+        "suggested   2 investigations: Suspected beaconing from 10.20.30.40"
     ]
     assert await rows(app_engine, "SELECT * FROM cases") == []  # a dry run writes nothing
     report = await cycle(app_engine)
@@ -136,7 +136,7 @@ async def test_the_amadey_shape_is_raised_and_becomes_one_suggested_case_as_it_a
     # ... and one suggested case, suspected: ARGUS opened nothing
     case = await case_of(app_engine)
     assert (case.state, case.cause, case.opened_at) == ("suspected", "raised", None)
-    assert case.title == "Beaconing from 10.20.30.40"
+    assert case.title == "Suspected beaconing from 10.20.30.40"
     assert case.attention.startswith("ARGUS suggests this case: 2 investigations of one campus")
     assert HOST not in case.attention  # no log value in the reason; the title names the device
     assert await members(app_engine) == {download, beacon}
@@ -436,7 +436,7 @@ async def test_the_git_shape_two_outside_addresses_at_the_same_directories_are_o
     case = await case_of(app_engine)
     assert (case.state, case.cause) == ("suspected", "raised")
     assert await members(app_engine) == {scout, collector}  # the prober shares nothing
-    assert case.title == "Probing for Git repository folders by 2 outside addresses"  # D-232
+    assert case.title == "Suspected Git-folder scan by 2 outside IPs — no web check yet"  # D-232
     assert "2 actors reached the same 3 rare targets" in case.attention
     marks = await rows(app_engine, "SELECT kind, value, role FROM case_indicators")
     assert {tuple(m) for m in marks} == {

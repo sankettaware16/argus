@@ -35,8 +35,10 @@ describe("the groups", () => {
   it("say who proposed what for how many, with the audit sample first and the rest on demand", async () => {
     server.use(http.get(`${BASE}/api/v1/proposals`, () => HttpResponse.json([GROUP, AGENT])));
     renderApp("/proposals");
-    const first = await screen.findByRole("region", { name: "Benign: expected activity: 5 investigations" });
-    expect(first.textContent).toContain("By the decision engine; decided by engine@1#fp: steps / rule-1 / 1:answered");
+    const first = await screen.findByRole("region", { name: "Real but harmless: 5 investigations" });
+    expect(first.textContent).toContain("By the decision engine");
+    // what decided it is the machine's own key: behind Details (P4-F U9)
+    expect(must(within(first).getByText("Details").closest("details")).textContent).toContain("Decided by engine@1#fp: steps / rule-1 / 1:answered");
     const sample = must(within(first).getByRole("heading", { name: "Audit sample" }).nextElementSibling);
     expect([...sample.querySelectorAll("li")].map((li) => li.textContent?.replace(/\s+/g, " "))).toEqual([
       "Rule 1, 1 alert, 9 Oct 2026, 12:00 AM IST — reason 1",
@@ -45,10 +47,21 @@ describe("the groups", () => {
     ]);
     const rest = must(within(first).getByText("All 5").closest("details"));
     expect([...rest.querySelectorAll("li")].map((li) => li.textContent?.replace(/\s+/g, " "))).toEqual(["Rule 4, 4 alerts, 9 Oct 2026, 12:00 AM IST", "Rule 5, 5 alerts, 9 Oct 2026, 12:00 AM IST"]);
-    expect(within(first).getByRole("link", { name: "Rule 1" }).getAttribute("href")).toBe("/app/investigations/00000000-0000-4000-8000-000000000001");
-    const second = screen.getByRole("region", { name: "True positive: 1 investigation" });
-    expect(second.textContent).toContain("By the AI investigator on Rule A (models: m-1, m-2)");
+    expect(within(first).getByRole("link", { name: "Rule 1" }).getAttribute("href")).toBe("/app/alert-groups/00000000-0000-4000-8000-000000000001");
+    const second = screen.getByRole("region", { name: "Real: act on it: 1 investigation" });
+    expect(second.textContent).toContain("By the AI investigator on Rule A");
+    expect(must(within(second).getByText("Details").closest("details")).textContent).toContain("Models: m-1, m-2");
     expect(within(second).queryByText(/^All /)).toBeNull();
+  });
+
+  it("never offers to confirm a group of real attacks together: each starts an incident (P4-F U4)", async () => {
+    const big = { ...AGENT, size: 500, items: [1, 2, 3, 4, 5].map((n) => proposal(n)), sample: [proposal(1)] };
+    server.use(http.get(`${BASE}/api/v1/proposals`, () => HttpResponse.json([big, GROUP])));
+    renderApp("/proposals");
+    const real = await screen.findByRole("region", { name: "Real: act on it: 5 investigations" });
+    expect(within(real).queryByRole("button")).toBeNull();
+    expect(within(real).getByTestId("one-by-one").textContent).toContain("open each one and decide it on its own page");
+    expect(screen.getAllByRole("button", { name: /^Confirm all/ }).map((b) => b.textContent)).toEqual(["Confirm all 5 as Real but harmless"]);
   });
 
   it("say so when nothing waits", async () => {
@@ -72,7 +85,7 @@ describe("confirming a group", () => {
       http.post(`${BASE}/api/v1/proposals/confirm`, () => HttpResponse.json({ accepted: 4, skipped: 1 })),
     );
     renderApp("/proposals");
-    await user.click(await screen.findByRole("button", { name: "Confirm all 5 as Benign: expected activity" }));
+    await user.click(await screen.findByRole("button", { name: "Confirm all 5 as Real but harmless" }));
     const dialog = await screen.findByRole("alertdialog");
     const shown = within(dialog).getByTestId("payload").textContent ?? "";
     expect(JSON.parse(shown)).toEqual({ group: GROUP.group, assessment_ids: [101, 102, 103, 104, 105] });
@@ -111,7 +124,7 @@ describe("confirming a group", () => {
   it("is not offered to an account that may only view, which is told why", async () => {
     server.use(...shellHandlers(sessionWith(["view"])), http.get(`${BASE}/api/v1/proposals`, () => HttpResponse.json([GROUP])));
     renderApp("/proposals");
-    await screen.findByRole("region", { name: /Benign: expected activity/ });
+    await screen.findByRole("region", { name: /Real but harmless/ });
     expect(screen.queryByRole("button", { name: /^Confirm all/ })).toBeNull();
     expect(screen.getByText(/Your account may view only: confirming a group needs the “review” capability/)).toBeTruthy();
   });

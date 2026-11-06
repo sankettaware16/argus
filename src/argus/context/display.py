@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,12 +22,19 @@ REGISTRY = Path(__file__).resolve().parents[3] / "config" / "signals.yaml"
 DIGEST_CHARS = 4800  # ≈ 1,200 tokens
 
 
+Plain = Literal["bytes", "regularity", "evenness"]
+
+
 class Entry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     label: str = Field(min_length=1, max_length=80)
     sentence: str = Field(min_length=1, max_length=200)
     how_to_read: str = Field(min_length=1, max_length=300)
+    # the words a person reads in place of the raw measure (the pages only: what a model is
+    # sent keeps ``label`` and ``sentence``, so its inputs stay byte-identical)
+    plain_label: str | None = Field(default=None, min_length=1, max_length=80)
+    plain: Plain | None = None
 
     def title(self, part: str = "values") -> str:
         """The label for a family's last name part; ``{lookups}`` is the site's looked-up
@@ -62,18 +69,71 @@ def entry(name: str, entries: Mapping[str, Entry] | None = None) -> Entry | None
     return found.get(family) if family else None
 
 
-def sentence(signal: Mapping[str, Any], entries: Mapping[str, Entry] | None = None) -> str:
-    """One plain line for a signal; an unknown one says it could not be told."""
+BEACON = 0.3  # a spread below this is regular like a beacon (assess.engine.BEACON)
+
+
+def size(n: float) -> str:
+    """A byte count in words: "64 MB", "820 KB", "512 bytes" (1 KB = 1,024 bytes)."""
+    value = float(n)
+    if abs(value) < 1024:
+        return f"{int(value):,} {'byte' if int(value) == 1 else 'bytes'}"
+    for unit in ("KB", "MB", "GB", "TB"):
+        value /= 1024
+        if abs(value) < 1024 or unit == "TB":
+            return f"{value:,.1f} {unit}" if abs(value) < 10 else f"{value:,.0f} {unit}"
+    raise AssertionError  # pragma: no cover - the loop returns
+
+
+def regular_score(cv: float) -> int:
+    """How regular gaps are, 0 to 100 where high is regular: 100 at a spread of 0 (perfectly
+    even), 0 at a spread as large as the mean gap or larger."""
+    return max(0, min(100, round((1 - max(0.0, cv)) * 100)))
+
+
+def timing(cv: float, *, beacon: bool) -> str:
+    """A spread of gaps (0 = perfectly even) in words with a 0 to 100 score where high means
+    regular. ``beacon``: traffic, where a steady rhythm is what a beacon or an update check
+    does; else alerts, whose spacing rule suppression shapes."""
+    score = regular_score(cv)
+    if cv < 0.1:
+        words = "very regular, like a beacon" if beacon else "very evenly spaced"
+    elif cv < BEACON:
+        words = "regular, like a beacon or an update check" if beacon else "evenly spaced"
+    elif cv < 0.7:
+        words = "somewhat irregular"
+    else:
+        words = "irregular, like a person's own use" if beacon else "irregular"
+    return f"{words} ({score}/100)"
+
+
+def _plain(kind: Plain, value: Any) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, int | float) or value != value:
+        return None
+    if kind == "bytes":
+        return size(value) if value >= 0 else None
+    return timing(float(value), beacon=kind == "regularity")
+
+
+def sentence(
+    signal: Mapping[str, Any], entries: Mapping[str, Entry] | None = None, *, plain: bool = False
+) -> str:
+    """One plain line for a signal; an unknown one says it could not be told. ``plain``: the
+    pages' words, where an entry has them ("Timing: very regular, like a beacon (98/100)",
+    "64 MB"); what a model is sent never asks for them."""
     name = str(signal["name"])
     e = entry(name, entries)
     part = name.rsplit(".", 1)[-1]
     label = e.title(part) if e else name
-    if signal.get("status") != "known":
+    known = signal.get("status") == "known"
+    value = signal.get("value")
+    words = _plain(e.plain, value) if plain and known and e is not None and e.plain else None
+    if plain and e is not None and e.plain_label and (words is not None or not known):
+        label = e.plain_label
+    if not known:
         reason = str(signal.get("unknown_reason") or "unknown").replace("_", " ")
         return f"{label}: could not be told ({reason})"
-    value = signal.get("value")
     shown = "yes" if value is True else "no" if value is False else value
-    text = e.said(shown) if e else f"{shown}"
+    text = words if words is not None else e.said(shown) if e else f"{shown}"
     if signal.get("completeness") == "lower_bound":
         text = "at least " + text
     return f"{label}: {text}"

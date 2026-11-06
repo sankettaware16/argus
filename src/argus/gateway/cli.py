@@ -164,7 +164,23 @@ def siem_status(config: ConfigOption = None) -> None:
             + (f" ({budget.day})" if budget.day else ""),
             f"heavy queries today: {budget.heavy_day}; requests in flight: {len(budget.leases)}",
         ]
+        day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        checking = lane_plan(settings.siem).spec(Lane.CHECKING)
         async with store.engine.connect() as conn:
+            took, sent = (
+                await conn.execute(
+                    text(
+                        "SELECT coalesce(sum(took_ms), 0), count(*) FROM siem_requests"
+                        " WHERE lane = 'checking' AND at >= :day"
+                    ),
+                    {"day": day},
+                )
+            ).one()
+            lines.append(
+                f"checking lane today: {int(took) / 1000:.1f} s of"
+                f" {checking.per_day_ms / 1000:.0f} s ({int(sent)} requests; NORMAL only,"
+                " never in the quiet hours)"
+            )
             rows = await conn.execute(
                 text(
                     "SELECT at, template, outcome, took_ms FROM siem_requests"

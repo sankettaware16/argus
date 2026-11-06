@@ -20,7 +20,7 @@ const NOTE_MAX = 4000;
 const CASE_TITLE = "case-title";
 
 /** After a change the opener may be gone, so the focus goes to the case's title, which stays. */
-function useAfterSend() {
+export function useAfterSend() {
   const done = useRef(false);
   return {
     sent: () => {
@@ -34,12 +34,12 @@ function useAfterSend() {
   };
 }
 
-interface Shared {
+export interface Shared {
   detail: CaseDetail;
   onDone: () => void;
 }
 
-function useAfterChange(detail: CaseDetail, onDone: () => void) {
+export function useAfterChange(detail: CaseDetail, onDone: () => void) {
   const queries = useQueryClient();
   const { announce } = useAnnounce();
   return {
@@ -78,7 +78,7 @@ function Plain({ detail, onDone, action, title, say, label }: Shared & { action:
         }
       }}
       title={title}
-      description={`This changes case ${detail.case.number} at version ${detail.case.version}; if anyone changed it since, nothing is saved.`}
+      description={`${action === "take" ? `You will own case ${detail.case.number}; others see you as its owner.` : `Case ${detail.case.number} is open again, owned by nobody.`} If anyone changed it since you read it, nothing is saved.`}
       request={request}
       confirmLabel={label}
       finalFocus={afterSend.focus}
@@ -308,7 +308,7 @@ function ClosureForm({ detail, onDone }: Shared) {
 
 // ------------------------------------------------------------------ merge
 
-function MergeForm({ detail, onDone }: Shared) {
+export function MergeForm({ detail, onDone, label = "Merge into case number", hint = "The other case takes this case's alert groups and indicators." }: Shared & { label?: string; hint?: string }) {
   const numberId = useId();
   const [text, setText] = useState("");
   const [shown, setShown] = useState(false);
@@ -328,7 +328,7 @@ function MergeForm({ detail, onDone }: Shared) {
   const own = target?.id === detail.case.id;
   const confirmed = detail.case.state !== "suspected";
   const refusal =
-    target === undefined ? null : own ? "A case is not merged into itself." : target.state === "closed" ? "That case is closed; a case is merged into one that is not." : confirmed && target.state === "suspected" ? "A confirmed case is merged into a confirmed one, not a suspected one." : null;
+    target === undefined ? null : own ? "A case is not merged into itself." : target.state === "closed" ? "That case is closed; a case is merged into one that is not." : confirmed && target.state === "suspected" ? "An incident is merged into another incident, not into a possible one." : null;
   const ready = target !== undefined && refusal === null;
   const said = note.trim();
   const preview = useQuery({ ...mergePreviewOptions(detail.case.id, target?.id ?? "", detail.case.version), enabled: shown && ready && confirmed });
@@ -351,7 +351,7 @@ function MergeForm({ detail, onDone }: Shared) {
   const askGuard = useGuard(sendable ? null : ready ? "Show what it would write first." : notReady);
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Merge into case number" hint="The other case takes this case's investigations and indicators." htmlFor={numberId}>
+      <Field label={label} hint={hint} htmlFor={numberId}>
         <TextInput
           id={numberId}
           inputMode="numeric"
@@ -382,7 +382,7 @@ function MergeForm({ detail, onDone }: Shared) {
           {showGuard.hint}
         </div>
       ) : (
-        <p className="m-0 text-sm text-muted">A suspected case is merged at once; there is no approval to ask for.</p>
+        <p className="m-0 text-sm text-muted">A possible incident is merged at once; there is no approval to ask for.</p>
       )}
       {shown && ready && confirmed && (
         <section aria-label="What asking would write" className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3">
@@ -413,7 +413,7 @@ function MergeForm({ detail, onDone }: Shared) {
             if (!next) void changedCase(after.queries, detail.case.id);
           }}
           title={`${confirmed ? "Ask to merge" : "Merge"} case ${detail.case.number} into case ${target.number}`}
-          description={confirmed ? "Nothing is merged by this. An approver reads the same writes and decides." : "The suspected case is closed as a duplicate now, and its investigations move to the other case."}
+          description={confirmed ? "Nothing is merged by this. An approver reads the same writes and decides." : "This possible incident is closed as a duplicate now, and its alert groups move to the other case."}
           request={request}
           confirmLabel={confirmed ? "Ask for the merge" : "Merge now"}
           finalFocus={afterSend.focus}
@@ -452,16 +452,9 @@ function Row({ a, active, onOpen, children }: { a: CaseActionStateOut; active: b
   );
 }
 
-/**
- * What a person can do with the case: Take, Assign, Release, Confirm contained, Request closure,
- * Merge, Reopen. Each says why when it is unavailable (the server's own answer, the refusal the
- * command would give). Each change shows its exact request in the confirm dialog first, and
- * names the version of the case the person looked at.
- */
-export function CaseActions({ detail }: { detail: CaseDetail }) {
-  const [active, setActive] = useState<string | null>(null);
-  const toggle = (action: string) => setActive((now) => (now === action ? null : action));
-  const done = () => setActive(null);
+/** The form of one action (the decision bar's More menu opens one at a time), or null. */
+export function ActionForm({ detail, action, onDone }: { detail: CaseDetail; action: string; onDone: () => void }) {
+  const done = onDone;
   // a fresh form after the case changes: nothing typed for one version is sent for the next
   const key = `${detail.case.id}:${detail.case.version}`;
   const forms: Record<string, ReactNode> = {
@@ -499,6 +492,30 @@ export function CaseActions({ detail }: { detail: CaseDetail }) {
       />
     ),
   };
+  return forms[action] ?? null;
+}
+
+/**
+ * What a person can do with the case: Take, Assign, Release, Confirm contained, Request closure,
+ * Merge, Reopen. Each says why when it is unavailable (the server's own answer, the refusal the
+ * command would give). Each change shows its exact request in the confirm dialog first, and
+ * names the version of the case the person looked at.
+ */
+export function CaseActions({ detail }: { detail: CaseDetail }) {
+  const [active, setActive] = useState<string | null>(null);
+  const toggle = (action: string) => setActive((now) => (now === action ? null : action));
+  const done = () => setActive(null);
+  if (detail.decision) {
+    // a possible incident: its decision is the bar at the top; nothing below applies before it
+    return (
+      <section aria-label="Actions" id="actions" className="flex flex-col gap-2">
+        <h2 className="m-0 text-lg font-semibold">What you can do</h2>
+        <p className="m-0 max-w-prose text-sm text-muted" data-testid="after-confirm">
+          <Sentence text={detail.decision.after} /> Decide it with <a href="#decision">the decision at the top of the page</a>.
+        </p>
+      </section>
+    );
+  }
   return (
     <section aria-label="Actions" id="actions" className="flex flex-col gap-2">
       <h2 className="m-0 text-lg font-semibold">What you can do</h2>
@@ -510,7 +527,7 @@ export function CaseActions({ detail }: { detail: CaseDetail }) {
       <ul className="m-0 list-none p-0">
         {detail.actions.map((a) => (
           <Row key={a.action} a={a} active={active === a.action} onOpen={() => toggle(a.action)}>
-            {forms[a.action]}
+            <ActionForm detail={detail} action={a.action} onDone={done} />
           </Row>
         ))}
       </ul>

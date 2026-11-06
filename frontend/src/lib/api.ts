@@ -99,6 +99,16 @@ const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i;
 const NOT_EXACT = "This request's address is not one ARGUS can send exactly as shown, so nothing was sent.";
 const NO_ANSWER = "No answer came from ARGUS, so it is not known whether this was done. Look before you try again.";
 
+/** A refused change: the answer's status kept, so a page can tell a 409 (it changed meanwhile) apart. */
+export class SendError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 /** Whether `path` goes on the wire exactly as written (see sendExact). */
 export function isExactPath(path: string): boolean {
   return API_PATH.test(path) && !path.split("/").some((segment) => DOT_SEGMENT.test(segment));
@@ -123,6 +133,6 @@ export async function sendExact(request: ExactRequest): Promise<Sent> {
   });
   const response = result.response as Response | undefined;
   if (response === undefined) throw new Error(NO_ANSWER);
-  if (!response.ok) throw new Error(errorText(response.status, result.error));
+  if (!response.ok) throw new SendError(response.status, errorText(response.status, result.error));
   return { status: response.status, data: result.data };
 }

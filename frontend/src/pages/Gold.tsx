@@ -50,7 +50,7 @@ export function Gold() {
                 key: "rule",
                 header: "Rule",
                 cell: (r) => (
-                  <Link to="/investigations/$id" params={{ id: r.investigation_id }}>
+                  <Link to="/alert-groups/$id" params={{ id: r.investigation_id }}>
                     <UntrustedText value={r.rule_name} limits={{ maxChars: 100, maxLines: 1 }} />
                   </Link>
                 ),

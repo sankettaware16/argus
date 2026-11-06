@@ -706,8 +706,16 @@ def unit_hashes(part: Part) -> tuple[str, ...]:
 
 def title_of(report: m.IncidentReport) -> str:
     """The case's title, within Kibana's 160 characters (counted as Kibana counts them): one line
-    of plain characters, never blank (the incident ID stands in)."""
-    text = clean(report.header.title, 300)
+    of plain characters, never blank (the incident ID stands in). ARGUS's certainty word is left
+    out (naming v2: only confirmed cases are posted; the ID and the tags carry the rest), and a
+    person's title is kept as they wrote it."""
+    from argus.cases import naming
+
+    header = report.header
+    ident, sep, rest = header.title.partition(" · ")
+    if sep and header.certainty:
+        rest = naming.without_certainty(rest, header.certainty)
+    text = clean(f"{ident}{sep}{rest}" if sep else header.title, 300)
     while utf16_len(text) > MAX_TITLE:
         text = text[: len(text) - 2].rstrip() + "…" if len(text) > 2 else text[:1]
     return text or report.header.incident_id

@@ -120,6 +120,40 @@ async def decisions(conn: AsyncConnection, report_id: int) -> list[Decision]:
     return [_decision(r) for r in rows]
 
 
+@dataclass(frozen=True)
+class Holding:
+    decision: Decision
+    held_from: int | None  # the earlier version it was made on (None: this version)
+
+
+_EARLIER = text(
+    "SELECT d.id, d.report_id, d.decision, d.outcome, d.reason, d.by_user_id,"
+    " u.display_name AS by_name, d.decided_at, d.review_ids, r.version, r.body"
+    " FROM incident_report_decisions d JOIN incident_reports r ON r.id = d.report_id"
+    " JOIN users u ON u.id = d.by_user_id WHERE r.case_id = :c AND r.version < :v"
+    " ORDER BY d.id DESC LIMIT 1"
+)
+
+
+async def holding(conn: AsyncConnection, stored: Stored) -> Holding | None:
+    """The person's decision that holds for this version: its own, else the newest one made on an
+    earlier version whose report has the same core (:func:`argus.incident.model.core_hash`: they
+    differ only in the case's title or the accounts), else None. A retitle does not undo what a
+    person decided; new evidence does."""
+    if stored.decision is not None:
+        return Holding(stored.decision, None)
+    row = (await conn.execute(_EARLIER, {"c": stored.case_id, "v": stored.version})).first()
+    if row is None:
+        return None
+    try:
+        older = IncidentReport.model_validate(row.body)
+    except (ValidationError, ValueError):
+        return None
+    if core_hash(older) != core_hash(stored.report):
+        return None
+    return Holding(_decision(row), int(row.version))
+
+
 async def latest(conn: AsyncConnection, case_id: uuid.UUID) -> Stored | None:
     """The newest version of the case's report, or None (none yet, or unreadable)."""
     row = (

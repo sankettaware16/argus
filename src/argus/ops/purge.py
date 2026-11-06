@@ -220,6 +220,10 @@ _CASCADES = (
     "assessment_shares",
     "investigation_raises",
     "case_known_matches",
+    # the incident engine's (P4-F): its groups, and through them their entities and observations
+    "risk_groups",
+    "risk_entities",
+    "risk_observations",
 )
 # What hangs off the victims (:ids), table by table, in the order foreign keys need.
 _BY_INVESTIGATION = (

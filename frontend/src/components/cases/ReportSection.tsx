@@ -13,6 +13,7 @@ import {
   HYPOTHESIS_WORDS,
   rejectBody,
   rejectProblem,
+  reportHeadline,
   safeLink,
   STANDING_TITLE,
   STANDING_TONE,
@@ -26,13 +27,14 @@ import { UntrustedText } from "../UntrustedText";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Field, Select, TextArea } from "../ui/field";
+import { plainWords } from "../../lib/plainWords";
 import { DataTable } from "../ui/table";
 import { zoneLabel } from "../../lib/site";
 
 const CASE_TITLE = "case-title";
 
 function Text({ value, max = 600, lines = 6 }: { value: string; max?: number; lines?: number }) {
-  return <UntrustedText value={value} limits={{ maxChars: max, maxLines: lines }} />;
+  return <UntrustedText value={plainWords(value)} limits={{ maxChars: max, maxLines: lines }} />;
 }
 
 /** One part of the report: the heading is always there, the body opens and closes. */
@@ -62,13 +64,13 @@ function Sentences({ items }: { items: readonly { text: string }[] }) {
 
 // ------------------------------------------------------------------ the top of the report
 
-function Head({ data, onVersion }: { data: CaseReportOut; onVersion: (v: number | null) => void }) {
+function Head({ data, onVersion, incidentId }: { data: CaseReportOut; onVersion: (v: number | null) => void; incidentId: string | null }) {
   const report = data.report as IncidentReport;
   const id = useId();
   return (
     <div className="flex flex-col gap-2">
       <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <strong data-testid="incident-id">{report.header.incident_id}</strong>
+        <strong data-testid="incident-id">{incidentId ?? report.header.incident_id}</strong>
         <span>
           · version {data.version} of {data.newest}, written <Time value={data.generated_at} />
         </span>
@@ -77,16 +79,20 @@ function Head({ data, onVersion }: { data: CaseReportOut; onVersion: (v: number 
         {data.version !== data.newest && <Badge tone="warn">An older version</Badge>}
       </p>
       {data.versions.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <label htmlFor={id}>Version shown</label>
-          <Select id={id} value={String(data.version)} onChange={(e) => onVersion(Number(e.target.value) === data.newest ? null : Number(e.target.value))} className="max-w-48">
+        <div className="flex flex-col gap-1 text-sm">
+          <p id={id} className="m-0">
+            Latest (v{data.newest}) · History:
+          </p>
+          <ul className="m-0 flex list-none flex-wrap gap-1 p-0" aria-labelledby={id} data-testid="report-versions">
             {data.versions.map((v) => (
-              <option key={v.version} value={v.version}>
-                Version {v.version}
-                {v.decision ? ` · ${v.decision}` : ""}
-              </option>
+              <li key={v.version}>
+                <Button size="sm" variant={v.version === data.version ? "primary" : "secondary"} aria-pressed={v.version === data.version} onClick={() => onVersion(v.version === data.newest ? null : v.version)}>
+                  v{v.version}
+                  {v.decision ? ` · ${v.decision}` : ""}
+                </Button>
+              </li>
             ))}
-          </Select>
+          </ul>
         </div>
       )}
       <ul className="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 p-0 text-sm" aria-label="Files">
@@ -109,13 +115,14 @@ function Head({ data, onVersion }: { data: CaseReportOut; onVersion: (v: number 
   );
 }
 
-function SummaryBlock({ report }: { report: IncidentReport }) {
+function SummaryBlock({ report, state }: { report: IncidentReport; state: string }) {
   const s = report.summary;
+  const v = report.verdict;
   const words = s.prose.length > 0 ? s.prose : s.sentences;
   return (
     <div className="flex flex-col gap-2" aria-label="Report summary" role="group">
       <p className="m-0 text-base font-semibold" data-testid="report-headline">
-        <Text value={s.headline} max={400} lines={2} />
+        {reportHeadline(state, v.outcome, confidenceText(v.confidence, v.confidence_words))}
       </p>
       <p className="m-0 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={STANDING_TONE[s.standing]}>{STANDING_TITLE[s.standing]}</Badge>
@@ -137,10 +144,10 @@ function VerdictBlock({ report }: { report: IncidentReport }) {
   const sure = confidenceText(v.confidence, v.confidence_words);
   const basis = v.sentences.slice(1);
   return (
-    <div className="flex flex-col gap-1" aria-label="ARGUS's verdict" role="group">
+    <div className="flex flex-col gap-1" aria-label="ARGUS's call" role="group">
       <p className="m-0 flex flex-wrap items-center gap-2 text-sm" data-testid="verdict-line">
-        <strong>ARGUS&apos;s verdict:</strong>
-        <Badge tone={v.outcome === "true_positive" ? "high" : v.outcome === null ? "neutral" : "ok"}>{v.outcome ? OUTCOMES[v.outcome] : "No verdict yet"}</Badge>
+        <strong>ARGUS&apos;s call:</strong>
+        <Badge tone={v.outcome === "true_positive" ? "high" : v.outcome === null ? "neutral" : "ok"}>{v.outcome ? OUTCOMES[v.outcome] : "No call yet"}</Badge>
         {sure && <span>confidence {sure}</span>}
         <span className="text-muted">
           from {v.source}
@@ -216,6 +223,7 @@ function Decision({ data }: { data: CaseReportOut }) {
         <p className="m-0 max-w-prose text-sm" data-testid="decision-line">
           {d.decision === "confirmed" ? "Confirmed" : "Rejected"} by <Text value={d.by} max={80} lines={1} /> on <Time value={d.decided_at} />
           {d.outcome && ` as “${OUTCOMES[d.outcome]}”`}; {count(d.labelled)} {plural(d.labelled, "investigation")} labelled.
+          {d.held_from != null && ` Made on version ${d.held_from}; it still holds: since then only the case's name or the sign-in accounts changed.`}
           {d.reason && (
             <>
               {" "}
@@ -560,7 +568,7 @@ function Limits({ report }: { report: IncidentReport }) {
  * with a reason: both are labels, neither closes anything), then each part, every evidence line
  * with the exact query behind it and a read-only Discover link, and the files.
  */
-export function ReportSection({ caseId }: { caseId: string }) {
+export function ReportSection({ caseId, incidentId = null }: { caseId: string; incidentId?: string | null }) {
   const [version, setVersion] = useState<number | null>(null);
   const found = useQuery(caseReportOptions(caseId, version));
   return (
@@ -568,12 +576,12 @@ export function ReportSection({ caseId }: { caseId: string }) {
       <h2 className="m-0 text-lg font-semibold">Report</h2>
       {found.isPending && <Loading what="the report" />}
       {found.isError && <Problem error={found.error} what="The report" onRetry={() => void found.refetch()} />}
-      {found.isSuccess && <Body data={found.data} onVersion={setVersion} />}
+      {found.isSuccess && <Body data={found.data} onVersion={setVersion} incidentId={incidentId} />}
     </section>
   );
 }
 
-function Body({ data, onVersion }: { data: CaseReportOut; onVersion: (v: number | null) => void }) {
+function Body({ data, onVersion, incidentId }: { data: CaseReportOut; onVersion: (v: number | null) => void; incidentId: string | null }) {
   const report = data.report;
   if (report === null || report === undefined) {
     return (
@@ -584,9 +592,9 @@ function Body({ data, onVersion }: { data: CaseReportOut; onVersion: (v: number 
   }
   return (
     <>
-      <Head data={data} onVersion={onVersion} />
+      <Head data={data} onVersion={onVersion} incidentId={incidentId} />
       {data.logs_hidden && <p className="m-0 max-w-prose text-sm text-muted">Your account may not read the logs, so what the logs said is hidden here and in the PDF.</p>}
-      <SummaryBlock report={report} />
+      <SummaryBlock report={report} state={data.case_state} />
       <VerdictBlock report={report} />
       <Decision key={`${data.case_id}-${data.version}`} data={data} />
       <Part title="Timeline" hint={`Alerts a day, ${zoneLabel()}; each phase is one rule's alerts.`}>

@@ -51,4 +51,4 @@ async def test_0059_had_the_nested_check_and_the_round_trip_holds(
     assert await _unstable(migrated_engine) == ["signin_sightings.ck_signin_sightings_hours_valid"]
     await migrate.upgrade(migrated_engine)
     assert await _unstable(migrated_engine) == []
-    assert await migrate.current_revision(migrated_engine) == "0065"
+    assert await migrate.current_revision(migrated_engine) == migrate.head_revision()

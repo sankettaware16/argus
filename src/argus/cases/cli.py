@@ -298,7 +298,8 @@ def case_dismiss(
     ref: CaseArg,
     username: As,
     reason: Annotated[str, typer.Option(help="rule_false_positive, benign_expected, benign_policy,"
-                                             " created_in_error or duplicate")],
+                                             " attempt_no_impact, created_in_error or"
+                                             " duplicate")],
     version: Version = None,
     note: Note = None,
     config: ConfigOption = None,
@@ -529,24 +530,29 @@ def case_retitle(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="with --all: print old -> new, change nothing")
     ] = False,
+    explain: Annotated[
+        bool, typer.Option("--explain", help="with --all: each new title's claims and facts")
+    ] = False,
     version: Version = None,
     config: ConfigOption = None,
 ) -> None:
     """Rename a case, or make ARGUS's titles current.
 
     `argus case retitle 7 --title "..." --as asha --reason "..."` is a person's title: ARGUS never
-    changes it afterwards. `argus case retitle --all [--dry-run]` makes the title of every case
-    that ARGUS wrote (a closed one too) again from the case's facts, and changes the ones that
-    differ; a title a person wrote is left alone. The assessment service does the same for the
-    cases that are not closed every 15 minutes (`cases.retitle`)."""
+    changes it afterwards. `argus case retitle --all [--dry-run] [--explain]` makes the title of
+    every case that ARGUS wrote (a closed one too) again from the case's facts, and changes the
+    ones that differ (a count too, at once); a title a person wrote is left alone; `--explain`
+    prints each claim of a new title with the fact it rests on. The assessment service does the
+    same for the cases that are not closed every 15 minutes (`cases.retitle`), on a material
+    change only."""
     if all_:
         if ref or title or username or reason or version is not None:
             typer.echo("error: --all takes no case, title, person or reason", err=True)
             raise typer.Exit(2)
-        _retitle_all(config, dry_run=dry_run)
+        _retitle_all(config, dry_run=dry_run, explain=explain)
         return
-    if dry_run:
-        typer.echo("error: --dry-run goes with --all", err=True)
+    if dry_run or explain:
+        typer.echo("error: --dry-run and --explain go with --all", err=True)
         raise typer.Exit(2)
     if not (ref and title and username and reason):
         typer.echo("error: give the case, --title, --as and --reason (or use --all)", err=True)
@@ -559,7 +565,7 @@ def case_retitle(
     _command(config, ref, username, version, build)
 
 
-def _retitle_all(config: ConfigOption, *, dry_run: bool) -> None:
+def _retitle_all(config: ConfigOption, *, dry_run: bool, explain: bool = False) -> None:
     settings = load(config)
     assets = load_asset_map(settings.assets.map_path)
     classifier = IpClassifier(assets, settings.site.own_networks)
@@ -568,7 +574,9 @@ def _retitle_all(config: ConfigOption, *, dry_run: bool) -> None:
         engine = engine_for(settings)
         try:
             ctx = titling.Context(classifier)
-            return await titling.refresh(engine, ctx, dry_run=dry_run, everything=True, limit=10**6)
+            return await titling.refresh(
+                engine, ctx, dry_run=dry_run, everything=True, limit=10**6, wait=timedelta(0)
+            )
         except DB_ERRORS as exc:
             typer.echo(f"error: {short_db_error(exc)}", err=True)
             raise typer.Exit(1) from None
@@ -584,6 +592,9 @@ def _retitle_all(config: ConfigOption, *, dry_run: bool) -> None:
     typer.echo(f"{'dry run: ' if dry_run else ''}{report.looked} cases looked at")
     for change in report.changes:
         typer.echo(f"  case {change.number}: {_shown(change.old)} -> {_shown(change.new)}")
+        for claim in change.claims if explain else ():
+            words, fact = _shown(claim["words"]), _shown(claim["fact"])
+            typer.echo(f"      {claim['slot']}: {words}  [{fact}]")
     typer.echo(f"a person's title, left alone: {report.kept}")
     typer.echo(
         f"{'would change' if dry_run else 'changed'}: "

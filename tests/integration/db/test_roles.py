@@ -692,6 +692,11 @@ def test_the_runtime_grants_match_migration_0003(monkeypatch: pytest.MonkeyPatch
         "incident_reports", "incident_report_decisions", "incident_report_checks",
         "case_team_posts", "case_team_steps", "case_team_approvals", "case_team_seen",
         "case_team_reads", "case_team_looks", "signin_sightings", "signin_lookups",
+        "risk_objects", "risk_groups", "risk_entities", "risk_observations", "risk_sources",
+        "risk_object_scores", "risk_crossings", "risk_incidents", "risk_incident_objects",
+        "risk_incident_groups", "risk_links", "risk_threats", "risk_aliases", "exposure_checks",
+        "case_holds", "case_seen", "spot_checks", "user_rounds", "report_sends",
+        "risk_gray_items", "risk_mode",
     }  # fmt: skip
     assert roles.RUNTIME_GRANTS["alembic_version"] == roles.TableGrant(select=True)
     assert roles.RUNTIME_GRANTS["audit_events"].update == ()
@@ -805,6 +810,21 @@ MIRROR_0034 = ("case_id", "kibana_case_id", "kibana_version", "status", "title",
          ("GRANT INSERT (unnamed, store_failures), UPDATE (unnamed, store_failures)"
           " ON signin_lookups TO argus_runtime",
           "GRANT INSERT (core_hash) ON incident_reports TO argus_runtime")),
+        ("0070_risk_engine",
+         ("GRANT UPDATE (lineage, tactics, stage_mask, indices, family, meta_at) ON rules"
+          " TO argus_runtime",
+          "risk_objects", "risk_groups", "risk_entities", "risk_observations", "risk_sources",
+          "risk_object_scores", "risk_crossings")),
+        ("0071_risk_incidents",
+         ("risk_incidents", "risk_incident_objects", "risk_incident_groups", "risk_links",
+          "risk_threats", "risk_aliases")),
+        ("0075_exposure_checks", ("exposure_checks",)),
+        ("0100_queue_marks",
+         ("case_holds", "case_seen", "spot_checks", "user_rounds", "report_sends")),
+        ("0095_risk_present",
+         ("GRANT UPDATE (title, certainty, shown, shown_day, queued_at, raised_by_ai, presented,"
+          " presented_at) ON risk_incidents TO argus_runtime",
+          "risk_gray_items", "risk_mode")),
     ],
 )  # fmt: skip
 def test_the_runtime_grants_match_each_migration(
@@ -847,6 +867,18 @@ LEDGER_0029 = ("lane", "target", "outbox_id", "payload_hash", "write_class", "ap
                "health", "switches")  # fmt: skip
 # Columns of an earlier migration's tables that a later migration added (and granted).
 LATER_COLUMNS = {
+    "0095": {
+        "risk_incidents": (
+            "title",
+            "certainty",
+            "shown",
+            "shown_day",
+            "queued_at",
+            "raised_by_ai",
+            "presented",
+            "presented_at",
+        )
+    },
     "0008": {"jobs": ("deferred_since", "deferrals")},
     "0011": {"rules": ("definition_at",), "signals": ("pack",)},
     "0014": {"writeback_outbox": ("sent_count",)},
@@ -889,6 +921,7 @@ LATER_COLUMNS = {
         ),
     },
     "0057": {"signin_lookups": ("unnamed", "store_failures"), "incident_reports": ("core_hash",)},
+    "0070": {"rules": ("lineage", "tactics", "stage_mask", "indices", "family", "meta_at")},
 }
 
 

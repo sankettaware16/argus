@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Any, Literal, cast, get_args
 
 from argus.agent import reading as readings
+from argus.cases import naming
 from argus.report.model import HIDDEN
 from argus.report.render import FLOOR_HIDDEN, FLOOR_KEPT
 from argus.report.render import reason as hidden_reason
@@ -124,10 +125,14 @@ def _known(s: queries.Summary) -> m.KnownRefOut | None:
 
 
 def investigation(s: queries.Summary, ai: Mapping[str, Any] | None = None) -> m.InvestigationOut:
+    flags = [f for f in s.raised_flags or () if isinstance(f, str)]
+    title, key_words = naming.row_title(s.key_fields, flags, s.alert_count)
     return m.InvestigationOut(
         id=s.id,
         rule_id=s.rule_id,
         rule_name=s.rule_name,
+        title=title,
+        key_words=key_words,
         key_fields=_key_fields(s.key_fields),
         bucket_start=s.bucket_start,
         alert_count=s.alert_count,
@@ -575,6 +580,7 @@ def dashboard_out(d: dashboard.Dashboard) -> m.DashboardOut:
         kpis=m.DashboardKpis(
             investigations=k["cases"], open=k["open"], attention=k["attention"], known=k["known"],
             follow_up=k["follow_up"], incidents=k["incidents"], suspected=k["suspected"],
+            incident_cases=k["incident_cases"], possible_incidents=k["possible_incidents"],
             reviewed=k["reviewed"], assessed=k["assessed"], open_critical=k["open_critical"],
             alerts=k["alerts"], alerts_before=k["alerts_before"],
             median_review_s=k["median_review_s"]),

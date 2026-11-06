@@ -53,7 +53,9 @@ def providers_check(config: LlmConfig, present: set[str]) -> Finding:
     for p in config.providers:
         state = "on" if p.enabled else "disabled"
         key = "key" if any(k in present for k in p.keys) else "no key"
-        parts.append(f"{p.name} ({state}, {key})")
+        own = ((p.monthly_cap_usd, "month"), (p.daily_cap_usd, "day"))
+        caps = [f"${cap:.2f} a {per}" for cap, per in own if cap is not None]
+        parts.append(f"{p.name} ({', '.join([state, key, *caps])})")
     return Finding("llm providers", True, ", ".join(parts))
 
 

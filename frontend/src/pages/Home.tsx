@@ -1,54 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { listCases } from "../client/sdk.gen";
 import { Loading, Problem } from "../components/Problem";
 import { PatternSummaryCard } from "../components/queue/PatternSummary";
 import { QueueCase, QueueSingle } from "../components/queue/QueueItems";
 import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { unwrap } from "../lib/call";
 import { count, plural } from "../lib/format";
-import { approvalsOptions, countsQuery, patternSummaryOptions, queueOptions } from "../lib/queries";
+import { countsQuery, patternSummaryOptions, queueOptions } from "../lib/queries";
 import { useSession } from "../lib/session";
-
-const COUNT = new Intl.NumberFormat("en-IN");
-
-const TILES = [
-  { key: "attention", label: "Need attention", view: "attention", hint: "Follow-ups, changed and severe investigations" },
-  { key: "open", label: "Not reviewed", view: "open", hint: "Nobody has reviewed these yet" },
-  { key: "follow_up", label: "Follow-ups", view: "attention", hint: "Marked for a follow-up by a reviewer" },
-  { key: "changed", label: "Changed since review", view: "attention", hint: "New alerts arrived after the review" },
-  { key: "reviewed_today", label: "Reviewed in 24 h", view: "reviewed", hint: "Decided in the last 24 hours" },
-] as const;
-
-const CASE_TILES = [
-  { key: "active", label: "Open cases", view: "active", hint: "Confirmed cases that are open, assigned or contained" },
-  { key: "attention", label: "Cases needing attention", view: "attention", hint: "Cases ARGUS wants a person to look at, or that wait for an approval" },
-  { key: "mine", label: "Your cases", view: "mine", hint: "Cases you own" },
-  { key: "suspected", label: "Suspected", view: "suspected", hint: "Cases ARGUS suspects; a person's true-positive verdict confirms one" },
-] as const;
-
-/** Cases and approvals at a glance: the tiles' numbers come from the case list's counts and the approvals queue. */
-function CaseTiles() {
-  const cases = useQuery({ queryKey: ["cases-counts"], queryFn: () => unwrap(listCases({ query: { view: "active", limit: 1 } })), staleTime: 15_000 });
-  const approvals = useQuery(approvalsOptions);
-  const number = (n: number | undefined) => (n !== undefined ? COUNT.format(n) : cases.isError ? "?" : "…");
-  return (
-    <section aria-label="Cases" aria-busy={cases.isPending} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {CASE_TILES.map((tile) => (
-        <Link key={tile.key} to="/cases" search={{ view: tile.view }} title={tile.hint} className="rounded-card border border-border bg-surface p-3 text-text no-underline shadow-card hover:border-border-strong">
-          <span className="block text-2xl font-semibold tabular-nums">{number(cases.data?.counts[tile.key])}</span>
-          <span className="block text-sm text-muted">{tile.label}</span>
-        </Link>
-      ))}
-      <Link to="/approvals" title="Closures and merges waiting for a person to decide" className="rounded-card border border-border bg-surface p-3 text-text no-underline shadow-card hover:border-border-strong">
-        <span className="block text-2xl font-semibold tabular-nums">{approvals.data ? COUNT.format(approvals.data.pending_total) : approvals.isError ? "?" : "…"}</span>
-        <span className="block text-sm text-muted">Waiting for an approval</span>
-      </Link>
-    </section>
-  );
-}
 
 /** The new and the known counts: the API's own (`/counts`), the same numbers as the Inbox and the dashboard. */
 function Totals({ notifiedCases }: { notifiedCases: number | undefined }) {
@@ -98,7 +57,7 @@ function Patterns() {
       {summary.isError && <Problem error={summary.error} what="The patterns" onRetry={() => void summary.refetch()} />}
       {data && b === undefined && (
         <p className="m-0 text-sm text-muted">
-          ARGUS recommends closing no pattern now. <Link to="/patterns">All patterns</Link>
+          None now. <Link to="/patterns">All patterns</Link>
         </p>
       )}
       {data && b && (
@@ -150,20 +109,20 @@ function Queue() {
       )}
       <section aria-labelledby="queue-cases" className="flex flex-col gap-2" aria-busy={queue.isFetching}>
         <h2 id="queue-cases" className="m-0 text-lg font-semibold">
-          1. ARGUS&apos;s cases that need a person
+          1. Possible incidents and incidents that need you
         </h2>
         {queue.isPending && <Loading what="the queue" />}
         {queue.isError && <Problem error={queue.error} what="The queue" onRetry={() => void queue.refetch()} />}
-        {q && q.cases_total === 0 && <p className="m-0 text-sm text-muted">No case needs a person now.</p>}
+        {q && q.cases_total === 0 && <p className="m-0 text-sm text-muted">None now.</p>}
         {q && q.cases.length > 0 && (
           <>
             <p className="m-0 text-sm text-muted">
-              Suggested cases and cases with a change since the owner was told come first. {moreCases ? `The first ${count(q.cases.length)} of ${count(q.cases_total)} are shown. ` : ""}
+              Possible incidents and incidents with a change since the owner was told come first. {moreCases ? `The first ${count(q.cases.length)} of ${count(q.cases_total)} are shown. ` : ""}
               <Link to="/cases" search={{ view: "queue" }}>
                 {moreCases ? `All ${count(q.cases_total)} cases that need a person` : "These cases in the cases list"}
               </Link>
             </p>
-            <ol className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Cases that need a person">
+            <ol className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Incidents that need you">
               {q.cases.map((c) => (
                 <QueueCase key={c.id} c={c} />
               ))}
@@ -206,37 +165,14 @@ function Queue() {
   );
 }
 
-/** Home: what needs a person today, in order (AR4): ARGUS's cases, the patterns it recommends closing, the single investigations; the counts below. */
+/** Home: what needs a person today, in order (AR4): the incidents and possible incidents, the patterns ARGUS recommends closing, the single investigations. No tiles (P4-F U20): the Dashboard has the numbers. */
 export function Home() {
   const session = useSession();
-  const counts = useQuery(countsQuery);
   return (
     <>
       <h1 className="m-0 text-2xl font-semibold">Home</h1>
-      <p className="m-0 text-muted">{session.data ? "What needs a person today, in order. Notified cases that are still active with nothing changed are not work: they are counted." : null}</p>
+      <p className="m-0 text-muted">{session.data ? "What needs you today, in order. Incidents whose owner was told and that are quiet are not work: they are counted." : null}</p>
       <Queue />
-      <h2 className="m-0 mt-2 text-lg font-semibold">At a glance</h2>
-      <section aria-label="Investigations" aria-busy={counts.isPending} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {TILES.map((tile) => (
-          <Link key={tile.key} to="/inbox" search={{ view: tile.view }} title={tile.hint} className="rounded-card border border-border bg-surface p-3 text-text no-underline shadow-card hover:border-border-strong">
-            <span className="block text-2xl font-semibold tabular-nums">{counts.data ? COUNT.format(counts.data[tile.key]) : counts.isError ? "?" : "…"}</span>
-            <span className="block text-sm text-muted">{tile.label}</span>
-          </Link>
-        ))}
-      </section>
-      <CaseTiles />
-      {counts.isError && (
-        <p className="m-0 text-sm text-danger" role="alert">
-          The numbers could not be read just now; the classic pages still work.
-        </p>
-      )}
-      <Card>
-        <h2 className="m-0 mb-1 text-base font-semibold">The ARGUS app</h2>
-        <p className="m-0 text-sm">
-          Everything is here: this queue, the Dashboard, the Inbox with its two panes, Proposals, the cases and the approvals queue, the reports. The classic pages stay as a read-only fallback at{" "}
-          <a href="/classic">Classic pages</a>. Nothing here changes how ARGUS works.
-        </p>
-      </Card>
     </>
   );
 }

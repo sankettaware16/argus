@@ -7,6 +7,40 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-07
+
+### Added
+
+- **An incident engine:** every alert group and evidence fact becomes a scored observation on a
+  campus device, account or site; observations add up per object (each source once per window,
+  noisy sources scaled down, stages counted so one rule cannot fake progression); five lanes
+  decide what a person sees; a linker joins objects across rules, days and log families into one
+  incident (hubs never link, size caps, a reason sentence per link); a lifecycle re-queues only on
+  a material change; priority P1–P4 with a "why" line, checks and ruled-out explanations; a
+  capacity governor; a "handled by ARGUS" digest. Runs in shadow until `risk.present` is on, from
+  its own timer (`argus-risk.timer`), and replays over stored history (`argus risk`).
+- **Exposure checks:** for inbound attacks the campus site is the thing at risk; a capped checking
+  lane (10 minutes of SIEM time a day, normal health only) verifies whether a probe was really
+  served or answered by a not-found page.
+- **The analyst UI, rebuilt:** Today · Incidents · Search · Reports, a queue with a preview pane, a
+  sticky decision bar (confirm, not an incident with a reason, merge, hold), entity pages,
+  keyboard shortcuts, the incident's glance charts on its own page.
+- **Accurate titles:** certainty, activity, target, actors, place and outcome, each from a fact; a
+  checker refuses a title with an unbacked claim.
+- **Anthropic** as a paid provider through its own Messages API (structured outputs, refusals and
+  credit limits handled), and per-provider daily and monthly caps.
+
+### Changed
+
+- Paid providers: OpenAI first, then Anthropic; an OpenAI-compatible 404 raises a model alarm.
+- The Visualiser's charts: empty days drawn as gaps, one source for every count, one living glance
+  comment edited in place.
+
+### Fixed
+
+- A suspected case can be confirmed, dismissed or merged in the web (no command line needed).
+- `argus init` repairs the case team's database login; doctor reports a failed enabled timer.
+
 ## [0.1.0] — 2026-11-03
 
 First public release.

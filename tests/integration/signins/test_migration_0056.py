@@ -213,5 +213,5 @@ async def test_a_clean_round_trip_down_and_up_again(migrated_engine: AsyncEngine
         left = await conn.scalar(text("SELECT to_regclass('signin_sightings')"))
     assert left is None
     await migrate.upgrade(migrated_engine)
-    assert await migrate.current_revision(migrated_engine) == "0065"
+    assert await migrate.current_revision(migrated_engine) == migrate.head_revision()
     assert await migrate.schema_drift(migrated_engine) == []

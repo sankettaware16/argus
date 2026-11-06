@@ -1,5 +1,5 @@
 // AR4: the verdict-first card on an investigation's page. What ARGUS recommends or read and why it
-// is not a proposal, the facts behind it, Confirm and Change in one place, Next through the queue,
+// is not a proposal, the facts behind it, Accept and the five decisions in one place, Next through the queue,
 // and the keys C, 1 to 5 and N (never while typing).
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,45 +35,50 @@ function reads(d: InvestigationDetail, order: string[] = [ID, ID2], report: () =
 async function open(d: InvestigationDetail, order?: string[], report?: () => Response) {
   reads(d, order, report);
   const view = renderApp(`/investigations/${ID}`);
-  await screen.findByText("Your review");
+  await screen.findByText("Your decision");
   return view;
 }
 
 const headline = () => screen.getByTestId("verdict-headline").textContent;
-const outcome = () => screen.getByLabelText(/^Outcome/) as HTMLSelectElement;
+const radio = (value: string) => document.querySelector(`form[aria-label="Your decision"] input[type="radio"][value="${value}"]`) as HTMLInputElement;
+const pick = (user: { click: (el: Element) => Promise<void> }, value: string) => user.click(radio(value));
+const chosen = () => document.querySelector<HTMLInputElement>('form[aria-label="Your decision"] input[type="radio"]:checked')?.value ?? "";
 
 describe("the top card says what ARGUS thinks", () => {
   it("recommends: the outcome and the confidence, where it comes from, the pattern's size and Confirm", async () => {
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    expect(headline()).toBe("ARGUS recommends: True positive (75%)");
-    expect(screen.getByText("From the AI investigator. A proposal, not a decision.")).toBeTruthy();
-    expect(screen.getByText("This pattern: 14 investigations, 230 alerts.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Confirm: True positive" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Change" })).toBeTruthy();
+    expect(headline()).toBe("ARGUS's call: Real: act on it (75%)");
+    expect(screen.getByText("From the AI investigator. A proposal, not a decision: yours is below.")).toBeTruthy();
+    expect(screen.getByText("The same call covers 14 alike alert groups, 230 alerts.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
+    expect(screen.getAllByRole("radio")).toHaveLength(5);
   });
 
   it("recommends from the pattern's run on another investigation, which it links, and says Confirm records the person's own review", async () => {
     await open(detail({ stance: SHARED }));
-    expect(headline()).toBe("ARGUS recommends: Benign: expected activity (90%)");
+    expect(headline()).toBe("ARGUS's call: Real but harmless (90%)");
     const same = screen.getByTestId("same-pattern-source");
-    expect(within(same).getByRole("link").getAttribute("href")).toBe(`/app/investigations/${ID3}`);
-    expect(screen.getByText(/Confirming records your own review of this investigation/)).toBeTruthy();
+    expect(within(same).getByRole("link").getAttribute("href")).toBe(`/app/alert-groups/${ID3}`);
+    expect(screen.getByText(/Accepting records your own decision on this alert group/)).toBeTruthy();
   });
 
   it("reads: the outcome, not proposed because, and nothing to confirm; the person chooses", async () => {
     await open(detail({ stance: READING }));
-    expect(headline()).toBe("ARGUS's reading: True positive (70%), not proposed because it quoted something that is not in the evidence");
-    expect(screen.getByText("From the AI investigator. A reading is not a proposal: nothing is closed from it.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
-    expect(screen.getByText(/ARGUS did not propose an outcome, so there is nothing to confirm/)).toBeTruthy();
+    expect(headline()).toBe("ARGUS leans to: Real: act on it (70%), but did not propose it");
+    // the machine's own reason is behind Details, not in the headline (P4-F U9)
+    expect(screen.getByTestId("stance-why").textContent).toContain("Not proposed because it quoted something that is not in the evidence.");
+    expect(screen.getByText("From the AI investigator. Nothing is closed from it.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
+    expect(screen.getByText(/ARGUS did not propose its call, so there is nothing to accept/)).toBeTruthy();
   });
 
   it("has nothing: it says so, and offers the form", async () => {
     await open(detail());
-    expect(headline()).toBe("ARGUS has no reading of this yet");
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
-    expect(screen.getByText(/ARGUS has no recommendation for this one/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeTruthy();
+    expect(headline()).toBe("ARGUS has made no call on this yet");
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
+    expect(screen.getByText(/ARGUS made no call on this one/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save decision" })).toBeTruthy();
   });
 
   it("lists three to five key facts, each linking to its rows: the report's sources for an E-number, the alerts otherwise", async () => {
@@ -82,13 +87,16 @@ describe("the top card says what ARGUS thinks", () => {
     await facts.findByText("Host H1 reached the C2 every 300 s, 59 times.");
     const items = facts.getAllByRole("listitem");
     expect(items.map((li) => li.textContent)).toEqual([
-      "Host H1 reached the C2 every 300 s, 59 times.See the rows (E3)",
-      "Two more campus hosts reached the same C2 today.See the rows (E4)",
-      "Contacts at a fixed interval.See the rows (E3)",
+      "Host H1 reached the C2 every 300 s, 59 times.See the rows",
+      "Two more campus hosts reached the same C2 today.See the rows",
+      "Contacts at a fixed interval.See the rows",
       "Two alerts from 10.0.0.1.See the alerts",
     ]);
-    expect(within(items[0] as HTMLElement).getByRole("link").getAttribute("href")).toBe(`/app/investigations/${ID}?tab=report#eid-E3`);
-    expect(within(items[3] as HTMLElement).getByRole("link").getAttribute("href")).toBe(`/app/investigations/${ID}?tab=alerts`);
+    // no engine id ("E3") on the first screen (§3.1, F19): it lives in the link's tooltip and its target
+    expect(facts.getByRole("list").textContent).not.toMatch(/\bE\d+\b/);
+    expect(within(items[0] as HTMLElement).getByRole("link").getAttribute("title")).toBe("Evidence E3 in the report");
+    expect(within(items[0] as HTMLElement).getByRole("link").getAttribute("href")).toBe(`/app/alert-groups/${ID}?tab=report#eid-E3`);
+    expect(within(items[3] as HTMLElement).getByRole("link").getAttribute("href")).toBe(`/app/alert-groups/${ID}?tab=alerts`);
   });
 
   it("says known or changed since the notice, with the case", async () => {
@@ -122,8 +130,8 @@ describe("Confirm", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
-    expect(await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
+    expect(await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" })).toBeTruthy();
     const [post] = sent("POST", "/api");
     expect(post?.path).toBe(`/api/v1/investigations/${ID}/accept`);
     expect(JSON.parse(post?.body ?? "")).toEqual({ assessment_id: 7 });
@@ -134,8 +142,8 @@ describe("Confirm", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 11, version: 3, gold_saved: false }, { status: 201 })));
     await open(detail({ stance: SHARED }, { latest_review: 5 }));
-    await user.click(screen.getByRole("button", { name: "Confirm: Benign: expected activity" }));
-    expect(await screen.findByText("Saved: you confirmed Benign: expected activity as your review.", { selector: "p" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real but harmless" }));
+    expect(await screen.findByText("Saved: your decision is Real but harmless, as ARGUS called it.", { selector: "p" })).toBeTruthy();
     const posts = sent("POST", "/api");
     expect(posts).toHaveLength(1);
     expect(posts[0]?.path).toBe(`/api/v1/investigations/${ID}/reviews`);
@@ -146,12 +154,12 @@ describe("Confirm", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ detail: "the proposal changed (new alerts, a newer assessment, or someone reviewed it): nothing was saved", code: "conflict" }, { status: 409 })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
     const alert = await screen.findByText(/Someone else reviewed this, or new alerts arrived, while you were reading\. Nothing was saved\./);
     expect(alert.getAttribute("role")).toBe("alert");
     expect(sent("POST", "/api")).toHaveLength(1);
     await waitFor(() => expect(sent("GET", `/api/v1/investigations/${ID}`).filter((r) => r.path === `/api/v1/investigations/${ID}`).length).toBeGreaterThanOrEqual(2));
-    expect(screen.getByRole("button", { name: "Confirm: True positive" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" })).toBeTruthy();
   });
 
   it("says why a failure was not saved, in the server's words, and can be tried again", async () => {
@@ -164,10 +172,10 @@ describe("Confirm", () => {
       }),
     );
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
     expect((await screen.findByText(/cannot answer just now/)).getAttribute("role")).toBe("alert");
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     expect(calls).toBe(2);
   });
 
@@ -176,7 +184,7 @@ describe("Confirm", () => {
     const { queries } = await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
     queries.setQueryData(["investigation", ID], detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }, { version: 4, alert_count: 9 }));
     const looked = await screen.findByRole("button", { name: "I have looked at what changed" });
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
     expect(sent("POST", "/api")).toHaveLength(0);
     expect(document.activeElement).toBe(looked);
   });
@@ -192,26 +200,26 @@ describe("Confirm", () => {
       }),
     );
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    const button = screen.getByRole("button", { name: "Confirm: True positive" });
+    const button = screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" });
     await user.click(button);
     await user.click(button);
     fireEvent.click(button);
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     expect(posts).toBe(1);
   });
 
   it("is not offered to an account that may only view, which is told why", async () => {
     server.use(...shellHandlers(sessionWith(["view"])));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
     expect(screen.getByText(/Your account may view only: reviewing needs the “review” capability/)).toBeTruthy();
   });
 
   it("is not offered for an investigation that is reviewed already", async () => {
     await open(detail({ stance: OWN }, { human_state: "reviewed", latest_review: 5, last_outcome: "true_positive", last_reviewer: "Ravi" }));
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
-    expect(screen.getByText((_, el) => el?.tagName === "P" && /^Already reviewed by Ravi: True positive\. A new review below replaces it\.$/.test(el.textContent ?? ""))).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
+    expect(screen.getByText((_, el) => el?.tagName === "P" && /^Already decided by Ravi: Real: act on it\. A new decision below replaces it\.$/.test(el.textContent ?? ""))).toBeTruthy();
   });
 
   it("starts with the gold-set box unticked, so ARGUS's suggestion is not the person's answer by default (AR4 review)", async () => {
@@ -224,8 +232,8 @@ describe("Confirm", () => {
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 11, version: 3, gold_saved: true }, { status: 201 })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN, gold: GOLD }));
     await user.click(screen.getByRole("checkbox", { name: "Also save the outcome as my gold-set answer" }));
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
-    await screen.findByText("Saved: you confirmed True positive as your review. Also saved as your gold-set answer.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
+    await screen.findByText("Saved: your decision is Real: act on it, as ARGUS called it. Also saved as your gold-set answer.", { selector: "p" });
     const [post] = sent("POST", "/api");
     expect(post?.path).toBe(`/api/v1/investigations/${ID}/reviews`);
     expect(JSON.parse(post?.body ?? "")).toMatchObject({ action: "reviewed", outcome: "true_positive", also_gold: true });
@@ -235,8 +243,8 @@ describe("Confirm", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN, gold: GOLD }));
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     expect(sent("POST", "/api")[0]?.path).toBe(`/api/v1/investigations/${ID}/accept`);
   });
 
@@ -244,12 +252,12 @@ describe("Confirm", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/gold`, () => HttpResponse.json({ next_investigation_id: null })));
     await open(detail({ stance: OWN, gold: GOLD }, { human_state: "reviewed", latest_review: 5 }));
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
-    const button = screen.getByRole("button", { name: "Save as my gold-set answer: True positive" });
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
+    const button = screen.getByRole("button", { name: "Save as my gold-set answer: Real: act on it" });
     expect(button.getAttribute("aria-keyshortcuts")).toBeNull(); // not bound to C
     expect(button.querySelector("kbd")).toBeNull();
     await user.click(button);
-    await screen.findByText("Saved: your gold-set answer is True positive, as ARGUS recommends.", { selector: "p" });
+    await screen.findByText("Saved: your gold-set answer is Real: act on it, as ARGUS recommends.", { selector: "p" });
     const [post] = sent("POST", "/api");
     expect(post?.path).toBe(`/api/v1/investigations/${ID}/gold`);
     expect(JSON.parse(post?.body ?? "")).toEqual({ outcome: "true_positive", note: null });
@@ -257,16 +265,16 @@ describe("Confirm", () => {
 });
 
 describe("Confirm does not discard what the form holds (AR4 review)", () => {
-  const confirmButton = () => screen.getByRole("button", { name: "Confirm: True positive" });
+  const confirmButton = () => screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" });
 
   it("waits, with a hint, when the form holds another outcome than ARGUS's, and sends nothing", async () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.selectOptions(outcome(), "benign_policy");
+    await pick(user, "benign_policy");
     expect(confirmButton().getAttribute("aria-disabled")).toBe("true");
     const hint = screen.getByTestId("confirm-hold");
-    expect(hint.textContent).toContain("You chose Benign: allowed by policy: use Mark reviewed to save your choice.");
+    expect(hint.textContent).toContain("You chose Allowed by policy: use Save decision to save your choice.");
     expect(confirmButton().getAttribute("aria-describedby")).toBe(hint.id);
     await user.click(confirmButton());
     expect(sent("POST", "/api")).toHaveLength(0);
@@ -279,27 +287,28 @@ describe("Confirm does not discard what the form holds (AR4 review)", () => {
     expect(screen.getByTestId("confirm-hold").textContent).toContain("You wrote a note");
     await user.click(confirmButton());
     expect(sent("POST", "/api")).toHaveLength(0);
-    expect((await screen.findAllByText(/You wrote a note: choose the outcome and use Mark reviewed to keep it/)).length).toBeGreaterThan(1);
+    expect((await screen.findAllByText(/You wrote a note: choose your decision and use Save decision to keep it/)).length).toBeGreaterThan(1);
   });
 
   it("the C key waits the same way, and says why, instead of discarding the form", async () => {
     const user = userEvent.setup();
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.selectOptions(outcome(), "inconclusive");
-    outcome().blur();
+    await pick(user, "inconclusive");
+    (document.activeElement as HTMLElement | null)?.blur();
     await user.keyboard("c");
     expect(sent("POST", "/api")).toHaveLength(0);
-    expect((await screen.findAllByText(/You chose Inconclusive: use Mark reviewed/)).length).toBeGreaterThan(1);
+    expect((await screen.findAllByText(/You chose Can't tell yet: use Save decision/)).length).toBeGreaterThan(1);
   });
 
-  it("is the person's own choice that Mark reviewed saves, with the note", async () => {
+  it("is the person's own choice that Save decision saves, with the note", async () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 12, version: 3, gold_saved: false }, { status: 201 })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.selectOptions(outcome(), "true_positive");
+    await pick(user, "true_positive");
     await user.type(screen.getByLabelText("Note"), "I called the owner");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await user.click(await screen.findByRole("button", { name: "Mark it real" }));
+    await screen.findByText("Saved: your decision.", { selector: "p" });
     expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toMatchObject({ outcome: "true_positive", note: "I called the owner" });
   });
 
@@ -307,13 +316,13 @@ describe("Confirm does not discard what the form holds (AR4 review)", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    await user.selectOptions(outcome(), "benign_policy");
+    await pick(user, "benign_policy");
     expect(screen.queryByTestId("confirm-hold")).not.toBeNull();
-    await user.selectOptions(outcome(), "true_positive"); // the same as ARGUS's: nothing is dropped
+    await pick(user, "true_positive"); // the same as ARGUS's: nothing is dropped
     expect(screen.queryByTestId("confirm-hold")).toBeNull();
     expect(confirmButton().getAttribute("aria-disabled")).toBeNull();
     await user.click(confirmButton());
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
   });
 });
 
@@ -336,13 +345,13 @@ describe("after Confirm the focus goes on (AR4 review)", () => {
     const user = userEvent.setup();
     confirmed([ID, ID2], [ID2]);
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
+    await screen.findByText("Your decision");
     await screen.findByText("1 more in the queue after this one.");
-    const button = screen.getByRole("button", { name: /^Confirm/ });
+    const button = screen.getByRole("button", { name: /^Accept ARGUS/ });
     button.focus();
     await user.keyboard("{Enter}");
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
-    await waitFor(() => expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull());
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Next" })));
   });
 
@@ -350,9 +359,9 @@ describe("after Confirm the focus goes on (AR4 review)", () => {
     const user = userEvent.setup();
     confirmed([ID], []);
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
-    await user.click(await screen.findByRole("button", { name: /^Confirm/ }));
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Your decision");
+    await user.click(await screen.findByRole("button", { name: /^Accept ARGUS/ }));
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("verdict-headline")));
     expect(document.activeElement).not.toBe(document.body);
   });
@@ -361,8 +370,8 @@ describe("after Confirm the focus goes on (AR4 review)", () => {
     const user = userEvent.setup();
     confirmed([ID, ID2], [ID2]);
     renderApp(`/inbox?view=attention&id=${ID}`);
-    await user.click(await screen.findByRole("button", { name: /^Confirm/ }));
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await user.click(await screen.findByRole("button", { name: /^Accept ARGUS/ }));
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("verdict-headline")));
   });
 });
@@ -377,15 +386,15 @@ describe("an account that cannot review", () => {
     expect(document.body.textContent).not.toMatch(/Chosen:/);
     expect(document.body.textContent).not.toMatch(/There is no recommendation to confirm here/);
     expect(sent("POST", "/api")).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull();
     await user.keyboard("?");
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain("go to the next item of the queue");
-    expect(dialog.textContent).not.toContain("confirm what ARGUS recommends");
+    expect(dialog.textContent).not.toContain("accept ARGUS's call");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await user.keyboard("n");
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/investigations/${ID2}`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/alert-groups/${ID2}`));
   });
 
   it("is not told about keys it has no use for", async () => {
@@ -405,9 +414,9 @@ describe("only the plain letter is a shortcut (AR4 review)", () => {
     fireEvent.keyDown(window, { key: "C" }); // Caps Lock: the capital arrives without Shift
     fireEvent.keyDown(window, { key: "N" });
     expect(sent("POST", "/api")).toHaveLength(0);
-    expect(router.state.location.pathname).toBe(`/investigations/${ID}`);
+    expect(router.state.location.pathname).toBe(`/alert-groups/${ID}`);
     await user.keyboard("c");
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
   });
 });
 
@@ -417,7 +426,7 @@ describe("? lists the keys on the investigation page (D-184)", () => {
     await open(detail({ stance: OWN }));
     await user.keyboard("?");
     const dialog = await screen.findByRole("dialog", { name: "Keyboard shortcuts on an investigation" });
-    for (const word of ["confirm what ARGUS recommends", "choose the outcome", "go to the next item of the queue", "show this list"]) expect(dialog.textContent).toContain(word);
+    for (const word of ["accept ARGUS's call", "choose your decision", "go to the next item of the queue", "show this list"]) expect(dialog.textContent).toContain(word);
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
@@ -432,17 +441,17 @@ describe("? lists the keys on the investigation page (D-184)", () => {
   });
 });
 
-describe("Change", () => {
-  it("takes an outcome and an optional note, and sends them with what was seen", async () => {
+describe("another decision than ARGUS's call", () => {
+  it("takes one of the five outcomes and an optional note, and sends them with what was seen", async () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 12, version: 3, gold_saved: false }, { status: 201 })));
     await open(detail({ stance: OWN }));
-    await user.click(screen.getByRole("button", { name: "Change" }));
-    expect(document.activeElement).toBe(outcome());
-    await user.selectOptions(outcome(), "benign_policy");
+    expect(screen.queryByRole("button", { name: "Change" })).toBeNull(); // the choices are on the page: nothing to open
+    await pick(user, "benign_policy");
+    expect(screen.getByTestId("outcome-hint").textContent).toBe("It happened, and the policy allows it.");
     await user.type(screen.getByLabelText("Note"), "A lab printer, says the lab");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await screen.findByText("Saved: your decision.", { selector: "p" });
     expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toEqual({ action: "reviewed", outcome: "benign_policy", note: "A lab printer, says the lab", seen_review: null, seen_version: 3, also_gold: false });
   });
 
@@ -450,29 +459,55 @@ describe("Change", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 12, version: 3, gold_saved: false }, { status: 201 })));
     await open(detail());
-    await user.selectOptions(outcome(), "inconclusive");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
-    expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toMatchObject({ outcome: "inconclusive", note: null });
+    await pick(user, "rule_false_positive");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await screen.findByText("Saved: your decision.", { selector: "p" });
+    expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toMatchObject({ action: "reviewed", outcome: "rule_false_positive", note: null });
+  });
+
+  it("Can't tell yet keeps it for a follow-up unless the person says otherwise: no semantics lost (P4-F U6)", async () => {
+    const user = userEvent.setup();
+    server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 12, version: 3, gold_saved: false }, { status: 201 })));
+    await open(detail());
+    await pick(user, "inconclusive");
+    const follow = screen.getByRole("checkbox", { name: /Come back to it/ }) as HTMLInputElement;
+    expect(follow.checked).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Save, and come back to it" }));
+    await screen.findByText("Saved: kept for a follow-up.", { selector: "p" });
+    expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toMatchObject({ action: "follow_up", outcome: "inconclusive" });
+    // closed as undecided: the box unticked
+    await pick(user, "inconclusive");
+    await user.click(screen.getByRole("checkbox", { name: /Come back to it/ }));
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await waitFor(() => expect(sent("POST", "/api")).toHaveLength(2));
+    expect(JSON.parse(sent("POST", "/api")[1]?.body ?? "")).toMatchObject({ action: "reviewed", outcome: "inconclusive" });
+    // a real one kept for a follow-up: another decision with the box ticked
+    await pick(user, "true_positive");
+    expect((screen.getByRole("checkbox", { name: /Come back to it/ }) as HTMLInputElement).checked).toBe(false);
+    await user.click(screen.getByRole("checkbox", { name: /Come back to it/ }));
+    await user.click(screen.getByRole("button", { name: "Save, and come back to it" }));
+    await waitFor(() => expect(sent("POST", "/api")).toHaveLength(3));
+    expect(JSON.parse(sent("POST", "/api")[2]?.body ?? "")).toMatchObject({ action: "follow_up", outcome: "true_positive" });
   });
 
   it("says nothing was saved and what to do when it moved (409), and keeps what was typed", async () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ detail: "someone else reviewed it", code: "conflict" }, { status: 409 })));
     await open(detail({ stance: OWN }));
-    await user.selectOptions(outcome(), "true_positive");
+    await pick(user, "true_positive");
     await user.type(screen.getByLabelText("Note"), "keep me");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await user.click(await screen.findByRole("button", { name: "Mark it real" }));
     expect((await screen.findByText(/Nothing was saved\. What you typed is still here/)).getAttribute("role")).toBe("alert");
     expect((screen.getByLabelText("Note") as HTMLTextAreaElement).value).toBe("keep me");
-    expect(outcome().value).toBe("true_positive");
+    expect(chosen()).toBe("true_positive");
   });
 
   it("is told what is missing when no outcome is chosen", async () => {
     const user = userEvent.setup();
     await open(detail());
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    expect(await screen.findByText("Choose an outcome to mark it reviewed.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    expect(await screen.findByText(/^Choose your decision first/)).toBeTruthy();
     expect(sent("POST", "/api")).toHaveLength(0);
   });
 });
@@ -483,28 +518,29 @@ describe("the keys", () => {
     server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
     await user.keyboard("c");
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     expect(sent("POST", "/api")).toHaveLength(1);
   });
 
-  it("C with nothing to confirm says so and sends nothing", async () => {
+  it("C with nothing to accept says so and sends nothing", async () => {
     const user = userEvent.setup();
     await open(detail({ stance: READING }));
     await user.keyboard("c");
-    expect(await screen.findByText("There is no recommendation to confirm here: choose an outcome with the keys 1 to 5.", { selector: "p" })).toBeTruthy();
+    expect(await screen.findByText("ARGUS made no call to accept here: choose your decision with the keys 1 to 5.", { selector: "p" })).toBeTruthy();
     expect(sent("POST", "/api")).toHaveLength(0);
   });
 
-  it("1 to 5 choose the outcome and take the focus to Mark reviewed", async () => {
+  it("1 to 5 choose the decision, Real first, and take the focus to Save", async () => {
     const user = userEvent.setup();
     await open(detail({ stance: OWN }));
-    const wanted = ["benign_expected", "benign_policy", "rule_false_positive", "true_positive", "inconclusive"];
+    const wanted = ["true_positive", "benign_expected", "benign_policy", "rule_false_positive", "inconclusive"];
     for (const [i, value] of wanted.entries()) {
       await user.keyboard(String(i + 1));
-      expect(outcome().value).toBe(value);
+      expect(chosen()).toBe(value);
     }
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Mark reviewed" }));
-    expect(await screen.findByText("Chosen: Inconclusive. Press Mark reviewed to save it.", { selector: "p" })).toBeTruthy();
+    // the last is "Can't tell yet": it keeps the alert group for a follow-up, and the button says so
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Save, and come back to it" }));
+    expect(await screen.findByText("Chosen: Can't tell yet. Press Save decision to save it.", { selector: "p" })).toBeTruthy();
     expect(sent("POST", "/api")).toHaveLength(0); // choosing is not sending
   });
 
@@ -514,16 +550,17 @@ describe("the keys", () => {
     await user.click(screen.getByLabelText("Note"));
     await user.keyboard("c3n 4");
     expect((screen.getByLabelText("Note") as HTMLTextAreaElement).value).toBe("c3n 4");
-    expect(outcome().value).toBe("");
+    expect(chosen()).toBe("");
     expect(sent("POST", "/api")).toHaveLength(0);
     expect(screen.queryByText(/Chosen:/)).toBeNull();
   });
 
-  it("do nothing while the outcome select has the focus (the keys type-ahead there)", async () => {
+  it("still work while one of the choices has the focus (a choice takes no text)", async () => {
     const user = userEvent.setup();
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    outcome().focus();
-    await user.keyboard("c");
+    radio("benign_expected").focus();
+    await user.keyboard("3");
+    expect(chosen()).toBe("benign_policy");
     expect(sent("POST", "/api")).toHaveLength(0);
   });
 
@@ -542,9 +579,9 @@ describe("the keys", () => {
     expect(window.localStorage.getItem("argus-shortcuts")).toBe("off");
     await user.keyboard("c");
     expect(sent("POST", "/api")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Confirm: True positive" }).getAttribute("aria-keyshortcuts")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Confirm: True positive" }));
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    expect(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }).getAttribute("aria-keyshortcuts")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }));
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     view.unmount();
   });
 
@@ -553,7 +590,7 @@ describe("the keys", () => {
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
     await user.click(screen.getByRole("button", { name: "Show keyboard shortcuts" }));
     const dialog = await screen.findByRole("dialog", { name: "Keyboard shortcuts on an investigation" });
-    expect(within(dialog).getByText(/confirm what ARGUS recommends/)).toBeTruthy();
+    expect(within(dialog).getByText(/accept ARGUS's call/)).toBeTruthy();
     await user.keyboard("c");
     expect(sent("POST", "/api")).toHaveLength(0);
     await user.keyboard("{Escape}");
@@ -562,8 +599,8 @@ describe("the keys", () => {
 
   it("are named on the buttons for a screen reader (aria-keyshortcuts) and drawn on them", async () => {
     await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }));
-    expect(screen.getByRole("button", { name: "Confirm: True positive" }).getAttribute("aria-keyshortcuts")).toBe("c");
-    expect(screen.getByRole("button", { name: "Change" }).getAttribute("aria-keyshortcuts")).toBe("1 2 3 4 5");
+    expect(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }).getAttribute("aria-keyshortcuts")).toBe("c");
+    expect(["1", "2", "3", "4", "5"].map((k, i) => radio(["true_positive", "benign_expected", "benign_policy", "rule_false_positive", "inconclusive"][i] ?? "").closest("label")?.querySelector("kbd")?.textContent)).toEqual(["1", "2", "3", "4", "5"]);
     expect(screen.getByRole("button", { name: "Next" }).getAttribute("aria-keyshortcuts")).toBe("n");
   });
 });
@@ -578,10 +615,10 @@ describe("Next", () => {
     const { router } = await open(detail({ stance: OWN }), [ID, ID2, ID3]);
     expect(await screen.findByText("2 more in the queue after this one.")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Next" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/investigations/${ID2}`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/alert-groups/${ID2}`));
     await screen.findByText("The next one");
     await user.keyboard("n");
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/investigations/${ID3}`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/alert-groups/${ID3}`));
   });
 
   it("lands on the next one after C: the confirmed one leaves the queue and the next stands in its place", async () => {
@@ -599,10 +636,10 @@ describe("Next", () => {
     const { router } = await open(detail({ assessments: [PROPOSAL], acceptable_assessment_id: 7, stance: OWN }), [ID, ID2, ID3]);
     await screen.findByText("2 more in the queue after this one.");
     await user.keyboard("c");
-    await screen.findByText("Saved: you confirmed ARGUS's recommendation, True positive.", { selector: "p" });
+    await screen.findByText("Saved: you accepted ARGUS's call, Real: act on it.", { selector: "p" });
     await waitFor(() => expect(sent("GET", "/api/v1/queue").length).toBeGreaterThanOrEqual(2)); // the queue is read again
     await user.keyboard("n");
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/investigations/${ID2}`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/alert-groups/${ID2}`));
   });
 
   it("says it was the last one at the end of the queue, and stays", async () => {
@@ -613,7 +650,7 @@ describe("Next", () => {
     expect((await screen.findAllByText("That was the last item in the queue: nothing else needs a person.")).length).toBeGreaterThan(0);
     expect(screen.queryByText(/more need a person in the Inbox/)).toBeNull();
     expect(screen.queryByRole("link", { name: "Open them in the Inbox" })).toBeNull();
-    expect(router.state.location.pathname).toBe(`/investigations/${ID}`);
+    expect(router.state.location.pathname).toBe(`/alert-groups/${ID}`);
     expect(screen.getByRole("link", { name: "Back to the queue" }).getAttribute("href")).toBe("/app/");
   });
 
@@ -622,7 +659,7 @@ describe("Next", () => {
     reads(detail({ stance: OWN }), [ID]);
     server.use(http.get(`${BASE}/api/v1/queue`, () => HttpResponse.json({ ...queueOf([ID], 17047), singles_total: 17006, cases_total: 41 })));
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
+    await screen.findByText("Your decision");
     expect(await screen.findByText(/This is the last of the 1 most urgent; 17,046 more need a person in the Inbox\./)).toBeTruthy();
     expect(screen.queryByText(/nothing else needs a person/)).toBeNull();
     await user.keyboard("n");
@@ -640,7 +677,7 @@ describe("Next", () => {
     const { router } = await open(detail(), [ID3, ID2]);
     await screen.findByText("2 more in the queue after this one.");
     await user.click(screen.getByRole("button", { name: "Next" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/investigations/${ID3}`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/alert-groups/${ID3}`));
   });
 
   it("says the queue could not be read, and N then says nothing is there", async () => {
@@ -648,13 +685,13 @@ describe("Next", () => {
     reads(detail({ stance: OWN }));
     server.use(http.get(`${BASE}/api/v1/queue`, () => HttpResponse.json({ detail: "boom", code: "internal" }, { status: 500 })));
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
+    await screen.findByText("Your decision");
     expect(await screen.findByText(/The queue could not be read, so Next has nowhere to go\./)).toBeTruthy();
   });
 });
 
 describe("in the Inbox's pane", () => {
-  it("has the card, Confirm and Change, but no Next and no keys: the list is the way on", async () => {
+  it("has the card, Accept and the five decisions, but no Next and no keys: the list is the way on", async () => {
     const user = userEvent.setup();
     window.matchMedia = ((query: string) => ({ matches: query.includes("1024"), media: query, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false, onchange: null })) as unknown as typeof window.matchMedia;
     server.use(
@@ -664,7 +701,7 @@ describe("in the Inbox's pane", () => {
     );
     renderApp(`/inbox?view=attention&id=${ID}`);
     await screen.findByTestId("verdict-headline");
-    expect(screen.getByRole("button", { name: "Confirm: True positive" }).getAttribute("aria-keyshortcuts")).toBeNull();
+    expect(screen.getByRole("button", { name: "Accept ARGUS's call: Real: act on it" }).getAttribute("aria-keyshortcuts")).toBeNull();
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: "Single-key shortcuts (C, 1–5, N)" })).toBeNull();
     await user.keyboard("c");

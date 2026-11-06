@@ -20,6 +20,7 @@ from argus.assess import queue
 
 SAMPLE = 3  # audited items shown per group
 GROUP_LIMIT = 500  # proposals listed in one group
+TRUE_POSITIVE = "true_positive"  # never confirmed with its group (an incident starts one by one)
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,17 @@ async def proposals(conn: AsyncConnection, today: date) -> list[Group]:
     return sorted(groups.values(), key=lambda g: (-len(g.items), g.group))
 
 
+async def true_positives(conn: AsyncConnection, ids: list[int]) -> int:
+    """How many of the listed proposals propose a true positive."""
+    if not ids:
+        return 0
+    found = await conn.scalar(
+        text("SELECT count(*) FROM assessments WHERE id = ANY(:ids) AND outcome = :tp"),
+        {"ids": ids, "tp": TRUE_POSITIVE},
+    )
+    return int(found or 0)
+
+
 async def confirm(
     conn: AsyncConnection,
     group: str,
@@ -146,7 +158,9 @@ async def confirm(
     kibana_ok: bool = False,
 ) -> tuple[int, int]:
     """Accept the listed proposals of one group (those the person was shown): (accepted,
-    skipped because they changed, are no longer current, or belong to another group)."""
+    skipped because they changed, are no longer current, or belong to another group). A
+    true-positive proposal is never accepted in bulk: it starts an incident, so a person decides
+    each one on its own page (it may open or join a case); it is skipped."""
     accepted = skipped = 0
     for assessment_id in ids:
         row = (
@@ -160,6 +174,9 @@ async def confirm(
             )
         ).first()
         if row is None or group_of(row[0], row[1], str(row[3]), row[2]) != group:
+            skipped += 1
+            continue
+        if row[2] == TRUE_POSITIVE:
             skipped += 1
             continue
         try:

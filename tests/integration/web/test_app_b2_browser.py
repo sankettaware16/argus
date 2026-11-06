@@ -57,8 +57,22 @@ def tame(cell: str) -> str:
     return "HOSTILE" if "<script>" in cell else cell
 
 
+# P4-F U7: the app says a decision in plain words; the classic pages keep their own (read-only)
+APP_WORDS = {
+    "True positive": "Real: act on it",
+    "Benign: expected activity": "Real but harmless",
+    "Benign: allowed by policy": "Allowed by policy",
+    "Rule false positive": "Wrong alert",
+    "Inconclusive": "Can't tell yet",
+    "No verdict yet": "No decision yet",
+    "Proposes true positive": "Calls it real",
+    "Proposes benign": "Calls it not an attack",
+}
+
+
 def digits(rows: list[list[str]], *, skip: int = 1) -> list[list[str]]:
-    return [[*(tame(c) for c in r[:skip]), *(numbers(c) for c in r[skip:])] for r in rows]
+    return [[*(tame(APP_WORDS.get(c, c)) for c in r[:skip]), *(numbers(c) for c in r[skip:])]
+            for r in rows]  # fmt: skip
 
 
 @pytest.mark.parametrize("name", BROWSERS)
@@ -85,7 +99,7 @@ async def test_the_dashboard_has_the_classic_pages_numbers(
         await sign_in(page, server, "/app")
         await page.goto(f"{server}/dashboard?{query}")
         classic = await page.evaluate(CLASSIC_DASHBOARD)
-        await page.goto(f"{server}/app/dashboard?{query}")
+        await page.goto(f"{server}/app/overview?{query}")
         await page.locator("ul[aria-label='Key numbers']").wait_for()
         await page.wait_for_load_state("networkidle")
         app = await page.evaluate(APP_DASHBOARD)
@@ -146,7 +160,7 @@ async def test_the_inbox_lists_the_classic_pages_investigations_in_its_order(
             f"{server}/?view={view}&sort={'reviewed' if view == 'reviewed' else 'newest'}"
         )
         classic = await page.evaluate(CLASSIC_INBOX)
-        await page.goto(f"{server}/app/inbox?view={view}")
+        await page.goto(f"{server}/app/search?advanced=1&view={view}")
         await page.locator("[role=grid] [role=row]").nth(1).wait_for()
         await page.wait_for_load_state("networkidle")
         app = await page.evaluate(APP_INBOX)
@@ -154,7 +168,13 @@ async def test_the_inbox_lists_the_classic_pages_investigations_in_its_order(
     assert len(classic) >= 1
     assert len(app) == len(classic), (len(app), len(classic))
     for mine, theirs in zip(app, classic, strict=True):
-        assert tame(mine["name"]) == tame(theirs["name"])
+        # naming v2: the app's row is titled by what happened, from its own facts; the rule's
+        # name, which the classic page shows, is its second line ("Rule: <name> · <key>")
+        assert mine["title"]
+        assert mine["title"] != theirs["name"]
+        assert mine["rule"].startswith("Rule: "), mine["rule"]
+        rule = mine["rule"].removeprefix("Rule: ").rsplit(" · ", 1)[0]
+        assert tame(rule) == tame(theirs["name"])
         assert numbers(mine["alerts"]) == numbers(theirs["alerts"])
         assert mine["severity"] == theirs["severity"]
         assert mine["state"] == STATE_WORDS[theirs["state"]]
@@ -180,20 +200,20 @@ async def test_every_page_runs_without_a_policy_violation_and_hostile_values_sta
         page.set_default_timeout(60_000)
         watch.attach(page)
         await sign_in(page, server, "/app")
-        for where in (f"/app/dashboard?{SPAN}",
-                      f"/app/dashboard?{SPAN}&rule=rule-x&kind=ip&value=10.9.9.9",
-                      "/app/inbox?view=all", "/app/proposals"):  # fmt: skip
+        for where in (f"/app/overview?{SPAN}",
+                      f"/app/overview?{SPAN}&rule=rule-x&kind=ip&value=10.9.9.9",
+                      "/app/search?advanced=1&view=all", "/app/proposals"):  # fmt: skip
             await page.goto(server + where)
             await page.locator("main h1").first.wait_for(state="attached")
             await page.wait_for_load_state("networkidle")
         for tab in ("overview", "report", "ai", "checked", "alerts", "history"):
-            await page.goto(f"{server}/app/investigations/{hostile}?tab={tab}")
+            await page.goto(f"{server}/app/alert-groups/{hostile}?tab={tab}")
             await page.get_by_role("tab", selected=True).wait_for()
             await page.wait_for_load_state("networkidle")
             if tab == "alerts":  # the raw alert on demand
                 await page.get_by_role("button", name="Show raw").first.click()
                 await page.wait_for_load_state("networkidle")
-        await page.goto(f"{server}/app/investigations/{hostile}?tab=report")
+        await page.goto(f"{server}/app/alert-groups/{hostile}?tab=report")
         await page.get_by_role("heading", name="Verdict").wait_for()
         assert await page.evaluate("window.__pwned") is None
         assert (
@@ -243,12 +263,14 @@ async def test_the_inbox_by_keyboard_alone(
         page = await context.new_page()
         page.set_default_timeout(60_000)
         watch.attach(page)
-        await sign_in(page, server, "/app/inbox?view=all")
+        await sign_in(page, server, "/app/search?advanced=1&view=all")
         await page.locator("[role=grid] [role=row]").nth(1).wait_for()
         await page.wait_for_function(
             "() => document.querySelector('#investigation-title')"
         )  # the pane opened the first
-        assert await tab_to_grid(page, skip=True) <= 9  # past the menu; five views since AR4
+        # past the menu; five views since AR4, and the queue banner's link (P4-F U8: this server
+        # has read no new alert for days)
+        assert await tab_to_grid(page, skip=True) <= 10
         state = await page.evaluate(GRID_STATE)
         assert state["onGrid"]
         assert state["tabindex"] == "0"
@@ -277,7 +299,10 @@ async def test_the_inbox_by_keyboard_alone(
         assert state["onGrid"]
         assert [s["index"] for s in state["selected"]] == ["3"]
         assert state["descendant"] == state["selected"][0]["id"]
-        second = state["selected"][0]["name"]
+        # naming v2: a row is titled by what happened; the pane's heading is the rule's name,
+        # the row's second line ("Rule: <name> · <key>")
+        assert state["selected"][0]["name"]
+        second = state["selected"][0]["rule"].removeprefix("Rule: ").rsplit(" · ", 1)[0]
         await page.keyboard.press("ArrowDown")
         assert [s["index"] for s in (await page.evaluate(GRID_STATE))["selected"]] == ["4"]
         await page.keyboard.press("k")
@@ -345,7 +370,7 @@ async def test_below_1024_px_the_inbox_is_one_pane_at_a_time(
         browser, context = await open_context(play, name, viewport={"width": 1023, "height": 800})
         page = await context.new_page()
         page.set_default_timeout(60_000)
-        await sign_in(page, server, "/app/inbox?view=all")
+        await sign_in(page, server, "/app/search?advanced=1&view=all")
         await page.locator("[role=grid] [role=row]").nth(1).wait_for()
         assert (
             await page.locator("#detail-pane").count() == 0
@@ -383,12 +408,26 @@ async def test_below_1024_px_the_inbox_is_one_pane_at_a_time(
 async def open_investigation(
     page: Any, server: str, investigation_id: str, tab: str = "overview"
 ) -> None:
-    await page.goto(f"{server}/app/investigations/{investigation_id}?tab={tab}")
-    await page.get_by_role("heading", name="Your review").wait_for()
+    await page.goto(f"{server}/app/alert-groups/{investigation_id}?tab={tab}")
+    await page.get_by_role("heading", name="Your decision").wait_for()
 
 
-def review_outcome(page: Any) -> Any:
-    return page.get_by_role("form", name="Review this investigation").locator("select")
+class Choice:
+    """The five decisions of an alert group (P4-F U6), read and set like the select they replace."""
+
+    def __init__(self, page: Any) -> None:
+        self.form = page.get_by_role("form", name="Your decision")
+
+    async def select_option(self, value: str) -> None:
+        await self.form.locator(f'input[type="radio"][value="{value}"]').check(force=True)
+
+    async def input_value(self) -> str:
+        checked = self.form.locator('input[type="radio"]:checked')
+        return "" if await checked.count() == 0 else str(await checked.get_attribute("value"))
+
+
+def review_outcome(page: Any) -> Choice:
+    return Choice(page)
 
 
 async def reviews_of(
@@ -423,7 +462,7 @@ async def test_a_review_whose_investigation_moved_on_is_refused_and_keeps_what_w
         # someone else reviews it while she reads
         done = review_as(server, "ravi", racy, "benign_expected")
         assert done.status_code == 201, done.text
-        await page.get_by_role("button", name="Mark reviewed").click()
+        await page.get_by_role("button", name="Save decision").click()
         conflict = page.get_by_text(
             "Someone else reviewed this, or new alerts arrived, while you were reading."
             " Nothing was saved."
@@ -442,13 +481,13 @@ async def test_a_review_whose_investigation_moved_on_is_refused_and_keeps_what_w
             ("ravi", "reviewed", "benign_expected")
         ]  # nothing of hers
         # what she is looking at is not what she saw: nothing goes until she says she looked (B2-R1)
-        await page.get_by_text("This investigation changed while you were typing").wait_for()
-        await page.get_by_role("button", name="Mark reviewed").click(force=True)  # aria-disabled
+        await page.get_by_text("This alert group changed while you were deciding").wait_for()
+        await page.get_by_role("button", name="Save decision").click(force=True)  # aria-disabled
         await page.wait_for_timeout(300)
         assert await reviews_of(seeded, racy.id) == [("ravi", "reviewed", "benign_expected")]
         await page.get_by_role("button", name="I have looked at what changed").click()
-        await page.get_by_role("button", name="Mark reviewed").click()
-        await page.get_by_text("Saved: marked reviewed.").first.wait_for()
+        await page.get_by_role("button", name="Save decision").click()
+        await page.get_by_text("Saved: your decision.").first.wait_for()
         assert await reviews_of(seeded, racy.id) == [
             ("ravi", "reviewed", "benign_expected"),
             ("asha", "reviewed", "true_positive"),
@@ -475,42 +514,31 @@ async def test_accepting_a_proposal_shows_what_is_sent_and_a_stale_accept_says_w
         page = await context.new_page()
         page.set_default_timeout(60_000)
         await sign_in(page, server, "/app")
-        # a proposal of the AI investigator: the dialog first, then the review
+        # a proposal of the AI investigator: accepted at the top in one click (P4-F U6), and the
+        # AI assessment tab only reads
         await open_investigation(page, server, agent["investigation_id"], "ai")
-        await page.get_by_role("button", name="Accept: True positive").first.click()
-        dialog = page.get_by_role("alertdialog")
-        await dialog.wait_for()
-        await page.wait_for_function("() => document.activeElement?.textContent === 'Cancel'")
-        assert (
-            await dialog.get_by_test_id("payload").inner_text()
-        ) == f'{{\n  "assessment_id": {agent["assessment_id"]}\n}}'
-        assert (
-            f"/api/v1/investigations/{agent['investigation_id']}/accept"
-            in await dialog.inner_text()
-        )
-        await dialog.get_by_role("button", name="Accept", exact=True).click()
-        await dialog.wait_for(state="hidden")
-        await page.get_by_text("Accepted: True positive.").first.wait_for()
+        await page.get_by_test_id("decide-above").wait_for()
+        assert await page.get_by_role("button", name=re.compile("^Accept: ")).count() == 0
+        await page.get_by_role("button", name="Accept ARGUS's call: Real: act on it").click()
+        await page.get_by_text(
+            "Saved: you accepted ARGUS's call, Real: act on it."
+        ).first.wait_for()
         assert await reviews_of(seeded, agent["investigation_id"]) == [
             ("asha", "reviewed", "true_positive")
         ]
-        # a proposal gone stale while the page was open: refused, said in the dialog, nothing saved
-        await open_investigation(page, server, str(stale.id), "ai")
-        await page.get_by_role("button", name=re.compile("^Accept:")).first.wait_for()
+        # a proposal gone stale while the page was open: refused, said, nothing saved
+        await open_investigation(page, server, str(stale.id))
+        accept = page.get_by_role("button", name=re.compile("^Accept ARGUS's call:"))
+        await accept.wait_for()
         assert review_as(server, "ravi", stale, "inconclusive").status_code == 201
-        await page.get_by_role("button", name=re.compile("^Accept:")).first.click()
-        await dialog.wait_for()
-        await dialog.get_by_role("button", name="Accept", exact=True).click()
-        problem = dialog.get_by_role("alert")
+        await accept.click()
+        problem = page.get_by_text(
+            "Someone else reviewed this, or new alerts arrived, while you were reading."
+            " Nothing was saved."
+        )
         await problem.wait_for()
-        assert "the proposal changed" in await problem.inner_text()
-        assert "nothing was saved" in await problem.inner_text()
-        await dialog.get_by_role("button", name="Cancel").click()
-        await dialog.wait_for(state="hidden")
         assert await reviews_of(seeded, stale.id) == [("ravi", "reviewed", "inconclusive")]
-        await page.get_by_role("button", name=re.compile("^Accept:")).first.wait_for(
-            state="detached"
-        )  # read again: no proposal to accept
+        await accept.wait_for(state="detached")  # read again: no call to accept
         await browser.close()
 
 
@@ -550,7 +578,7 @@ async def test_asking_the_ai_investigator_shows_the_exact_request_first(
         await page.get_by_role("button", name="Ask the AI investigator now").click()
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
-        assert "No body: the request sends nothing else." in await dialog.inner_text()
+        assert "No body: the request sends nothing else." in (await dialog.text_content() or "")
         await dialog.get_by_role("button", name="Ask now").click()
         await page.get_by_text(
             "Asked. The AI investigator looks within a few minutes"
@@ -589,7 +617,7 @@ async def test_the_gold_box_saves_the_answer_and_a_review_can_save_it_too(
         also = page.get_by_label("Also save the outcome as my gold-set answer")
         assert not await also.is_checked()
         await also.check()
-        await page.get_by_role("button", name="Mark reviewed").click()
+        await page.get_by_role("button", name="Save decision").click()
         await page.get_by_text("Also saved as your gold-set answer.").first.wait_for()
         async with seeded.connect() as conn:
             labels = (
@@ -616,7 +644,7 @@ async def test_a_group_is_confirmed_from_its_sample_and_what_changed_meanwhile_i
         page.set_default_timeout(60_000)
         watch.attach(page)
         await sign_in(page, server, "/app/proposals")
-        card = page.get_by_role("region", name="Benign: expected activity: 4 investigations")
+        card = page.get_by_role("region", name="Real but harmless: 4 investigations")
         await card.wait_for()
         assert await card.locator("h3 + ul li").count() == 3  # the audit sample
         await card.get_by_text("All 4", exact=True).click()
@@ -624,10 +652,10 @@ async def test_a_group_is_confirmed_from_its_sample_and_what_changed_meanwhile_i
         assert (
             review_as(server, "ravi", group[3], "benign_policy").status_code == 201
         )  # one is reviewed while she looks
-        await card.get_by_role("button", name="Confirm all 4 as Benign: expected activity").click()
+        await card.get_by_role("button", name="Confirm all 4 as Real but harmless").click()
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
-        shown = await dialog.get_by_test_id("payload").inner_text()
+        shown = await dialog.get_by_test_id("payload").text_content()
         assert re.fullmatch(
             r'\{\n  "group": "engine@1#fp: steps / rule-1 / 1:answered",\n'
             r'  "assessment_ids": \[\n(    \d+,?\n){4}  \]\n\}',
@@ -646,7 +674,7 @@ async def test_a_group_is_confirmed_from_its_sample_and_what_changed_meanwhile_i
                 )
             ).scalar_one()
         assert mine == 3
-        await page.get_by_role("region", name=re.compile("Benign: expected activity")).wait_for(
+        await page.get_by_role("region", name=re.compile("Real but harmless")).wait_for(
             state="detached"
         )
         violations = await watch.violations(page)
@@ -733,11 +761,9 @@ async def test_failures_are_said_plainly_and_never_retried(
             answer.clear()
             answer.update(reply)
             calls["review"], calls["session"] = 0, 0
-            await review_outcome(page).select_option("inconclusive")
-            await page.get_by_role("button", name="Mark reviewed").click()
-            problem = page.get_by_role("form", name="Review this investigation").get_by_role(
-                "alert"
-            )
+            await review_outcome(page).select_option("rule_false_positive")
+            await page.get_by_role("button", name="Save decision").click()
+            problem = page.get_by_role("form", name="Your decision").get_by_role("alert")
             await problem.filter(has_text=words).wait_for()
             await page.wait_for_timeout(400)
             assert calls["review"] == 1, (reply, calls)  # never sent again
@@ -761,7 +787,7 @@ async def test_failures_are_said_plainly_and_never_retried(
                 status=200, body="<p>Sign in</p>", content_type="text/html"
             ),
         )
-        await page.goto(f"{server}/app/inbox?view=open")
+        await page.goto(f"{server}/app/search?advanced=1&view=open")
         await page.wait_for_url(re.compile(r"/signin\?"))
         assert "why=ended" in page.url
         assert "next=%2Fapp%2Finbox%3Fview%3Dopen" in page.url
@@ -805,7 +831,7 @@ async def test_an_unreadable_page_says_so_once_and_offers_another_try_only_where
                 await route.continue_()
 
         await page.route(re.compile(r"/api/v1/dashboard\?"), dashboard)
-        await page.goto(f"{server}/app/dashboard?{SPAN}")
+        await page.goto(f"{server}/app/overview?{SPAN}")
         problem = page.get_by_role("alert").filter(has_text="The dashboard could not be shown.")
         await problem.wait_for()
         assert (
@@ -818,7 +844,7 @@ async def test_an_unreadable_page_says_so_once_and_offers_another_try_only_where
         await page.get_by_role("list", name="Key numbers").wait_for()
         assert len(asked) == 2
         status["now"] = 403
-        await page.goto(f"{server}/app/dashboard?{SPAN}&severity=low")
+        await page.goto(f"{server}/app/overview?{SPAN}&severity=low")
         forbidden = page.get_by_role("alert").filter(has_text="The dashboard could not be shown.")
         await forbidden.wait_for()
         assert (
@@ -865,7 +891,7 @@ async def test_a_long_list_keeps_only_its_window_in_the_page_and_reads_more_as_i
                 else None
             ),
         )  # type: ignore[union-attr]
-        await sign_in(page, server, "/app/inbox?view=all")
+        await sign_in(page, server, "/app/search?advanced=1&view=all")
         grid = page.get_by_role("grid", name="Investigations")
         await grid.wait_for()
         await page.locator("[role=grid] [role=row]").nth(5).wait_for()
@@ -911,18 +937,18 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
     server, records = rich_server
     agent, gold = records["agent"]["investigation_id"], str(records["gold"].id)
     pages = [
-        ("dashboard", f"/app/dashboard?{SPAN}"),
+        ("dashboard", f"/app/overview?{SPAN}"),
         (
             "dashboard, filtered",
-            f"/app/dashboard?{SPAN}&severity=high&state=unreviewed&rule=rule-1",
+            f"/app/overview?{SPAN}&severity=high&state=unreviewed&rule=rule-1",
         ),
-        ("inbox", "/app/inbox?view=all"),
-        ("inbox, with a search", "/app/inbox?view=all&kind=ip&value=10.0.0.1"),
+        ("inbox", "/app/search?advanced=1&view=all"),
+        ("inbox, with a search", "/app/search?advanced=1&view=all&kind=ip&value=10.0.0.1"),
         *[
-            (f"investigation, {tab}", f"/app/investigations/{agent}?tab={tab}")
+            (f"investigation, {tab}", f"/app/alert-groups/{agent}?tab={tab}")
             for tab in ("overview", "report", "ai", "checked", "alerts", "history")
         ],
-        ("investigation, gold set", f"/app/investigations/{gold}"),
+        ("investigation, gold set", f"/app/alert-groups/{gold}"),
         ("proposals", "/app/proposals"),
     ]
     axe = Axe()
@@ -944,7 +970,7 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
                     await page.locator("main").wait_for()
                     await page.wait_for_load_state("networkidle")
                     if "investigations/" in where:
-                        await page.get_by_role("heading", name="Your review").wait_for()
+                        await page.get_by_role("heading", name="Your decision").wait_for()
                         await page.wait_for_load_state("networkidle")
                     elif "inbox" in where:
                         await page.locator("[role=grid] [role=row]").nth(1).wait_for()
@@ -976,10 +1002,11 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
                                 )
                         break
                 # the dialogs: the exact-request one and the key list
-                await page.goto(f"{server}/app/investigations/{agent}?tab=ai")
-                await page.get_by_role("heading", name="Your review").wait_for()
-                await page.get_by_role("button", name=re.compile("^Accept:")).first.click()
+                # (the AI assessment tab only reads since P4-F U6: a group's confirm dialog)
+                await page.goto(f"{server}/app/proposals")
+                await page.get_by_role("button", name=re.compile("^Confirm all")).first.click()
                 await page.get_by_role("alertdialog").wait_for()
+                await page.get_by_text("Show the exact request").click()
                 report = await axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG}})
                 problems += [
                     (scheme, width, "accept dialog", v["id"], [n["target"] for n in v["nodes"]][:4])
@@ -988,7 +1015,7 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
                 ]
                 await page.keyboard.press("Escape")
                 if width >= 1024:
-                    await page.goto(f"{server}/app/inbox?view=all")
+                    await page.goto(f"{server}/app/search?advanced=1&view=all")
                     await page.locator("[role=grid] [role=row]").nth(1).wait_for()
                     await page.get_by_role("button", name="Show keyboard shortcuts").click()
                     await page.get_by_role("dialog").wait_for()
@@ -1041,36 +1068,26 @@ async def test_the_focus_stays_with_the_person_through_a_keyboard_review_and_acc
         await sign_in(page, server, "/app")
         await open_investigation(page, server, str(records["plain"].id))
         await review_outcome(page).select_option("benign_policy")
-        review = page.get_by_role("button", name="Mark reviewed")
+        review = page.get_by_role("button", name="Save decision")
         await review.focus()
         await page.keyboard.press("Enter")
-        await page.get_by_text("Saved: marked reviewed.").first.wait_for()
+        await page.get_by_text("Saved: your decision.").first.wait_for()
         await page.wait_for_timeout(500)
-        assert await focus_of(page) == "BUTTON#|Mark reviewed"
+        assert await focus_of(page) == "BUTTON#|Save decision"
+        # accepting ARGUS's call at the top: its button is gone once saved, and the focus goes
+        # on to Next or the headline, never to the page's body
         agent = records["agent"]["investigation_id"]
-        await open_investigation(page, server, agent, "ai")
-        accept = page.get_by_role("button", name=re.compile("^Accept:")).first
+        await open_investigation(page, server, agent)
+        accept = page.get_by_role("button", name=re.compile("^Accept ARGUS's call:"))
         await accept.focus()
         await page.keyboard.press("Enter")
-        dialog = page.get_by_role("alertdialog")
-        await dialog.wait_for()
-        await page.wait_for_function("() => document.activeElement?.textContent === 'Cancel'")
-        await page.keyboard.press("Escape")
-        await dialog.wait_for(state="hidden")
+        await page.get_by_text(re.compile("Saved: you accepted ARGUS's call")).first.wait_for()
+        await accept.wait_for(state="detached")
         await page.wait_for_function(
-            "() => document.activeElement?.textContent?.startsWith('Accept:')"
+            "() => document.activeElement !== document.body"
+            " && (document.activeElement?.textContent?.startsWith('Next')"
+            " || document.activeElement?.dataset.testid === 'verdict-headline')"
         )
-        await page.keyboard.press("Enter")
-        await dialog.wait_for()
-        await page.wait_for_function("() => document.activeElement?.textContent === 'Cancel'")
-        await page.keyboard.press("Tab")
-        assert await focus_of(page) == "BUTTON#|Accept"
-        await page.keyboard.press("Enter")
-        await dialog.wait_for(state="hidden")
-        await page.get_by_role("button", name=re.compile("^Accept:")).first.wait_for(
-            state="detached"
-        )
-        await page.wait_for_function("() => document.activeElement?.id === 'investigation-title'")
         violations = await watch.violations(page)
         await browser.close()
     assert violations == []
@@ -1087,13 +1104,13 @@ async def test_no_page_scrolls_sideways_at_phone_width(
 
     server, records = rich_server
     where = [
-        f"/app/dashboard?{SPAN}",
-        "/app/dashboard",
-        "/app/inbox?view=all",
+        f"/app/overview?{SPAN}",
+        "/app/overview",
+        "/app/search?advanced=1&view=all",
         "/app/proposals",
         "/app",
         *(
-            f"/app/investigations/{records[key].id}?tab={tab}"
+            f"/app/alert-groups/{records[key].id}?tab={tab}"
             for key in ("plain", "hostile")
             for tab in ("overview", "report", "ai", "checked", "alerts", "history")
         ),

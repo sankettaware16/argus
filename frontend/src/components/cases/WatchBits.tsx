@@ -32,7 +32,7 @@ function Suggestion({ s, caseId }: { s: CaseSuggestionOut; caseId: string }) {
   return (
     <li className="flex flex-col gap-1 border-b border-border py-2 last:border-b-0" data-testid="suggestion">
       <p className="m-0 text-sm">
-        <Link to="/investigations/$id" params={{ id: s.investigation_id }}>
+        <Link to="/alert-groups/$id" params={{ id: s.investigation_id }}>
           <Text value={s.rule_name ?? "(no rule name)"} max={120} lines={1} />
         </Link>{" "}
         <span className="text-muted">

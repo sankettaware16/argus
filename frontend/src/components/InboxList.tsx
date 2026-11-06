@@ -117,7 +117,8 @@ export function InboxList(props: InboxListProps) {
               );
             }
             const selected = v.index === cursor;
-            const keyLine = row.key_fields.map((k) => `${k.field} ${String(k.value ?? "")}`).join(" · ");
+            // line 2: the rule's name, labelled as the rule's (its words are its claim, not ARGUS's), and the key in plain words
+            const ruleLine = `Rule: ${row.rule_name ?? row.rule_id} · ${row.key_words}`;
             const fresh = since !== null && since !== undefined && Date.parse(row.created_at) > Date.parse(since);
             return (
               <Sized
@@ -136,11 +137,11 @@ export function InboxList(props: InboxListProps) {
               >
                 <div role="gridcell" aria-colindex={1} className="col-start-1 row-start-1 min-w-0">
                   <div className="truncate font-medium">
-                    <UntrustedText value={row.rule_name ?? row.rule_id} limits={{ maxChars: 120, maxLines: 1 }} />
+                    <UntrustedText value={row.title} limits={{ maxChars: 120, maxLines: 1 }} />
                     {fresh && <Badge tone="info" className="ml-1.5">new</Badge>}
                   </div>
-                  <div className="truncate font-mono text-xs text-muted">
-                    {keyLine === "" ? "single alert" : <UntrustedText value={keyLine} limits={{ maxChars: 160, maxLines: 1 }} />}
+                  <div className="truncate text-xs text-muted">
+                    <UntrustedText value={ruleLine} limits={{ maxChars: 200, maxLines: 1 }} />
                   </div>
                 </div>
                 <div role="gridcell" aria-colindex={2} className="col-span-2 row-start-2 flex flex-wrap items-center gap-1.5">

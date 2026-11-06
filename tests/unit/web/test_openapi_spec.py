@@ -67,7 +67,23 @@ def test_every_operation_is_named_and_documented(built: dict[str, Any]) -> None:
             assert op.get("summary"), (method, path)
             assert op.get("description"), (method, path)
             assert op.get("tags"), (method, path)
-    assert len(ids) == len(set(ids)) == 65  # AR8 added getCaseTeam and approveCaseTeam
+    # P4-F added confirmCase and dismissCase; UI v2 (spec §2.3) its 13 additions; E5 getToday
+    assert len(ids) == len(set(ids)) == 81
+
+
+def test_every_schema_has_its_own_plain_name(built: dict[str, Any]) -> None:
+    """Two models of one name made FastAPI name both by their module path, renaming a published
+    schema (``ConfirmIn``, the body of ``/proposals/confirm``) in the spec and the client."""
+    names = list(built["components"]["schemas"])
+    assert [n for n in names if "__" in n or n.startswith("argus")] == []
+    confirm = built["paths"]["/api/v1/proposals/confirm"]["post"]["requestBody"]
+    assert confirm["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ConfirmIn"
+    }
+    case = built["paths"]["/api/v1/cases/{case_id}/confirm"]["post"]["requestBody"]
+    assert case["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/CaseConfirmIn"
+    }
 
 
 def test_every_error_is_error_out(built: dict[str, Any]) -> None:

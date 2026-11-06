@@ -66,7 +66,10 @@ def test_the_preview_shows_every_step_by_its_author_and_writes_nothing(
     assert "      | ## Evidence" in full
     assert "      | Confirm or reject in a comment." in full
     assert "      | ## Incident at a glance" in full
-    assert full.count("      | !{lens{") == 4
+    # no alert can be attached here (their index is the test database's), so no live chart
+    # would draw anything: the glance says so and keeps its lists (P4-F V2)
+    assert full.count("      | !{lens{") == 0
+    assert "No alert is attached to this case yet, so no live chart is drawn." in full
     assert "no visualiser key" not in full  # a preview reads no key: it says what the plan holds
     assert "POST /s/acme-soc/api/cases (application/json)" in full
     assert "multipart/form-data; boundary=argus-" in full

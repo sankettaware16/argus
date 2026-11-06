@@ -229,7 +229,9 @@ async def test_the_suggester_makes_one_case_for_the_operator_and_lists_the_benig
         "raised",
         None,
     )  # a person confirms
-    assert case.title == "Contact with flagged server rapid-dns-hosting.com from 6 campus devices"
+    assert case.title == (  # 4 named hosts under the flagged domain; 5 and 6 only its sister
+        f"Suspected contact with {DGA} (VirusTotal: 5 engines) from 4 of 6 campus devices"
+    )
     assert case.attention.startswith("ARGUS suggests this case: one operator, 6 campus devices: ")
     for word in (
         DGA,

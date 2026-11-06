@@ -100,11 +100,11 @@ The menu is on the left (behind *Menu* on a phone):
 | Section | Page | What it is |
 |---|---|---|
 | **Home** | Home | What needs a person today, in order: ARGUS's cases, the patterns to close, single investigations |
-| | Dashboard | Alerts, investigations and incidents at a glance |
+| | Dashboard | Alerts, investigations and incidents (confirmed cases) at a glance |
 | **Review** | Needs attention | Follow-ups, changed and severe investigations: **start here** |
 | | Not reviewed / Reviewed / All | Every investigation, by review state |
 | | Notified, still active | Devices whose owner was told: counted, not raised |
-| **Cases** | Open cases / Notified cases / My cases | Confirmed problems across investigations; suspected ones wait for a person |
+| **Cases** | Needs a decision / Open incidents / Notified cases / My cases | Possible incidents to confirm or dismiss, and confirmed incidents across investigations |
 | | Approvals | Closures and merges waiting for a second person |
 | **Browse** | By rule / By host or IP | Investigations per detection rule, or per host, address, domain or user |
 | | Patterns | Groups of alike investigations, to decide at once |
@@ -132,16 +132,27 @@ few lines, the reasons to look, what ARGUS found), **Report** (every fact with t
 came from), **AI assessment** (what the decision engine and the AI investigator propose, with the
 facts they quote), **What ARGUS checked** (the rule's own steps), **Alerts** (the alerts with
 chosen columns; the raw alert on demand), **History**. The decision is made in **Your review**:
-an outcome (true positive; benign: expected activity; benign: allowed by policy; rule false
-positive; inconclusive), a note, *Mark reviewed*.
+a decision (Real: act on it; Real but harmless; Allowed by policy; Wrong alert; Can't tell yet,
+over the review outcomes true positive, benign: expected activity, benign: allowed by policy,
+rule false positive and inconclusive), *Come back to it* for a follow-up, a note, *Save
+decision*; *Accept ARGUS's call* does it in one click when ARGUS makes a call.
 
 ![An investigation's page: the key facts, the verdict and the evidence, with Your review](images/screenshots/investigation.png)
 
-**A case's page** reads: summary, the incident **Report** (with a PDF and CSVs of indicators and
-affected devices; every evidence line has its query and a link that opens it in Kibana), what's
-new, timeline, evidence, hypotheses, unknowns, actions, members, the Kibana mirror, notes,
-history. Actions: Take, Assign, Release, Contain, Request closure, Merge, Reopen, **Check more**
-(one approved, read-only question to the SIEM about one host or address, its cost shown first).
+**A case's page** reads: for a possible incident (a suspected case) the decision first (**Confirm
+as incident**, **Not an incident…** with a reason, **Merge into…**; `POST
+/api/v1/cases/{id}/confirm` and `/dismiss`, the same commands as `argus case confirm` and
+`dismiss`, needing `manage_cases`, and `review` too for a dismissal), then the summary with the
+case's one IR number, the incident **Report** (with a PDF and CSVs of indicators and affected
+devices; every evidence line has its query and a link that opens it in Kibana; its header says
+the case's state and ARGUS's call apart), what's new, timeline, evidence, hypotheses, unknowns,
+actions, members, the Kibana mirror, notes, history. Actions: Take, Assign, Release, Contain,
+Request closure, Merge, Reopen, **Check more** (one approved, read-only question to the SIEM about
+one host or address, its cost shown first).
+
+The header carries one quiet **System: OK** that opens to the SIEM, the Kibana read-back and (for
+an admin) the AI cost; a banner appears only when the queue itself may be incomplete (ARGUS is
+not reading the SIEM, or has read no new alert for two hours).
 
 ![A case's page: summary, incident report, timeline, evidence and actions](images/screenshots/case.png)
 

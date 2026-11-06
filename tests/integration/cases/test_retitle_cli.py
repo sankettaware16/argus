@@ -17,7 +17,7 @@ from tests.integration.test_cli_db import _run, cli_env  # noqa: F401 - the fixt
 pytestmark = pytest.mark.integration
 
 STALE = "Several campus devices reach outside infrastructure flagged by threat intel"
-FRESH = "Amadey contact from 2 campus devices to 158.94.208.81"
+FRESH = "Suspected Amadey contact with 158.94.208.81 (VirusTotal: 7 engines) from 2 campus devices"
 
 
 def _ok(result: Result) -> str:
@@ -37,14 +37,14 @@ async def two(
 
 
 def test_a_person_renames_a_case_at_the_terminal(cli_env: Path, two: tuple[Six, Six]) -> None:  # noqa: F811
-    done = _ok(_run("case", "retitle", "1", "--title", "Amadey infection on 10.198.36.230",
+    done = _ok(_run("case", "retitle", "1", "--title", "Amadey infection on 10.201.7.11",
                     "--as", "asha", "--reason", "known family", "--version", "1"))  # fmt: skip
     assert done == "case 1: retitled, now suspected (version 2)\n"
     shown = _ok(_run("case", "show", "1"))
-    assert "Amadey infection on 10.198.36.230" in shown
+    assert "Amadey infection on 10.201.7.11" in shown
     assert "retitled by user:" in shown
     assert _ok(_run("case", "replay", "1")).startswith("case 1: its 2 events rebuild it exactly")
-    same = _run("case", "retitle", "1", "--title", "Amadey infection on 10.198.36.230",
+    same = _run("case", "retitle", "1", "--title", "Amadey infection on 10.201.7.11",
                 "--as", "asha", "--reason", "again")  # fmt: skip
     assert (same.exit_code, "has that title already" in same.stderr) == (1, True)
     stale = _run("case", "retitle", "1", "--title", "x", "--as", "asha", "--reason", "r",
@@ -52,7 +52,7 @@ def test_a_person_renames_a_case_at_the_terminal(cli_env: Path, two: tuple[Six, 
     assert (stale.exit_code, "the case changed meanwhile" in stale.stderr) == (1, True)
     # ARGUS's pass leaves it: a person wrote it
     swept = _ok(_run("case", "retitle", "--all"))
-    assert "Amadey infection on 10.198.36.230" not in swept
+    assert "Amadey infection on 10.201.7.11" not in swept
     assert "a person's title, left alone: 2" in swept
 
 
@@ -106,3 +106,20 @@ def test_all_makes_arguss_titles_again_and_a_person_keeps_theirs(
     again = _ok(_run("case", "retitle", "--all"))
     assert "changed: 0 of 0" in again
     assert "->" not in again
+
+
+def test_explain_prints_each_claim_with_the_fact_it_rests_on(
+    cli_env: Path,  # noqa: F811
+    two: tuple[Six, Six],
+) -> None:
+    """Naming v2's audit, re-runnable: every word of a new title and the fact behind it."""
+    out = _ok(_run("case", "retitle", "--all", "--dry-run", "--explain"))
+    assert f"  case 1: {STALE} -> {FRESH}" in out
+    lines = out.splitlines()
+    assert "      certainty: Suspected  [certainty:Suspected]" in lines
+    assert "      family: Amadey  [family:Amadey]" in lines
+    assert "      activity: contact  [activity:contact]" in lines
+    assert "      object: VirusTotal: 7 engines  [vt:158.94.208.81:7]" in lines
+    assert "      actors: 2 campus devices  [actors:contact:2:2]" in lines
+    explain_alone = _run("case", "retitle", "1", "--explain")
+    assert explain_alone.exit_code == 2

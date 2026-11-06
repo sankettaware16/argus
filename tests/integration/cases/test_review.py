@@ -192,7 +192,7 @@ async def test_r5_a_persons_true_positive_verdict_opens_a_suspected_case(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
 ) -> None:
     """The normal order: ARGUS's proposal first (a suspected case), the person's verdict later."""
-    inv = await investigation(migrated_engine, rule="c2", actor=(("source.ip", "10.8.235.157"),))
+    inv = await investigation(migrated_engine, rule="c2", actor=(("source.ip", "10.201.7.13"),))
     await _dossier(migrated_engine, inv, BEACON, ["77.221.155.150"])
     async with migrated_engine.begin() as conn:
         await conn.execute(
@@ -353,8 +353,8 @@ async def test_r11_overlapping_sync_and_backfill_keep_one_case_per_actor(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:  # fmt: skip
-    old = await investigation(migrated_engine, rule="c2", actor=(("source.ip", "10.8.235.157"),))
-    new = await investigation(migrated_engine, rule="c2b", actor=(("source.ip", "10.8.235.157"),))
+    old = await investigation(migrated_engine, rule="c2", actor=(("source.ip", "10.201.7.13"),))
+    new = await investigation(migrated_engine, rule="c2b", actor=(("source.ip", "10.201.7.13"),))
     for inv, age in ((old, timedelta(days=7)), (new, timedelta(hours=1))):
         await _dossier(migrated_engine, inv, BEACON, ["77.221.155.150"])
         async with migrated_engine.begin() as conn:  # a person's verdict, given ``age`` ago
@@ -543,7 +543,7 @@ async def test_r4b_verify_catches_an_approval_changed_or_written_around_its_func
 async def test_r5b_a_persons_verdict_that_links_to_a_suspected_case_opens_it(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
 ) -> None:
-    host = (("source.ip", "10.8.235.157"),)
+    host = (("source.ip", "10.201.7.13"),)
     proposed = await investigation(migrated_engine, rule="c2", actor=host)
     reviewed = await investigation(migrated_engine, rule="c2-b", actor=host, day=1)
     for inv in (proposed, reviewed):

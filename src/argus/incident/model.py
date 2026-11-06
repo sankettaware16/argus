@@ -118,6 +118,14 @@ class ReportHeader(_M):
     first_alert_at: AwareDatetime | None
     last_alert_at: AwareDatetime | None
     tags: tuple[str, ...] = ()  # the Kibana case's key:value tags
+    # when the first and the newest alert were made (their own @timestamp, which the live
+    # charts plot): a rule's lookback or a late run makes them later than the events; None in a
+    # report written before they were kept
+    first_detected_at: AwareDatetime | None = None
+    last_detected_at: AwareDatetime | None = None
+    # the certainty word that leads ARGUS's title (naming v2), so Kibana's title can leave it
+    # out (only confirmed cases go there); None: a person's title, or none
+    certainty: str | None = Field(default=None, max_length=40)
 
 
 class ReportNotice(_M):
@@ -155,6 +163,11 @@ class ReportVerdict(_M):
     confidence_words: str | None = Field(default=None, max_length=60)
     source: str = Field(max_length=200)
     sentences: tuple[ReportSentence, ...] = ()
+    # the case's investigations people reviewed (a person's verdict rests on them) and all its
+    # investigations: a verdict is the case's only when every one was reviewed; 0 and 0 in a
+    # report written before they were kept
+    reviewed: int = Field(default=0, ge=0)
+    investigations: int = Field(default=0, ge=0)
 
 
 class ReportPhase(_M):
@@ -222,6 +235,9 @@ class ReportTarget(_M):
     answered: int | None = None
     answered_exact: bool = True
     served: tuple[str, ...] = Field(default=(), max_length=5)
+    # an investigation behind ``alerts`` names another target of the same kind too, so its
+    # alerts are counted under both: the counts of such targets overlap and add up to more
+    shared: bool = False
 
 
 class ReportAsset(_M):
@@ -324,6 +340,9 @@ class ReportMeta(_M):
     alerts_read: int = 0
     alerts_total: int = 0
     limits: tuple[str, ...] = ()  # what was cut or could not be read, in words
+    # the fields a chart may split on (``glance.CHART_FIELDS``) that most of the alerts read
+    # hold; None: not known (no alert was read, or the report was written before it was kept)
+    carried: tuple[str, ...] | None = None
 
 
 class IncidentReport(_M):
@@ -423,7 +442,7 @@ def _default(value: Any) -> Any:
     raise TypeError(f"cannot serialise {type(value).__name__}")
 
 
-def _hash(report: IncidentReport, *, users: bool) -> str:
+def _hash(report: IncidentReport, *, users: bool, title: bool = True) -> str:
     body = report.model_dump(mode="json")
     meta = dict(body["meta"])
     meta.pop("as_at", None)
@@ -433,6 +452,12 @@ def _hash(report: IncidentReport, *, users: bool) -> str:
     summary = dict(body["summary"])
     summary["prose"] = []
     summary["prose_note"] = None
+    if not title:  # the case's title is a name for what the report says, not a fact of it
+        header = dict(body["header"])
+        header["title"] = header["incident_id"]
+        header.pop("certainty", None)
+        body["header"] = header
+        summary["headline"] = ""
     body["summary"] = summary
     return hashlib.sha256(canonical(body).encode("utf-8")).hexdigest()
 
@@ -446,8 +471,10 @@ def content_hash(report: IncidentReport) -> str:
 
 
 def core_hash(report: IncidentReport) -> str:
-    """The hash of the report without its accounts (``users``): two versions that differ only in
-    who signed in from the case's devices have the same core. A person's confirm of a report holds
-    for a later version with the same core: the accounts are leads read from the logs, not
-    what the person confirmed."""
-    return _hash(report, users=False)
+    """The hash of the report without its accounts (``users``) and without the case's title (the
+    header's title, its certainty word, and the headline that repeats it): two versions that
+    differ only in who signed in from the case's devices, or in how the case is named, have the
+    same core. A person's confirm of a report holds for a later version with the same core: the
+    accounts are leads read from the logs, and a retitle (naming v2) renames what the person
+    confirmed, it does not change it."""
+    return _hash(report, users=False, title=False)

@@ -36,6 +36,21 @@ def test_the_sites_and_the_server_the_outside_addresses_went_against_are_targets
     assert site.first_seen <= site.last_seen
 
 
+def test_a_target_whose_investigation_names_another_of_its_kind_is_marked_shared() -> None:
+    """Review: one investigation naming two sites gave each site its whole count, so the counts
+    added up to more than the case's alerts. Such targets are marked; the others are not."""
+    assert not any(t.shared for t in report().targets)  # one site and one server an address
+    f = kit.scanners(count=2)
+    first = f.docs[0]
+    both = replace(first, alert_id="a-x", fields={**first.fields, "url.domain": (kit.SITES[1],)})
+    rep = build.build(replace(f, docs=(*f.docs, both)), kit.ctx(campus_domains=("example.edu",)))
+    by = {t.value: t for t in rep.targets}
+    assert sum(by[s].alerts for s in kit.SITES) > rep.meta.alerts_total
+    assert by[kit.SITES[0]].shared
+    assert by[kit.SITES[1]].shared
+    assert not by[kit.SERVER].shared  # each investigation names this one server only
+
+
 def test_a_site_that_gave_a_successful_answer_says_which_file() -> None:
     by = {t.value: t for t in report().targets}
     assert (by[kit.SITES[0]].answered, by[kit.SITES[0]].served) == (1, ("/.env",))

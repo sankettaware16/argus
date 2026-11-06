@@ -37,7 +37,7 @@ OUT = "flagged by outside threat intel"
 RAISING = (BEACON, OUT)  # a beacon whose server VirusTotal flags: in Needs attention (D-164)
 SERVERS = [("ip", "203.0.113.7"), ("domain", "c2.example.net"), ("ip", "203.0.113.8")]
 GIT = ("185.220.101.4", "185.220.101.5", "185.220.101.6")  # three outside addresses
-TITLE_CHARS = frozenset(string.ascii_letters + string.digits + " .,:()/&+-—→")
+TITLE_CHARS = frozenset(string.ascii_letters + string.digits + " .,:()/&+-—→'")  # ' quotes a rule
 
 
 def seen(n: int, *, rule: str = "rule-a", hours: float = 1, day: int = 24,
@@ -73,7 +73,7 @@ def test_a_host_seen_by_two_rules_with_a_flag_is_one_suggested_case() -> None:
     assert [m.investigation_id.int for m in case.members] == [1, 2]
     assert case.severity == "medium"  # the highest of the members
     assert case.flags == RAISING
-    assert case.title == "Beaconing from 10.20.30.40"
+    assert case.title == "Suspected beaconing from 10.20.30.40"
     assert case.attention.startswith(
         "ARGUS suggests this case: 2 investigations of one campus host"
     )
@@ -174,7 +174,7 @@ def git(shared: tuple[str, ...] = ("hostel5", "hostel9", "rsapcouncil")) -> list
 def test_two_outside_addresses_reaching_the_same_rare_directories_are_one_case() -> None:
     (case,) = opened(plan(git()))
     assert {m.investigation_id.int for m in case.members} == {1, 2}
-    assert case.title == "scan: 2 outside addresses"
+    assert case.title == "Suspected Git-folder scan by 2 outside IPs — no web check yet"
     assert "2 actors reached the same 3 rare targets" in case.attention
     assert {(a.kind, a.value) for a in case.actors} == {("ip", GIT[0]), ("ip", GIT[1])}
     assert {t.value for t in case.targets} == {"/~hostel5/.git", "/~hostel9/.git",

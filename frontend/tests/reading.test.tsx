@@ -40,7 +40,7 @@ const NO_DECISION: AssessmentOut = {
 async function open(assessments: AssessmentOut[], tab = "ai") {
   server.use(http.get(API, () => HttpResponse.json(detail({ assessments }))), http.get(`${API}/reports`, NOREPORTS));
   renderApp(`/investigations/${ID}?tab=${tab}`);
-  await screen.findByText("Your review");
+  await screen.findByText("Your decision");
 }
 
 describe("ARGUS's reading", () => {
@@ -63,10 +63,11 @@ describe("ARGUS's reading", () => {
     const stance = stanceOf({ kind: "reading", outcome: "benign_expected", confidence: 0.8, source: "the AI investigator", why: READING.why, assessment_id: 7 });
     server.use(http.get(API, () => HttpResponse.json(detail({ assessments: [NO_DECISION], stance }))), http.get(`${API}/reports`, NOREPORTS));
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
-    expect(screen.getByTestId("verdict-headline").textContent).toBe("ARGUS's reading: Benign: expected activity (80%), not proposed because a safety check needs a person: the severity is high");
-    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull(); // a reading is never a proposal
-    expect(screen.getByText(/ARGUS did not propose an outcome, so there is nothing to confirm/)).toBeTruthy();
+    await screen.findByText("Your decision");
+    expect(screen.getByTestId("verdict-headline").textContent).toBe("ARGUS leans to: Real but harmless (80%), but did not propose it");
+    expect(screen.getByTestId("stance-why").textContent).toContain("Not proposed because a safety check needs a person: the severity is high.");
+    expect(screen.queryByRole("button", { name: /^Accept ARGUS/ })).toBeNull(); // a reading is never a proposal
+    expect(screen.getByText(/ARGUS did not propose its call, so there is nothing to accept/)).toBeTruthy();
   });
 
   it("shows nothing new for a no-decision run that left none, and the old words stay", async () => {
@@ -80,7 +81,7 @@ describe("ARGUS's reading", () => {
     const proposal: AssessmentOut = { ...NO_DECISION, status: "proposed", outcome: "true_positive", confidence: 0.75, reading: null, reasons: ["It beacons."] };
     await open([proposal]);
     expect(screen.queryByTestId("reading-headline")).toBeNull();
-    expect(screen.getAllByText(/proposes True positive/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/proposes Real: act on it/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("It beacons.").length).toBeGreaterThan(0);
   });
 

@@ -314,6 +314,7 @@ def test_what_each_state_allows() -> None:
         # Phase 3 (plan §7.8): investigation, measurement and writes run in NORMAL only
         Purpose.INVESTIGATE, Purpose.MEASURE, Purpose.KIBANA_WRITE,
         Purpose.DISCOVER,  # `argus discover` (P4-D1): a person's reads, NORMAL only
+        Purpose.CHECK,  # the incident engine's checking lane (P4-F E3), NORMAL only
     }  # fmt: skip
     assert ALLOWED[HealthState.DEGRADED] == {
         Purpose.PROBE, Purpose.SELFTEST, Purpose.COLLECT,

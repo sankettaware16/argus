@@ -20,7 +20,7 @@ const SIGNINS: SigninsOut = {
   devices_total: 1,
   devices: [
     {
-      address: "10.198.36.230",
+      address: "10.201.7.11",
       state: "likely",
       words: "Probable user: user-ar6-alpha.",
       accounts: [{ user: "user-ar6-alpha", first_at: "2026-10-26T03:40:00Z", last_at: "2026-10-26T12:10:00Z", events: 24, successes: 22, failures: 2, days: ["2026-10-26"], devices: ["Chrome on Windows"] }],
@@ -39,7 +39,7 @@ function serveCase(signins: SigninsOut | null) {
   const d = caseDetail({
     signins,
     timeline: [
-      { at: "2026-10-26T03:40:00Z", until: "2026-10-26T12:10:00Z", kind: "signin", text: "user-ar6-alpha signed in 24 times, 26 Oct 2026, 9:10 AM to 5:40 PM IST, Chrome on Windows (from 10.198.36.230)", by: null, investigation_id: null },
+      { at: "2026-10-26T03:40:00Z", until: "2026-10-26T12:10:00Z", kind: "signin", text: "user-ar6-alpha signed in 24 times, 26 Oct 2026, 9:10 AM to 5:40 PM IST, Chrome on Windows (from 10.201.7.11)", by: null, investigation_id: null },
     ],
     timeline_total: 1,
   });
@@ -54,11 +54,9 @@ function serveCase(signins: SigninsOut | null) {
 describe("the case page", () => {
   it("has the card, a way to it, and the sign-ins on the timeline as context", async () => {
     serveCase(SIGNINS);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const card = await screen.findByRole("region", { name: "Who used this device" });
     expect(card.textContent).toContain("user-ar6-alpha");
-    const contents = screen.getByRole("navigation", { name: "On this page" });
-    expect(within(contents).getByRole("link", { name: "Who used the devices" }).getAttribute("href")).toBe("#signins");
     const timeline = screen.getByRole("region", { name: "Timeline" });
     expect(within(timeline).getByText("Sign-in (context)")).toBeTruthy();
     expect(timeline.textContent).toContain("signed in 24 times");
@@ -66,11 +64,10 @@ describe("the case page", () => {
 
   it("has neither without the feature", async () => {
     serveCase(null);
-    renderApp(`/cases/${CASE_ID}`);
-    await screen.findByRole("heading", { level: 1, name: /Case 12/ });
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
+    await screen.findByRole("heading", { level: 1, name: /Regular beaconing/ });
+    await screen.findByRole("region", { name: "Timeline" });
     expect(screen.queryByRole("region", { name: /Who used/ })).toBeNull();
-    const contents = screen.getByRole("navigation", { name: "On this page" });
-    expect(within(contents).queryByRole("link", { name: "Who used the devices" })).toBeNull();
   });
 });
 
@@ -95,10 +92,10 @@ describe("the incident report", () => {
       signins: [],
       devices: [
         {
-          device: "10.198.36.230",
+          device: "10.201.7.11",
           state: "likely" as const,
-          sentence: { text: "10.198.36.230: Probable user: user-ar6-alpha.", cites: ["F1"], by: "code" as const },
-          accounts: [{ name: "user-ar6-alpha", device: "10.198.36.230", first_seen: "2026-10-26T03:40:00Z", last_seen: "2026-10-26T12:10:00Z", signins: 24, failed: 2, days: 1, browsers: ["Chrome on Windows"] }],
+          sentence: { text: "10.201.7.11: Probable user: user-ar6-alpha.", cites: ["F1"], by: "code" as const },
+          accounts: [{ name: "user-ar6-alpha", device: "10.201.7.11", first_seen: "2026-10-26T03:40:00Z", last_seen: "2026-10-26T12:10:00Z", signins: 24, failed: 2, days: 1, browsers: ["Chrome on Windows"] }],
           account_count: 1,
           at_least: false,
         },
@@ -111,7 +108,7 @@ describe("the incident report", () => {
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}/reports`, () => HttpResponse.json({ items: [REPORT], logs_hidden: false })),
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}`, () => HttpResponse.json(investigationDetail({}, { id: LEAD_ID }))),
     );
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const heading = await screen.findByText("Accounts that signed in from the affected devices", { selector: "h4" });
     const accounts = heading.closest("section") as HTMLElement; // inside a closed <details>: not an accessible region
     expect(accounts.textContent).toContain("user-ar6-alpha");

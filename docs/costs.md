@@ -23,7 +23,7 @@ optional, the free providers come first, and paid use is capped per day and per 
 |---|---|---|
 | **The machine** | One Linux host: 2–4 vCPU, 4–8 GB RAM, 50–100 GB SSD. ARGUS itself uses about 1.2 GB of memory and well under one core on average ([install.md](install.md#1-requirements)). | whatever a small VM costs you |
 | **Load on your SIEM** | Not money, but production capacity: a budget of Elasticsearch **server time**, 60 minutes a day by default; one installation spends 6–9 minutes a day ([configuration.md](configuration.md#the-load-budget)). | a few minutes of server time a day |
-| **Language models** | Optional. Free tiers (Groq, OpenRouter's free models, Google Gemini) first; a paid fallback (OpenAI) only when no free provider can answer, within hard caps. | **$0** with no keys or free keys only; about **$0.60 a day** measured with the paid fallback |
+| **Language models** | Optional. Free tiers (Groq, OpenRouter's free models, Google Gemini) first; paid fallbacks (OpenAI, then Anthropic) only when no free provider can answer, within hard caps. | **$0** with no keys or free keys only; about **$0.60 a day** measured with the paid fallback |
 
 Everything else is free and open source: ARGUS (Apache-2.0), PostgreSQL, Python, the web app.
 The optional outside threat-intel sources (VirusTotal, Shodan, Censys) are used within their
@@ -72,6 +72,9 @@ has settled.
 | Groq | small, medium | `openai/gpt-oss-20b`, `openai/gpt-oss-120b` | free tier | free tier | small calls (its 8,000 tokens a minute is too small for the investigator's larger prompts) |
 | OpenRouter | small, medium | `minimax/minimax-m3.1-flash:free`, `nvidia/nemotron-3-ultra-550b-a55b:free` | $0 | $0 | any call, when its free models answer |
 | Google Gemini | small, medium | `gemini-3.5-flash-lite` | free tier | free tier | any call |
+| Anthropic | small | `claude-haiku-5-5` | $0.10 | $0.50 | routine items (prompts under 100,000 tokens; ARGUS's always are) |
+| Anthropic | medium | `claude-sonnet-5-5` | $2.00 | $10.00 | items with a danger sign, or long text |
+| Anthropic | large | `claude-opus-5-5` | $4.00 | $20.00 | **not used by the investigator** (configured) |
 | OpenAI | small | `gpt-5.4-nano` | $0.20 | $1.25 | routine items |
 | OpenAI | medium | `gpt-5.4-mini` | $0.75 | $4.50 | items with a danger sign, or long text |
 | OpenAI | large | `gpt-5.5` | $5.00 | $30.00 | **not used by the investigator** (configured, priced high on purpose so a cap errs safe) |
@@ -94,7 +97,7 @@ change in a local commit). The free tiers have **limits**, not prices; ARGUS kee
    reading is shown on the rest. Thousands of alerts become hundreds of investigations, and
    those become a few hundred runs a day at most (`--agent-per-day 400`, the shipped service).
 3. **Free providers first.** Every call tries Groq, OpenRouter's free models and Gemini before
-   the paid provider. In production 62 % of all calls were free.
+   the paid providers. In production 62 % of all calls were free.
 4. **Small models by default.** The investigator uses the small tier unless the item has a
    danger sign or text had to be cut; the large tier is never used by it (it was 65 % of the
    spend for answers the medium tier also gave).
@@ -146,16 +149,19 @@ configured 500 requests a day give the investigator (normal priority) 500 × 0.8
 
 ## What happens at a cap
 
-- **The paid provider is skipped, the free ones go on.** Past its daily share, OpenAI is not
-  asked again until the next UTC day (past its monthly share, until the next month); the free
-  providers keep answering within their own limits.
+- **The paid providers are skipped, the free ones go on.** The overall caps count OpenAI's and
+  Anthropic's spending together; each paid provider may also have its own caps
+  (`config/llm.local.yaml`, `provider_caps`). Past one provider's own cap the next paid one is
+  asked; past the overall daily share neither is asked again until the next UTC day (past the
+  monthly share, until the next month); the free providers keep answering within their own limits.
 - **Nothing is lost.** When no provider can take a call now, the item is **deferred** to the
   earliest time one could (at most an hour for a provider that is off or misconfigured) and stays
   in the queue. It is never marked done without an answer.
 - **People are not blocked.** Investigations waiting for a model are still in the Inbox with
   their full evidence; a reviewer can decide them at any time.
 - **Out of prepaid credit.** If OpenAI itself refuses for lack of credit (`insufficient_quota`),
-  ARGUS pauses that provider for six hours and uses the others.
+  or Anthropic does (`402`, a credit balance too low, or its spend limit reached), ARGUS pauses
+  that provider for six hours and uses the others.
 
 ## Watching and controlling spend
 
@@ -176,9 +182,9 @@ uv run argus llm reconcile       # set this month's spending to the ledger's set
 
 | You want | Do |
 |---|---|
-| **$0, always** | Give no `OPENAI_API_KEY` (free keys only), or no keys at all. |
+| **$0, always** | Give no `OPENAI_API_KEY` and no `ANTHROPIC_API_KEY` (free keys only), or no keys at all. |
 | Free first, a small paid safety net | Keep the shipped caps, or lower them: `daily_cap_usd: 0.50`, `monthly_cap_usd: 15`. |
 | More AI coverage on a busy SIEM | Raise `daily_cap_usd` first (it is the one that binds), then `monthly_cap_usd`. |
-| A second, independent limit | Set a monthly budget or usage limit in your OpenAI account as well, and use prepaid credit with auto-recharge off. |
+| A second, independent limit | Set a monthly budget or usage limit in your OpenAI account and a monthly spend limit in your Anthropic Console as well, and use prepaid credit with auto-recharge off. |
 
 Edit `config/llm.yaml`, then restart the assessments: `systemctl --user restart argus-assess`.

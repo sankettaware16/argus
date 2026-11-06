@@ -38,11 +38,14 @@ NOTICE_HOWS: tuple[NoticeHow, ...] = get_args(NoticeHow)
 SEVERITIES: tuple[Severity, ...] = get_args(Severity)
 REASONS: tuple[Reason, ...] = get_args(Reason)
 CONFIRMED: frozenset[State] = frozenset({"open", "assigned", "contained"})
-# A reviewer dismisses a suspected case (it was never confirmed, nothing is in Kibana) with one
-# of these; the rest need evidence and an approver.
+# A reviewer dismisses a suspected case (it was never confirmed; one the case team posted to
+# Kibana is not dismissed) with one of these; the rest need evidence and an approver.
+# ``attempt_no_impact`` here is the person's judgement that a scan or attempt did nothing (closing
+# a confirmed case for it needs ARGUS's verified quiet window instead).
 DISMISS_REASONS: frozenset[Reason] = frozenset(
-    {"rule_false_positive", "benign_expected", "benign_policy", "created_in_error", "duplicate"}
-)
+    {"rule_false_positive", "benign_expected", "benign_policy", "created_in_error", "duplicate",
+     "attempt_no_impact"}
+)  # fmt: skip
 # Closure reasons a person may request (``duplicate`` comes only from a merge).
 REQUEST_REASONS: frozenset[Reason] = frozenset(REASONS) - {"duplicate"}
 # What ARGUS itself proposes, each with positive evidence: a verified quiet window,

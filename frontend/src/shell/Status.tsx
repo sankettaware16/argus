@@ -3,7 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { getCost, getHealth } from "../client/sdk.gen";
 import { Badge, type Tone } from "../components/ui/badge";
 import { BACKGROUND } from "../lib/api";
-import { ago, ist, parse, utc } from "../lib/time";
+import { useCan } from "../components/investigation/actions";
+import { systemDot, type SystemDot as Dot } from "../lib/system";
+import { clock, sinceWords } from "../lib/when";
+import { useEffect, useId, useRef, useState } from "react";
+import { ago } from "../lib/time";
 
 const MONEY = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -50,29 +54,6 @@ export const SIEM: Record<string, [Tone, string]> = {
   stop: ["danger", "stopped: ARGUS reads nothing"],
 };
 
-/** The SIEM's health as ARGUS last measured it (D-021), polled every minute in the background. */
-export function SiemStatus() {
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: async () => (await getHealth({ headers: BACKGROUND, throwOnError: true })).data,
-    refetchInterval: 60_000,
-  });
-  if (!health.data) {
-    return <span className="text-sm text-muted">SIEM: {health.isError ? "not available" : "loading"}</span>;
-  }
-  const h = health.data;
-  const probed = parse(h.siem_probed_at);
-  const [tone, word] = SIEM[h.siem_state] ?? (["neutral", "unknown"] as [Tone, string]);
-  const when = probed ? `checked ${ago(probed)} (${ist(probed)}; ${utc(probed)})` : "never checked";
-  return (
-    <Link to="/health" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text no-underline hover:underline" title={when}>
-      <span className="font-medium">SIEM</span>
-      <Badge tone={tone}>{word}</Badge>
-      <span className="text-muted">{probed ? `checked ${ago(probed)}` : "not checked yet"}</span>
-    </Link>
-  );
-}
-
 /** The Kibana read-back in words, from its newest cycle. */
 export const SYNC: Record<string, [Tone, string]> = {
   none: ["neutral", "not running yet"],
@@ -82,30 +63,84 @@ export const SYNC: Record<string, [Tone, string]> = {
   late: ["warn", "late"],
 };
 
-/** Whether ARGUS reads Kibana's cases back (argus-kibana-sync), from the health poll. */
-export function SyncStatus() {
-  const health = useQuery({
+function useHealth() {
+  return useQuery({
     queryKey: ["health"],
     queryFn: async () => (await getHealth({ headers: BACKGROUND, throwOnError: true })).data,
     refetchInterval: 60_000,
   });
-  const sync = health.data?.kibana_sync;
-  if (!sync) {
-    return <span className="text-sm text-muted">Kibana sync: {health.isError ? "not available" : "loading"}</span>;
-  }
-  const [tone, word] = SYNC[sync.state] ?? (["neutral", "unknown"] as [Tone, string]);
-  const last = parse(sync.last_cycle_at);
-  const complete = parse(sync.last_complete_at);
-  const title = last
-    ? `Last read-back ${ago(last)} (${ist(last)}; ${utc(last)}): ${sync.last_outcome}` +
-      (sync.last_reason ? ` (${sync.last_reason})` : "") +
-      (complete ? `; last complete ${ago(complete)}` : "; none complete yet")
-    : "No read-back of Kibana's cases recorded yet: it runs as argus-kibana-sync once Kibana is set up";
+}
+
+const DOT_TONE: Record<Dot["state"], string> = { ok: "bg-ok", caution: "bg-warn", problem: "bg-danger" };
+
+/** "today 4:10 PM": the banner's time words. */
+function at(d: Date): string {
+  const words = sinceWords(d);
+  return words.startsWith("today") ? clock(d) : `${words} ${clock(d)}`;
+}
+
+/**
+ * The header's system dot (docs/p4f-ui-spec.md §4.2): always a word with the dot ("● OK", "●
+ * Caution", "● Problem"), opening to one line per part. The AI cost is an admin's, in it only for
+ * them; it left the header.
+ */
+export function SystemDot() {
+  const health = useHealth();
+  const admin = useCan("admin");
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const box = useRef<HTMLDivElement>(null);
+  const dot = systemDot(health.data, new Date(), at);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
   return (
-    <Link to="/health" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text no-underline hover:underline" title={title}>
-      <span className="font-medium">Kibana sync</span>
-      <Badge tone={tone}>{word}</Badge>
-      {last && <span className="text-muted">read {ago(last)}</span>}
-    </Link>
+    <div ref={box} className="relative text-sm" data-testid="system-dot" data-state={dot.state}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2 text-sm text-text hover:bg-surface-2"
+      >
+        <span aria-hidden="true" className={`inline-block size-2 rounded-full ${DOT_TONE[dot.state]}`} />
+        <span>{health.isError ? "Not known" : dot.word}</span>
+        <span className="sr-only"> — the system's state</span>
+      </button>
+      {open && (
+        <div id={id} className="absolute right-0 z-30 mt-1 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 rounded-card border border-border bg-surface p-3 shadow-card" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0" data-testid="system-parts">
+            {dot.parts.map((p) => (
+              <li key={p.name}>
+                <span className="font-medium">{p.name}:</span> {p.words}
+              </li>
+            ))}
+          </ul>
+          {admin && <CostStatus />}
+          <Link to="/health" className="text-sm">
+            System health
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Today's banner (§4.2): only in the Problem state, in the queue's terms. */
+export function SystemBanner() {
+  const health = useHealth();
+  const dot = systemDot(health.data, new Date(), at);
+  if (dot.banner === null) return null;
+  return (
+    <p role="status" data-testid="system-banner" className="m-0 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
+      <span aria-hidden="true">⚠ </span>
+      {dot.banner} <Link to="/health">What ARGUS knows</Link>
+    </p>
   );
 }

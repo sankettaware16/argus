@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
@@ -20,7 +21,7 @@ from typing import Any, Protocol, TypeVar
 from pydantic import SecretStr
 
 from argus.gateway import breaker as breaker_core
-from argus.llm import budget
+from argus.llm import anthropic_api, budget
 from argus.llm.privacy import Request
 from argus.llm.probe import ALARMS, ProbeState, probe, tls_detail
 from argus.llm.providers import EVALUATE, PING, LlmConfig, ProviderConfig, Tier, Trust
@@ -35,7 +36,9 @@ PROBE_EVERY = timedelta(minutes=5)  # an "up" probe is believed this long
 LOADING_WAIT = timedelta(seconds=60)
 # A reply from the model that is no usable answer (an evaluation counts each). Not: a
 # quota (429), a key refused, the model loading, or a connection that never reached it.
-UNUSABLE = frozenset({"truncated", "bad_answer", "too_large", "server_error", "rejected"})
+UNUSABLE = frozenset(
+    {"truncated", "bad_answer", "too_large", "server_error", "rejected", "refused"}
+)
 
 
 class LlmError(Exception):
@@ -152,6 +155,14 @@ def retry_after(value: str | None, now: datetime) -> datetime | None:
 
 def body_for(provider: ProviderConfig, call: Call) -> bytes:
     model = provider.models[call.tier]
+    if provider.api == "anthropic":
+        # json_mode has no Anthropic form: a JSON call without a schema (or with one Anthropic
+        # cannot take) rests on its instructions, and the caller parses the answer
+        shape = call.schema if call.json and provider.schema_output else None
+        anthropic = anthropic_api.body(model.name, model.output_cap(call.max_output),
+                                       call.instructions, call.request.text, shape,
+                                       model.extra)  # fmt: skip
+        return json.dumps(anthropic, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     body: dict[str, Any] = {
         "model": model.name,
         "messages": [
@@ -169,6 +180,12 @@ def body_for(provider: ProviderConfig, call: Call) -> bytes:
     elif call.json and provider.json_mode:
         body["response_format"] = {"type": "json_object"}
     return json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def estimate(provider: ProviderConfig, body_bytes: int, cap: int) -> int:
+    """A call's tokens in the provider's rate-limit windows: the prompt at its bytes_per_token
+    and the answer's whole cap. The cost reserved never uses it (one byte a token)."""
+    return math.ceil(body_bytes / provider.bytes_per_token) + MESSAGE_OVERHEAD + cap
 
 
 def timeout_for(provider: ProviderConfig, call: Call, body_bytes: int) -> float | None:
@@ -213,11 +230,17 @@ class _Parsed:
     input_tokens: int | None
     output_tokens: int | None
     truncated: bool  # the answer's cap ran out (finish_reason "length")
+    refused: str | None = None  # a model that declined (Anthropic): the ledger's outcome
 
 
-def _answer(reply: LlmReply) -> _Parsed | None:
-    """The answer of an OpenAI-compatible reply, or None if it is not one. The reasoning
-    (``reasoning_content``) is never the answer."""
+def _answer(provider: ProviderConfig, call: Call, reply: LlmReply) -> _Parsed | None:
+    """The answer of a reply in the provider's API, or None if it is not one. The reasoning
+    (``reasoning_content``, a thinking block) is never the answer."""
+    if provider.api == "anthropic":
+        got = anthropic_api.parse(reply.body, call.json)
+        if got is None:
+            return None
+        return _Parsed(got.text, got.input_tokens, got.output_tokens, got.truncated, got.refused)
     try:
         data = json.loads(reply.body)
         choice = data["choices"][0]
@@ -408,7 +431,7 @@ class LlmGateway:
                 return 0, down[0], down[1], 0
         ask = budget.Ask(
             provider.name, model.name, self._buckets(provider, call),
-            len(body) + MESSAGE_OVERHEAD + cap,
+            estimate(provider, len(body), cap),
             model.cost(len(body) + MESSAGE_OVERHEAD, cap), call.priority,
         )  # fmt: skip
         holder = f"{call_id}/{attempt}"
@@ -448,12 +471,12 @@ class LlmGateway:
     ) -> Completion | tuple[int, str, datetime | None, int]:
         model = provider.models[call.tier]
         name, model_key = provider.name, f"{provider.name}/{model.name}"
-        size = len(body) + MESSAGE_OVERHEAD
-        cap = ask.tokens - size
+        size = len(body) + MESSAGE_OVERHEAD  # the prompt's upper bound, as its cost reserved
+        cap = model.output_cap(call.max_output)
         slow_ms = round(provider.slow_s * 1000)
 
         def counted(tin: int | None, tout: int | None) -> tuple[int, int]:
-            # the estimate is an upper bound: a provider's larger count is not believed
+            # the cost's bound is an upper bound: a provider's larger count is not believed
             tin = size if tin is None else min(tin, size)
             return tin, cap if tout is None else min(tout, cap)
 
@@ -463,7 +486,7 @@ class LlmGateway:
             return max(0, latency_ms - round(model.expected_s(tin, tout) * 1000))
 
         sent = {"request_bytes": len(body), "request_sha256": sha}
-        wire = LlmWire(name, f"{provider.base_url}/chat/completions", body, deadline_s)
+        wire = LlmWire(name, provider.call_url(), body, deadline_s)
         try:
             reply = await self.transport.send(wire, key)
         except (TransportError, TimeoutError) as exc:
@@ -487,13 +510,14 @@ class LlmGateway:
                 await self._update(lambda s: budget.overload(
                     budget.settle(s, ask, at, 0, 0.0), name, done
                 ))  # fmt: skip
-            await self._note(call, call_id, name, model.name, attempt,
-                             f"no_answer: {exc}", **sent)  # fmt: skip
+            # the ledger carries what stays charged, so a reconcile keeps it
+            await self._note(call, call_id, name, model.name, attempt, f"no_answer: {exc}",
+                             cost_usd=ask.cost_usd if reached else 0.0, **sent)  # fmt: skip
             return 1, "no answer", done + DEFAULT_WAIT, int(reached)
         done = self.clock()
         latency = round(reply.elapsed_ms)
         status = reply.status
-        parsed = _answer(reply) if status == 200 else None
+        parsed = _answer(provider, call, reply) if status == 200 else None
         if parsed is not None and parsed.text is not None:
             text = parsed.text
             tin, tout = counted(parsed.input_tokens, parsed.output_tokens)
@@ -503,7 +527,8 @@ class LlmGateway:
             def answered(s: budget.State) -> budget.State:
                 s = budget.settle(s, ask, at, tin + tout, cost)
                 s = budget.success(budget.success(s, name, done), model_key, done)
-                s = budget.clear_alarm(budget.observe(s, model_key, late, slow_ms, done), name)
+                s = budget.observe(s, model_key, late, slow_ms, done)
+                s = budget.clear_alarm(s, name, answered=model.name)
                 return budget.probed_up(s, name, done) if provider.probe else s
 
             await self._update(answered)
@@ -512,6 +537,11 @@ class LlmGateway:
                              cost_usd=cost, latency_ms=latency, **sent)  # fmt: skip
             return Completion(text, name, model.name, tin, tout, cost, latency, call_id)
         wait: datetime | None = None
+        noted = None  # the ledger's outcome, when it says more than ``outcome``
+        error = None
+        if provider.api == "anthropic" and status != 200:
+            error = anthropic_api.error_kind(status, reply.body)
+        kept = 0.0  # the reservation that stays charged, in the ledger too
 
         def replied(s: budget.State) -> budget.State:
             """Any HTTP reply proves the connection: the provider's breaker trial passes, so
@@ -520,7 +550,11 @@ class LlmGateway:
 
         if status == 200:
             # the reservation stays: the provider did the work
+            kept = ask.cost_usd
             outcome = "truncated" if parsed is not None and parsed.truncated else "bad_answer"
+            if parsed is not None and parsed.refused is not None:
+                # declined, not broken: nothing cools down, the next provider is asked
+                outcome, noted = "refused", parsed.refused
             tokens = (parsed.input_tokens, parsed.output_tokens) if parsed else (None, None)
             late = beyond(latency, *counted(*tokens))
             await self._update(lambda s: budget.observe(budget.success(
@@ -538,8 +572,32 @@ class LlmGateway:
             await self._update(lambda s: budget.raise_alarm(budget.cool_down(
                 replied(s), name, done + AUTH_WAIT, done
             ), name, "unauthorized", f"the key was refused ({status})", done))  # fmt: skip
-        elif status == 400 and _error_type(reply) == "exceed_context_size_error":
-            outcome = "too_large"  # llama-server: the prompt and the cap exceed the context
+        elif error == anthropic_api.QUOTA:
+            outcome = "no_credit"  # the organisation's credit, or its spend limit: all models
+            until = retry_after(reply.retry_after, done) or done + QUOTA_WAIT
+            wait = min(until, done + budget.MAX_COOLDOWN)
+            await self._update(lambda s: budget.cool_down(replied(s), name, until, done))
+        elif error == anthropic_api.MODEL_MISMATCH or (provider.api == "openai" and status == 404):
+            # as the probe: an alarm and an hour's wait, for the one model when the 404 names
+            # it (its siblings still answer), else for the provider (a wrong base_url). An
+            # OpenAI-compatible 404 is a model the provider no longer serves (a free model
+            # retired): that model waits.
+            outcome = "model_mismatch"
+            wait = done + AUTH_WAIT
+            if provider.api == "openai" or anthropic_api.missing_model(reply.body):
+                scope, about, why = model_key, model.name, "the model name"
+            else:
+                scope, about, why = name, None, "the model name or base_url"
+            detail = f"{model.name} not found ({status}): {why}"
+            await self._update(lambda s: budget.raise_alarm(budget.cool_down(
+                replied(s), scope, done + AUTH_WAIT, done
+            ), name, "model_mismatch", detail, done, about))  # fmt: skip
+        elif error == anthropic_api.TOO_LARGE or (
+            status == 400 and _error_type(reply) == "exceed_context_size_error"
+        ):
+            # the prompt and the cap exceed the context (llama-server's 400, Anthropic's
+            # 400 "prompt is too long" or 413)
+            outcome = "too_large"
             await self._update(replied)
         elif status == 503 and provider.probe and _error_type(reply) == "unavailable_error":
             outcome = "loading"  # llama-server (a probed machine) is loading the model
@@ -554,9 +612,10 @@ class LlmGateway:
         else:
             outcome = "rejected"
             await self._update(replied)
-        await self._note(call, call_id, name, model.name, attempt, outcome,
-                         http_status=status, latency_ms=latency, **sent)  # fmt: skip
-        return 1, f"{outcome} ({status})", wait, int(outcome in UNUSABLE)
+        await self._note(call, call_id, name, model.name, attempt, noted or outcome,
+                         http_status=status, cost_usd=kept, latency_ms=latency,
+                         **sent)  # fmt: skip
+        return 1, f"{noted or outcome} ({status})", wait, int(outcome in UNUSABLE)
 
     async def _note(
         self,

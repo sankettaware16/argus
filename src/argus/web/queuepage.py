@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from argus.assets.classify import IpClass, IpClassifier
 from argus.web import casepages, queries, stance
 from argus.web.v1 import case_models as cm
 from argus.web.v1 import queue_models as qm
@@ -60,10 +61,17 @@ SELECT x.case_id, x.id, x.n, x.unreviewed, x.attention, x.work FROM (
 """  # noqa: S608 - constant fragments; values are bound
 
 _DEVICES = """
-SELECT case_id, value, count(*) OVER (PARTITION BY case_id) AS total
+SELECT case_id, kind, value
 FROM case_indicators WHERE case_id = ANY(:ids) AND removed_at IS NULL AND role = 'actor'
 AND kind IN ('ip', 'host') ORDER BY case_id, kind, value
 """
+
+
+def is_outside(classifier: IpClassifier, value: str) -> bool:
+    """Whether an actor's address is an outside one (a public address that is neither in the
+    asset map nor one of the site's own networks): a scanner is never one of "our devices"."""
+    return classifier.classify(value).ip_class == IpClass.PUBLIC
+
 
 _CHANGES = """
 SELECT k.case_id, k.why FROM case_known_matches k
@@ -150,21 +158,29 @@ def why_words(row: cm.CaseRowOut, kind: qm.QueueKind, new_members: int = 0) -> s
     return "A person confirmed it and nobody owns it yet."
 
 
-async def build(conn: AsyncConnection, me_id: int, *, hide_logs: bool) -> qm.QueueOut:
-    """The queue for one person."""
+async def build(
+    conn: AsyncConnection, me_id: int, *, hide_logs: bool, classifier: IpClassifier | None = None
+) -> qm.QueueOut:
+    """The queue for one person. ``classifier`` tells campus devices from outside addresses
+    (the asset map and the site's own networks); without one, public addresses are outside."""
     found, total = await _case_rows(conn, me_id)
     ids = [row.id for row, _ in found]
     members: dict[uuid.UUID, list[Any]] = defaultdict(list)
     devices: dict[uuid.UUID, list[str]] = defaultdict(list)
-    device_total: dict[uuid.UUID, int] = {}
+    device_total: dict[uuid.UUID, int] = defaultdict(int)
+    outside: dict[uuid.UUID, list[str]] = defaultdict(list)
+    outside_total: dict[uuid.UUID, int] = defaultdict(int)
     changes: dict[uuid.UUID, list[str]] = defaultdict(list)
+    sort = classifier or IpClassifier(None)
     if ids:
         for r in await conn.execute(text(_MEMBERS), {"ids": ids, "per": MEMBERS_PER_CASE}):
             members[r.case_id].append(r)
         for r in await conn.execute(text(_DEVICES), {"ids": ids}):
-            device_total[r.case_id] = int(r.total)
-            if len(devices[r.case_id]) < DEVICES_SHOWN:
-                devices[r.case_id].append(r.value)
+            out = r.kind == "ip" and is_outside(sort, r.value)
+            shown, totals = (outside, outside_total) if out else (devices, device_total)
+            totals[r.case_id] += 1
+            if len(shown[r.case_id]) < DEVICES_SHOWN:
+                shown[r.case_id].append(r.value)
         for r in await conn.execute(text(_CHANGES), {"ids": ids}):
             if r.why not in changes[r.case_id] and len(changes[r.case_id]) < CHANGES_SHOWN:
                 changes[r.case_id].append(r.why)
@@ -201,6 +217,7 @@ async def build(conn: AsyncConnection, me_id: int, *, hide_logs: bool) -> qm.Que
                 changes=changes.get(row.id, []), notified_at=row.notified_at,
                 stance=stance_for(first.get(row.id)),
                 devices=devices.get(row.id, []), devices_total=device_total.get(row.id, 0),
+                outside=outside.get(row.id, []), outside_total=outside_total.get(row.id, 0),
                 investigations=row.investigations,
                 unreviewed=int(rows[0].unreviewed) if rows else 0,
                 alerts=row.alerts, last_alert_at=row.last_alert_at,

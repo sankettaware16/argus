@@ -346,6 +346,20 @@ def test_text_limits() -> None:
         machine.decide(case, Dismiss("risk_accepted"), person(), NOW)
 
 
+def test_a_case_the_case_team_posted_to_kibana_is_not_dismissed() -> None:
+    """A dismissal closes the case at once with no Kibana write: one the case team posted would
+    leave its Kibana case open for good, so it is confirmed and its closure asked for instead."""
+    case = opened(suspected=True).after
+    posted = Dismiss("rule_false_positive", posted="ACME-IR-2026-1106-02")
+    with pytest.raises(CaseRefused, match="posted it to Kibana as ACME-IR-2026-1106-02") as no:
+        machine.decide(case, posted, person(), NOW)
+    assert no.value.code == "conflict"
+    assert "ask for its closure" in no.value.message
+    assert machine.decide(case, Dismiss("rule_false_positive"), person(), NOW).after.state == (
+        "closed"
+    )
+
+
 # --------------------------------------------------------------------------- properties
 
 _ACTORS = st.sampled_from(
@@ -476,7 +490,9 @@ def test_random_histories_keep_every_rule(
                 assert actor.may(Capability.APPROVE)
             else:
                 assert isinstance(command, Dismiss | MergeInto)
-                assert actor.is_person
+                # ARGUS merges only a suspected case it raised (the incident engine's)
+                assert actor.is_person or (isinstance(command, MergeInto)
+                                           and before.cause == "raised")  # fmt: skip
         if after.state == "suspected":
             assert not after.confirmed
         for write in step.writes:  # Kibana only for mirrored cases, W3 only by approval
@@ -486,7 +502,8 @@ def test_random_histories_keep_every_rule(
             else:  # nothing else closes the Kibana case (the database refuses it too)
                 assert not kibana.closes_case(write)
         if not actor.is_person:
-            assert isinstance(command, NewActivity | AfterClosure | Link | ConfirmByVerdict)
+            assert isinstance(command, NewActivity | AfterClosure | Link | ConfirmByVerdict
+                              | MergeInto | MergedIn)  # fmt: skip
         case = after
         events.append(_record(step))
         assert replay(events) == case

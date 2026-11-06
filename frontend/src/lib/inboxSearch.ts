@@ -69,7 +69,7 @@ export function validateFind(kind: string, raw: string): Found {
   const k = kind as FindKind;
   if (k === "ip") {
     const value = ipv4(text) ?? ipv6(text);
-    return value === null ? { ok: false, why: "That is not an IP address. Write it like 10.8.235.157 (four numbers up to 255) or like 2001:db8::1." } : { ok: true, kind: k, value };
+    return value === null ? { ok: false, why: "That is not an IP address. Write it like 10.201.7.13 (four numbers up to 255) or like 2001:db8::1." } : { ok: true, kind: k, value };
   }
   if (k === "domain") {
     const checked = domain(text);

@@ -25,7 +25,7 @@ from argus.freshness.shadow import Policy
 from tests.integration.cases.conftest import KIBANA, Person
 
 C2 = "77.221.155.150"
-H1, H2, H3 = "10.8.235.157", "10.198.50.62", "10.9.1.7"
+H1, H2, H3 = "10.201.7.13", "10.201.7.12", "10.9.1.7"
 D0 = date(2026, 10, 14)
 MARGIN = timedelta(minutes=2)
 HISTORY = timedelta(days=5)

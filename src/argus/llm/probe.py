@@ -61,7 +61,7 @@ async def probe(
     transport: LlmTransport,
     timeout_s: float = PROBE_TIMEOUT_S,
 ) -> ProbeResult:
-    wire = LlmWire(provider.name, f"{provider.base_url}/models", b"",
+    wire = LlmWire(provider.name, provider.models_url(), b"",
                    min(timeout_s, provider.timeout_s))  # fmt: skip
     try:
         reply = await transport.get(wire, key)

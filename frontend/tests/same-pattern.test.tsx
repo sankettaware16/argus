@@ -46,7 +46,7 @@ const ENGINE: AssessmentOut = {
 async function open(more: Parameters<typeof detail>[0]) {
   server.use(http.get(API, () => HttpResponse.json(detail(more))), http.get(`${API}/reports`, NOREPORTS));
   renderApp(`/investigations/${ID}?tab=ai`);
-  await screen.findByText("Your review");
+  await screen.findByText("Your decision");
 }
 
 describe("same pattern as another investigation", () => {
@@ -55,7 +55,7 @@ describe("same pattern as another investigation", () => {
     const line = screen.getByTestId("same-pattern");
     expect(within(line).getByRole("link", { name: OTHER }).getAttribute("href")).toContain(OTHER);
     expect(line.textContent).toContain("Same pattern as");
-    expect(line.textContent).toContain("proposes True positive (75%)");
+    expect(line.textContent).toContain("proposes Real: act on it (75%)");
     expect(line.textContent).toContain("not a proposal for this investigation");
     expect(screen.getByRole("article", { name: "The decision engine: no proposal" })).toBeTruthy(); // its own card stays
     expect(screen.queryByRole("button", { name: /Accept/ })).toBeNull();
@@ -83,6 +83,6 @@ describe("same pattern as another investigation", () => {
   it("shows the investigator's own run and not the shared line when both would be there", async () => {
     await open({ assessments: [PROPOSAL, ENGINE], same_pattern: { investigation_id: OTHER, earlier: false, assessment: PROPOSAL } });
     expect(screen.queryByTestId("same-pattern")).toBeNull();
-    expect(screen.getByRole("article", { name: /The AI investigator: proposes True positive/ })).toBeTruthy();
+    expect(screen.getByRole("article", { name: /The AI investigator: proposes Real: act on it/ })).toBeTruthy();
   });
 });

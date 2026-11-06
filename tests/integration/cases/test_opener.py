@@ -79,11 +79,11 @@ async def _run(engine: AsyncEngine, *, dry_run: bool = False) -> opener.Report:
 async def _ps1bot(owner: AsyncEngine) -> list[uuid.UUID]:
     """Host A beacons on day 0 (the dossier shows it), host B contacts the same C2 on day 1,
     host A again on day 3: three investigations, two hosts, three days."""
-    first = await investigation(owner, rule="c2", actor=(("source.ip", "10.8.235.157"),),
+    first = await investigation(owner, rule="c2", actor=(("source.ip", "10.201.7.13"),),
                                 entities=(("ip", C2),), day=0)  # fmt: skip
-    second = await investigation(owner, rule="c2", actor=(("source.ip", "10.198.50.62"),),
+    second = await investigation(owner, rule="c2", actor=(("source.ip", "10.201.7.12"),),
                                  entities=(("ip", C2),), day=1)  # fmt: skip
-    third = await investigation(owner, rule="c2", actor=(("source.ip", "10.8.235.157"),),
+    third = await investigation(owner, rule="c2", actor=(("source.ip", "10.201.7.13"),),
                                 entities=(("ip", "203.0.113.9"),), day=3)  # fmt: skip
     await _dossier(owner, first, BEACON, [C2])
     return [first, second, third]
@@ -102,7 +102,9 @@ async def test_a_c2_incident_across_hosts_and_days_is_one_case(
     assert dry.planned[0].reasons == (
         "a regular beacon", "a campus host in contact with a threat-listed address",
     )  # fmt: skip
-    assert dry.planned[0].title == "Beaconing to 77.221.155.150 from 10.8.235.157"
+    assert dry.planned[0].title == (
+        "Confirmed beaconing from 10.201.7.13 to 77.221.155.150 (on a threat list)"
+    )
     assert await rows(app_engine, "SELECT * FROM cases") == []  # a dry run writes nothing
     assert await rows(app_engine, "SELECT * FROM case_openings") == []
 
@@ -116,13 +118,13 @@ async def test_a_c2_incident_across_hosts_and_days_is_one_case(
     members = await rows(app_engine, "SELECT investigation_id, link, link_value FROM case_members"
                                      " ORDER BY added_version")  # fmt: skip
     assert [(m.investigation_id, m.link, m.link_value) for m in members] == [
-        (first, "verdict", None), (second, "c2", C2), (third, "actor", "10.8.235.157"),
+        (first, "verdict", None), (second, "c2", C2), (third, "actor", "10.201.7.13"),
     ]  # fmt: skip
     marks = await rows(app_engine, "SELECT kind, value, role, source FROM case_indicators"
                                    " ORDER BY value")  # fmt: skip
     assert [tuple(m) for m in marks] == [
-        ("ip", "10.198.50.62", "actor", "investigation"),
-        ("ip", "10.8.235.157", "actor", "investigation"),
+        ("ip", "10.201.7.12", "actor", "investigation"),
+        ("ip", "10.201.7.13", "actor", "investigation"),
         ("ip", C2, "c2", "threat_intel"),
     ]
     openings = await rows(app_engine, "SELECT decision, case_id, decided_by FROM case_openings"
@@ -191,7 +193,7 @@ async def test_successes_after_an_attack_open_a_case_for_the_attacker(
     report = await _run(app_engine)
     assert report.applied == {"opened": 1, "linked": 1}
     case = (await rows(app_engine, "SELECT title FROM cases"))[0]
-    assert case.title == "Web attack by 185.220.101.4 got successful answers"
+    assert case.title == "Confirmed web scan by 185.220.101.4 — got HTTP 200, not verified"
 
 
 async def test_shared_egress_addresses_link_nothing(

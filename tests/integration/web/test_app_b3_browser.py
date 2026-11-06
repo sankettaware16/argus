@@ -32,6 +32,12 @@ from tests.integration.web.b2_support import BROWSERS, Watch, open_context
 from tests.integration.web.b3_support import Live, make_world, start_server
 from tests.integration.web.conftest import PASSWORD
 
+
+def everything(case: object) -> str:
+    """The incident page with every part on one page (the UI v2 keeps the old case page there)."""
+    return f"/app/incidents/{case}?tab=all"
+
+
 pytestmark = pytest.mark.integration
 WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]
 __all__ = ["live"]
@@ -90,15 +96,19 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
                                  indicators=(Indicator("ip", "10.0.0.1", "actor"),))  # fmt: skip
     await world.open_case(1, title="A second case", start=1)
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", "/app/cases")
-        await page.get_by_role("heading", name="Cases", exact=True).wait_for()
-        table = page.get_by_role("table", name="Cases")
-        await table.get_by_role("link", name=re.compile("Beaconing to the lab printer")).wait_for()
-        assert await table.get_by_role("row").count() == 3
-        await table.get_by_role("link", name=re.compile("Beaconing to the lab printer")).click()
-        await page.get_by_role("heading", level=1, name=re.compile("Case 1: Beaconing")).wait_for()
-        assert page.url == f"{live.url}/app/cases/{case}"
-        assert await page.title() == "Case · ARGUS"
+        path = "/app/incidents?view=all"
+        browser, _, page, watch = await person(play, name, live.url, "mina", path)
+        await page.get_by_role("heading", name="Incidents", exact=True).wait_for()
+        rows = page.get_by_test_id("incident-row")
+        await rows.filter(has_text="Beaconing to the lab printer").wait_for()
+        assert await rows.count() == 2
+        await rows.get_by_role("link", name=re.compile("Beaconing to the lab printer")).click()
+        await page.wait_for_url(f"{live.url}/app/incidents/{case}")
+        await page.get_by_test_id("decision-bar").wait_for()  # the page is drawn: nothing pending
+        await page.wait_for_load_state("networkidle")
+        await page.goto(f"{live.url}{everything(case)}")
+        await page.get_by_role("heading", level=1, name=re.compile("Beaconing")).wait_for()
+        assert await page.title() == "Incident · ARGUS"
         # by keyboard: the dialog opens on Enter, Cancel has the focus, Escape gives it back
         take = page.get_by_role("button", name="Take", exact=True)
         await take.focus()
@@ -106,7 +116,7 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
         await page.wait_for_function("document.activeElement?.textContent === 'Cancel'")
-        assert json.loads(await dialog.get_by_test_id("payload").inner_text()) == {
+        assert json.loads(await dialog.get_by_test_id("payload").text_content()) == {
             "expected_version": 1
         }
         await page.keyboard.press("Escape")
@@ -114,7 +124,7 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
         await page.get_by_role("button", name="Take", exact=True).click()
         await page.get_by_role("alertdialog").get_by_role("button", name="Take").click()
         await page.get_by_text("You took case 1.").first.wait_for()
-        await page.get_by_text("Owner: Mina Manager").first.wait_for()
+        await page.get_by_text("Taken by: Mina Manager").first.wait_for()
         assert await focus_id(page) == "case-title"
         # ask to close it: the writes are read first
         await page.get_by_role("button", name="Request closure").click()
@@ -129,7 +139,7 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
         read_by_mina = await box.get_by_test_id("fingerprint").inner_text()
         await box.get_by_role("button", name="Ask for this closure").click()
         shown = json.loads(
-            await page.get_by_role("alertdialog").get_by_test_id("payload").inner_text()
+            await page.get_by_role("alertdialog").get_by_test_id("payload").text_content()
         )
         assert shown["reason"] == "benign_expected"
         assert shown["note"] == "a lab printer, says the lab"
@@ -171,7 +181,7 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
         )
         await omar.get_by_role("button", name="Review the request").click()
         decision = omar.get_by_role("alertdialog")
-        body = json.loads(await decision.get_by_test_id("payload").inner_text())
+        body = json.loads(await decision.get_by_test_id("payload").text_content())
         assert body["decision"] == "approved"
         assert len(body["payload_hash"]) == 64
         await decision.get_by_role("button", name="Approve", exact=True).click()
@@ -179,14 +189,13 @@ async def test_a_case_is_taken_closed_by_request_and_approved_by_another_person(
         await omar.get_by_text("Nothing is waiting for a decision.").wait_for()
         # and the first person sees the case closed
         await page.reload()
-        await page.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
+        await page.get_by_role("heading", level=1, name=re.compile("Beaconing")).wait_for()
         await page.get_by_text(re.compile("Closed: It was closed")).first.wait_for()
-        reopen = page.get_by_role("button", name="Reopen")
+        actions = page.get_by_role("region", name="Actions")
+        reopen = actions.get_by_role("button", name="Reopen")
         assert await reopen.get_attribute("aria-disabled") == "false"
-        assert (
-            await page.get_by_role("button", name="Take", exact=True).get_attribute("aria-disabled")
-            == "true"
-        )
+        take = actions.get_by_role("button", name="Take", exact=True)
+        assert await take.get_attribute("aria-disabled") == "true"
         for p, w in ((page, watch), (omar, watch2)):
             assert await w.violations(p) == []
             assert w.errors == []
@@ -248,7 +257,7 @@ async def test_hostile_values_stay_inert_and_a_comment_is_a_persons_not_arguss(
             {"c": case, "d": json.dumps({"by": hostile, "comment": hostile})},
         )  # fmt: skip
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
         await page.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
         for body in (hostile, "ARGUS: approved " + hostile):
             await page.get_by_role("textbox", name=re.compile("Add a note to this case")).fill(body)
@@ -298,7 +307,7 @@ async def test_a_view_only_account_sees_actions_disabled_and_a_moved_case_is_sai
     world = live.world
     case = await world.open_case(1)
     async with async_playwright() as play:
-        browser, _, vera, _ = await person(play, name, live.url, "vera", f"/app/cases/{case}")
+        browser, _, vera, _ = await person(play, name, live.url, "vera", everything(case))
         await vera.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
         region = vera.get_by_role("region", name="Actions")
         buttons = region.get_by_role("button")
@@ -314,7 +323,7 @@ async def test_a_view_only_account_sees_actions_disabled_and_a_moved_case_is_sai
         await vera.get_by_text("Nothing is waiting for a decision.").wait_for()
         await browser.close()
         # a case that moved while a person looked at it
-        browser, _, mina, _ = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, mina, _ = await person(play, name, live.url, "mina", everything(case))
         await mina.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
         with httpx.Client(base_url=live.url, headers={"Origin": live.url}) as other:
             made = other.post("/api/login", json={"username": "nora", "password": PASSWORD})  # noqa: ASYNC212
@@ -330,7 +339,7 @@ async def test_a_view_only_account_sees_actions_disabled_and_a_moved_case_is_sai
         await alert.wait_for()
         assert "it is at version 2, you saw 1" in await alert.inner_text()
         await dialog.get_by_role("button", name="Cancel").click()
-        await mina.get_by_text("Owner: Nora NoReopen").first.wait_for()  # read again
+        await mina.get_by_text("Taken by: Nora NoReopen").first.wait_for()  # read again
         await browser.close()
     assert [
         r.kind
@@ -350,7 +359,7 @@ async def test_check_more_is_queued_under_the_persons_own_name_and_its_record_is
     investigation = world.investigations[0]
     async with async_playwright() as play:
         browser, _, page, watch = await person(
-            play, name, live.url, "mina", f"/app/investigations/{investigation}"
+            play, name, live.url, "mina", f"/app/alert-groups/{investigation}"
         )
         region = page.get_by_role("region", name="Check more")
         await region.get_by_role("combobox", name="Check").select_option("ti.lookup")
@@ -359,7 +368,7 @@ async def test_check_more_is_queued_under_the_persons_own_name_and_its_record_is
         assert "A light check" in await region.get_by_test_id("check-cost").inner_text()
         await region.get_by_role("button", name="Review the request").click()
         dialog = page.get_by_role("alertdialog")
-        body = json.loads(await dialog.get_by_test_id("payload").inner_text())
+        body = json.loads(await dialog.get_by_test_id("payload").text_content())
         assert body["template"] == "ti.lookup"
         assert body["entity"] == "203.0.113.9"
         assert "requested_by" not in body
@@ -408,9 +417,9 @@ async def served_pages(live: Live) -> list[tuple[str, str]]:
     return [
         ("cases", "/app/cases"),
         ("cases, searched", "/app/cases?view=all&q=beacon"),
-        ("case", f"/app/cases/{case}"),
+        ("case", f"/app/incidents/{case}?tab=all"),
         ("approvals", "/app/approvals"),
-        ("investigation", f"/app/investigations/{world.investigations[0]}"),
+        ("investigation", f"/app/alert-groups/{world.investigations[0]}"),
     ]
 
 

@@ -12,8 +12,8 @@ const KEYS: [string, string][] = [
 ];
 
 const PAGE_KEYS: [string, string][] = [
-  ["C", "confirm what ARGUS recommends (only when it recommends an outcome)"],
-  ["1, 2, 3, 4, 5", "choose the outcome: benign expected, benign by policy, rule false positive, true positive, inconclusive; then press Mark reviewed to save it"],
+  ["C", "accept ARGUS's call (only when it makes one)"],
+  ["1, 2, 3, 4, 5", "choose your decision: real, act on it; real but harmless; allowed by policy; wrong alert; can't tell yet. Then press Save decision"],
   ["N", "go to the next item of the queue"],
   ["?", "show this list"],
 ];

@@ -307,3 +307,47 @@ async def test_the_report_model_round_trips_through_the_database(
     assert m.content_hash(got.report) == got.content_hash
     assert got.verdict_outcome == "true_positive"
     assert got.verdict_confidence == pytest.approx(0.8)
+
+
+async def test_the_report_keeps_when_its_alerts_were_made_and_what_fields_they_hold(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
+) -> None:
+    """P4-F V2: the live charts plot each alert's own time, which a rule's lookback or a late run
+    puts after its event, and a chart over a field the alerts lack would be empty. The report
+    keeps the first and newest making time and the chart fields most of its alerts hold."""
+    case, _ = await kit.amadey(migrated_engine, app_engine, people["asha"])
+    late = timedelta(hours=9)
+    async with migrated_engine.begin() as conn:  # every alert made 9 hours after its event
+        await conn.execute(
+            text(
+                "UPDATE alert_records SET detected_at = event_time + CAST(:late AS interval)"
+                " WHERE alert_id IN (SELECT l.alert_id FROM case_members m"
+                " JOIN investigation_alerts l ON l.investigation_id = m.investigation_id"
+                " WHERE m.case_id = :c) AND event_time IS NOT NULL"
+            ),
+            {"c": case, "late": "9 hours"},
+        )
+        made = (
+            await conn.execute(
+                text(
+                    "SELECT min(a.detected_at), max(a.detected_at) FROM case_members m"
+                    " JOIN investigation_alerts l ON l.investigation_id = m.investigation_id"
+                    " AND l.duplicate_of IS NULL JOIN alert_records a ON a.alert_id = l.alert_id"
+                    " WHERE m.case_id = :c"
+                ),
+                {"c": case},
+            )
+        ).one()
+    async with app_engine.connect() as conn:
+        facts = await gather.gather(conn, case, kit.NOW)
+    assert facts is not None
+    report = build.build(facts, kit.context())
+    h = report.header
+    assert (h.first_detected_at, h.last_detected_at) == (made[0], made[1])
+    assert h.last_alert_at is not None
+    assert h.last_detected_at is not None
+    assert h.last_detected_at - h.last_alert_at == late
+    assert report.meta.carried == ("source.ip", "destination.ip")  # what the alerts hold
+    stored, _ = await kit.write(app_engine, case)
+    assert stored.report.header.last_detected_at == h.last_detected_at
+    assert stored.report.meta.carried == report.meta.carried

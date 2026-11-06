@@ -1,12 +1,13 @@
 """Plans (AR8, D-195 points 4 and 5): generation 1, the "Update" rounds that post only what
-changed (never an edit, never a delete, a file only when its bytes changed, under a versioned
-name), the lead's note after a person's verdict, and the hash an approval binds."""
+changed (never a delete, an edit only of the Visualiser's living glance, a file only when its
+bytes changed, under a versioned name), the lead's note after a person's verdict, and the hash an
+approval binds."""
 
 from __future__ import annotations
 
 import pytest
 
-from argus.caseteam import plan, render
+from argus.caseteam import plan, render, visual
 from argus.caseteam.model import Author, Plan, Step, unit_hash
 from argus.gateway.kibana import models
 from argus.incident import model as m
@@ -27,6 +28,8 @@ def posted_after(first: Plan, report: m.IncidentReport, n: int = 8) -> plan.Post
     files: dict[str, str] = {}
     attached: set[str] = set()
     verdict = None
+    glance: plan.PostedGlance | None = None
+    comments: dict[str, plan.PostedComment] = {}
     for s in first.steps:
         if s.kind == "comment":
             units[s.part] = units.get(s.part, frozenset()) | frozenset(s.units)
@@ -36,7 +39,22 @@ def posted_after(first: Plan, report: m.IncidentReport, n: int = 8) -> plan.Post
             attached |= {a for a, _ in s.payload["alerts"]}
         if s.part == "verdict":
             verdict = (s.payload["outcome"], s.payload["confidence"])
-    return plan.Posted("kid-1", 1, 1, units, files, frozenset(attached), verdict)
+        if s.part == visual.PART:  # the living glance, as the store reads it back
+            glance = plan.PostedGlance(s.units[0], visual.Seen.load(s.payload.get("seen")), None)
+            comments[s.key] = plan.PostedComment(
+                s.key, s.part, s.author.value, "c-glance", s.text or ""
+            )
+    return plan.Posted(
+        "kid-1",
+        1,
+        1,
+        units,
+        files,
+        frozenset(attached),
+        verdict,
+        comments=comments,
+        glance=glance,
+    )
 
 
 def more_evidence(report: m.IncidentReport) -> m.IncidentReport:
@@ -229,14 +247,20 @@ def test_new_alerts_are_attached_and_tagged_up_to_the_cap_and_none_twice() -> No
     assert sum(len(s.payload["alerts"]) for s in capped.steps if s.kind == "attach") == 2
 
 
-def test_an_update_never_opens_edits_or_deletes() -> None:
+def test_an_update_never_opens_or_deletes_and_edits_only_the_living_glance() -> None:
+    """P4-F V3 supersedes "never an edit" for the Visualiser's glance alone: a round edits that
+    one comment in place; every other part is still said again as an "Update" comment."""
     report = kit.amadey()
     first = plan.first_plan(report, 1, alerts(5), CTX)
     update = plan.update_plan(
         more_evidence(report), 2, alerts(9), CTX, posted_after(first, report), max_alerts=25
     )
-    assert {s.kind for s in update.steps} <= {"attach", "tag", "comment", "file"}
+    assert {s.kind for s in update.steps} <= {"attach", "tag", "comment", "file", "edit_comment"}
     assert "open" not in [s.kind for s in update.steps]
+    edits = [s for s in update.steps if s.kind == "edit_comment"]
+    assert [(s.part, s.author, s.payload[plan.ROUND]) for s in edits] == [
+        ("glance", Author.VISUALISER, True)
+    ]
 
 
 # --------------------------------------------------------------------------- after a verdict

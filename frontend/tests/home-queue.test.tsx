@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type { PatternBriefOut, PatternCloseOut, PatternSummaryOut, QueueCaseOut, QueueOut, QueueSingleOut } from "../src/client/types.gen";
-import { BASE, ID, ID2, ID3, investigation, mockApi, renderApp, sent, server, sessionWith, shellHandlers, stanceOf } from "./helpers";
+import { BASE, ID, ID2, ID3, investigation, mockApi, must, renderApp, sent, server, sessionWith, shellHandlers, stanceOf } from "./helpers";
 
 mockApi();
 
@@ -20,7 +20,7 @@ function queueCase(more: Partial<QueueCaseOut>): QueueCaseOut {
     id: CASE1, number: 12, title: "Beaconing from a hostel laptop", state: "suspected", severity: "high", kind: "suggested",
     why: "Suggested by ARGUS from evidence across investigations. Nothing is open until a person confirms it.", changes: [], notified_at: null,
     stance: stanceOf({ kind: "recommends", outcome: "true_positive", confidence: 0.8, source: "the AI investigator", assessment_id: 5 }),
-    devices: ["10.0.0.1", "10.0.0.2"], devices_total: 2, investigations: 3, new_members: 0, unreviewed: 2, alerts: 41, last_alert_at: "2026-10-26T08:00:00Z",
+    devices: ["10.0.0.1", "10.0.0.2"], devices_total: 2, outside: [], outside_total: 0, investigations: 3, new_members: 0, unreviewed: 2, alerts: 41, last_alert_at: "2026-10-26T08:00:00Z",
     waiting_for_approval: 0, first_investigation_id: ID, ...more,
   };
 }
@@ -61,7 +61,7 @@ describe("Home, the queue", () => {
     await screen.findByTestId("queue-case");
     await screen.findByTestId("queue-single");
     await screen.findByTestId("pattern-recommendation");
-    expect(headings().filter((h) => /^\d\. /.test(h))).toEqual(["1. ARGUS's cases that need a person", "2. Patterns ARGUS recommends closing", "3. Single investigations that need attention"]);
+    expect(headings().filter((h) => /^\d\. /.test(h))).toEqual(["1. Possible incidents and incidents that need you", "2. Patterns ARGUS recommends closing", "3. Single investigations that need attention"]);
   });
 
   it("shows each case with ARGUS's verdict in one line, its devices, its severity and why it is here", async () => {
@@ -69,14 +69,27 @@ describe("Home, the queue", () => {
     renderApp("/");
     const item = await screen.findByTestId("queue-case");
     expect(within(item).getByRole("link", { name: /Case 12: Beaconing from a hostel laptop/ }).getAttribute("href")).toBe(`/app/cases/${CASE1}`);
-    expect(within(item).getByText("Suggested by ARGUS")).toBeTruthy();
+    expect(within(item).getByText("Possible incident")).toBeTruthy();
     expect(within(item).getByText("high")).toBeTruthy();
-    expect(within(item).getByTestId("queue-stance").textContent).toBe("ARGUS recommends: True positive (80%)");
+    expect(within(item).getByTestId("queue-stance").textContent).toBe("ARGUS's call: Real: act on it (80%)");
     expect(within(item).getByText(/Suggested by ARGUS from evidence across investigations/)).toBeTruthy();
-    expect(item.textContent).toContain("Devices: 10.0.0.1, 10.0.0.2");
-    expect(item.textContent).toContain("3 investigations, 2 to review · 41 alerts");
-    expect(within(item).getByRole("link", { name: "Review the first investigation" }).getAttribute("href")).toBe(`/app/investigations/${ID}`);
+    expect(item.textContent).toContain("Campus devices: 10.0.0.1, 10.0.0.2");
+    expect(item.textContent).not.toContain("Outside address");
+    expect(item.textContent).toContain("3 alert groups, 2 to decide · 41 alerts");
+    // a possible incident: the way on is its decision (P4-F U1)
+    expect(within(item).getByRole("link", { name: "Decide: is it an incident?" }).getAttribute("href")).toBe(`/app/cases/${CASE1}#decision`);
+    expect(within(item).getByRole("link", { name: "Look at the first alert group" }).getAttribute("href")).toBe(`/app/alert-groups/${ID}`);
+  });
+
+  it("never calls an outside address a device (P4-F U13)", async () => {
+    reads(queue({ cases: [queueCase({ state: "open", kind: "unowned", devices: ["lab-pc-7"], devices_total: 1, outside: ["91.121.5.50", "77.221.155.150"], outside_total: 5 })], cases_total: 1 }));
+    renderApp("/");
+    const item = await screen.findByTestId("queue-case");
+    expect(item.textContent).toContain("Campus device: lab-pc-7");
+    expect(item.textContent).toContain("Outside addresses: 91.121.5.50, 77.221.155.150 and 3 more");
+    expect(item.textContent).not.toMatch(/Devices?: 91/);
     expect(within(item).getByRole("link", { name: "Open the case" }).getAttribute("href")).toBe(`/app/cases/${CASE1}`);
+    expect(within(item).getByRole("link", { name: "Review the first alert group" }).getAttribute("href")).toBe(`/app/alert-groups/${ID}`);
   });
 
   it("says a reading is a reading, and nothing is nothing", async () => {
@@ -91,7 +104,7 @@ describe("Home, the queue", () => {
     );
     renderApp("/");
     await screen.findAllByTestId("queue-case");
-    expect(screen.getAllByTestId("queue-stance").map((e) => e.textContent)).toEqual(["ARGUS's reading: True positive (70%), not proposed because a safety check needs a person", "ARGUS has no reading of this yet"]);
+    expect(screen.getAllByTestId("queue-stance").map((e) => e.textContent)).toEqual(["ARGUS leans to: Real: act on it (70%), but did not propose it", "ARGUS has made no call on this yet"]);
   });
 
   it("keeps the order the API gives: suggested and changed cases first, then the others", async () => {
@@ -127,7 +140,7 @@ describe("Home, the queue", () => {
     expect(totals.textContent).toContain("(4 cases:");
     expect(within(totals).getByRole("link", { name: "the list" }).getAttribute("href")).toBe("/app/cases?view=notified");
     expect(screen.queryByTestId("queue-case")).toBeNull();
-    expect(screen.getByText("No case needs a person now.")).toBeTruthy();
+    expect(screen.getAllByText("None now.").length).toBeGreaterThan(0);
   });
 
   it("uses the API's own counts: the numbers are /counts', not the queue's", async () => {
@@ -147,8 +160,8 @@ describe("Home, the queue", () => {
     expect(within(list).getAllByTestId("queue-single")).toHaveLength(2);
     expect(screen.getByText(/The 2 first of 87 are shown\./)).toBeTruthy();
     expect(screen.getByRole("link", { name: "All 87 in the Inbox, in the same order" }).getAttribute("href")).toBe("/app/inbox?view=attention&sort=queue");
-    expect(within(list).getAllByTestId("queue-stance")[0]?.textContent).toBe("ARGUS's reading: Inconclusive (40%), not proposed because the evidence did not settle it");
-    expect(within(list).getByRole("link", { name: "A lone scan" }).getAttribute("href")).toBe(`/app/investigations/${ID3}`);
+    expect(within(list).getAllByTestId("queue-stance")[0]?.textContent).toBe("ARGUS leans to: Can't tell yet (40%), but did not propose it");
+    expect(within(list).getByRole("link", { name: "A lone scan" }).getAttribute("href")).toBe(`/app/alert-groups/${ID3}`);
   });
 
   it("says every investigation in Needs attention is in a case when none is single", async () => {
@@ -162,7 +175,7 @@ describe("Home, the queue", () => {
     renderApp("/");
     expect(await screen.findByText(/The queue could not be shown/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Home" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Cases" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Possible incidents and incidents that need you/ })).toBeTruthy();
   });
 
   it("shows a hostile title and device as text", async () => {
@@ -212,7 +225,7 @@ describe("Home, the end of the queue is told honestly", () => {
     server.use(http.get(`${BASE}/api/v1/counts`, () => HttpResponse.json({ attention: 0, known: 0, open: 0, follow_up: 0, changed: 0, reviewed: 0, reviewed_today: 0, all: 9 })));
     reads(queue());
     renderApp("/");
-    await screen.findByText("No case needs a person now.");
+    await screen.findAllByText("None now.");
     await screen.findByText("Every investigation in Needs attention is in a case above.");
     expect(screen.queryByTestId("queue-disagrees")).toBeNull();
     expect(screen.queryByTestId("queue-summary")).toBeNull();
@@ -245,7 +258,7 @@ describe("Home, the patterns to close", () => {
     const cards = screen.getAllByRole("region", { name: /^Pattern:/ });
     expect(cards).toHaveLength(1);
     expect(cards[0]?.getAttribute("aria-label")).toBe("Pattern: Rule 2");
-    expect(within(cards[0] as HTMLElement).getByTestId("pattern-recommendation").textContent).toBe("ARGUS recommends: Benign: expected activity (90%) for 2 of 3 investigations (from the AI investigator). The other 1 have no proposal yet, so a close leaves them out.");
+    expect(within(cards[0] as HTMLElement).getByTestId("pattern-recommendation").textContent).toBe("ARGUS's call: Real but harmless (90%) for 2 of 3 investigations (from the AI investigator). The other 1 have no proposal yet, so a close leaves them out.");
   });
 
   it("says nothing about the rest when every investigation of the pattern has a proposal", async () => {
@@ -285,7 +298,7 @@ describe("Home, the patterns to close", () => {
     renderApp("/");
     const card = await screen.findByRole("region", { name: "Pattern: Rule 2" });
     expect(sent("GET", "/api/v1/patterns/closing")).toHaveLength(0); // no member list until it is asked for
-    await user.click(within(card).getByRole("button", { name: "Close 2 as Benign: expected activity" }));
+    await user.click(within(card).getByRole("button", { name: "Close 2 as Real but harmless" }));
     const dialog = await screen.findByRole("alertdialog");
     const shown = JSON.parse(within(dialog).getByTestId("payload").textContent ?? "{}") as { outcome: string; items: { investigation_id: string; version: number; latest_review: number | null }[] };
     expect(shown.outcome).toBe("benign_expected");
@@ -321,7 +334,7 @@ describe("Home, the patterns to close", () => {
     reads(queue(), SUMMARY([b]));
     renderApp("/");
     const card = await screen.findByRole("region", { name: "Pattern: Rule 2" });
-    await user.click(within(card).getByRole("button", { name: "Close 450 as Benign: expected activity" }));
+    await user.click(within(card).getByRole("button", { name: "Close 450 as Real but harmless" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toContain("the newest 2 of 450; close the rest afterwards");
   });
@@ -329,7 +342,8 @@ describe("Home, the patterns to close", () => {
   it("says ARGUS recommends closing no pattern, with the link to all of them", async () => {
     reads(queue(), SUMMARY([]));
     renderApp("/");
-    expect(await screen.findByText(/ARGUS recommends closing no pattern now\./)).toBeTruthy();
+    const patterns = await screen.findByRole("heading", { name: /2\. Patterns ARGUS recommends closing/ });
+    expect(await within(must(patterns.parentElement)).findByText(/None now\./)).toBeTruthy();
     expect(screen.getByRole("link", { name: "All patterns" }).getAttribute("href")).toBe("/app/patterns");
   });
 

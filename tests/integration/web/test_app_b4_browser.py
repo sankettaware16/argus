@@ -51,15 +51,13 @@ from tests.integration.web.test_external import (
 
 pytestmark = pytest.mark.integration
 WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]
-PAGES = [
-    ("By rule", "/app/rules"),
-    ("By host or IP", "/app/hosts"),
+PAGES = [  # By rule and By host or IP are retired: /rules and /hosts open the advanced search
     ("Patterns", "/app/patterns"),
     ("Health", "/app/health"),
     ("Glossary", "/app/glossary"),
-    ("Metrics", "/app/metrics"),
+    ("Metrics", "/app/quality?tab=metrics"),
     ("Rule tuning", "/app/tuning"),
-    ("Gold set", "/app/gold"),
+    ("Gold set", "/app/quality?tab=gold"),
 ]
 
 
@@ -161,11 +159,11 @@ async def test_the_pages_added_for_parity_are_inert_accessible_and_fit_a_phone(
 
 
 @pytest.mark.parametrize("name", BROWSERS)
-async def test_signing_in_leads_to_the_app_whose_status_bar_reads_the_cost_and_the_siem(
+async def test_signing_in_leads_to_the_app_whose_status_word_reads_the_siem(
     switched: tuple[str, dict[str, Any]], name: str
 ) -> None:
-    """The counterpart of the classic sign-in test: the form post lands on the Inbox with the cost
-    bar's words. Here ``/`` leads to ``/app``."""
+    """The counterpart of the classic sign-in test: the form post lands on Home with the quiet
+    System word. Here ``/`` leads to ``/app``."""
     from playwright.async_api import async_playwright
 
     server, _ = switched
@@ -181,16 +179,14 @@ async def test_signing_in_leads_to_the_app_whose_status_bar_reads_the_cost_and_t
         async with page.expect_navigation(url=re.compile(re.escape(server) + r"/app/?$")):
             await page.click("button[type=submit]")
         assert await heading_of(page) == "Home"
-        await page.wait_for_function(  # the status bar reads the cost, under the policy
-            "() => document.body.textContent.includes('this month')"
-        )
-        bar = await page.get_by_role("link", name=re.compile("AI cost")).inner_text()
-        assert re.search(
-            r"\$0\.00 of \$40\.00 this month · today \$0\.00 of \$1\.50 \(0 calls\)", bar
-        ), bar
-        siem = page.get_by_role("link", name=re.compile("SIEM"))
+        # one quiet System word (P4-F U8); it opens to the SIEM's state, and the AI cost is there
+        # only for an admin (asha is not one)
+        status = page.get_by_test_id("system-status")
+        await status.locator("summary").click()
+        siem = status.get_by_role("link", name=re.compile("SIEM"))
         await siem.first.wait_for()  # its own request; Home's queue reads can finish first
         assert await siem.count() == 1
+        assert await status.get_by_role("link", name=re.compile("AI cost")).count() == 0
         assert await watch.violations(page) == []
         await browser.close()
     assert watch.errors == []
@@ -218,18 +214,18 @@ async def test_classic_addresses_lead_to_the_app_and_the_fallback_is_read_only(
         assert await heading_of(page) == "By rule"
         await page.goto(f"{server}/dashboard?{SPAN}&severity=high")
         assert await heading_of(page) == "Dashboard"
-        assert page.url == f"{server}/app/dashboard?{SPAN}&severity=high"
+        assert page.url == f"{server}/app/overview?{SPAN}&severity=high"
         await page.goto(f"{server}/?view=all&kind=ip&value=10.0.0.1")
-        assert page.url == f"{server}/app/inbox?view=all&kind=ip&value=10.0.0.1"
+        assert page.url == f"{server}/app/search?advanced=1&view=all&kind=ip&value=10.0.0.1"
         await page.locator("[role=grid]").wait_for()
         await page.goto(f"{server}/investigations/{inv}/report?assessment=1")
         await page.get_by_role("tab", selected=True).wait_for()
-        assert page.url == f"{server}/app/investigations/{inv}?tab=report"
+        assert page.url == f"{server}/app/alert-groups/{inv}?tab=report"
         assert await page.get_by_role("tab", selected=True).inner_text() == "Report"
         # a rule's link inside the app opens the app's Inbox, not a classic page
         await page.goto(f"{server}/app/rules")
         await page.get_by_role("table", name="Rules").get_by_role("link").first.click()
-        await page.wait_for_url(re.compile(r".*/app/inbox\?.*rule=.*"))
+        await page.wait_for_url(re.compile(r".*/app/search\?advanced=1&.*rule=.*"))
         # the fallback: chosen from the menu, read-only, left by opening the app
         await page.goto(f"{server}/app/rules")
         await page.get_by_role("link", name="Classic pages (read-only)").click()
@@ -283,8 +279,8 @@ async def test_a_link_from_another_site_opens_the_investigation_in_the_app(
         await context.route(f"{other_site}/**", kibana)
         await page.goto(f"{other_site}/case")
         await page.click("#deep")
-        await page.wait_for_url(f"{server}/app/investigations/{inv}")
-        await page.get_by_role("heading", name="Your review").wait_for()
+        await page.wait_for_url(f"{server}/app/alert-groups/{inv}")
+        await page.get_by_role("heading", name="Your decision").wait_for()
         await browser.close()
 
 
@@ -317,10 +313,10 @@ async def test_a_pattern_is_reviewed_together_from_its_exact_request_and_a_chang
         await button.click()
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
-        body = await dialog.get_by_test_id("payload").inner_text()
+        body = await dialog.get_by_test_id("payload").text_content()
         assert '"outcome": "benign_expected"' in body
         assert body.count('"investigation_id"') == min(shown_count, 200)
-        assert "/api/v1/patterns/review" in await dialog.inner_text()
+        assert "/api/v1/patterns/review" in (await dialog.text_content() or "")
         ids = re.findall(r'"investigation_id": "([0-9a-f-]{36})"', body)
         async with seeded.begin() as conn:  # one of them changes while the dialog is open
             await conn.execute(text("UPDATE investigations SET version = version + 1"

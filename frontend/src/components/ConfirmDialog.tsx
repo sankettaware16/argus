@@ -38,8 +38,9 @@ function same(a: Shown, b: Shown): boolean {
 }
 
 /**
- * The confirm dialog (Q-B1, plan §7.5): before a change is sent, the person sees the exact
- * request (method, path, body) and confirms that. The request is copied when the dialog opens,
+ * The confirm dialog (Q-B1, plan §7.5): before a change is sent, the person reads what it does in
+ * plain words, with the exact request (method, path, body) one click away under "Show the exact
+ * request" (P4-F U9: plain words first), and confirms that. The request is copied when the dialog opens,
  * its body serialized once; that copy is shown and that copy is sent, method, path and text
  * together (review F1). If the page's request changes while the dialog is open, the copy stays,
  * the dialog says so and confirms nothing until the person looks at the new one (review F2).
@@ -98,10 +99,12 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
         >
           <AlertDialog.Title className="m-0 text-lg font-semibold">{title}</AlertDialog.Title>
           {description && <AlertDialog.Description className="m-0 text-sm text-muted">{description}</AlertDialog.Description>}
-          <div>
-            <p className="m-0 mb-1 text-sm font-medium">What will be sent</p>
-            <PayloadView method={shown.method} path={shown.path} payload={shown.payload} />
-          </div>
+          <details className="text-sm" open={changed || !shown.payload.ok}>
+            <summary className="cursor-pointer font-medium">Show the exact request</summary>
+            <div className="mt-1">
+              <PayloadView method={shown.method} path={shown.path} payload={shown.payload} />
+            </div>
+          </details>
           {changed && (
             <div
               className="flex flex-wrap items-center gap-2 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-sm text-warn"

@@ -226,6 +226,10 @@ def targets(scene: Scene) -> tuple[tuple[m.ReportTarget, ...], int]:
                 found[("host", ip)].add(doc.investigation_id)
     ans = answers(scene)
     outsiders = set(scene.outsiders)
+    names: dict[tuple[str, uuid.UUID], int] = defaultdict(int)  # targets of a kind it names
+    for (kind, _), ids in found.items():
+        for i in ids:
+            names[(kind, i)] += 1
     rows: list[m.ReportTarget] = []
     for (kind, value), ids in found.items():
         named = [scene.members[i] for i in ids if i in scene.members]
@@ -246,6 +250,7 @@ def targets(scene: Scene) -> tuple[tuple[m.ReportTarget, ...], int]:
                 answered=answered,
                 answered_exact=exact,
                 served=served,
+                shared=any(names[(kind, x.id)] > 1 for x in named),
             )
         )
     rows.sort(key=lambda t: (-t.alerts, t.kind, t.value))

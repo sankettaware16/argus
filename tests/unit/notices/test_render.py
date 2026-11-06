@@ -26,7 +26,7 @@ ID = uuid.UUID("0b5f3c1e-7a1d-4a55-9d0e-2f6a8c9b1d34")
 BASE = "https://argus.example.org"
 # what the data could hold: none of it may appear in a message, whatever the subject says
 SENTINELS = [
-    "10.8.235.157", "77.221.155.150", "ps1bot-lab-07", "alice.smith", "evil-c2.example.net",
+    "10.201.7.13", "77.221.155.150", "ps1bot-lab-07", "alice.smith", "evil-c2.example.net",
     "Rule: Possible C2 beacon from host", "squid", "root", "alice@example.org", "C:\\Users\\alice",
 ]  # fmt: skip
 

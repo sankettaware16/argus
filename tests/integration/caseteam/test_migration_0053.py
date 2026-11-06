@@ -244,7 +244,8 @@ async def test_a_downgrade_that_would_lose_a_recorded_verdict_is_refused_a_clean
 ) -> None:
     case = await case_with_post(migrated_engine, app_engine, people["asha"])
     head = await migrate.current_revision(migrated_engine)
-    assert head == "0065"  # 0060 (the flat hours check) sits on 0059 (the retitled event)
+    # 0060 (the flat hours check) sits on 0059 (the retitled event)
+    assert head == migrate.head_revision()
     async with migrated_engine.begin() as conn:
         await conn.execute(
             text(
@@ -281,7 +282,7 @@ async def test_a_downgrade_that_would_lose_the_record_of_what_was_sent_is_refuse
         await conn.execute(text("UPDATE case_team_steps SET state = 'verified', sent_count = 1"))
     with pytest.raises(DBAPIError, match="requests to Kibana"):
         await migrate.downgrade(migrated_engine, "0052")
-    assert await migrate.current_revision(migrated_engine) == "0065"
+    assert await migrate.current_revision(migrated_engine) == migrate.head_revision()
     async with migrated_engine.begin() as conn:
         left = (await conn.execute(text("SELECT count(*) FROM case_team_steps"))).scalar_one()
     assert left == 1  # nothing was dropped

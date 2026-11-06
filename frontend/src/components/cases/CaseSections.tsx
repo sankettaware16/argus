@@ -57,19 +57,19 @@ export function SummarySection({ detail }: { detail: CaseDetail }) {
         {caseStateWord(c.state)}: {CASE_STATE_MEANING[c.state]}{" "}
         {c.owner && (
           <>
-            Owner: <Text value={c.owner.display_name} max={80} lines={1} />.{" "}
+            Taken by: <Text value={c.owner.display_name} max={80} lines={1} />.{" "}
           </>
         )}
         {detail.cause_words}
       </p>
       <p className="m-0 text-sm">
-        {count(s.investigations)} {plural(s.investigations, "investigation")}, {count(s.alerts)} {plural(s.alerts, "alert")}
+        {count(s.investigations)} {plural(s.investigations, "alert group")}, {count(s.alerts)} {plural(s.alerts, "alert")}
         {s.first_alert_at && s.last_alert_at && (
           <>
             , from <Time value={s.first_alert_at} /> to <Time value={s.last_alert_at} />
           </>
         )}
-        . A person has reviewed {count(s.reviewed)} of them; {count(s.unreviewed)} {s.unreviewed === 1 ? "has" : "have"} not been reviewed (or changed since).
+        . A person has decided {count(s.reviewed)} of them; {count(s.unreviewed)} {s.unreviewed === 1 ? "has" : "have"} not been decided (or changed since).
       </p>
       {s.rules.length > 0 && (
         <p className="m-0 text-sm">
@@ -81,13 +81,6 @@ export function SummarySection({ detail }: { detail: CaseDetail }) {
             </span>
           ))}
           {s.rules_total > s.rules.length && ` and ${s.rules_total - s.rules.length} more`}.
-        </p>
-      )}
-      {c.state === "suspected" && (
-        <p className="m-0 text-sm">
-          {c.cause === "raised"
-            ? "ARGUS suggested it from evidence across investigations. A person confirms it with the case command (argus case confirm) or dismisses it (argus case dismiss); a verdict on one of its investigations is recorded but does not confirm it."
-            : "To confirm it, review one of its investigations as a true positive (open it under Members); a case that is not real is merged into another or left to ARGUS."}
         </p>
       )}
       {(c.attention || c.kibana_wait) && (
@@ -172,7 +165,7 @@ export function WhatsNewSection({ detail }: { detail: CaseDetail }) {
                   {i.investigation_id && (
                     <>
                       {" "}
-                      <Link to="/investigations/$id" params={{ id: i.investigation_id }}>
+                      <Link to="/alert-groups/$id" params={{ id: i.investigation_id }}>
                         open
                       </Link>
                     </>
@@ -224,7 +217,7 @@ export function TimelineSection({ detail }: { detail: CaseDetail }) {
                   {t.investigation_id && (
                     <>
                       {" "}
-                      <Link to="/investigations/$id" params={{ id: t.investigation_id }}>
+                      <Link to="/alert-groups/$id" params={{ id: t.investigation_id }}>
                         open
                       </Link>
                     </>
@@ -259,7 +252,7 @@ export function LeadReportSections({ detail }: { detail: CaseDetail }) {
         <>
           {" "}
           (the most severe and newest;{" "}
-          <Link to="/investigations/$id" params={{ id: lead }} search={{ tab: "report" }}>
+          <Link to="/alert-groups/$id" params={{ id: lead }} search={{ tab: "report" }}>
             its whole report
           </Link>
           ). The other {Math.max(detail.investigations_total - 1, 0)} {detail.investigations_total === 2 ? "investigation has" : "investigations have"} their own reports.
@@ -380,7 +373,7 @@ export function MembersSection({ detail }: { detail: CaseDetail }) {
             key: "rule",
             header: "Investigation",
             cell: (r) => (
-              <Link to="/investigations/$id" params={{ id: r.investigation_id }}>
+              <Link to="/alert-groups/$id" params={{ id: r.investigation_id }}>
                 <Text value={r.rule_name ?? "(no rule name)"} max={120} lines={1} />
               </Link>
             ),

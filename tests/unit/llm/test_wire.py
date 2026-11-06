@@ -33,22 +33,37 @@ WIRE = LlmWire("p", "https://p.example/v1/chat/completions", b'{"model": "m", "x
 KEY = SecretStr("sk-test-0123456789abcdef")
 
 
-def test_the_shipped_config_loads() -> None:
-    cfg = load_config(DEFAULT_PATH)
-    names = ["groq", "openrouter", "gemini", "openai", "local"]
+def test_the_shipped_config_loads(tmp_path: Path) -> None:
+    shipped = tmp_path / "llm.yaml"  # alone: an installation's llm.local.yaml is its own
+    shipped.write_text(DEFAULT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    cfg = load_config(shipped)
+    names = ["groq", "openrouter", "gemini", "openai", "anthropic", "local"]
     assert [p.name for p in cfg.providers] == names
     assert cfg.monthly_cap_usd == 40.0  # D-152
     assert cfg.margin == 0.8
     assert cfg.budget_config().shares[budget.Priority.LOW] == 0.5
-    openai = cfg.providers[3]  # paid, last of the enabled ones (D-101)
-    assert [p.name for p in cfg.providers if p.enabled][-1] == "openai"
+    openai, anthropic = cfg.providers[3:5]  # paid, the last of the enabled ones (D-101, D-312)
+    assert [p.name for p in cfg.providers if p.enabled][-2:] == ["openai", "anthropic"]
     assert openai.models[Tier.SMALL].name == "gpt-5.4-nano"
     assert openai.max_tokens_field == "max_completion_tokens"
+    assert (anthropic.api, anthropic.api_version, anthropic.keys) == (
+        "anthropic", "2026-10-21", ("ANTHROPIC_API_KEY",))  # fmt: skip
+    assert anthropic.call_url() == "https://api.anthropic.com/v1/messages"
+    assert [m.name for m in anthropic.models.values()] == [
+        "claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]  # fmt: skip
+    for m in anthropic.models.values():
+        assert m.extra == {"output_config": {"effort": "low"}}
+        assert m.thinking_tokens >= 2048  # thinking counts against max_tokens
+        assert m.input_per_m > 0
+        assert m.output_per_m > 0
+    assert anthropic.schema_output
+    assert anthropic.limits is not None
+    assert all(p.api == "openai" for p in cfg.providers if p is not anthropic)
     assert all(p.base_url.startswith("https://") for p in cfg.providers)
-    for p in cfg.providers:  # every provider but the paid one costs nothing
-        if p is not openai:
+    for p in cfg.providers:  # every provider but the paid ones costs nothing
+        if p not in (anthropic, openai):
             assert all(m.input_per_m == 0 == m.output_per_m for m in p.models.values())
-    assert all(p.timeout_s == 120 for p in cfg.providers[:4])  # the agent's 120 s before Q-G1
+    assert all(p.timeout_s == 120 for p in cfg.providers[:5])  # the agent's 120 s before Q-G1
 
 
 def provider(**over: Any) -> dict[str, Any]:

@@ -24,6 +24,12 @@ from tests.integration.web.test_app_ar4_browser import api_as
 from tests.integration.web.test_app_b3_browser import WCAG, live, person, sign_in_as
 from tests.integration.web.test_incident_report_ar7 import a_case, write_report
 
+
+def everything(case: object) -> str:
+    """The incident page with every part on one page (the UI v2 keeps the old case page there)."""
+    return f"/app/incidents/{case}?tab=all"
+
+
 pytestmark = pytest.mark.integration
 __all__ = ["live"]
 REASON = "It is the department's backup tool; the vendor confirmed it."
@@ -40,13 +46,14 @@ async def test_a_ta_reads_the_report_and_rejects_it_with_a_reason(live: Live, na
     )
     await write_report(world, case)
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
         region = page.get_by_role("region", name="Report")
         await region.wait_for()
-        assert (await page.title()).startswith("Case")
+        assert (await page.title()).startswith("Incident")
         headline = await region.get_by_test_id("report-headline").inner_text()
-        assert headline.startswith("A true positive: ")
-        assert "True positive" in await region.get_by_test_id("verdict-line").inner_text()
+        # the state and ARGUS's call apart (P4-F U3)
+        assert headline.startswith("Open · ARGUS's call: Real: act on it")
+        assert "Real: act on it" in await region.get_by_test_id("verdict-line").inner_text()
         assert (await region.get_by_test_id("incident-id").inner_text()).startswith("ACME-IR-")
 
         # the summary and the verdict come before the decision, which comes before the parts
@@ -54,7 +61,7 @@ async def test_a_ta_reads_the_report_and_rejects_it_with_a_reason(live: Live, na
             "() => Array.from(document.querySelectorAll('#report [role=group], #report details"
             " summary')).map((e) => e.getAttribute('aria-label') || e.textContent.trim())"
         )
-        assert names[:3] == ["Report summary", "ARGUS's verdict", "Your decision"]
+        assert names[:3] == ["Report summary", "ARGUS's call", "Your decision"]
         assert names[3:5] == ["Timeline", "Actors and roles"]
 
         # every evidence line: the exact query and a read-only link into Discover, in a new tab
@@ -77,10 +84,10 @@ async def test_a_ta_reads_the_report_and_rejects_it_with_a_reason(live: Live, na
         await region.get_by_role("button", name="Review the request").click()
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
-        assert f"POST/api/v1/cases/{case}/report/reject" in (await dialog.inner_text()).replace(
-            "\n", ""
-        )
-        assert REASON in await dialog.get_by_test_id("payload").inner_text()
+        assert f"POST/api/v1/cases/{case}/report/reject" in (
+            await dialog.text_content() or ""
+        ).replace("\n", "")
+        assert REASON in await dialog.get_by_test_id("payload").text_content()
         await dialog.get_by_role("button", name="Reject with this reason").click()
         await dialog.wait_for(state="detached")
         line = await region.get_by_test_id("decision-line").inner_text()
@@ -133,7 +140,7 @@ async def test_axe_finds_nothing_serious_on_the_report_light_dark_narrow_and_wid
                 page.set_default_timeout(60_000)
                 watch.attach(page)
                 await sign_in_as(page, live.url, "mina")
-                await page.goto(f"{live.url}/app/cases/{case}")
+                await page.goto(f"{live.url}/app/incidents/{case}?tab=all")
                 region = page.get_by_role("region", name="Report")
                 await region.wait_for()
                 await region.get_by_test_id("evidence-line").first.wait_for()

@@ -48,7 +48,7 @@ Every value an operator gives ARGUS, where it goes, who puts it there, and wheth
 | Quiet hours | `site.quiet_hours` | `config/site.yaml` | you | optional (00:00–01:30 UTC) |
 | History depth | `history.window` | `config/local.yaml` | you | optional (`5d`) |
 | The LLM keys file's path | `keys_file` | `config/llm.local.yaml` | `argus init` step 7 | optional |
-| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, ... | your keys file (mode 600) | you ([llm.md](llm.md#4-where-the-keys-go)) | optional |
+| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ... | your keys file (mode 600) | you ([llm.md](llm.md#4-where-the-keys-go)) | optional |
 | Cost caps | `daily_cap_usd`, `monthly_cap_usd`, `shares`, `margin` | `config/llm.yaml` | you, in a local commit | optional ($1.50 / $40) |
 | The asset map | `assets.map_path` (`data/assets/asset_map.yaml`) | the map itself | `argus assets import` | required before any model or outside key |
 | Outside threat-intel keys | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | `.env` | you | optional |
@@ -554,7 +554,7 @@ Not part of the settings above: its own file, laid under `config/llm.local.yaml`
 | `margin` | `0.8` | The share of each provider's published rate limits ARGUS uses |
 | `shares` | `{high: 1.0, normal: 0.8, low: 0.5}` | The share of each day limit and of both caps a priority may use |
 | `evaluation` | `window_utc: ["17:30", "00:00"]`, `calls_per_day: 150` | When evaluation runs may call models, and how many a night per provider |
-| `providers[]` | groq, openrouter, gemini, openai, local (disabled) | Tried in this order. Each: `name`, `base_url`, `keys` (key names), `models` (`small`, `medium`, `large`: `name`, `limits`, `input_per_m`, `output_per_m`, `extra`), `limits` (`rpm`, `rpd`, `tpm`, `tpd`), `timeout_s`, `max_tokens_field`, and optionally `enabled`, `trust` (`cloud` or `campus`), `ca_file`, `concurrency`, `tasks`, `probe`, `slow_s`, `schema_output` |
+| `providers[]` | groq, openrouter, gemini, anthropic, openai, local (disabled) | Tried in this order. Each: `name`, `base_url`, `keys` (key names), `models` (`small`, `medium`, `large`: `name`, `limits`, `input_per_m`, `output_per_m`, `extra`, `thinking_tokens`), `limits` (`rpm`, `rpd`, `tpm`, `tpd`), `timeout_s`, `max_tokens_field`, and optionally `api` (`openai`, or `anthropic` with `api_version`), `enabled`, `trust` (`cloud` or `campus`), `ca_file`, `concurrency`, `tasks`, `probe`, `slow_s`, `schema_output` |
 
 ## Other sections
 

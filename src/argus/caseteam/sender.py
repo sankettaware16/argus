@@ -31,8 +31,10 @@ from argus import site
 from argus.cases.signing import Verifier
 from argus.caseteam import approvals, guard, plan, policy, render, store, visual
 from argus.caseteam.model import (
+    COMMENT_GONE,
     DONE_STATES,
     EDIT_KINDS,
+    NOT_THEIRS,
     OPEN_STATES,
     PERSON_EDIT,
     Author,
@@ -283,8 +285,11 @@ class Preparer:
         )
         unfinished = any(r.state not in DONE_STATES for r in live)
         # a refresh a person planned is finished before anything else is planned: a newer
-        # report does not replace it
-        refreshing = any(r.kind in ("redescribe", "edit_comment") for r in live)
+        # report does not replace it (the living glance's edit is a round's, not a refresh)
+        refreshing = any(
+            r.kind in ("redescribe", "edit_comment") and plan.is_correction(r.kind, r.payload)
+            for r in live
+        )
         in_progress = unfinished and (refreshing or any(r.sent_count > 0 for r in live))
         prep = Prepared(
             case_id,
@@ -325,6 +330,7 @@ class Preparer:
                     max_alerts=cfg.max_alerts,
                     target=cfg.target,
                     per_call=cfg.alerts_per_call,
+                    now=now,
                 )
                 if not cfg.has_key(Author.VISUALISER.value):  # a round has no use for it
                     steps = tuple(s for s in prep.plan.steps if s.author is not Author.VISUALISER)
@@ -360,7 +366,8 @@ class Preparer:
             opened_total=total,
             approved=False,
             has_news=bool(prep.plan.steps) and open_done,
-            edits_only=bool(prep.plan.steps) and all(s.kind in EDIT_KINDS for s in prep.plan.steps),
+            edits_only=bool(prep.plan.steps)
+            and all(plan.is_correction(s.kind, s.payload) for s in prep.plan.steps),
             now=now,
             auto_min_confidence=cfg.auto_min_confidence,
             auto=cfg.auto,
@@ -851,7 +858,7 @@ class Poster:
         ``send``. This is also what makes an edit safe to do again after a doubt: it is read
         first, and sent only if Kibana still holds what ARGUS wrote before."""
         if live is None:
-            return "gone", "the comment is not on the Kibana case"
+            return "gone", COMMENT_GONE
         if step.kind == "retitle":
             now, want, was = live["title"], str(step.payload["title"]), step.payload.get("was")
             if now == want:
@@ -867,7 +874,7 @@ class Poster:
                 return "person", PERSON_EDIT
             return "send", ""
         if live["author"] != step.author.value:
-            return "gone", f"the comment was not written by {step.author.value}"
+            return "gone", f"{NOT_THEIRS} {step.author.value}"
         if live["text"] == step.text:
             return "done", "the comment already reads so"
         if text_hash(live["text"]) != step.payload.get("was_hash"):
@@ -1360,7 +1367,10 @@ class Poster:
         newer lines, files and verdict still wait for theirs. A refresh may add a comment for a
         part that now needs one more (its step carries the ``refresh`` flag); that is still a
         refresh and moves neither the version nor the round's time."""
-        if not all(r.kind in EDIT_KINDS or r.payload.get(plan.REFRESH) is True for r in rows):
+        if not all(
+            plan.is_correction(r.kind, r.payload) or r.payload.get(plan.REFRESH) is True
+            for r in rows
+        ):
             async with self.engine.begin() as conn:
                 await store.finish_generation(conn, post.case_id, stored.version, self.clock())
         kid = post.kibana_case_id
@@ -1553,6 +1563,9 @@ class Poster:
         found.plan = plan.refresh_plan(
             stored.report, stored.version, self.config.context, posted, target=self.config.target
         )
+        if not self.config.has_key(Author.VISUALISER.value):  # optional: never a reason to stop
+            steps = tuple(s for s in found.plan.steps if s.author is not Author.VISUALISER)
+            found.plan = replace(found.plan, steps=steps)
         for step in found.plan.steps:
             if not self.config.has_key(step.author.value):
                 found.problems.append(f"no key is installed for {step.author.value}")

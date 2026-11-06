@@ -71,7 +71,7 @@ function Record({ c, investigationId }: { c: InvestigationCheckOut; investigatio
           {eids.length > 0 && (
             <>
               Its answer is {eids.join(", ")} in{" "}
-              <Link to="/investigations/$id" params={{ id: investigationId }} search={{ tab: "report" }}>
+              <Link to="/alert-groups/$id" params={{ id: investigationId }} search={{ tab: "report" }}>
                 the report
               </Link>
               .

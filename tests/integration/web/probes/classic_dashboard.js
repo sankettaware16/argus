@@ -12,6 +12,6 @@
     verdicts: breakdown("Person's verdict"), ai: breakdown("ARGUS's assessment"),
     rules: by('Top rules by alerts').querySelector('table') ? rows(by('Top rules by alerts').querySelector('table')).map((r) => r.slice(0, 7)) : [],
     ip: entity('Top IP addresses'), host: entity('Top hosts'), domain: entity('Top domains'), user: entity('Top users'),
-    incidents: cases('Incidents: confirmed and suspected'), open: cases('Open investigations, most urgent first'),
+    incidents: cases('Investigations called real: by a person and by ARGUS'), open: cases('Open investigations, most urgent first'),
   };
 }

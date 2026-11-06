@@ -200,6 +200,41 @@ _RULE_COLUMNS = (
     "execution_status",
     "refreshed_at",
 )
+# what the incident engine writes of a rule (argus.risk.rulemeta): update only
+_RULE_META = ("lineage", "tactics", "stage_mask", "indices", "family", "meta_at")
+_RISK_OBJECT_UPDATE = (
+    "criticality", "hub", "hub_reason", "last_seen", "lanes", "held", "last_lane_at", "item_at",
+    "scored_at",
+)  # fmt: skip
+_RISK_INCIDENT_UPDATE = (
+    "state", "first_seen", "last_seen", "updated_at", "version", "lanes", "material",
+    "material_hash", "material_at", "changed", "stop_proposed_at", "campaign", "parent_id",
+    "merged_into", "case_id", "devices", "groups", "priority", "band", "view", "recommended",
+    # the presenter's columns (P4-F E5, migration 0095)
+    "title", "certainty", "shown", "shown_day", "queued_at", "raised_by_ai", "presented",
+    "presented_at",
+)  # fmt: skip
+_RISK_GRAY_COLUMNS = (
+    "priority", "band", "lane", "certainty", "title", "view", "first_seen", "last_seen",
+    "updated_at",
+)  # fmt: skip
+_RISK_GROUP_UPDATE = (
+    "version", "signature", "direction", "day", "at", "alerts", "outcome", "known", "kinds",
+    "category", "observed_at", "scored_at",
+)  # fmt: skip
+_RISK_OBSERVATION_INSERT = (
+    "object_id", "investigation_id", "investigation_version", "source_kind", "source_key", "role",
+    "at", "day", "base", "outcome", "prevalence", "fidelity", "score", "stages", "family",
+    "strong", "threats", "evidence",
+)  # fmt: skip
+_RISK_SOURCE_COLUMNS = (
+    "prevalence", "fidelity", "probation", "objects_median", "reach", "credited_confirmed",
+    "credited_not_incident", "computed_at",
+)  # fmt: skip
+_RISK_SCORE_COLUMNS = (
+    "score", "sources", "families", "stages", "active_days", "strong", "anchored", "breakdown",
+    "computed_at",
+)  # fmt: skip
 _TI_COLUMNS = (
     "first_seen",
     "last_seen",
@@ -210,6 +245,31 @@ _TI_COLUMNS = (
 )
 
 # Granted by migrations; every new table is added here and to its migration.
+# what a person marks on the queue (migration 0100): the web writes a person's own rows, the
+# runtime login the same (the presenter ends a hold on a material change)
+QUEUE_MARKS: dict[str, TableGrant] = {
+    "case_holds": TableGrant(
+        select=True,
+        insert=("case_id", "user_id", "reason", "until", "case_version"),
+        update=("ended_at", "ended_why"),
+    ),
+    "case_seen": TableGrant(
+        select=True,
+        insert=("case_id", "user_id", "engine_version", "case_version", "seen_at"),
+        update=("engine_version", "case_version", "seen_at"),
+    ),
+    "spot_checks": TableGrant(
+        select=True,
+        insert=("kind", "target_id", "user_id", "answer", "closed_as"),
+        update=("answer", "closed_as", "answered_at"),
+    ),
+    "user_rounds": TableGrant(
+        select=True, insert=("user_id", "caught_up_at"), update=("caught_up_at",)
+    ),
+    "report_sends": TableGrant(
+        select=True, insert=("case_id", "report_version", "sent_to", "by_user_id")
+    ),
+}
 RUNTIME_GRANTS: dict[str, TableGrant] = {
     "alembic_version": TableGrant(select=True),
     # id and occurred_at come from the database: ARGUS cannot renumber or backdate an event.
@@ -558,7 +618,9 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         delete=True,
     ),
     # reference data.
-    "rules": TableGrant(select=True, insert=("rule_id", *_RULE_COLUMNS), update=_RULE_COLUMNS),
+    "rules": TableGrant(
+        select=True, insert=("rule_id", *_RULE_COLUMNS), update=(*_RULE_COLUMNS, *_RULE_META)
+    ),
     "rule_revisions": TableGrant(
         select=True, insert=("rule_id", "revision", "note_hash", "name", "first_seen_at")
     ),
@@ -743,6 +805,9 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
     ),
     "case_notes": TableGrant(select=True, insert=("case_id", "author_user_id", "body")),
     "entity_notes": TableGrant(select=True, insert=("kind", "value", "author_user_id", "body")),
+    # a person's marks on the queue (P4-F UI v2, migration 0100): "I'm checking", what they last
+    # looked at, spot-check answers, "I'm caught up", and a report sent to the CISO
+    **QUEUE_MARKS,
     "case_openings": TableGrant(
         select=True,
         insert=(
@@ -922,6 +987,143 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "store_failures",
         ),
     ),
+    # the incident engine v2 in shadow (P4-F E1): its own tables, written and pruned by it
+    "risk_objects": TableGrant(
+        select=True,
+        delete=True,
+        insert=("kind", "key", "criticality", "hub", "hub_reason", "first_seen", "last_seen"),
+        update=_RISK_OBJECT_UPDATE,
+    ),
+    "risk_groups": TableGrant(
+        select=True,
+        delete=True,
+        insert=("investigation_id", *_RISK_GROUP_UPDATE),
+        update=_RISK_GROUP_UPDATE,
+    ),
+    "risk_entities": TableGrant(
+        select=True, delete=True, insert=("investigation_id", "kind", "value", "role", "fields")
+    ),
+    "risk_observations": TableGrant(
+        select=True,
+        delete=True,
+        insert=_RISK_OBSERVATION_INSERT,
+        update=("prevalence", "fidelity", "score"),
+    ),
+    "risk_sources": TableGrant(
+        select=True,
+        delete=True,
+        insert=("source_key", "role", *_RISK_SOURCE_COLUMNS),
+        update=_RISK_SOURCE_COLUMNS,
+    ),
+    "risk_object_scores": TableGrant(
+        select=True,
+        delete=True,
+        insert=("object_id", "span", *_RISK_SCORE_COLUMNS),
+        update=_RISK_SCORE_COLUMNS,
+    ),
+    "risk_crossings": TableGrant(
+        select=True,
+        delete=True,
+        insert=("object_id", "lane", "at", "new_item", "score", "breakdown"),
+    ),
+    # what the engine's checking lane found (P4-F E3), kept 180 days and pruned by it
+    "exposure_checks": TableGrant(
+        select=True,
+        delete=True,
+        insert=(
+            "kind",
+            "source",
+            "site",
+            "day",
+            "template",
+            "template_version",
+            "task_key",
+            "verdict",
+            "facts",
+            "took_ms",
+            "checked_at",
+        ),
+    ),
+    # the engine v2's incidents, links and identity (P4-F E2 and E4), in shadow
+    "risk_incidents": TableGrant(
+        select=True,
+        delete=True,
+        insert=(
+            "state",
+            "created_at",
+            "first_seen",
+            "last_seen",
+            "updated_at",
+            "version",
+            "lanes",
+            "material",
+            "material_hash",
+            "material_at",
+            "changed",
+            "stop_proposed_at",
+            "campaign",
+            "parent_id",
+            "follows_id",
+            "merged_into",
+            "case_id",
+            "devices",
+            "groups",
+            "priority",
+            "band",
+            "view",
+            "recommended",
+        ),
+        update=_RISK_INCIDENT_UPDATE,
+    ),
+    "risk_incident_objects": TableGrant(
+        select=True,
+        delete=True,
+        insert=("incident_id", "object_id", "role", "joined_at"),
+        update=("incident_id", "role"),
+    ),
+    "risk_incident_groups": TableGrant(
+        select=True,
+        delete=True,
+        insert=("incident_id", "investigation_id", "joined_at"),
+        update=("incident_id",),
+    ),
+    "risk_links": TableGrant(
+        select=True,
+        delete=True,
+        insert=(
+            "incident_id",
+            "a_object",
+            "b_object",
+            "via",
+            "value",
+            "priority",
+            "delta_seconds",
+            "reason",
+            "kept",
+            "created_at",
+        ),
+        update=("incident_id", "kept", "removed_at", "removed_by", "removed_why"),
+    ),
+    "risk_threats": TableGrant(
+        select=True,
+        delete=True,
+        insert=("threat", "flag_source", "flagged_at", "noticed_at", "hunted_at", "reach"),
+        update=("flag_source", "flagged_at", "noticed_at", "hunted_at", "reach"),
+    ),
+    "risk_aliases": TableGrant(
+        select=True,
+        delete=True,
+        insert=("device", "kind", "value", "valid_from", "valid_to", "source", "confidence"),
+        update=("valid_to",),
+    ),
+    # the presenter (P4-F E5): the gray band and the switch's row
+    "risk_gray_items": TableGrant(
+        select=True,
+        delete=True,
+        insert=("object_id", *_RISK_GRAY_COLUMNS),
+        update=_RISK_GRAY_COLUMNS,
+    ),
+    "risk_mode": TableGrant(select=True, insert=("id", "present", "at"), update=("present", "at")),
     # the investigations an investigator run stands for (insert only), and
     # what the evidence flagged on an investigation's newest dossier (replaced by a newer one)
     "assessment_shares": TableGrant(
@@ -1328,6 +1530,15 @@ API_GRANTS: dict[str, TableGrant] = {
     "entities": TableGrant(select=True),
     "evidence": TableGrant(select=True),
     "evidence_requests": TableGrant(select=True),
+    # what the incident engine's checking lane found (an incident's "what ARGUS checked")
+    "exposure_checks": TableGrant(select=True),
+    # the Today page (P4-F E5): the engine's incidents, their alert groups, the gray band, the
+    # digest and the switch, read only
+    "risk_incidents": TableGrant(select=True),
+    "risk_incident_groups": TableGrant(select=True),
+    "risk_gray_items": TableGrant(select=True),
+    "risk_mode": TableGrant(select=True),
+    "risk_groups": TableGrant(select=True),
     "gold_items": TableGrant(select=True),
     "gold_labels": TableGrant(
         select=True, insert=("set_name", "investigation_id", "user_id", "outcome", "note")
@@ -1512,6 +1723,9 @@ API_GRANTS: dict[str, TableGrant] = {
     ),
     "case_notes": TableGrant(select=True, insert=("case_id", "author_user_id", "body")),
     "entity_notes": TableGrant(select=True, insert=("kind", "value", "author_user_id", "body")),
+    # a person's marks on the queue (P4-F UI v2, migration 0100): "I'm checking", what they last
+    # looked at, spot-check answers, "I'm caught up", and a report sent to the CISO
+    **QUEUE_MARKS,
     "kibana_outbox": TableGrant(
         select=True,
         insert=(

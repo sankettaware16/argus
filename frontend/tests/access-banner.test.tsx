@@ -17,7 +17,7 @@ const banners = () => screen.queryAllByText(/Emergency \(break-glass\) session|c
 describe("the access banner", () => {
   it("shows nothing for an ordinary session", async () => {
     renderApp("/");
-    await screen.findByRole("button", { name: "Sign out" });
+    await screen.findByTestId("account-menu");
     expect(banners()).toEqual([]);
   });
 

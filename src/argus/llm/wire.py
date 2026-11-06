@@ -1,9 +1,10 @@
 """Sending an LLM call: the only code that opens a connection to a model provider.
 ``HttpxLlmTransport`` holds one client per provider (one with a ``ca_file`` trusts that
-certificate only) and posts an OpenAI-compatible chat body, or ``GET /v1/models`` for the probe,
-over TLS with the key in a header, no proxy, no redirect, one deadline and a cap on the answer's
-size; it does not retry. ``LlmCassette`` records and replays answers keyed by provider, path and
-body (never a key); replay is strict."""
+certificate only) and posts a body (OpenAI-compatible chat, or Anthropic's Messages API), or
+``GET /v1/models`` for the probe, over TLS with the key in the provider's header, no proxy, no
+redirect, one deadline and a cap on the answer's size; it does not retry. ``LlmCassette`` records
+and replays answers keyed by provider, path and body (never a key or a header); replay is
+strict."""
 
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ FORMAT = 1
 @dataclass(frozen=True)
 class LlmWire:
     provider: str
-    url: str  # base_url + "/chat/completions" (or "/models" for a probe, with no body)
+    url: str  # ProviderConfig.call_url() (or models_url() for a probe, with no body)
     body: bytes
     timeout_s: float
 
@@ -94,6 +95,13 @@ def ssl_context(provider: ProviderConfig) -> ssl.SSLContext | bool:
     return pinned_context(ca)
 
 
+def auth_headers(provider: ProviderConfig, key: SecretStr) -> dict[str, str]:
+    """The key in the header the provider's API reads, and Anthropic's version."""
+    if provider.api == "anthropic":
+        return {"x-api-key": key.get_secret_value(), "anthropic-version": provider.api_version}
+    return {"Authorization": f"Bearer {key.get_secret_value()}"}
+
+
 def _client_for(provider: ProviderConfig) -> httpx.AsyncClient:
     return httpx.AsyncClient(
         verify=ssl_context(provider),
@@ -110,6 +118,7 @@ class HttpxLlmTransport:
         self, config: LlmConfig, clients: Mapping[str, httpx.AsyncClient] | None = None
     ) -> None:
         self._unusable: dict[str, str] = {}  # provider: why its trust could not be set up
+        self._providers = {p.name: p for p in config.providers}  # whose headers a wire gets
         if clients is not None:
             self._clients = dict(clients)
             return
@@ -143,8 +152,11 @@ class HttpxLlmTransport:
 
     async def _exchange(self, method: str, wire: LlmWire, key: SecretStr) -> LlmReply:
         client = self._client(wire)
+        provider = self._providers.get(wire.provider)
+        if provider is None:  # never a guess at which header carries the key
+            raise TransportError(f"no configuration for provider {wire.provider!r}", reached=False)
         start = time.monotonic()
-        headers = {"Authorization": f"Bearer {key.get_secret_value()}"}
+        headers = auth_headers(provider, key)
         if method == "POST":
             headers["Content-Type"] = "application/json"
         try:

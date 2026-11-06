@@ -94,7 +94,7 @@ private or own address is never sent):
 Answers are cached for 7 days ("no record" for a day), every source stays below its free plan
 (VirusTotal 3 a minute and 400 a day; Shodan 200 a day; Censys 10 a day and 50 a month), and a
 `429` stops that source until it may ask again. A VirusTotal detection counts as a danger sign
-like a threat-list hit. How to get the keys: [llm.md](llm.md#35-other-optional-keys-outside-threat-intel).
+like a threat-list hit. How to get the keys: [llm.md](llm.md#36-other-optional-keys-outside-threat-intel).
 
 ### Sign-in attribution
 

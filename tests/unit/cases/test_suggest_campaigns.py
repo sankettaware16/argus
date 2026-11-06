@@ -80,9 +80,8 @@ def test_devices_that_reach_one_operator_are_one_suggested_case() -> None:
     items, found = story(4)
     (case,) = opened(plan(items, [found]))
     assert sorted(m.investigation_id.int for m in case.members) == [1, 2, 3, 4]
-    assert (
-        case.title
-        == "Contact with rapid-dns-hosting.com and 1 more flagged server from 4 campus devices"
+    assert case.title == (
+        "Suspected contact with rapid-dns-hosting.com +1 flagged server from 4 campus devices"
     )
     assert case.attention.startswith("ARGUS suggests this case: one operator, 4 campus devices: ")
     assert DOMAIN in case.attention

@@ -432,6 +432,46 @@ async def test_confirm_dismiss_and_reopen_of_suspected_cases(
     assert replay(events) == case
 
 
+async def test_kibana_gets_arguss_title_without_its_certainty_word_and_a_persons_as_written(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
+) -> None:
+    """Naming v2: the service reads who wrote the title from the case's events (a caller's flag
+    is not taken): ARGUS's suspected case confirmed by a person reaches Kibana as "Beaconing ...";
+    a person's own "Likely ..." title is theirs and goes as written."""
+    inv = await investigation(migrated_engine)
+    async with migrated_engine.begin() as conn:
+        assessment = (
+            await conn.execute(
+                text(
+                    "INSERT INTO assessments (investigation_id, version, pack, dossier_hash,"
+                    " view_hash, assessor, run_after, status, outcome) VALUES (:i, 1, 'p',"
+                    " repeat('a', 64), repeat('b', 64), 'agent', now(), 'proposed',"
+                    " 'true_positive') RETURNING id"
+                ),
+                {"i": inv},
+            )
+        ).scalar_one()
+    async with app_engine.begin() as conn:
+        service = await CaseService.start(conn)
+        applied = await service.open(
+            Actor.argus("opener"),
+            Open("Likely beaconing from 10.0.4.12 to 203.0.113.5", "medium", "proposal",
+                 (Member(inv, "proposal"),), suspected=True, cause_assessment_id=assessment),
+        )  # fmt: skip
+    asha = _kibana_actor(people["asha"])
+    await _apply(app_engine, asha, applied.case.id, Confirm(title_by_person=True), 1)
+    other = await investigation(migrated_engine)
+    mine = await _open(app_engine, people["asha"].actor(), [other],
+                       title="Likely phishing of the hostel office")  # fmt: skip
+    await _apply(app_engine, asha, mine, Publish(), 1)
+    titles = await rows(app_engine, "SELECT payload FROM kibana_outbox ORDER BY id")
+    assert [(r.payload["title"], r.payload["description"]["params"]["what"]) for r in titles] == [
+        ("[ARGUS 1] Beaconing from 10.0.4.12 to 203.0.113.5",
+         "Beaconing from 10.0.4.12 to 203.0.113.5"),
+        ("[ARGUS 2] Likely phishing of the hostel office", "Likely phishing of the hostel office"),
+    ]  # fmt: skip
+
+
 async def test_the_service_finds_out_windows_and_assignees_itself(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
 ) -> None:

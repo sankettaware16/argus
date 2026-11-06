@@ -97,6 +97,7 @@ async def test_an_open_case_with_sync_on_gets_every_alert_but_the_closed_ones(
     assert posted is not None
     assert closed not in posted.attached  # the next round tries it again
     assert len(posted.attached) == 24
+    assert posted.left_out == {closed}  # and the glance does not count it as tagged
 
 
 async def test_a_case_that_is_not_open_gets_no_attach_and_says_why(
@@ -138,6 +139,13 @@ async def test_a_case_that_is_not_open_gets_no_attach_and_says_why(
     again = await r.run(case)
     assert again.stopped is None, again.lines()
     assert kibana_case["totalAlerts"] == 25
+    # the glance knew of no tagged alert when the round was planned: it says the 25 left out
+    # apart and keeps its live charts, which draw them once this round's attach took them
+    kid = str(kibana_case["id"])
+    (glance,) = [t for user, t in r.kibana.user_comments(kid) if user == "argus-visualiser"]
+    assert "The charts count the tagged alerts, none yet" in glance
+    assert "25 more were left unattached while Sync alerts was on" in glance
+    assert "!{lens" in glance
 
 
 async def test_an_attach_in_doubt_is_settled_by_the_look_against_the_lowered_total(

@@ -164,11 +164,11 @@ async def test_the_message_is_exactly_a_link_a_severity_and_a_count(
 async def test_nothing_from_the_data_gets_into_the_message_or_the_audit_trail(
     app_engine: AsyncEngine, smtp: FakeSmtp
 ) -> None:
-    hostile = "ps1bot-lab-07.10.8.235.157"  # a subject key that looks like the data it stands for
+    hostile = "ps1bot-lab-07.10.201.7.13"  # a subject key that looks like the data it stands for
     await go(app_engine, config_for(smtp), [cond("ioc_hit", hostile, "critical")], T0)
     (got,) = smtp.received
     wire = got.message.as_string()
-    for value in ("ps1bot", "10.8.235.157", "lab-07"):
+    for value in ("ps1bot", "10.201.7.13", "lab-07"):
         assert value not in wire
         assert value not in repr(await audit(app_engine, "notice.sent"))
         assert value not in repr(await audit(app_engine, "notice.run"))

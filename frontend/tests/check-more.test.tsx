@@ -161,7 +161,7 @@ describe("the record", () => {
     expect(done).toContain("It sent 1 request to the SIEM (1 heavy), 640 ms of SIEM time. Its answer is E4 in the report.");
     expect(done).toContain("Not yet assessed: ARGUS reads this answer in its next assessment.");
     expect(done).toContain("E4 · proxy.pair · ok · 640 ms");
-    expect(within(records[0] as HTMLElement).getByRole("link", { name: "the report" }).getAttribute("href")).toBe(`/app/investigations/${ID}?tab=report`);
+    expect(within(records[0] as HTMLElement).getByRole("link", { name: "the report" }).getAttribute("href")).toBe(`/app/alert-groups/${ID}?tab=report`);
     const refused = records[1]?.textContent?.replace(/\s+/g, " ") ?? "";
     expect(refused).toContain("Not asked");
     expect(refused).toContain("Why: the rule does not read the log this check needs");
@@ -247,7 +247,7 @@ describe("a list that cannot be read", () => {
     );
     renderApp(`/investigations/${ID}`);
     expect(await screen.findByText(/The checks could not be shown\./)).toBeTruthy();
-    expect(screen.getByText("Your review")).toBeTruthy();
+    expect(screen.getByText("Your decision")).toBeTruthy();
     await new Promise((r) => setTimeout(r, 200));
     expect(sent("GET", `/api/v1/investigations/${ID}/checks`)).toHaveLength(1);
   });

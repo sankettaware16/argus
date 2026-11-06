@@ -10,10 +10,10 @@ const ok = (kind: string, raw: string) => {
 
 describe("an IP address", () => {
   it("takes dotted IPv4, trimmed, with no leading zeros and nothing above 255", () => {
-    expect(ok("ip", " 10.8.235.157 ")).toBe("10.8.235.157");
+    expect(ok("ip", " 10.201.7.13 ")).toBe("10.201.7.13");
     expect(ok("ip", "0.0.0.0")).toBe("0.0.0.0");
     expect(ok("ip", "255.255.255.255")).toBe("255.255.255.255");
-    for (const bad of ["256.1.1.1", "1.2.3", "1.2.3.4.5", "01.2.3.4", "1.2.3.04", "a.b.c.d", "1.2.3.4/24", "1.2.3.4:80", "10.8.235.157 x", "1..2.3"]) {
+    for (const bad of ["256.1.1.1", "1.2.3", "1.2.3.4.5", "01.2.3.4", "1.2.3.04", "a.b.c.d", "1.2.3.4/24", "1.2.3.4:80", "10.201.7.13 x", "1..2.3"]) {
       expect(ok("ip", bad)).toMatch(/^ERROR That is not an IP address/);
     }
   });

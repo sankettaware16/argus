@@ -117,7 +117,7 @@ function ThreatBody({ t, open }: { t: ThreatTileOut; open: number | undefined })
         <ul className="m-0 mt-2 flex list-none flex-col gap-1 p-0 text-sm">
           {t.listed.map((c) => (
             <li key={c.id}>
-              <Link to="/investigations/$id" params={{ id: c.id }}>
+              <Link to="/alert-groups/$id" params={{ id: c.id }}>
                 <UntrustedText value={c.rule} limits={{ maxChars: 120, maxLines: 1 }} />
               </Link>{" "}
               <SeverityBadge severity={c.severity} />
@@ -146,6 +146,26 @@ function Kpis({ d, f }: { d: DashboardOut; f: Filters }) {
   const reviewed = percent(k.reviewed, k.investigations, 1);
   return (
     <ul aria-label="Key numbers" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 lg:grid-cols-5">
+      <Kpi
+        label="Incidents"
+        value={count(k.incident_cases)}
+        sub="confirmed cases not closed, now"
+        wrap={(children) => (
+          <Link to="/cases" search={{ view: "incidents" }}>
+            {children}
+          </Link>
+        )}
+      />
+      <Kpi
+        label="Possible incidents"
+        value={count(k.possible_incidents)}
+        sub="for a person to confirm or dismiss, now"
+        wrap={(children) => (
+          <Link to="/cases" search={{ view: "suspected" }}>
+            {children}
+          </Link>
+        )}
+      />
       <Kpi label="Alerts" value={count(k.alerts)} sub={versusBefore(k.alerts, k.alerts_before)} />
       <Kpi label="Investigations" value={count(k.investigations)} sub="active in the span" />
       <Kpi label="Open investigations" value={count(k.open)} sub="not reviewed, follow-up or changed" wrap={link(withState(f, { state: OPEN_STATES }))} />
@@ -170,8 +190,8 @@ function Kpis({ d, f }: { d: DashboardOut; f: Filters }) {
         )}
       />
       <Kpi label="Open critical" value={count(k.open_critical)} sub="critical investigations not yet reviewed" wrap={link(withState(f, { severity: ["critical"], state: OPEN_STATES }))} />
-      <Kpi label="Incidents" value={count(k.incidents)} sub="a person said true positive" wrap={link(withState(f, { verdict: ["true_positive"] }))} />
-      <Kpi label="Suspected incidents" value={count(k.suspected)} sub="ARGUS proposes true positive; to confirm" wrap={link(withState(f, { ai: ["proposed_tp"], state: OPEN_STATES }))} />
+      <Kpi label="Called real by a person" value={count(k.incidents)} sub="investigations decided “Real: act on it”" wrap={link(withState(f, { verdict: ["true_positive"] }))} />
+      <Kpi label="Called real by ARGUS" value={count(k.suspected)} sub="investigations ARGUS calls real; nobody decided yet" wrap={link(withState(f, { ai: ["proposed_tp"], state: OPEN_STATES }))} />
       <Kpi label="Reviewed" value={count(k.reviewed)} sub={reviewed ? `${reviewed} of the investigations` : "—"} />
       <Kpi label="Time to first review" value={duration(k.median_review_s)} sub="median, from the first alert" />
       <Kpi label="Assessed by ARGUS" value={percent(k.assessed, k.investigations) ?? "—"} sub={`${count(k.assessed)} of ${count(k.investigations)} investigations`} />
@@ -252,7 +272,7 @@ function Briefs({ title, hint, items, caption, empty, footer }: { title: string;
             header: "Investigation",
             cell: (c) => (
               <>
-                <Link to="/investigations/$id" params={{ id: c.id }}>
+                <Link to="/alert-groups/$id" params={{ id: c.id }}>
                   <UntrustedText value={c.rule} limits={{ maxChars: 120, maxLines: 1 }} />
                 </Link>
                 <div className="text-xs text-muted">
@@ -270,7 +290,7 @@ function Briefs({ title, hint, items, caption, empty, footer }: { title: string;
           { key: "last", header: "Last alert", cell: (c) => <Time value={c.last_event_at} /> },
           { key: "alerts", header: "Alerts", numeric: true, cell: (c) => count(c.alert_count) },
           { key: "state", header: "State", cell: (c) => <StateChip state={c.state} /> },
-          { key: "inc", header: "Incident", cell: (c) => (c.verdict === "true_positive" ? "confirmed" : c.ai === "proposed_tp" ? "suspected" : "—") },
+          { key: "inc", header: "Called real", cell: (c) => (c.verdict === "true_positive" ? "by a person" : c.ai === "proposed_tp" ? "by ARGUS" : "—") },
         ]}
       />
       {footer}
@@ -404,7 +424,7 @@ function FilterForm({ d, f }: { d: DashboardOut | undefined; f: Filters }) {
             </Select>
           </Field>
           <Field label="Value" htmlFor={`${id}-value`} className="min-w-48 flex-1">
-            <TextInput id={`${id}-value`} name="value" maxLength={300} defaultValue={f.value ?? ""} placeholder="e.g. 10.8.235.157" />
+            <TextInput id={`${id}-value`} name="value" maxLength={300} defaultValue={f.value ?? ""} placeholder="e.g. 10.201.7.13" />
           </Field>
           <Field label="From" htmlFor={`${id}-start`}>
             <TextInput id={`${id}-start`} type="date" name="start" defaultValue={f.start ?? ""} />
@@ -494,8 +514,8 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
                 { key: "alerts", header: "Alerts", numeric: true, cell: (r) => count(r.alerts) },
                 { key: "inv", header: "Investigations", numeric: true, cell: (r) => count(r.investigations) },
                 { key: "open", header: "Open", numeric: true, cell: (r) => count(r.open) },
-                { key: "incidents", header: "Incidents", numeric: true, cell: (r) => count(r.incidents) },
-                { key: "suspected", header: "Suspected", numeric: true, cell: (r) => count(r.suspected) },
+                { key: "incidents", header: "Real (a person)", numeric: true, cell: (r) => count(r.incidents) },
+                { key: "suspected", header: "Real (ARGUS)", numeric: true, cell: (r) => count(r.suspected) },
                 { key: "go", header: <span className="sr-only">Inbox</span>, cell: (r) => <Link to="/inbox" search={{ view: "open", rule: r.rule_id }}>open investigations</Link> },
               ]}
             />
@@ -519,7 +539,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
               </Card>
             ))}
           </div>
-          <Briefs title="Incidents: confirmed and suspected" hint="Confirmed: a person's verdict is true positive. Suspected: ARGUS proposes true positive and nobody has decided yet; confirm or correct it on the investigation." items={d.incidents} caption="Incidents" empty="No incident in this span." />
+          <Briefs title="Investigations called real" hint="By a person: their decision is “Real: act on it”. By ARGUS: ARGUS calls it real and nobody has decided yet; decide it on the investigation. Incidents themselves are cases: see Cases." items={d.incidents} caption="Investigations called real" empty="None in this span." />
           {d.notified.length > 0 && <NotifiedTable rows={d.notified} />}
           <Briefs
             title="Open investigations, most urgent first"

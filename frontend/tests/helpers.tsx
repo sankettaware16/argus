@@ -52,6 +52,8 @@ export function investigation(id = ID, more: Partial<InvestigationOut> = {}): In
     id,
     rule_id: "rule-0",
     rule_name: "Proxy: tunnel to a remote-admin port",
+    title: "10.0.0.1 · 2 alerts",
+    key_words: "from 10.0.0.1",
     key_fields: [{ field: "source.ip", value: "10.0.0.1" }],
     bucket_start: "2026-10-09T00:00:00+05:30",
     alert_count: 2,
@@ -154,7 +156,7 @@ export const EMPTY_DASHBOARD: DashboardOut = {
   start: "2026-10-19T00:00:00Z",
   end: "2026-10-26T00:00:00Z",
   bucket: "day",
-  kpis: { investigations: 0, open: 0, attention: 0, known: 0, follow_up: 0, incidents: 0, suspected: 0, reviewed: 0, assessed: 0, open_critical: 0, alerts: 0, alerts_before: 0, median_review_s: null },
+  kpis: { investigations: 0, open: 0, attention: 0, known: 0, follow_up: 0, incidents: 0, suspected: 0, incident_cases: 0, possible_incidents: 0, reviewed: 0, assessed: 0, open_critical: 0, alerts: 0, alerts_before: 0, median_review_s: null },
   series: [],
   states: {},
   severities: {},
@@ -214,7 +216,7 @@ export function shellHandlers(session: SessionOut = SESSION) {
     http.get(`${BASE}/api/v1/session`, () => HttpResponse.json(session)),
     http.get(`${BASE}/api/v1/cost`, () => HttpResponse.json({ month_usd: 0, today_usd: 0, cap_usd: 10, paid_until_usd: 8, daily_cap_usd: 0.3, calls_today: 0, providers: [], stopped: false, at: "2026-10-26T00:00:00Z" })),
     http.get(`${BASE}/api/v1/health`, () => HttpResponse.json({ siem_state: "normal", siem_reasons: [], siem_probed_at: "2026-10-26T00:00:00Z", live_cursor: null, backfill_cursor: null, open_gaps: [], last_reconciliation: null, alerts: 0, quarantined: 0, investigations: 0, jobs_waiting: 0, jobs_deferred: 0, jobs_failed: 0, dossiers: 0, checkpoint_threads: 0, checkpoint_bytes: 0, kibana_sync: { state: "none", last_cycle_at: null, last_outcome: null, last_reason: null, last_complete_at: null } })),
-    http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json({ items: [], view: "active", offset: 0, limit: 1, has_more: false, counts: { active: 0, notified: 0, attention: 0, mine: 0, suspected: 0, closed: 0, all: 0 } })),
+    http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json({ items: [], view: "active", offset: 0, limit: 1, has_more: false, counts: { active: 0, notified: 0, attention: 0, mine: 0, suspected: 0, closed: 0, all: 0, incidents: 0 } })),
     http.get(`${BASE}/api/v1/approvals`, () => HttpResponse.json({ pending: [], pending_total: 0, recent: [], groups: [], step_up: { valid: false, valid_until: null, url: "/stepup?next=/app/approvals" }, can_sign: true })),
     http.get(`${BASE}/api/v1/investigations/:id/checks`, ({ params }) => HttpResponse.json(checksOf(String(params.id)))),
     http.get(`${BASE}/api/v1/counts`, () => HttpResponse.json({ attention: 6, known: 3, open: 13, follow_up: 1, changed: 2, reviewed: 4, reviewed_today: 1, all: 17 })),
@@ -224,6 +226,8 @@ export function shellHandlers(session: SessionOut = SESSION) {
 /** Reads the shell does not make but Home does: an empty queue and no patterns (a test that cares sets its own). */
 export function homeHandlers() {
   return [
+    // Today is not served unless a test says so: "/" is Home then (docs/p4f-ui-spec.md §2.4)
+    http.get(`${BASE}/api/v1/today`, () => new HttpResponse(null, { status: 404 })),
     http.get(`${BASE}/api/v1/queue`, () => HttpResponse.json({ cases: [], cases_total: 0, singles: [], singles_total: 0, notified_cases: 0, order: [], order_total: 0 })),
     http.get(`${BASE}/api/v1/patterns`, () => HttpResponse.json({ groups: [], read: 0, limit: 2000, sampled: false })),
     http.get(`${BASE}/api/v1/patterns/summary`, () => HttpResponse.json({ total: 0, investigations: 0, items: [] })),

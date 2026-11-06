@@ -95,12 +95,12 @@ class AuditEvent(Base):
 
 GATEWAY_COMPONENTS = (
     "global", "collector", "enrichment", "kibana", "writeback",
-    "investigation", "freshness", "cases", "identity",
+    "investigation", "freshness", "cases", "identity", "checking",
 )  # fmt: skip
 GATEWAY_STATES = ("health", "budget", "breaker", "lanes", "kibana", "kibana_breaker")
 LANES = (
     "collector", "investigation", "freshness", "kibana_read", "kibana_write", "identity",
-    "measurement",
+    "measurement", "checking",
 )  # fmt: skip
 
 
@@ -120,7 +120,7 @@ class SiemSwitch(Base):
     __table_args__ = (
         CheckConstraint(
             "component IN ('global', 'collector', 'enrichment', 'kibana', 'writeback',"
-            " 'investigation', 'freshness', 'cases', 'identity')",
+            " 'investigation', 'freshness', 'cases', 'identity', 'checking')",
             name="component_valid",
         ),
     )
@@ -195,7 +195,7 @@ class SiemRequest(Base):
         ),
         CheckConstraint(
             "lane IS NULL OR lane IN ('collector', 'investigation', 'freshness', 'kibana_read',"
-            " 'kibana_write', 'identity', 'measurement')",
+            " 'kibana_write', 'identity', 'measurement', 'checking')",
             name="lane_valid",
         ),
         Index(None, "at"),
@@ -1034,6 +1034,15 @@ class Rule(Base):
     last_execution_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     execution_status: Mapped[str] = mapped_column(Text, nullable=False)
     refreshed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # what the incident engine reads of the rule (argus.risk.rulemeta, P4-F E0): the lineage a
+    # recreated rule keeps, its ATT&CK tactics and their coarse stages, its index entries and
+    # the site's log family they name; meta_at: the definition they were read for
+    lineage: Mapped[str | None] = mapped_column(Text)
+    tactics: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    stage_mask: Mapped[int | None] = mapped_column(SmallInteger)
+    indices: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    family: Mapped[str | None] = mapped_column(Text)
+    meta_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         CheckConstraint("alerts >= 0", name="alerts_valid"),
@@ -1041,6 +1050,8 @@ class Rule(Base):
             "execution_status IN ('unknown', 'ok', 'failing', 'not_running')",
             name="execution_status_valid",
         ),
+        CheckConstraint("stage_mask BETWEEN 0 AND 15", name="stage_mask_valid"),
+        Index(None, "lineage"),
     )
 
 
@@ -1966,6 +1977,138 @@ class EntityNote(Base):
         CheckConstraint("length(value) BETWEEN 1 AND 512", name="value_length"),
         CheckConstraint("length(body) BETWEEN 1 AND 4000", name="body_length"),
         Index(None, "kind", "value", "id"),
+    )
+
+
+# ---------------------------------------------- a person's marks on the queue (P4-F UI v2)
+HOLD_ENDINGS = ("released", "replaced", "expired", "decided", "changed", "p1")
+SPOT_CHECK_KINDS = ("incident", "alert_group")
+SPOT_CHECK_ANSWERS = ("right", "wrong", "cant_tell")
+REPORT_RECIPIENTS = ("ciso",)
+
+
+class CaseHold(Base):
+    """A person's "I'm checking" on a possible incident (A1): why, and when it comes back. While
+    it holds, the case leaves everyone else's Needs you. It ends at ``until``, when the person
+    stops, when the case leaves ``suspected``, or when the incident engine sees a material change
+    or P1 (``ended_why``). One open hold per case."""
+
+    __tablename__ = "case_holds"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ended_why: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("char_length(reason) BETWEEN 1 AND 300", name="reason_length"),
+        CheckConstraint(
+            "until > created_at AND until <= created_at + interval '15 days'", name="until_valid"
+        ),
+        CheckConstraint("case_version >= 1", name="version_valid"),
+        CheckConstraint("(ended_at IS NULL) = (ended_why IS NULL)", name="ended_valid"),
+        CheckConstraint(
+            f"ended_why IS NULL OR {_one_of('ended_why', HOLD_ENDINGS)}", name="ended_why_valid"
+        ),
+        Index(
+            "uq_case_holds_open", "case_id", unique=True, postgresql_where=text("ended_at IS NULL")
+        ),
+        Index(None, "user_id", "ended_at"),
+    )
+
+
+class CaseSeen(Base):
+    """What one person last looked at of a case (A2): the engine's version (its ``changed``
+    empties for them) and the case's."""
+
+    __tablename__ = "case_seen"
+
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), primary_key=True)
+    engine_version: Mapped[int | None] = mapped_column(Integer)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "(engine_version IS NULL OR engine_version >= 1) AND case_version >= 1",
+            name="versions_valid",
+        ),
+        Index(None, "user_id", "seen_at"),
+    )
+
+
+class SpotCheck(Base):
+    """A person's answer to a spot-check of something ARGUS closed on its own (A3): one answer
+    per person and item, the newest kept."""
+
+    __tablename__ = "spot_checks"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    closed_as: Mapped[str | None] = mapped_column(Text)
+    answered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", SPOT_CHECK_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("answer", SPOT_CHECK_ANSWERS), name="answer_valid"),
+        CheckConstraint(
+            "closed_as IS NULL OR char_length(closed_as) BETWEEN 1 AND 200",
+            name="closed_as_length",
+        ),
+        UniqueConstraint("kind", "target_id", "user_id"),
+        Index(None, "answered_at"),
+    )
+
+
+class UserRound(Base):
+    """When a person last said "I'm caught up" (A4): their stable "since"."""
+
+    __tablename__ = "user_rounds"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), primary_key=True)
+    caught_up_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReportSend(Base):
+    """A person's record that an incident report went to the CISO's office (A14): which
+    version, by whom, when. The web only adds rows."""
+
+    __tablename__ = "report_sends"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False
+    )
+    report_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    sent_to: Mapped[str] = mapped_column(Text, nullable=False)
+    by_user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint("report_version >= 1", name="version_valid"),
+        CheckConstraint(_one_of("sent_to", REPORT_RECIPIENTS), name="sent_to_valid"),
+        Index(None, "case_id", "id"),
     )
 
 
@@ -3662,3 +3805,575 @@ class SigninLookup(Base):
         CheckConstraint("unnamed >= 0 AND store_failures >= 0", name="tries_valid"),
         Index(None, "day"),
     )
+
+
+# --------------------------------------------------------------------------- incident engine v2
+
+RISK_OBJECT_KINDS = ("device", "account", "site")
+RISK_ENTITY_KINDS = ("ip", "domain", "host", "user", "email", "url_pattern", "hash")
+RISK_ROLES = ("actor", "target", "threat", "other")
+RISK_DIRECTIONS = ("outbound", "inbound", "lateral", "unknown")
+RISK_HELD = ("lane", "gray_band", "probation", "rules_only", "below", "target")
+RISK_LANES = ("decisive", "burst", "slow", "exposure")
+RISK_WINDOWS = ("24h", "7d", "14d")
+RISK_CATEGORIES = (
+    "presented", "known_infection", "inbound_blocked", "inbound_attempt", "inbound_success",
+    "gray_band", "probation", "rules_only", "outbound_low", "unattributed", "hub_activity",
+)  # fmt: skip
+
+
+class RiskObject(Base):
+    """A campus thing that accrues risk (P4-F E1, shadow): a device, an account or a campus site.
+    ``lanes``: the lanes that held it at the last scoring; ``held``: where it stood otherwise;
+    ``item_at``: when its current item began (it entered a lane after a quiet period)."""
+
+    __tablename__ = "risk_objects"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    criticality: Mapped[float] = mapped_column(Double, nullable=False, server_default="1")
+    hub: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    hub_reason: Mapped[str | None] = mapped_column(Text)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    lanes: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    held: Mapped[str | None] = mapped_column(Text)
+    last_lane_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    item_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("kind", "key"),
+        CheckConstraint(_one_of("kind", RISK_OBJECT_KINDS), name="kind_valid"),
+        CheckConstraint("char_length(key) BETWEEN 1 AND 600", name="key_length"),
+        CheckConstraint("criticality > 0 AND criticality <= 4", name="criticality_valid"),
+        CheckConstraint(
+            f"lanes <@ ARRAY[{', '.join(repr(v) for v in RISK_LANES)}]::text[]",
+            name="lanes_valid",
+        ),
+        CheckConstraint(f"held IS NULL OR {_one_of('held', RISK_HELD)}", name="held_valid"),
+        CheckConstraint("first_seen <= last_seen", name="seen_valid"),
+        Index(None, "last_seen"),
+    )
+
+
+class RiskGroup(Base):
+    """An alert group as the engine last read it: the inputs' signature (a new version, dossier
+    or flag makes it read again), its direction and outcome, the evidence kinds it showed, and
+    the digest category it ended the last scoring in."""
+
+    __tablename__ = "risk_groups"
+
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("investigations.id", ondelete="CASCADE"),  # the retention purge removes it
+        primary_key=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    signature: Mapped[str] = mapped_column(Text, nullable=False)
+    direction: Mapped[str] = mapped_column(Text, nullable=False)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    alerts: Mapped[int] = mapped_column(Integer, nullable=False)
+    outcome: Mapped[float] = mapped_column(Double, nullable=False)
+    known: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    kinds: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    category: Mapped[str | None] = mapped_column(Text)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("signature ~ '^[0-9a-f]{32}$'", name="signature_valid"),
+        CheckConstraint(_one_of("direction", RISK_DIRECTIONS), name="direction_valid"),
+        CheckConstraint("alerts >= 0 AND version >= 0", name="counts_valid"),
+        CheckConstraint("outcome > 0 AND outcome <= 1", name="outcome_valid"),
+        CheckConstraint(
+            f"category IS NULL OR {_one_of('category', RISK_CATEGORIES)}", name="category_valid"
+        ),
+        Index(None, "day"),
+        Index(None, "at"),
+    )
+
+
+class RiskEntity(Base):
+    """An entity of an alert group with its role (P4-F E0): actor, target, threat or other, and
+    the ECS fields it came from. Threat values link campus objects later (E2)."""
+
+    __tablename__ = "risk_entities"
+
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("risk_groups.investigation_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)
+    value: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(Text, primary_key=True)
+    fields: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", RISK_ENTITY_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("role", RISK_ROLES), name="role_valid"),
+        CheckConstraint("char_length(value) BETWEEN 1 AND 512", name="value_length"),
+        CheckConstraint("cardinality(fields) BETWEEN 1 AND 20", name="fields_valid"),
+        Index(None, "kind", "value"),
+    )
+
+
+class RiskObservation(Base):
+    """The risk ledger: one scored fact on one campus object, from one alert group (a rule's or
+    an evidence kind's). ``score`` = base * outcome * prevalence * fidelity, before decay."""
+
+    __tablename__ = "risk_observations"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    object_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), nullable=False
+    )
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("risk_groups.investigation_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    investigation_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source_key: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    base: Mapped[float] = mapped_column(Double, nullable=False)
+    outcome: Mapped[float] = mapped_column(Double, nullable=False)
+    prevalence: Mapped[float] = mapped_column(Double, nullable=False, server_default="1")
+    fidelity: Mapped[float] = mapped_column(Double, nullable=False, server_default="1")
+    score: Mapped[float] = mapped_column(Double, nullable=False)
+    stages: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")
+    family: Mapped[str | None] = mapped_column(Text)
+    strong: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    threats: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    evidence: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("object_id", "source_key", "investigation_id"),
+        CheckConstraint("source_kind IN ('rule', 'evidence')", name="source_kind_valid"),
+        CheckConstraint("char_length(source_key) BETWEEN 3 AND 200", name="source_key_length"),
+        CheckConstraint("role IN ('actor', 'target')", name="role_valid"),
+        CheckConstraint(
+            "base > 0 AND outcome > 0 AND outcome <= 1 AND prevalence > 0 AND prevalence <= 1"
+            " AND fidelity > 0 AND score >= 0",
+            name="factors_valid",
+        ),
+        CheckConstraint("stages BETWEEN 0 AND 15", name="stages_valid"),
+        CheckConstraint(
+            "cardinality(threats) <= 50 AND cardinality(evidence) <= 20", name="lists_valid"
+        ),
+        Index(None, "at"),
+        Index(None, "object_id", "at"),
+        Index(None, "investigation_id"),
+        Index(None, "threats", postgresql_using="gin"),  # the retro-hunt's join (E2)
+    )
+
+
+class RiskSource(Base):
+    """A source's signal-to-noise record (a rule lineage or an evidence kind, per role): the
+    label-free prevalence factor and probation, recomputed at each scoring; the fidelity and the
+    credited incident decisions E7 adds stay neutral until then."""
+
+    __tablename__ = "risk_sources"
+
+    source_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(Text, primary_key=True)
+    prevalence: Mapped[float] = mapped_column(Double, nullable=False, server_default="1")
+    fidelity: Mapped[float] = mapped_column(Double, nullable=False, server_default="1")
+    probation: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    objects_median: Mapped[float] = mapped_column(Double, nullable=False, server_default="0")
+    reach: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    credited_confirmed: Mapped[float] = mapped_column(Double, nullable=False, server_default="0")
+    credited_not_incident: Mapped[float] = mapped_column(Double, nullable=False, server_default="0")
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("role IN ('actor', 'target')", name="role_valid"),
+        CheckConstraint(
+            "prevalence > 0 AND prevalence <= 1 AND fidelity >= 0.25 AND fidelity <= 1.5"
+            " AND objects_median >= 0 AND reach >= 0 AND credited_confirmed >= 0"
+            " AND credited_not_incident >= 0",
+            name="factors_valid",
+        ),
+    )
+
+
+class RiskObjectScore(Base):
+    """An object's score in one window (``span``: 24 h, 7 d, 14 d) at the last scoring, with the
+    stored breakdown the why line is made from."""
+
+    __tablename__ = "risk_object_scores"
+
+    object_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), primary_key=True
+    )
+    span: Mapped[str] = mapped_column(Text, primary_key=True)
+    score: Mapped[float] = mapped_column(Double, nullable=False)
+    sources: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    families: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    stages: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    active_days: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    strong: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    anchored: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    breakdown: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("span", RISK_WINDOWS), name="span_valid"),
+        CheckConstraint(
+            "score >= 0 AND sources >= 0 AND families >= 0 AND stages BETWEEN 0 AND 4"
+            " AND active_days >= 0",
+            name="counts_valid",
+        ),
+        CheckConstraint("jsonb_typeof(breakdown) = 'array'", name="breakdown_is_array"),
+    )
+
+
+EXPOSURE_CHECK_KINDS = ("sites", "catchall", "paths", "take")
+EXPOSURE_VERDICTS = (
+    "found", "none", "soft_404", "plain", "served", "not_served", "bulk", "no_bulk", "unknown",
+)  # fmt: skip
+
+
+class ExposureCheck(Base):
+    """What the engine's checking lane found (P4-F E3), kept 180 days: the campus sites an
+    outside address reached (``sites``), a site's soft-404 check (``catchall``), what an outside
+    address got for the paths it tried (``paths``) and how much it took (``take``)."""
+
+    __tablename__ = "exposure_checks"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str | None] = mapped_column(Text)
+    site: Mapped[str | None] = mapped_column(Text)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    template: Mapped[str] = mapped_column(Text, nullable=False)
+    template_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    task_key: Mapped[str | None] = mapped_column(Text)
+    verdict: Mapped[str] = mapped_column(Text, nullable=False)
+    facts: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    took_ms: Mapped[int | None] = mapped_column(Integer)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", EXPOSURE_CHECK_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("verdict", EXPOSURE_VERDICTS), name="verdict_valid"),
+        CheckConstraint(
+            "(source IS NULL OR char_length(source) BETWEEN 2 AND 45)"
+            " AND (site IS NULL OR char_length(site) BETWEEN 1 AND 600)"
+            " AND (kind = 'catchall' OR source IS NOT NULL)"
+            " AND (kind = 'sites' OR site IS NOT NULL)",
+            name="subject_valid",
+        ),
+        CheckConstraint("task_key IS NULL OR task_key ~ '^[0-9a-f]{64}$'", name="task_key_valid"),
+        CheckConstraint(
+            "jsonb_typeof(facts) = 'object' AND octet_length(facts::text) <= 65536",
+            name="facts_valid",
+        ),
+        CheckConstraint("took_ms IS NULL OR took_ms >= 0", name="took_valid"),
+        Index(None, "site", "day"),
+        Index(None, "source", "day"),
+        Index(None, "checked_at"),
+    )
+
+
+class RiskCrossing(Base):
+    """An object entering a lane: a possible incident of the shadow engine. ``new_item``: no lane
+    held the object in the quiet period before (what a person would be asked to look at)."""
+
+    __tablename__ = "risk_crossings"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    object_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), nullable=False
+    )
+    lane: Mapped[str] = mapped_column(Text, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    new_item: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    score: Mapped[float] = mapped_column(Double, nullable=False)
+    breakdown: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("lane", RISK_LANES), name="lane_valid"),
+        CheckConstraint("score >= 0", name="score_valid"),
+        CheckConstraint("jsonb_typeof(breakdown) = 'array'", name="breakdown_is_array"),
+        Index(None, "at"),
+        Index(None, "object_id", "at"),
+    )
+
+
+RISK_INCIDENT_STATES = ("active", "quiet", "sealed", "merged")
+RISK_INCIDENT_LANES = ("decisive", "burst", "slow", "campaign", "exposure")
+RISK_CERTAINTY = ("Confirmed", "Likely", "Suspected", "Unclear", "Likely harmless")
+RISK_LINK_VIAS = ("lane", "host", "account", "flagged", "campaign", "rare", "bare_ip")
+
+
+class RiskIncident(Base):
+    """An incident of the engine v2 (P4-F E2, shadow): linked campus objects and the alert
+    groups on them. ``version`` rises on a material change only (``changed`` says what);
+    ``parent_id``: the incident it overflows (past the group cap); ``follows_id``: the sealed
+    incident it continues; ``case_id``: the case that presents it (empty in shadow)."""
+
+    __tablename__ = "risk_incidents"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    lanes: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    material: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    material_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    material_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    changed: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    stop_proposed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    campaign: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    parent_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE")
+    )
+    follows_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="SET NULL")
+    )
+    merged_into: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE")
+    )
+    case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id", ondelete="SET NULL")
+    )
+    devices: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    groups: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    priority: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")
+    band: Mapped[str] = mapped_column(Text, nullable=False, server_default="P4")
+    view: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    recommended: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    # the presenter's (P4-F E5): the title, the certainty word, the governor's choice, when it
+    # was queued for a person, and what a person was last shown of it (``presented``)
+    title: Mapped[str | None] = mapped_column(Text)
+    certainty: Mapped[str] = mapped_column(Text, nullable=False, server_default="Unclear")
+    shown: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    shown_day: Mapped[date | None] = mapped_column(Date)
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    raised_by_ai: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    presented: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    presented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_one_of("state", RISK_INCIDENT_STATES), name="state_valid"),
+        CheckConstraint(_one_of("certainty", RISK_CERTAINTY), name="certainty_valid"),
+        CheckConstraint(
+            "title IS NULL OR char_length(title) BETWEEN 1 AND 200", name="title_length"
+        ),
+        CheckConstraint("jsonb_typeof(presented) = 'object'", name="presented_is_object"),
+        CheckConstraint(
+            "version >= 1 AND devices >= 0 AND groups >= 0 AND priority BETWEEN 0 AND 100",
+            name="counts_valid",
+        ),
+        CheckConstraint("band IN ('P1', 'P2', 'P3', 'P4')", name="band_valid"),
+        CheckConstraint("first_seen <= last_seen", name="seen_valid"),
+        CheckConstraint("material_hash ~ '^[0-9a-f]{32}$'", name="hash_valid"),
+        CheckConstraint(
+            "jsonb_typeof(material) = 'object' AND jsonb_typeof(view) = 'object'"
+            " AND jsonb_typeof(recommended) = 'array'",
+            name="json_valid",
+        ),
+        CheckConstraint("(state = 'merged') = (merged_into IS NOT NULL)", name="merged_valid"),
+        Index(None, "state"),
+        Index(None, "last_seen"),
+        Index(None, "parent_id"),
+        Index(None, "shown_day"),
+        Index(None, "case_id"),
+    )
+
+
+class RiskIncidentObject(Base):
+    """A campus object of an incident: ``actor`` (it acted) or ``affected`` (it was acted on)."""
+
+    __tablename__ = "risk_incident_objects"
+
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE"), primary_key=True
+    )
+    object_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), primary_key=True
+    )
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("role IN ('actor', 'affected')", name="role_valid"),
+        Index(None, "object_id"),
+    )
+
+
+class RiskIncidentGroup(Base):
+    """An alert group of an incident (folded in when it appeared on one of its objects)."""
+
+    __tablename__ = "risk_incident_groups"
+
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE"), primary_key=True
+    )
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("investigations.id", ondelete="CASCADE"), primary_key=True
+    )
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index(None, "investigation_id"),)
+
+
+class RiskLink(Base):
+    """Why two objects are in one incident (``b_object`` empty: why one is in it at all), in one
+    sentence; ``kept`` false: a recommended correlation a cap kept out."""
+
+    __tablename__ = "risk_links"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE"), nullable=False
+    )
+    a_object: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), nullable=False
+    )
+    b_object: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE")
+    )
+    via: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    priority: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    delta_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    kept: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    removed_by: Mapped[str | None] = mapped_column(Text)
+    removed_why: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint(_one_of("via", RISK_LINK_VIAS), name="via_valid"),
+        CheckConstraint("char_length(reason) BETWEEN 1 AND 200", name="reason_length"),
+        CheckConstraint(
+            "char_length(value) >= 1 AND char_length(value) <= 600 AND priority >= 0"
+            " AND priority <= 9 AND delta_seconds >= 0",  # flat: a restore reads it back (0096)
+            name="values_valid",
+        ),
+        Index(None, "incident_id"),
+    )
+
+
+class RiskThreat(Base):
+    """An outside thing the engine saw flagged (by what, from when), and when the retro-hunt
+    re-read what touched it."""
+
+    __tablename__ = "risk_threats"
+
+    threat: Mapped[str] = mapped_column(Text, primary_key=True)
+    flag_source: Mapped[str] = mapped_column(Text, nullable=False)
+    flagged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    hunted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reach: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    __table_args__ = (
+        CheckConstraint("char_length(threat) BETWEEN 3 AND 600", name="threat_length"),
+        CheckConstraint(
+            "flag_source IN ('outside', 'ti', 'operator', 'campaign', 'person')",
+            name="flag_source_valid",
+        ),
+        CheckConstraint("reach >= 0", name="reach_valid"),
+        Index(None, "noticed_at"),
+    )
+
+
+class RiskAlias(Base):
+    """Identity over time (P4-F E4): a host name an address had, or the likely account behind a
+    device, and the interval it held."""
+
+    __tablename__ = "risk_aliases"
+
+    device: Mapped[str] = mapped_column(Text, primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)
+    value: Mapped[str] = mapped_column(Text, primary_key=True)
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    valid_to: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("kind IN ('host', 'account')", name="kind_valid"),
+        CheckConstraint(
+            "source IN ('alert', 'signin', 'asset_map', 'person')", name="source_valid"
+        ),
+        CheckConstraint("confidence IN ('certain', 'likely')", name="confidence_valid"),
+        CheckConstraint(
+            "valid_from <= valid_to AND char_length(device) >= 1 AND char_length(device) <= 600"
+            " AND char_length(value) >= 1 AND char_length(value) <= 600",  # flat (0096)
+            name="values_valid",
+        ),
+        Index(None, "valid_to"),
+    )
+
+
+class RiskGrayItem(Base):
+    """The gray band (P4-F E5): a campus object just under a lane, with its priority and engine
+    view, replaced at each pass (Today shows five)."""
+
+    __tablename__ = "risk_gray_items"
+
+    object_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_objects.id", ondelete="CASCADE"), primary_key=True
+    )
+    priority: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    band: Mapped[str] = mapped_column(Text, nullable=False)
+    lane: Mapped[str | None] = mapped_column(Text)
+    certainty: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    view: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("priority BETWEEN 0 AND 100", name="priority_valid"),
+        CheckConstraint("band IN ('P1', 'P2', 'P3', 'P4')", name="band_valid"),
+        CheckConstraint(
+            f"lane IS NULL OR {_one_of('lane', RISK_INCIDENT_LANES)}", name="lane_valid"
+        ),
+        CheckConstraint(_one_of("certainty", RISK_CERTAINTY), name="certainty_valid"),
+        CheckConstraint("char_length(title) BETWEEN 1 AND 200", name="title_length"),
+        CheckConstraint("jsonb_typeof(view) = 'object'", name="view_is_object"),
+        CheckConstraint("first_seen <= last_seen", name="seen_valid"),
+        Index(None, "priority"),
+    )
+
+
+class RiskMode(Base):
+    """One row: whether the engine presents its incidents as cases (``risk.present``), as the
+    last pass saw the setting. The queue's pages read it: with it on, the old raise no longer
+    puts an alert group in Needs attention."""
+
+    __tablename__ = "risk_mode"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    present: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (CheckConstraint("id = 1", name="one_row"),)

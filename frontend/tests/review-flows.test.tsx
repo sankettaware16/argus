@@ -27,18 +27,20 @@ function reads(d = detail()) {
 async function open(d = detail(), search = "") {
   reads(d);
   const view = renderApp(`/investigations/${ID}${search}`);
-  await screen.findByText("Your review");
+  await screen.findByText("Your decision");
   return view;
 }
 
-const outcome = () => screen.getByLabelText(/^Outcome/);
+const radio = (value: string) => document.querySelector(`form[aria-label="Your decision"] input[type="radio"][value="${value}"]`) as HTMLInputElement;
+const pick = (user: { click: (el: Element) => Promise<void> }, value: string) => user.click(radio(value));
+const chosen = () => document.querySelector<HTMLInputElement>('form[aria-label="Your decision"] input[type="radio"]:checked')?.value ?? "";
 const note = () => screen.getByLabelText("Note");
 
 describe("the review form", () => {
   it("is not there for an account that may only view, which is told why", async () => {
     server.use(...shellHandlers(sessionWith(["view"])));
     await open(detail({ acceptable_assessment_id: 7, assessments: [PROPOSAL], ask_available: true, gold: GOLD }));
-    expect(screen.queryByRole("button", { name: "Mark reviewed" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save decision" })).toBeNull();
     expect(screen.getAllByText(/Your account may view only/)).toHaveLength(2); // the review form and the gold box
     expect(screen.queryByRole("button", { name: /^Accept/ })).toBeNull();
   });
@@ -46,8 +48,8 @@ describe("the review form", () => {
   it("will not mark reviewed without an outcome, and says so without sending anything", async () => {
     const user = userEvent.setup();
     await open();
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    expect((await screen.findByText("Choose an outcome to mark it reviewed.")).getAttribute("role")).toBe("alert");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    expect((await screen.findByText(/^Choose your decision first/)).getAttribute("role")).toBe("alert");
     expect(sent("POST", "/api")).toHaveLength(0);
     await user.click(screen.getByRole("button", { name: "Add note only" }));
     expect(await screen.findByText("Write a note first.")).toBeTruthy();
@@ -59,25 +61,26 @@ describe("the review form", () => {
     let version = 3;
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 11, version, gold_saved: false }, { status: 201 })));
     await open(detail({}, { latest_review: 5 }));
-    await user.selectOptions(outcome(), "benign_policy");
+    await pick(user, "benign_policy");
     await user.type(note(), "Scanner of the lab.");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await screen.findByText("Saved: your decision.", { selector: "p" });
     const [post] = sent("POST", "/api/v1/investigations");
     expect(post?.path).toBe(`/api/v1/investigations/${ID}/reviews`);
     expect(JSON.parse(post?.body ?? "")).toEqual({ action: "reviewed", outcome: "benign_policy", note: "Scanner of the lab.", seen_review: 5, seen_version: 3, also_gold: false });
     await waitFor(() => expect(sent("GET", `/api/v1/investigations/${ID}`).filter((r) => r.path === `/api/v1/investigations/${ID}`).length).toBe(2));
     expect((note() as HTMLTextAreaElement).value).toBe("");
-    expect((outcome() as HTMLSelectElement).value).toBe("");
+    expect(chosen()).toBe("");
     version = 4;
   });
 
-  it("asks for a follow-up with or without an outcome, and adds a note alone", async () => {
+  it("asks for a follow-up with or without an outcome (Come back to it), and adds a note alone", async () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => HttpResponse.json({ review_id: 12, version: 3, gold_saved: false }, { status: 201 })));
     await open();
-    await user.click(screen.getByRole("button", { name: "Needs follow-up" }));
-    await screen.findByText("Saved: follow-up requested.", { selector: "p" });
+    await user.click(screen.getByRole("checkbox", { name: /Come back to it/ }));
+    await user.click(screen.getByRole("button", { name: "Save, and come back to it" }));
+    await screen.findByText("Saved: kept for a follow-up.", { selector: "p" });
     expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toEqual({ action: "follow_up", outcome: null, note: null, seen_review: null, seen_version: 3, also_gold: false });
     await user.type(note(), "Look at the host.");
     await user.click(screen.getByRole("button", { name: "Add note only" }));
@@ -103,24 +106,26 @@ describe("the review form", () => {
       }),
     );
     renderApp(`/investigations/${ID}`);
-    await screen.findByText("Your review");
-    await user.selectOptions(outcome(), "true_positive");
+    await screen.findByText("Your decision");
+    await pick(user, "true_positive");
     await user.type(note(), "My reason, typed with care.");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await user.click(await screen.findByRole("button", { name: "Mark it real" }));
     const alert = await screen.findByText(/Someone else reviewed this, or new alerts arrived, while you were reading\. Nothing was saved\./);
     expect(alert.textContent).toContain("What you typed is still here");
     await waitFor(() => expect(reading).toBe(2));
     expect((note() as HTMLTextAreaElement).value).toBe("My reason, typed with care.");
-    expect((outcome() as HTMLSelectElement).value).toBe("true_positive");
+    expect(chosen()).toBe("true_positive");
     expect(await screen.findAllByText("Reviewed", { selector: "span" })).not.toHaveLength(0);
     // the read-again investigation is not the one she saw: she says she looked before anything is sent (review B2-R1)
-    await screen.findByText(/This investigation changed while you were typing/);
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await screen.findByText(/This alert group changed while you were deciding/);
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     expect(sent("POST", "/api/v1/investigations")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "I have looked at what changed" }));
     expect(screen.queryByText(/Someone else reviewed this, or new alerts arrived/)).toBeNull(); // the refusal's words are answered
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
+    await user.click(await screen.findByRole("button", { name: "Mark it real" }));
+    await screen.findByText("Saved: your decision.", { selector: "p" });
     const posts = sent("POST", "/api/v1/investigations");
     expect(posts).toHaveLength(2);
     expect(JSON.parse(posts[0]?.body ?? "")).toMatchObject({ seen_review: null, seen_version: 3 });
@@ -133,13 +138,13 @@ describe("the review form", () => {
     await open(detail({ gold: GOLD }));
     const box = screen.getByLabelText("Also save the outcome as my gold-set answer") as HTMLInputElement;
     expect(box.checked).toBe(false);
-    await user.selectOptions(outcome(), "benign_expected");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await pick(user, "benign_expected");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     await waitFor(() => expect(sent("POST", "/api")).toHaveLength(1));
     expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toMatchObject({ also_gold: false });
     await user.click(box);
-    await user.selectOptions(outcome(), "benign_expected");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await pick(user, "benign_expected");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     expect((await screen.findAllByText(/Also saved as your gold-set answer/, { selector: "p" })).length).toBeGreaterThan(0);
     expect(JSON.parse(sent("POST", "/api")[1]?.body ?? "")).toMatchObject({ also_gold: true });
   });
@@ -160,7 +165,7 @@ describe("the gold box", () => {
     await user.type(within(box).getByLabelText(/^Why/), "It beacons.");
     await user.click(within(box).getByRole("button", { name: "Save answer" }));
     const link = await within(box).findByRole("link", { name: "Go to the next unanswered item" });
-    expect(link.getAttribute("href")).toBe(`/app/investigations/${ID3}`);
+    expect(link.getAttribute("href")).toBe(`/app/alert-groups/${ID3}`);
     expect(JSON.parse(sent("POST", "/api")[0]?.body ?? "")).toEqual({ outcome: "true_positive", note: "It beacons." });
   });
 
@@ -169,7 +174,7 @@ describe("the gold box", () => {
     server.use(http.post(`${API}/gold`, () => HttpResponse.json({ next_investigation_id: null })));
     await open(detail({ gold: { ...GOLD, outcome: "inconclusive", note: "Unsure.", answered_by: "Ravi", answered_at: "2026-10-10T00:00:00Z" } }));
     const box = screen.getByRole("region", { name: "Gold set: your answer" });
-    expect(box.textContent).toContain("Inconclusive — Unsure.");
+    expect(box.textContent).toContain("Can't tell yet — Unsure.");
     await user.selectOptions(within(box).getByLabelText("Correct outcome"), "true_positive");
     await user.click(within(box).getByRole("button", { name: "Save answer" }));
     expect(await within(box).findByText("No unanswered gold-set item is left.")).toBeTruthy();
@@ -177,34 +182,11 @@ describe("the gold box", () => {
 });
 
 describe("accepting a proposal", () => {
-  it("shows the exact request first, sends exactly that, and says it is done", async () => {
-    const user = userEvent.setup();
-    server.use(http.post(`${API}/accept`, () => HttpResponse.json({ assessment_id: 7, investigation_id: ID })));
+  it("is not on the AI assessment tab, which only reads and points to the decision at the top (P4-F U6)", async () => {
     await open(detail({ acceptable_assessment_id: 7, assessments: [PROPOSAL] }), "?tab=ai");
-    await user.click(must(screen.getAllByRole("button", { name: "Accept: True positive" })[0]));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByTestId("payload").textContent).toBe('{\n  "assessment_id": 7\n}');
-    expect(dialog.textContent).toContain(`/api/v1/investigations/${ID}/accept`);
-    await waitFor(() => expect(document.activeElement?.textContent).toBe("Cancel"));
-    await user.click(within(dialog).getByRole("button", { name: "Accept" }));
-    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
-    expect(screen.getByText("Accepted: True positive.", { selector: "p" })).toBeTruthy();
-    const [post] = sent("POST", "/api");
-    expect(post?.body).toBe('{\n  "assessment_id": 7\n}');
-  });
-
-  it("keeps the dialog open and says why when the proposal moved on (409)", async () => {
-    const user = userEvent.setup();
-    server.use(http.post(`${API}/accept`, () => HttpResponse.json({ detail: "the proposal changed (new alerts, a newer assessment, or someone reviewed it): nothing was saved", code: "conflict" }, { status: 409 })));
-    await open(detail({ acceptable_assessment_id: 7, assessments: [PROPOSAL] }), "?tab=ai");
-    await user.click(must(screen.getAllByRole("button", { name: "Accept: True positive" })[0]));
-    const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Accept" }));
-    expect((await within(dialog).findByRole("alert")).textContent).toMatch(/the proposal changed .* nothing was saved/);
-    expect(sent("POST", "/api")).toHaveLength(1);
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
-    await waitFor(() => expect(sent("GET", `/api/v1/investigations/${ID}`).filter((r) => r.path === `/api/v1/investigations/${ID}`).length).toBeGreaterThanOrEqual(2));
+    await screen.findByTestId("decide-above");
+    expect(screen.queryAllByRole("button", { name: /^Accept: / })).toHaveLength(0);
+    expect(screen.getByTestId("decide-above").textContent).toContain("the decision at the top of the page");
   });
 
   it("is offered only for the current proposal of an investigation not reviewed", async () => {
@@ -259,9 +241,9 @@ describe("what a person reads when a change fails", () => {
     const user = userEvent.setup();
     server.use(http.post(`${API}/reviews`, () => answer()));
     await open();
-    await user.selectOptions(outcome(), "inconclusive");
+    await pick(user, "rule_false_positive");
     await user.type(note(), "keep me");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     const alert = await screen.findByText(words, { selector: "p" });
     expect(alert.getAttribute("role")).toBe("alert");
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -281,8 +263,8 @@ describe("what a person reads when a change fails", () => {
     );
     await open();
     expect(sessions).toBe(1);
-    await user.selectOptions(outcome(), "inconclusive");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await pick(user, "rule_false_positive");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     await screen.findByText(/This page was out of date with the server, so it has been refreshed\. Nothing was changed: try again\./, { selector: "p" });
     expect(sessions).toBe(2);
     expect(sent("POST", "/api")).toHaveLength(1);
@@ -295,8 +277,8 @@ describe("what a person reads when a change fails", () => {
     const urls: string[] = [];
     setLeaveSpy(urls);
     await open();
-    await user.selectOptions(outcome(), "inconclusive");
-    await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    await pick(user, "rule_false_positive");
+    await user.click(screen.getByRole("button", { name: "Save decision" }));
     await screen.findByText("Your session ended. Sign in again to continue.", { selector: "p" });
     expect(urls).toHaveLength(1);
     expect(urls[0]).toMatch(/^\/signin\?next=%2Fapp&why=ended$/);
@@ -335,8 +317,8 @@ describe("one send at a time", () => {
       }),
     );
     await open(detail({ gold: GOLD }));
-    await user.selectOptions(outcome(), "inconclusive");
-    const mark = screen.getByRole("button", { name: "Mark reviewed" });
+    await pick(user, "rule_false_positive");
+    const mark = screen.getByRole("button", { name: "Save decision" });
     await user.dblClick(mark);
     fireEvent.click(mark);
     const box = screen.getByRole("region", { name: "Gold set: your answer" });
@@ -346,7 +328,7 @@ describe("one send at a time", () => {
     fireEvent.submit(must(save.closest("form")));
     await new Promise((resolve) => setTimeout(resolve, 100));
     release();
-    await screen.findByText("Saved: marked reviewed.", { selector: "p" });
+    await screen.findByText("Saved: your decision.", { selector: "p" });
     await screen.findByText("Saved your gold-set answer.", { selector: "p" });
     expect(sent("POST", `/api/v1/investigations/${ID}/reviews`)).toHaveLength(1);
     expect(sent("POST", `/api/v1/investigations/${ID}/gold`)).toHaveLength(1);

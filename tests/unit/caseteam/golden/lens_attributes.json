@@ -1,0 +1,593 @@
+{
+  "alerts_over_time": {
+    "description": "",
+    "references": [],
+    "state": {
+      "adHocDataViews": {
+        "argus-incident-alerts": {
+          "allowNoIndex": false,
+          "fieldAttrs": {},
+          "fieldFormats": {},
+          "id": "argus-incident-alerts",
+          "name": "ARGUS incident alerts",
+          "runtimeFieldMap": {},
+          "sourceFilters": [],
+          "timeFieldName": "@timestamp",
+          "title": ".alerts-security.alerts-acme-soc"
+        }
+      },
+      "datasourceStates": {
+        "formBased": {
+          "layers": {
+            "layer1": {
+              "columnOrder": [
+                "c-rule",
+                "c-time",
+                "c-count"
+              ],
+              "columns": {
+                "c-count": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "params": {
+                    "emptyAsNull": true
+                  },
+                  "scale": "ratio",
+                  "sourceField": "___records___"
+                },
+                "c-rule": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top 10 values of kibana.alert.rule.name",
+                  "operationType": "terms",
+                  "params": {
+                    "exclude": [],
+                    "excludeIsRegex": false,
+                    "include": [],
+                    "includeIsRegex": false,
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "c-count",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "parentFormat": {
+                      "id": "terms"
+                    },
+                    "size": 10
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "kibana.alert.rule.name"
+                },
+                "c-time": {
+                  "dataType": "date",
+                  "isBucketed": true,
+                  "label": "@timestamp",
+                  "operationType": "date_histogram",
+                  "params": {
+                    "dropPartials": false,
+                    "includeEmptyRows": true,
+                    "interval": "auto"
+                  },
+                  "scale": "interval",
+                  "sourceField": "@timestamp"
+                }
+              },
+              "incompleteColumns": {},
+              "sampling": 1
+            }
+          }
+        }
+      },
+      "filters": [
+        {
+          "$state": {
+            "store": "appState"
+          },
+          "meta": {
+            "alias": null,
+            "disabled": false,
+            "field": "kibana.alert.workflow_tags",
+            "index": "argus-incident-alerts",
+            "key": "kibana.alert.workflow_tags",
+            "negate": false,
+            "params": {
+              "query": "ACME-IR-2026-1026-01"
+            },
+            "type": "phrase"
+          },
+          "query": {
+            "match_phrase": {
+              "kibana.alert.workflow_tags": "ACME-IR-2026-1026-01"
+            }
+          }
+        }
+      ],
+      "internalReferences": [
+        {
+          "id": "argus-incident-alerts",
+          "name": "indexpattern-datasource-layer-layer1",
+          "type": "index-pattern"
+        }
+      ],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": false,
+          "yLeft": false,
+          "yRight": false
+        },
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "c-count"
+            ],
+            "layerId": "layer1",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "bar_stacked",
+            "showGridlines": false,
+            "splitAccessor": "c-rule",
+            "xAccessor": "c-time"
+          }
+        ],
+        "legend": {
+          "isVisible": true,
+          "position": "right"
+        },
+        "preferredSeriesType": "bar_stacked",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide"
+      }
+    },
+    "title": "Alerts over time by rule",
+    "type": "lens",
+    "visualizationType": "lnsXY"
+  },
+  "rules_table": {
+    "description": "",
+    "references": [],
+    "state": {
+      "adHocDataViews": {
+        "argus-incident-alerts": {
+          "allowNoIndex": false,
+          "fieldAttrs": {},
+          "fieldFormats": {},
+          "id": "argus-incident-alerts",
+          "name": "ARGUS incident alerts",
+          "runtimeFieldMap": {},
+          "sourceFilters": [],
+          "timeFieldName": "@timestamp",
+          "title": ".alerts-security.alerts-acme-soc"
+        }
+      },
+      "datasourceStates": {
+        "formBased": {
+          "layers": {
+            "layer1": {
+              "columnOrder": [
+                "c-rule",
+                "c-count"
+              ],
+              "columns": {
+                "c-count": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "params": {
+                    "emptyAsNull": true
+                  },
+                  "scale": "ratio",
+                  "sourceField": "___records___"
+                },
+                "c-rule": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top 20 values of kibana.alert.rule.name",
+                  "operationType": "terms",
+                  "params": {
+                    "exclude": [],
+                    "excludeIsRegex": false,
+                    "include": [],
+                    "includeIsRegex": false,
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "c-count",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "parentFormat": {
+                      "id": "terms"
+                    },
+                    "size": 20
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "kibana.alert.rule.name"
+                }
+              },
+              "incompleteColumns": {},
+              "sampling": 1
+            }
+          }
+        }
+      },
+      "filters": [
+        {
+          "$state": {
+            "store": "appState"
+          },
+          "meta": {
+            "alias": null,
+            "disabled": false,
+            "field": "kibana.alert.workflow_tags",
+            "index": "argus-incident-alerts",
+            "key": "kibana.alert.workflow_tags",
+            "negate": false,
+            "params": {
+              "query": "ACME-IR-2026-1026-01"
+            },
+            "type": "phrase"
+          },
+          "query": {
+            "match_phrase": {
+              "kibana.alert.workflow_tags": "ACME-IR-2026-1026-01"
+            }
+          }
+        }
+      ],
+      "internalReferences": [
+        {
+          "id": "argus-incident-alerts",
+          "name": "indexpattern-datasource-layer-layer1",
+          "type": "index-pattern"
+        }
+      ],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "columns": [
+          {
+            "columnId": "c-rule",
+            "isTransposed": false
+          },
+          {
+            "columnId": "c-count",
+            "isTransposed": false
+          }
+        ],
+        "layerId": "layer1",
+        "layerType": "data"
+      }
+    },
+    "title": "Rules that raised the alerts",
+    "type": "lens",
+    "visualizationType": "lnsDatatable"
+  },
+  "top_actors": {
+    "description": "",
+    "references": [],
+    "state": {
+      "adHocDataViews": {
+        "argus-incident-alerts": {
+          "allowNoIndex": false,
+          "fieldAttrs": {},
+          "fieldFormats": {},
+          "id": "argus-incident-alerts",
+          "name": "ARGUS incident alerts",
+          "runtimeFieldMap": {},
+          "sourceFilters": [],
+          "timeFieldName": "@timestamp",
+          "title": ".alerts-security.alerts-acme-soc"
+        }
+      },
+      "datasourceStates": {
+        "formBased": {
+          "layers": {
+            "layer1": {
+              "columnOrder": [
+                "c-top",
+                "c-count"
+              ],
+              "columns": {
+                "c-count": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "params": {
+                    "emptyAsNull": true
+                  },
+                  "scale": "ratio",
+                  "sourceField": "___records___"
+                },
+                "c-top": {
+                  "dataType": "ip",
+                  "isBucketed": true,
+                  "label": "Top 10 values of source.ip",
+                  "operationType": "terms",
+                  "params": {
+                    "exclude": [],
+                    "excludeIsRegex": false,
+                    "include": [],
+                    "includeIsRegex": false,
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "c-count",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "parentFormat": {
+                      "id": "terms"
+                    },
+                    "size": 10
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "source.ip"
+                }
+              },
+              "incompleteColumns": {},
+              "sampling": 1
+            }
+          }
+        }
+      },
+      "filters": [
+        {
+          "$state": {
+            "store": "appState"
+          },
+          "meta": {
+            "alias": null,
+            "disabled": false,
+            "field": "kibana.alert.workflow_tags",
+            "index": "argus-incident-alerts",
+            "key": "kibana.alert.workflow_tags",
+            "negate": false,
+            "params": {
+              "query": "ACME-IR-2026-1026-01"
+            },
+            "type": "phrase"
+          },
+          "query": {
+            "match_phrase": {
+              "kibana.alert.workflow_tags": "ACME-IR-2026-1026-01"
+            }
+          }
+        }
+      ],
+      "internalReferences": [
+        {
+          "id": "argus-incident-alerts",
+          "name": "indexpattern-datasource-layer-layer1",
+          "type": "index-pattern"
+        }
+      ],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": false,
+          "yLeft": false,
+          "yRight": false
+        },
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "c-count"
+            ],
+            "layerId": "layer1",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "bar_horizontal",
+            "showGridlines": false,
+            "xAccessor": "c-top"
+          }
+        ],
+        "legend": {
+          "isVisible": false,
+          "position": "right"
+        },
+        "preferredSeriesType": "bar_horizontal",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide"
+      }
+    },
+    "title": "Top outside addresses",
+    "type": "lens",
+    "visualizationType": "lnsXY"
+  },
+  "top_targets": {
+    "description": "",
+    "references": [],
+    "state": {
+      "adHocDataViews": {
+        "argus-incident-alerts": {
+          "allowNoIndex": false,
+          "fieldAttrs": {},
+          "fieldFormats": {},
+          "id": "argus-incident-alerts",
+          "name": "ARGUS incident alerts",
+          "runtimeFieldMap": {},
+          "sourceFilters": [],
+          "timeFieldName": "@timestamp",
+          "title": ".alerts-security.alerts-acme-soc"
+        }
+      },
+      "datasourceStates": {
+        "formBased": {
+          "layers": {
+            "layer1": {
+              "columnOrder": [
+                "c-top",
+                "c-count"
+              ],
+              "columns": {
+                "c-count": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "params": {
+                    "emptyAsNull": true
+                  },
+                  "scale": "ratio",
+                  "sourceField": "___records___"
+                },
+                "c-top": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top 10 values of url.domain",
+                  "operationType": "terms",
+                  "params": {
+                    "exclude": [],
+                    "excludeIsRegex": false,
+                    "include": [],
+                    "includeIsRegex": false,
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "c-count",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "parentFormat": {
+                      "id": "terms"
+                    },
+                    "size": 10
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "url.domain"
+                }
+              },
+              "incompleteColumns": {},
+              "sampling": 1
+            }
+          }
+        }
+      },
+      "filters": [
+        {
+          "$state": {
+            "store": "appState"
+          },
+          "meta": {
+            "alias": null,
+            "disabled": false,
+            "field": "kibana.alert.workflow_tags",
+            "index": "argus-incident-alerts",
+            "key": "kibana.alert.workflow_tags",
+            "negate": false,
+            "params": {
+              "query": "ACME-IR-2026-1026-01"
+            },
+            "type": "phrase"
+          },
+          "query": {
+            "match_phrase": {
+              "kibana.alert.workflow_tags": "ACME-IR-2026-1026-01"
+            }
+          }
+        }
+      ],
+      "internalReferences": [
+        {
+          "id": "argus-incident-alerts",
+          "name": "indexpattern-datasource-layer-layer1",
+          "type": "index-pattern"
+        }
+      ],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": false,
+          "yLeft": false,
+          "yRight": false
+        },
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "c-count"
+            ],
+            "layerId": "layer1",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "bar_horizontal",
+            "showGridlines": false,
+            "xAccessor": "c-top"
+          }
+        ],
+        "legend": {
+          "isVisible": false,
+          "position": "right"
+        },
+        "preferredSeriesType": "bar_horizontal",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide"
+      }
+    },
+    "title": "Campus sites reached",
+    "type": "lens",
+    "visualizationType": "lnsXY"
+  }
+}

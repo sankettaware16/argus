@@ -28,6 +28,12 @@ from tests.integration.web.b3_support import PASSWORD, Live
 from tests.integration.web.test_app_b3_browser import WCAG, live, person, sign_in_as
 from tests.integration.web.test_incident_report_ar7 import a_case, write_report
 
+
+def everything(case: object) -> str:
+    """The incident page with every part on one page (the UI v2 keeps the old case page there)."""
+    return f"/app/incidents/{case}?tab=all"
+
+
 pytestmark = pytest.mark.integration
 __all__ = ["live"]
 
@@ -51,10 +57,10 @@ async def test_a_ta_reads_the_preview_and_an_approver_approves_exactly_what_they
     world = live.world
     case = await a_reported_case(live)
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
         region = page.get_by_role("region", name="Kibana case preview")
         await region.wait_for()
-        assert (await page.title()).startswith("Case")
+        assert (await page.title()).startswith("Incident")
         decision = await region.get_by_test_id("team-decision").inner_text()
         assert "Posting is off: a dry run" in decision
         assert "ACME-IR-" in decision
@@ -107,7 +113,7 @@ async def test_a_ta_reads_the_preview_and_an_approver_approves_exactly_what_they
         assert await watch.violations(page) == []
 
         # an approver: confirm it is them, back to the case, read the request, approve
-        browser2, _, omar, watch2 = await person(play, name, live.url, "omar", f"/app/cases/{case}")
+        browser2, _, omar, watch2 = await person(play, name, live.url, "omar", everything(case))
         box2 = omar.get_by_role("region", name="Kibana case preview").get_by_test_id(
             "team-approval"
         )
@@ -122,7 +128,7 @@ async def test_a_ta_reads_the_preview_and_an_approver_approves_exactly_what_they
         await omar.wait_for_url(re.compile(r"/stepup\?next="))
         await omar.fill("#password", PASSWORD)
         async with omar.expect_navigation(
-            url=re.compile(rf"{re.escape(live.url)}/app/cases/{case}")
+            url=re.compile(rf"{re.escape(live.url)}/app/incidents/{case}\?tab=all")
         ):
             await omar.click("button[type=submit]")
         box2 = omar.get_by_role("region", name="Kibana case preview").get_by_test_id(
@@ -133,10 +139,10 @@ async def test_a_ta_reads_the_preview_and_an_approver_approves_exactly_what_they
         await approve.click()
         dialog = omar.get_by_role("alertdialog")
         await dialog.wait_for()
-        assert f"POST/api/v1/cases/{case}/team/approve" in (await dialog.inner_text()).replace(
-            "\n", ""
-        )
-        shown = json.loads(await dialog.get_by_test_id("payload").inner_text())
+        assert f"POST/api/v1/cases/{case}/team/approve" in (
+            await dialog.text_content() or ""
+        ).replace("\n", "")
+        shown = json.loads(await dialog.get_by_test_id("payload").text_content())
         assert re.fullmatch(r"[0-9a-f]{64}", shown["plan_hash"])
         await dialog.get_by_role("button", name="Approve these steps").click()
         await dialog.wait_for(state="detached")
@@ -192,7 +198,7 @@ async def test_axe_finds_nothing_serious_on_the_preview_light_dark_narrow_and_wi
                 page.set_default_timeout(60_000)
                 watch.attach(page)
                 await sign_in_as(page, live.url, "mina")
-                await page.goto(f"{live.url}/app/cases/{case}")
+                await page.goto(f"{live.url}/app/incidents/{case}?tab=all")
                 region = page.get_by_role("region", name="Kibana case preview")
                 await region.wait_for()
                 await region.get_by_test_id("team-step").first.wait_for()

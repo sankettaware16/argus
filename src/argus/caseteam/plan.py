@@ -3,7 +3,8 @@ always give the same plan, and the plan's hash is what a person's approval binds
 
 :func:`first_plan` is generation 1 (the lead opens the case, attaches and tags the alerts, the
 owners' comments in a fixed order, the files, the lead's verdict last); :func:`update_plan` a later
-generation (only what changed, as a new "Update" comment, never an edit or a delete);
+generation (only what changed, as a new "Update" comment, never a delete; the one exception is
+the Visualiser's glance, a living comment the round edits in place, :func:`glance_step`);
 :func:`refresh_plan` corrects what was posted in place, only when a person asks;
 :func:`note_plan` is the lead's note on what is not the report's (a person's ``Verdict:``,
 disagreement, untagged alerts). :func:`request_of` turns a step into the exact Kibana request,
@@ -15,13 +16,14 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, cast
 
 from pydantic import BaseModel
 
 from argus import site
 from argus.caseteam import render, visual
-from argus.caseteam.model import Author, Plan, Step, text_hash, unit_hash
+from argus.caseteam.model import EDIT_KINDS, ROUND, Author, Plan, Step, text_hash, unit_hash
 from argus.gateway.kibana import models, upload
 from argus.gateway.kibana.gateway import build_final
 from argus.gateway.kibana.templates import (
@@ -103,6 +105,16 @@ class PostedComment:
 
 
 @dataclass(frozen=True)
+class PostedGlance:
+    """The glance as ARGUS last wrote it (its first posting or its newest edit): the unit of its
+    core, what it showed and what it compared with."""
+
+    unit: str
+    seen: visual.Seen | None = None
+    since: visual.Seen | None = None
+
+
+@dataclass(frozen=True)
 class Posted:
     """What earlier generations already wrote to the case (from the verified steps)."""
 
@@ -116,8 +128,21 @@ class Posted:
     gone: frozenset[str] = frozenset()  # alerts a tag call found no longer in the alerts index
     title: str | None = None  # the title ARGUS last wrote to the case
     title_by_person: bool = False  # a person changed it in Kibana: ARGUS never edits it again
+    title_at: datetime | None = None  # when ARGUS wrote that title (None: not known)
     description: str | None = None  # the description ARGUS last wrote
     comments: Mapping[str, PostedComment] = field(default_factory=dict)  # by the step's key
+    glance: PostedGlance | None = None  # None: no glance was posted yet
+    # comments a person changed or removed in Kibana: ARGUS never edits them again
+    left_alone: frozenset[str] = frozenset()
+    # alerts an attach left out (closed while Sync alerts was on) and none took since: a round
+    # tries them again, and a glance says them apart from the tagged ones until an attach does
+    left_out: frozenset[str] = frozenset()
+
+
+def is_correction(kind: str, payload: Mapping[str, Any]) -> bool:
+    """Whether a step corrects what was posted (a retitle, or a person's refresh) rather than being
+    an update round's: the living glance's edit is a round's (:data:`ROUND`)."""
+    return kind in EDIT_KINDS and payload.get(ROUND) is not True
 
 
 _BUNDLES: dict[tuple[str, str, str], dict[str, tuple[str, bytes]]] = {}
@@ -356,7 +381,7 @@ def first_plan(
     for part in render.parts_of(report, ctx):
         steps += comment_steps(part)
         if part.name == "evidence":  # the visualiser follows the evidence comment
-            steps += visual.steps(report, target.space)
+            steps += visual.steps(report, target.space, tagged=len(alerts), version=version)
     file_list, rows = file_steps(report, kinds_of(report), None)
     steps += file_list
     steps.append(
@@ -403,10 +428,13 @@ def update_plan(
     max_alerts: int,
     target: Target = Target(),  # noqa: B008
     per_call: int = PER_CALL,
+    now: datetime | None = None,
 ) -> Plan:
-    """The "Update" round: only what is new since ``posted``, by the user that owns each part."""
+    """The "Update" round: only what is new since ``posted``, by the user that owns each part,
+    and the Visualiser's living glance edited in place when it moved (:func:`glance_step`)
+    (``now``: the round's time, for a title whose small count change has waited)."""
     steps: list[Step] = []
-    title = retitle_step(report, posted)
+    title = retitle_step(report, posted, now=now)
     if title is not None:  # ARGUS's own retitle reaches the case
         steps.append(title)
     fresh = [
@@ -417,22 +445,28 @@ def update_plan(
         steps += alert_steps(
             fresh, render.alert_tags_of(report), already=len(posted.attached), per_call=per_call
         )
-    before_glance = posted.units.get(visual.PART, frozenset())
+    # what the charts are known to count: an alert an earlier attach left out is tried again but
+    # said apart, not counted (it is left out again while Sync alerts stays on), so the count is
+    # never above what Kibana holds for good; one this round does attach is counted by the next
+    tagged = len(posted.attached - posted.gone) + sum(
+        1 for a in fresh if a.alert_id not in posted.left_out
+    )
+    glance = glance_step(report, version, posted, space=target.space, tagged=tagged)
     for part in render.parts_of(report, ctx):
         before = posted.units.get(part.name, frozenset())
-        now = {unit_hash(u) for u in part.units}
+        current = {unit_hash(u) for u in part.units}
         new = [u for u in part.units if unit_hash(u) not in before]
         if not new:
             continue
-        gone = len(before - now)
+        gone = len(before - current)
         intro = [
             f"New since report version {posted.version}: {len(new)} lines (version {version})."
         ]
         if gone:
             intro.append(f"{gone} earlier lines no longer apply; see the report.")
         steps += comment_steps(part, heading=f"Update: {part.title}", intro=intro, units=new)
-    if visual.due(report, target.space, before_glance):  # the glance, if it changed
-        steps += visual.steps(report, target.space, update=bool(before_glance))
+    if glance is not None:  # the living glance, edited in place (or posted, if it never was)
+        steps.append(glance)
     changed = [
         kind
         for kind in kinds_of(report)
@@ -482,12 +516,33 @@ def update_plan(
     )
 
 
-def retitle_step(report: m.IncidentReport, posted: Posted) -> Step | None:
-    """The lead's retitle when ARGUS's title moved since it wrote the case's (never over a title
-    a person changed in Kibana: the poster reads it first, and a person's change is left)."""
+def retitle_step(
+    report: m.IncidentReport,
+    posted: Posted,
+    *,
+    now: datetime | None = None,
+    wait: timedelta | None = None,
+) -> Step | None:
+    """The lead's retitle when ARGUS's title moved materially since it wrote the case's (never over
+    a title a person changed in Kibana: the poster reads it first, and a person's change is left).
+    Kibana's title has no certainty word, and a change of only its counts is sent when a count
+    shrank or grew by half, or when the title ARGUS wrote is ``wait`` old at ``now`` (by default
+    :data:`argus.cases.naming.COALESCE`, as ARGUS's own titles wait; no ``now``: it waits), so a
+    growing case is not renamed at every update and a small change still arrives."""
+    from argus.cases import naming
+
     new = render.title_of(report)
     if posted.title is None or posted.title_by_person or posted.title == new:
         return None
+    if naming.change_of(posted.title, new) == "counts" and not naming.counts_moved(
+        posted.title, new
+    ):
+        hold = naming.COALESCE if wait is None else wait
+        waited = hold <= timedelta(0) or (
+            now is not None and (posted.title_at is None or now - posted.title_at >= hold)
+        )
+        if not waited:
+            return None
     return Step(
         "edit:title",
         "retitle",
@@ -516,6 +571,54 @@ def edit_comment_step(had: PostedComment, body: str, units: tuple[str, ...]) -> 
     )
 
 
+def glance_step(
+    report: m.IncidentReport,
+    version: int,
+    posted: Posted,
+    *,
+    space: str,
+    tagged: int,
+    refresh: bool = False,
+) -> Step | None:
+    """The Visualiser's one living comment in a later generation (it supersedes D-195's "earlier
+    comments are never edited" for this one part). An update round edits the posted glance in
+    place when its core moved, saying what is new since the glance it replaces; a person's refresh
+    corrects it whenever its text is not what the report renders now (a fixed form, for one),
+    keeping the line that says what is new as it was while the report is the one it was made
+    from. A case with no glance yet (posted before the Visualiser, or while its key was missing)
+    gets its first one in a round, never in a refresh. A glance a person changed or removed in
+    Kibana is left alone for good. The edit is read first like every other (the poster's
+    ``_judge``), so a resend never doubles and a person's text is never overwritten. ``tagged``
+    counts the alerts known to be tagged; the ones an attach left out are said beside them (a
+    round and a refresh say the same). None: nothing to do."""
+    living = posted.comments.get(visual.KEY)
+    if living is not None and living.key in posted.left_alone:
+        return None
+    last = posted.glance
+    left_out = len(posted.left_out - posted.gone)
+    now = visual.unit(report, space, tagged=tagged, left_out=left_out)
+    moved = last is None or last.unit != now
+    if last is None:
+        since = None
+    elif moved and last.seen is not None and last.seen.version != version:
+        since = last.seen  # it moved with a newer report: what is new is against the posted one
+    else:
+        since = last.since  # the same glance, or the same report in a new form: the line stands
+    if living is None:
+        if refresh or not moved:
+            return None
+        (first,) = visual.steps(report, space, tagged=tagged, left_out=left_out, version=version)
+        return first
+    whole, _ = visual.comment(report, space, tagged=tagged, left_out=left_out, since=since)
+    if (not refresh and not moved) or whole == living.text:
+        return None
+    step = edit_comment_step(living, whole, (now,))
+    step.payload.update(visual.payload(report, version, since))
+    if not refresh:
+        step.payload[ROUND] = True
+    return step
+
+
 def refresh_plan(
     report: m.IncidentReport,
     version: int,
@@ -529,9 +632,10 @@ def refresh_plan(
     last wrote (the text of an earlier posting or its newest edit). A comment that now needs
     more comments than it had gets the extra ones as new comments; one that needs fewer leaves a
     short note in the spare ones (a comment is never deleted). The files, the verdict and the
-    lead's notes are not the report's parts and are left alone. An empty plan: nothing differs."""
+    lead's notes are not the report's parts and are left alone; the title is set as the report
+    names the case, a small count change too. An empty plan: nothing differs."""
     steps: list[Step] = []
-    title = retitle_step(report, posted)
+    title = retitle_step(report, posted, wait=timedelta(0))
     if title is not None:
         steps.append(title)
     description = render.description(report, ctx, attached=len(posted.attached))
@@ -570,6 +674,13 @@ def refresh_plan(
         for key, spare in sorted(old.items()):
             if int(key.rsplit(":", 1)[1]) > len(texts) and spare.text != moved_text(part, spare):
                 steps.append(edit_comment_step(spare, moved_text(part, spare), ()))
+        if part.name == "evidence":
+            tagged = len(posted.attached - posted.gone)
+            glance = glance_step(
+                report, version, posted, space=target.space, tagged=tagged, refresh=True
+            )
+            if glance is not None:
+                steps.append(glance)
     return Plan(
         report.header.incident_id,
         report.header.case_id,

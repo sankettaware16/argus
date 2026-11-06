@@ -15,6 +15,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AwareDatetime, BeforeValidator, Field
 
+from argus.web.v1.engine_models import EngineOut
 from argus.web.v1.models import (
     CLEAN,
     SAFE_MAX,
@@ -30,7 +31,20 @@ from argus.web.v1.models import (
 
 CaseState = Literal["suspected", "open", "assigned", "contained", "closed"]
 CaseSeverity = Literal["low", "medium", "high", "critical"]
-CaseView = Literal["active", "attention", "mine", "suspected", "closed", "all", "notified", "queue"]
+KibanaFilter = Literal["in", "waiting", "failing"]
+CaseSort = Literal["activity", "waiting"]  # last activity first; waiting longest first
+CaseView = Literal[
+    "active",
+    "attention",
+    "mine",
+    "suspected",
+    "closed",
+    "all",
+    "notified",
+    "queue",
+    "work",
+    "incidents",
+]
 ClosureReason = Literal[
     "remediated_verified",
     "remediated_unverified",
@@ -100,6 +114,30 @@ class CaseRef(Out):
     state: CaseState
 
 
+class HolderOut(Out):
+    username: str
+    name: str
+
+
+class HoldOut(Out):
+    """A person's "I'm checking" on a possible incident: it leaves everyone else's Needs you
+    until ``until`` (or a material change, or P1)."""
+
+    by: HolderOut
+    reason: str  # what they are waiting on, in their words (untrusted)
+    until: datetime  # when it comes back
+    since: datetime
+    mine: bool  # the viewer holds it
+
+
+class SeenOut(Out):
+    """What the viewer last looked at of this case ("New since you last looked")."""
+
+    engine_version: int | None
+    case_version: int
+    at: datetime
+
+
 class CaseRowOut(Out):
     id: uuid.UUID
     number: int
@@ -120,11 +158,15 @@ class CaseRowOut(Out):
     last_alert_at: datetime | None
     updated_at: datetime
     in_kibana: bool  # a Kibana create was planned: later changes are mirrored too
+    hold: HoldOut | None = None  # someone is checking it (UI v2 A1)
+    waiting_since: datetime | None = None  # it waits for a person since (Needs you only)
+    seen: SeenOut | None = None  # what the viewer last looked at of it (A2)
     waiting_for_approval: int  # requests that a person still has to decide
     needs_attention: bool
     merged_into: CaseRef | None
     notified_at: datetime | None  # the owner was told: tracked quietly, in its own list
     blocked_at: datetime | None  # a network-side block is recorded
+    engine: EngineOut | None = None  # the incident engine's view (P4-F E5); None: not its case
 
 
 class CaseCounts(Out):
@@ -134,8 +176,10 @@ class CaseCounts(Out):
     mine: int
     suspected: int
     closed: int
-    queue: int  # the cases of Home's queue: the ones that need a person, for any reason
+    queue: int  # Needs you: possible incidents nobody else is checking, incidents nobody took
+    work: int = 0  # the cases of Home's queue: the ones that need a person, for any reason
     all: int
+    incidents: int  # every incident: confirmed and not closed (active and notified together)
 
 
 class CasePage(Out):
@@ -237,6 +281,43 @@ class CaseActionStateOut(Out):
     label: str
     enabled: bool
     why_not: str | None
+
+
+DismissReason = Literal[
+    "rule_false_positive",
+    "benign_expected",
+    "benign_policy",
+    "attempt_no_impact",
+    "created_in_error",
+    "duplicate",
+]
+
+
+class DecisionActionOut(Out):
+    enabled: bool
+    why_not: str | None  # the refusal the command would give, in plain words
+
+
+class DismissChoiceOut(Out):
+    reason: DismissReason
+    label: str
+    meaning: str
+
+
+class CaseDecisionOut(Out):
+    """The decision bar of a possible incident (a suspected case): confirm it as an incident,
+    say it is not one with a reason, or merge it into another case; each with whether this
+    person may now. ``after`` says what becomes possible once it is confirmed."""
+
+    confirm: DecisionActionOut
+    dismiss: DecisionActionOut
+    merge: DecisionActionOut
+    reasons: list[DismissChoiceOut]  # the reasons the bar offers, in its order
+    after: str
+    # what "not an incident" does to ARGUS's memory of this activity, in one sentence (A6)
+    dismiss_effect: str | None = None
+    # what confirming does about Kibana, today, for this person (A7); never a promise of a post
+    kibana_after_confirm: str | None = None
 
 
 class ClosureChoiceOut(Out):
@@ -511,6 +592,11 @@ class CaseDetail(Out):
     suggestions_total: int
     watch: WatchStatusOut | None  # None: the watch does not look at this case
     known: KnownOut | None  # the owner-notified record; None unless open or assigned
+    decision: CaseDecisionOut | None  # a possible incident's decision bar; None unless suspected
+    hold: HoldOut | None = None  # someone is checking it (UI v2 A1); the same as case.hold
+    # the viewer dismissed it and may undo that until then, without reopen access (A8)
+    undo_until: datetime | None = None
+    incident_id: str | None  # the case's one IR number (its Kibana post's, else its report's)
     actions: list[CaseActionStateOut]
     closure_choices: list[ClosureChoiceOut]
     assignees: list[PersonRef]  # who the case can go to; empty for an account that cannot assign
@@ -523,6 +609,7 @@ class CaseDetail(Out):
     history_total: int
     logs_hidden: bool  # this account may not see what the logs said (the lead report hides it)
     signins: SigninsOut | None  # who used its devices; None: not set up on this server
+    engine: EngineOut | None = None  # the incident engine's view (P4-F E5); None: not its case
 
 
 class StepUpOut(Out):
@@ -612,6 +699,20 @@ class ClosureRequestIn(CaseChangeIn):
     reason: RequestedReason
     note: NoteText | None = None
     payload_hash: Sha256
+
+
+class CaseConfirmIn(CaseChangeIn):
+    """Confirm a possible incident: the suspected case becomes an open case. (``ConfirmIn`` is
+    the body of ``/proposals/confirm``: one schema name each.)"""
+
+    note: NoteText | None = None
+
+
+class DismissIn(CaseChangeIn):
+    """Say a possible incident is not one, for a reason: the suspected case is closed."""
+
+    reason: DismissReason
+    note: NoteText | None = None
 
 
 class MergeIn(CaseChangeIn):

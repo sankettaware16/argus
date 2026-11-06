@@ -66,7 +66,7 @@ from argus.site import LogFamily
 PROBE_PURPOSES = frozenset({Purpose.PROBE, Purpose.SELFTEST})
 # never in the quiet hours; a discovery is a person's command, but it may wait a minute
 # for the budget, so the gateway asks again at every request, not only the command at its start
-QUIET_PURPOSES = frozenset({Purpose.FRESHNESS, Purpose.DISCOVER})
+QUIET_PURPOSES = frozenset({Purpose.FRESHNESS, Purpose.DISCOVER, Purpose.CHECK})
 OWN_HEALTH = frozenset({Purpose.IDENTITY})  # its own reachability, not the SIEM's
 # The only requests the identity purpose may carry: sign-in and capability checks and the
 # security index's health. Anything else labelled identity would skip the SIEM's health.

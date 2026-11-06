@@ -79,7 +79,8 @@ def test_backfill_is_a_dry_run_unless_applied(cli_env: Path, seeded: dict[str, u
     assert _ok(_run("case", "list")) == "no cases\n"
     applied = _ok(_run("case", "backfill", "--apply"))
     assert "applied: opened 1" in applied
-    assert "Beaconing to 77.221.155.150 from 10.9.9.9" in _ok(_run("case", "list"))
+    listed = _ok(_run("case", "list"))
+    assert "Confirmed beaconing from 10.9.9.9 to 77.221.155.150 (on a threat list)" in listed
     assert "planned: nothing" in _ok(_run("case", "sync"))
     assert _run("case", "backfill", "--window", "10m").exit_code == 2
     assert _run("case", "backfill", "--since", "14-10-2026").exit_code == 2

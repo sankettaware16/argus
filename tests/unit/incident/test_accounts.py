@@ -225,7 +225,14 @@ def test_the_core_hash_ignores_the_accounts_and_nothing_else() -> None:
     assert m.core_hash(changed) != m.core_hash(plain)
     verdict = plain.verdict.model_copy(update={"outcome": "benign_expected"})
     assert m.core_hash(plain.model_copy(update={"verdict": verdict})) != m.core_hash(plain)
-    assert m.content_hash(plain) == m.core_hash(plain)  # without accounts, the hash it always was
+    # naming v2: a retitle renames what a person confirmed, it does not change it
+    header = plain.header.model_copy(
+        update={"title": f"{plain.header.incident_id} · Likely a new name", "certainty": "Likely"}
+    )
+    summary = plain.summary.model_copy(update={"headline": "A new headline: Likely a new name"})
+    renamed = plain.model_copy(update={"header": header, "summary": summary})
+    assert m.content_hash(renamed) != m.content_hash(plain)
+    assert m.core_hash(renamed) == m.core_hash(plain)
 
 
 def _device(name: str) -> m.ReportDeviceUsers:

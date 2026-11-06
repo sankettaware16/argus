@@ -224,7 +224,7 @@ async def test_r5_a_campus_hit_is_missed_when_200_newer_listed_investigations_co
     from tests.integration.notices.test_triggers import dossier_body, put_dossier
 
     now = datetime.now(UTC)
-    campus = await world.investigation("10.8.235.157", [now - timedelta(hours=5)])
+    campus = await world.investigation("10.201.7.13", [now - timedelta(hours=5)])
     await put_dossier(world.owner, campus, dossier_body([C2], {C2: "high"}))
     for n in range(201):  # newer, listed, but from outside addresses (scanners)
         scanner = await world.investigation(

@@ -335,7 +335,7 @@ def test_two_new_addresses_that_both_fit_the_quiet_device_are_never_guessed_betw
 
 
 def test_a_needle_matches_a_value_in_a_canonical_grouping_key_and_escapes_like() -> None:
-    assert knownrun._needle("10.198.36.230") == '%,"10.198.36.230"]%'
+    assert knownrun._needle("10.201.7.11") == '%,"10.201.7.11"]%'
     assert knownrun._needle("LAB_PC_7") == '%,"LAB\\_PC\\_7"]%'  # _ is a wildcard in LIKE
     assert knownrun._needle("100%") == '%,"100\\%"]%'
     assert knownrun._needle('a"b') == '%,"a\\\\"b"]%'  # the JSON escape, then LIKE's

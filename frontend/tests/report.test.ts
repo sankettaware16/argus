@@ -5,7 +5,7 @@ import { REPORT } from "./helpers";
 
 describe("the lines of what ARGUS found", () => {
   it("name every kind in words, and give each a tone, so a colour is never the only sign", () => {
-    expect(LINE_LABEL).toEqual({ new: "New", nothing_found: "Nothing found", could_not_tell: "Could not tell", failed: "Failed", not_checked: "Not checked", still_open: "Still open", hidden: "Hidden" });
+    expect(LINE_LABEL).toEqual({ new: "Found", nothing_found: "Nothing found", could_not_tell: "Could not tell", failed: "Failed", not_checked: "Not checked", still_open: "Still open", hidden: "Hidden" });
     expect(LINE_TONE.nothing_found).toBe("ok");
     expect(LINE_TONE.could_not_tell).toBe("warn");
     expect(Object.keys(LINE_TONE).sort()).toEqual(Object.keys(LINE_LABEL).sort());
@@ -23,7 +23,7 @@ describe("the lines of what ARGUS found", () => {
 
 describe("the verdict", () => {
   it("says who proposes what, or why there is no proposal", () => {
-    expect(verdictSentence(REPORT.verdict)).toBe("The AI investigator proposes True positive");
+    expect(verdictSentence(REPORT.verdict)).toBe("The AI investigator proposes Real: act on it");
     const v = { ...REPORT.verdict, status: "no_decision", outcome: null, source: "the decision engine" };
     expect(verdictSentence(v)).toBe("The decision engine made no proposal");
     expect(verdictSentence({ ...v, status: "queued" })).toBe("The decision engine has not assessed it yet");

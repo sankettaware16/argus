@@ -65,7 +65,7 @@ export function PatternSummaryCard({ b, extra }: { b: PatternBriefOut; extra?: R
       </CardTitle>
       <p className="m-0 mb-1 text-sm" data-testid="pattern-recommendation">
         <strong>
-          ARGUS recommends: {outcomeLabel(b.outcome)}
+          ARGUS&apos;s call: {outcomeLabel(b.outcome)}
           {surePart(b.confidence)}
         </strong>{" "}
         for {count(b.covered)} of {count(b.investigations)} {plural(b.investigations, "investigation")} (from {b.source}).{" "}
@@ -77,7 +77,7 @@ export function PatternSummaryCard({ b, extra }: { b: PatternBriefOut; extra?: R
           {b.examples.map((id, i) => (
             <span key={id}>
               {i > 0 && ", "}
-              <Link to="/investigations/$id" params={{ id }}>
+              <Link to="/alert-groups/$id" params={{ id }}>
                 investigation {i + 1}
               </Link>
             </span>

@@ -20,9 +20,17 @@ from argus.llm.gateway import Call, LlmError, NoCapacity
 from argus.llm.privacy import Request
 from argus.llm.probe import probe
 from argus.llm.prompts import PING_SCHEMA
-from argus.llm.providers import LlmConfig, Tier, Trust, load_config, load_keys, pinned
+from argus.llm.providers import (
+    LlmConfig,
+    ProviderConfig,
+    Tier,
+    Trust,
+    load_config,
+    load_keys,
+    pinned,
+)
 from argus.llm.service import build_gateway
-from argus.llm.store import PgLlmStore
+from argus.llm.store import PgLlmStore, Reconciled
 from argus.llm.wire import HttpxLlmTransport
 
 llm_app = typer.Typer(no_args_is_help=True, help="The LLM gateway: budgets, ledger, kill switch.")
@@ -52,6 +60,25 @@ def _chosen(llm: LlmConfig, provider: str | None) -> LlmConfig:
     return chosen
 
 
+def spend_line(provider: ProviderConfig, state: budget.State, now: datetime) -> str | None:
+    """A paid provider's spend this month and today against its own caps; None if it is free."""
+    if not provider.paid:
+        return None
+    month, day = budget.spend(state, now, provider.name)
+
+    def of(cap: float | None) -> str:
+        return " (the overall cap only)" if cap is None else f" of ${cap:.2f}"
+
+    return (f"    spend: this month ${month:.6f}{of(provider.monthly_cap_usd)},"
+            f" today ${day:.6f}{of(provider.daily_cap_usd)}")  # fmt: skip
+
+
+def reconciled_lines(done: Reconciled) -> list[str]:
+    head = f"this month's spend: ${done.before:.6f} -> ${done.after:.6f}"
+    own = [f"  {p}: ${b:.6f} -> ${a:.6f}" for p, (b, a) in done.providers.items()]
+    return [f"{head} (the ledger's settled costs)", *own]
+
+
 def _run[T](work: Coroutine[Any, Any, T]) -> T:
     try:
         return asyncio.run(work)
@@ -62,8 +89,9 @@ def _run[T](work: Coroutine[Any, Any, T]) -> T:
 
 @llm_app.command("status")
 def llm_status(config: ConfigOption = None) -> None:
-    """The kill switch, this month's cost against the cap, today's use per limit, cool-downs,
-    breakers, and the ledger's totals per provider."""
+    """The kill switch, this month's and today's cost against the caps (overall and each paid
+    provider's), today's use per limit, cool-downs, breakers, and the ledger's totals per
+    provider."""
     settings = load(config)
     llm = load_config()
     present = load_keys(llm.keys_file, {k for p in llm.providers for k in p.keys})
@@ -88,9 +116,8 @@ def llm_status(config: ConfigOption = None) -> None:
     state, rows = _run(use())
     now = datetime.now(UTC)
     typer.echo(f"kill switch: {'STOPPED' if state.stopped else 'off (calls allowed)'}")
-    spent = state.spent_usd if state.month == budget.month_of(now) else 0.0
+    spent, today = budget.spend(state, now)
     typer.echo(f"this month: ${spent:.6f} of ${llm.monthly_cap_usd:.2f}")
-    today = state.day_spent_usd if state.day == now.date().isoformat() else 0.0
     cap = f" of ${llm.daily_cap_usd:.2f}" if llm.daily_cap_usd is not None else " (no daily cap)"
     typer.echo(f"today: ${today:.6f}{cap}")
     for p in llm.providers:
@@ -99,6 +126,9 @@ def llm_status(config: ConfigOption = None) -> None:
         tasks = "every task" if p.tasks is None else "only " + ", ".join(p.tasks)
         typer.echo(f"- {p.name} ({p.trust}, {tasks}): {key}{'' if p.enabled else ', disabled'};"
                    f" {tiers}")  # fmt: skip
+        paid = spend_line(p, state, now)
+        if paid is not None:
+            typer.echo(paid)
         alarm = state.alarms.get(p.name)
         if alarm is not None:
             typer.echo(f"    ALARM {alarm.kind} since {alarm.at:%Y-%m-%d %H:%M} UTC:"
@@ -167,19 +197,20 @@ def llm_resume(
 
 @llm_app.command("reconcile")
 def llm_reconcile(config: ConfigOption = None) -> None:
-    """Set this month's spend to the ledger's settled costs (reservations never settled are
-    dropped); audited."""
+    """Set this month's and today's spend, overall and per provider, to the ledger's costs
+    (attempts that may have been charged keep their reservation; one a crash left with no
+    ledger row is dropped); audited."""
     settings = load(config)
 
-    async def use() -> tuple[float, float]:
+    async def use() -> Reconciled:
         db = engine_for(settings)
         try:
             return await PgLlmStore(db).reconcile(datetime.now(UTC), actor="cli")
         finally:
             await db.dispose()
 
-    before, after = _run(use())
-    typer.echo(f"this month's spend: ${before:.6f} -> ${after:.6f} (the ledger's settled costs)")
+    for line in reconciled_lines(_run(use())):
+        typer.echo(line)
 
 
 @llm_app.command("ping")

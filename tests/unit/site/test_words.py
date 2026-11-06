@@ -7,7 +7,6 @@ from __future__ import annotations
 import pytest
 
 from argus import site
-from argus.cases import naming
 from argus.cases.naming import BEACON, Device, Facts, title
 from argus.incident import evidence
 from argus.site import SiteSettings, Words, say
@@ -111,35 +110,40 @@ def devices(n: int, place: str | None = None) -> tuple[Device, ...]:
 
 
 HOSTEL_CASE = Facts(
-    flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("176.65.139.158",)
+    flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("198.51.100.20",)
 )
 
 
 def test_acmes_case_titles_are_what_they_were() -> None:
     f = Facts(
-        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("176.65.139.158",)
+        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("198.51.100.20",)
     )
-    assert title(f) == "Beaconing to 176.65.139.158 from 4 campus devices in Hostel 12"
+    assert title(f) == "Suspected beaconing to 198.51.100.20 from 4 campus devices in Hostel 12"
     f = Facts(flags=frozenset({BEACON}), devices=devices(1))
     assert "campus device" not in title(f)  # a named device is named
 
 
 def test_a_title_follows_the_sites_noun() -> None:
     f = Facts(
-        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("176.65.139.158",)
+        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("198.51.100.20",)
     )
+    two = Facts(flags=frozenset({BEACON}), devices=devices(2))
     with site.using(NEUTRAL):
-        assert title(f) == "Beaconing to 176.65.139.158 from 4 devices of your network in Hostel 12"
-        assert "campus" not in naming._devices(f, where=False)
+        assert title(f) == (
+            "Suspected beaconing to 198.51.100.20 from 4 devices of your network in Hostel 12"
+        )
+        assert "campus" not in title(two)
     with site.using(OFFICE):
-        assert title(f) == "Beaconing to 176.65.139.158 from 4 office network devices in Hostel 12"
-        assert naming._devices(Facts(devices=devices(2)), where=False) == "2 office network devices"
+        assert title(f) == (
+            "Suspected beaconing to 198.51.100.20 from 4 office network devices in Hostel 12"
+        )
+        assert title(two) == "Suspected beaconing from 2 office network devices"
 
 
 def test_every_title_a_site_can_make_stays_in_the_allowed_characters() -> None:
     allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:()/&+-—→")
     f = Facts(
-        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("176.65.139.158",)
+        flags=frozenset({BEACON}), devices=devices(4, "Hostel 12"), servers=("198.51.100.20",)
     )
     for noun in ("campus", "your network", "office network", "the plant", "our site"):
         with site.using(SiteSettings(own_network_noun=noun)):

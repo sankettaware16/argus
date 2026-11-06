@@ -362,6 +362,7 @@ class SiemLanesSettings(_Section):
     kibana_write: LaneSettings | None = None
     identity: LaneSettings | None = None
     measurement: LaneSettings | None = None
+    checking: LaneSettings | None = None
 
 
 class SiemSettings(_Section):
@@ -1150,6 +1151,20 @@ class CasesSettings(_Section):
     retitle: bool = True
 
 
+class RiskSettings(_Section):
+    """The incident engine v2 (P4-F). ``present``: its possible incidents become suspected cases
+    (Today's "Needs you"), and the old suggester, the raise into Needs attention and the AI's
+    per-pattern runs stop feeding the queue while ``argus risk run`` presents (a pass within
+    ``argus.risk.present.ALIVE``; without one they stay on, said); off (the default) it runs in
+    shadow, in its own tables only. Switching back is this one setting. ``shown_per_day``: the
+    capacity governor's daily room for new cards on Today (P1 and P2 are never held back; the
+    rest wait for room, counted as "more waiting" and listed in Incidents' Needs you: every
+    possible incident has its case, so Today and the queue are one set)."""
+
+    present: bool = False
+    shown_per_day: int = Field(default=10, ge=1, le=100)
+
+
 class CampaignsSettings(_Section):
     """Campaign analysis: devices that reach the same rare domains. ``resolvers``: the recursive
     DNS resolvers (addresses or networks). A resolver asks for every name its users ask for, so it
@@ -1442,6 +1457,7 @@ class Settings(BaseSettings):
     custody: CustodySettings = CustodySettings()
     freshness: FreshnessSettings = FreshnessSettings()
     cases: CasesSettings = CasesSettings()
+    risk: RiskSettings = RiskSettings()
     campaigns: CampaignsSettings = CampaignsSettings()
     notified: NotifiedSettings = NotifiedSettings()
     incident: IncidentSettings = IncidentSettings()

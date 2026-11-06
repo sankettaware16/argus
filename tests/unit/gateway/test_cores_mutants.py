@@ -53,6 +53,7 @@ def test_stored_enumeration_values_are_pinned() -> None:
         # Q-D2: the Phase 3 lanes (plan §7.8)
         "investigate", "freshness", "measure", "identity", "kibana_read", "kibana_write",
         "discover",  # P4-D1
+        "check",  # P4-F E3
     ]  # fmt: skip
     assert COMPONENT == {
         Purpose.PROBE: None, Purpose.SELFTEST: None, Purpose.COLLECT: "collector",
@@ -60,11 +61,11 @@ def test_stored_enumeration_values_are_pinned() -> None:
         Purpose.ENRICH: "enrichment", Purpose.WRITEBACK: "writeback",
         Purpose.INVESTIGATE: "investigation", Purpose.FRESHNESS: "freshness",
         Purpose.MEASURE: None, Purpose.IDENTITY: "identity", Purpose.KIBANA_READ: "kibana",
-        Purpose.KIBANA_WRITE: "cases", Purpose.DISCOVER: None,
+        Purpose.KIBANA_WRITE: "cases", Purpose.DISCOVER: None, Purpose.CHECK: "checking",
     }  # fmt: skip
     assert COMPONENTS == (
         "collector", "enrichment", "kibana", "writeback",
-        "investigation", "freshness", "cases", "identity",
+        "investigation", "freshness", "cases", "identity", "checking",
     )  # fmt: skip
 
 

@@ -56,6 +56,7 @@ from argus.ops.units_cli import units_app
 from argus.reference.cli import knowledge_app, rules_app, ti_app
 from argus.report.cli import report_app
 from argus.reporter.cli import register as register_reporter
+from argus.risk.cli import risk_app
 from argus.signins.cli import signins_app
 from argus.soak_cli import soak_app
 from argus.tuning.cli import tune_app
@@ -109,6 +110,7 @@ app.add_typer(audit_app, name="audit")
 app.add_typer(approvals_app, name="approvals")
 app.add_typer(notices_app, name="notices")
 app.add_typer(signins_app, name="signins")
+app.add_typer(risk_app, name="risk")
 app.command("web")(web_cli.web)
 app.command("discover")(discover)
 app.command("init")(init_command)

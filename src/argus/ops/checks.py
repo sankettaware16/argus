@@ -12,7 +12,8 @@ import io
 import os
 import pwd
 import subprocess
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
@@ -494,6 +495,30 @@ def _stored_fingerprint(cert: Path) -> str | ValueError | None:
         return exc
 
 
+@dataclass(frozen=True)
+class LastRun:
+    """What the user service manager says of a service (``systemctl --user show``)."""
+
+    state: str  # ActiveState: active, activating, inactive, failed ...
+    result: str  # Result of its last run: success, exit-code, signal, timeout ...
+    status: str  # ExecMainStatus: the exit status of its last run
+    at: datetime | None  # when it last stopped (InactiveEnterTimestamp)
+
+    @property
+    def failed(self) -> bool:
+        """Its last run failed and it is not running now (a new start clears the state)."""
+        return self.state == "failed"
+
+    @property
+    def refused(self) -> bool:
+        """Its last run exited with status 2: the command refused (``case team run`` with posting
+        off, or settings it cannot load)."""
+        return self.result == "exit-code" and self.status == "2"
+
+
+AskRuns = Callable[[Sequence[str]], Mapping[str, LastRun] | str]
+
+
 def unit_results(
     repo_dir: Path = UNITS_DIR,
     installed_dir: Path | None = None,
@@ -501,13 +526,19 @@ def unit_results(
     moved: frozenset[str] | set[str] = frozenset(),
     params: units.UnitParams | None = None,
     run: Sequence[str] | None = None,
+    ask: AskRuns | None = None,
+    refusing: Mapping[str, str] | None = None,
 ) -> list[CheckResult]:
     """The installed units against their templates rendered with ``params`` (this installation's;
     by default this checkout's), their roles for an installation that runs ``run``, and every
     drop-in that changes one (in the unit directory and ``other_dirs``: by default systemd's other
     folders when the unit directory is the user's own, none for a folder given). Units installed
     for another checkout (a worktree beside production) are named, not compared: they are that
-    checkout's to check."""
+    checkout's to check. With ``ask`` (the service manager's answer for some services), an enabled
+    timer whose service's last run failed and an enabled service that failed fail too: what is
+    enabled runs, whatever its role; what is not enabled is not judged. ``refusing`` names the
+    services switched off by choice (the case team with posting off), and why: their refusals
+    are said, not failed."""
     if other_dirs is None:
         other_dirs = units.control_dirs() if installed_dir is None else ()
     installed = units.user_unit_dir() if installed_dir is None else installed_dir
@@ -533,6 +564,8 @@ def unit_results(
                 *flagged,
             ]
     states, unlisted, stray = units.unit_states(repo_dir, installed_dir, moved, params, run)
+    failing, unread, refused = _failed_runs(states, moved, ask, refusing)
+    flagged += failing.values()
     running = sum(
         1
         for s in states
@@ -540,6 +573,7 @@ def unit_results(
         and s.identical
         and s.enabled
         and not any(d.changes(s.name) for d in changed)
+        and _service_of(s.name) not in failing
     )
     # A new installation whose services were installed but not started yet (`argus init`
     # without --start) is waiting for a person, not broken: once one runs, the rest must too.
@@ -568,9 +602,80 @@ def unit_results(
         summary += "; none runs yet (units.run is empty: `argus init --start` starts them)"
     elif waiting:
         summary += "; none started yet: `argus init --start` starts them"
+    if failing:
+        summary += f"; {len(failing)} failed their last run"
+    for service, why in sorted(refused.items()):
+        summary += f"; {service} refuses its runs: {why}"
+    if unread is not None:
+        summary += f"; their last runs not read ({unread})"
     ok = not any(not r.ok for r in flagged)
     results = [CheckResult("service units", ok, summary, warn=ok and waiting and chosen > 0)]
     return results + flagged
+
+
+def _service_of(unit: str) -> str:
+    """The service a unit stands for: a timer's own service, a service itself."""
+    return unit.removesuffix(".timer") + ".service" if unit.endswith(".timer") else unit
+
+
+def _failed_runs(
+    states: Sequence[units.UnitState],
+    moved: Collection[str],
+    ask: AskRuns | None,
+    refusing: Mapping[str, str] | None = None,
+) -> tuple[dict[str, CheckResult], str | None, dict[str, str]]:
+    """A failure for each enabled timer whose service's last run failed (a oneshot that fails
+    every run fails every few minutes) and for each enabled service that failed (it is not
+    running), by service; why the service manager could not be asked; and the services of
+    ``refusing`` whose last run refused (exit status 2), with why: switched off by choice, not
+    failed. A timer stopped for now (a deploy window stops the case team's) starts nothing: its
+    service is not judged."""
+    refusing = refusing or {}
+    timers = {
+        _service_of(s.name): s.name
+        for s in states
+        if s.enabled and s.name.endswith(".timer") and s.name not in moved
+    }
+    services = [s.name for s in states
+                if s.enabled and s.name.endswith(".service") and s.name not in moved]  # fmt: skip
+    if ask is None or not (timers or services):
+        return {}, None, {}
+    answer = ask(sorted({*timers, *timers.values(), *services}))
+    if isinstance(answer, str):
+        return {}, answer, {}
+    found: dict[str, CheckResult] = {}
+    refused: dict[str, str] = {}
+    for service in sorted({*timers, *services}):
+        last = answer.get(service)
+        if last is None or not last.failed:
+            continue
+        timer = answer.get(timers.get(service, ""))
+        if timer is not None and timer.state != "active":
+            continue
+        if service in refusing and last.refused:
+            refused[service] = refusing[service]
+            continue
+        how = f"{last.result or 'failed'}, exit status {last.status or '?'}"
+        if last.at is not None:
+            how += f", at {_shown(last.at)}"
+        why = f"journalctl --user -u {service} -n 30 shows why"
+        if service in timers:
+            detail = f"its last run failed ({how}) and {timers[service]} keeps starting it: {why}"
+        else:
+            detail = f"failed ({how}): it is not running; {why}, then systemctl --user restart it"
+        found[service] = CheckResult(f"unit {service}", False, detail)
+    return found, None, refused
+
+
+def refusing_services(settings: Settings) -> dict[str, str]:
+    """The services this installation has switched off by choice, and why: the case team while
+    it posts nothing (its switches file, in the checkout its units run, or ``case_team.post``),
+    so each run refuses before it logs in."""
+    from argus.ops import case_team_login as team
+
+    root = settings.units.root or units.REPO
+    off = team.switched_off(team.read_switches(root / team.SWITCHES), settings.case_team.post)
+    return {} if off is None else {team.SERVICE: f"posting is off ({off})"}
 
 
 # What a running service holds in memory is the code it started with, but it re-reads files from
@@ -610,26 +715,78 @@ def service_start_times(
 ) -> Mapping[str, datetime] | str:
     """When each of the user units in ``names`` that is active entered that state (a restart
     moves it), from ``systemctl --user show``; a text saying why it could not be asked."""
+    shown = _show(names, ("Id", "ActiveState", "ActiveEnterTimestamp"), run)
+    if isinstance(shown, str):
+        return shown
+    started: dict[str, datetime] = {}
+    for fields in shown:
+        stamp = _stamp(fields.get("ActiveEnterTimestamp", ""))
+        if fields.get("ActiveState") == "active" and stamp is not None and "Id" in fields:
+            started[fields["Id"]] = stamp
+    return started
+
+
+def last_runs(
+    names: Sequence[str],
+    run: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+) -> Mapping[str, LastRun] | str:
+    """Each named user service's state and last run, from ``systemctl --user show`` (it reads
+    only); a text saying why it could not be asked."""
+    shown = _show(names, ("Id", "ActiveState", "Result", "ExecMainStatus",
+                          "InactiveEnterTimestamp"), run)  # fmt: skip
+    if isinstance(shown, str):
+        return shown
+    return {
+        fields["Id"]: LastRun(
+            state=fields.get("ActiveState", ""),
+            result=fields.get("Result", ""),
+            status=fields.get("ExecMainStatus", ""),
+            at=_stamp(fields.get("InactiveEnterTimestamp", "")),
+        )
+        for fields in shown
+        if "Id" in fields
+    }
+
+
+def _show(
+    names: Sequence[str],
+    properties: Sequence[str],
+    run: Callable[..., subprocess.CompletedProcess[str]] | None,
+) -> list[dict[str, str]] | str:
+    """``systemctl --user show`` of ``names``: each unit's properties; a text saying why the
+    user service manager could not be asked."""
     try:
         done = (run or subprocess.run)(
             ["systemctl", "--user", "show", *names, "--timestamp=unix",
-             "--property=Id,ActiveState,ActiveEnterTimestamp"],
+             f"--property={','.join(properties)}"],
             capture_output=True, text=True, timeout=10, check=False,
         )  # fmt: skip
     except (OSError, subprocess.SubprocessError) as exc:
         return f"systemctl could not be run ({type(exc).__name__})"
     if done.returncode != 0:
         return "the user service manager did not answer"
-    started: dict[str, datetime] = {}
-    for block in done.stdout.strip().split("\n\n"):
-        fields = dict(line.split("=", 1) for line in block.splitlines() if "=" in line)
-        stamp = fields.get("ActiveEnterTimestamp", "")
-        if fields.get("ActiveState") == "active" and stamp.startswith("@") and "Id" in fields:
-            try:
-                started[fields["Id"]] = datetime.fromtimestamp(int(stamp[1:]), UTC)
-            except (ValueError, OverflowError, OSError):
-                continue
-    return started
+    return [
+        dict(line.split("=", 1) for line in block.splitlines() if "=" in line)
+        for block in done.stdout.strip().split("\n\n")
+    ]
+
+
+def _stamp(value: str) -> datetime | None:
+    """A ``--timestamp=unix`` value (``@1793411806``); None when empty or not one."""
+    if not value.startswith("@"):
+        return None
+    try:
+        return datetime.fromtimestamp(int(value[1:]), UTC)
+    except (ValueError, OverflowError, OSError):
+        return None
+
+
+def _shown(moment: datetime) -> str:
+    """A moment as people here read it: in the site's zone, with its label."""
+    from argus import site
+
+    local = moment.astimezone(site.zone())
+    return f"{local:%Y-%m-%d %H:%M} {site.zone_label(local)}"
 
 
 def deployed_code_result(
@@ -644,19 +801,13 @@ def deployed_code_result(
         return CheckResult(name, True, "not checked: the code tree could not be read")
     if not started:
         return CheckResult(name, True, "no ARGUS service is running under this user")
-    from argus import site
-
-    def shown(moment: datetime) -> str:
-        local = moment.astimezone(site.zone())
-        return f"{local:%Y-%m-%d %H:%M} {site.zone_label(local)}"
-
     stale = sorted(unit for unit, at in started.items() if at < changed)
     if stale:
-        who = ", ".join(f"{u.removesuffix('.service')} (since {shown(started[u])})" for u in stale)
+        who = ", ".join(f"{u.removesuffix('.service')} (since {_shown(started[u])})" for u in stale)
         return CheckResult(
             name,
             True,
-            f"the code changed at {shown(changed)}, after {who} started: they hold the old"
+            f"the code changed at {_shown(changed)}, after {who} started: they hold the old"
             " modules but read the new files; restart them (`systemctl --user restart`),"
             " then `argus db upgrade`",
             warn=True,
@@ -1063,8 +1214,15 @@ async def write_key_check(settings: Settings) -> list[CheckResult]:
 
 @register_check
 async def unit_check(settings: Settings) -> list[CheckResult]:
-    return unit_results(
-        moved=custody.moved_units(), params=_unit_params(settings), run=settings.units.run
+    import asyncio
+
+    return await asyncio.to_thread(
+        unit_results,
+        moved=custody.moved_units(),
+        params=_unit_params(settings),
+        run=settings.units.run,
+        ask=last_runs,
+        refusing=refusing_services(settings),
     )
 
 

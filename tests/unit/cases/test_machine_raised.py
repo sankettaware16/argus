@@ -119,3 +119,36 @@ def test_the_longest_reason_the_column_holds_is_accepted() -> None:
         CASE_ID, 1, raised(attention="x" * machine.ATTENTION_LIMIT), ARGUS, NOW
     )  # fmt: skip
     assert len(step.after.attention or "") == machine.ATTENTION_LIMIT
+
+
+def test_argus_merges_only_a_suspected_case_it_raised_into_another() -> None:
+    """The incident engine joined two incidents (P4-F E5): ARGUS merges the raised suspected
+    case of the one that went into the other's case, and the target takes its members from
+    ARGUS; a suspected case of the old proposer, or a confirmed one, still needs a person."""
+    from argus.cases.machine import MergedIn, MergeInto
+    from tests.unit.cases.test_machine import TARGET, opened
+
+    engine = Actor.argus("engine")
+    source = machine.create(CASE_ID, 1, raised(), Actor.argus("raise"), NOW).after
+    gone = machine.decide(source, MergeInto(TARGET, "suspected", None), engine, NOW)
+    assert (gone.after.state, gone.after.closure_reason, gone.after.merged_into_id) == (
+        "closed", "duplicate", TARGET,
+    )  # fmt: skip
+    assert gone.members_removed == tuple(sorted(source.members))
+    target = machine.create(TARGET, 2, raised(members=(Member(INVESTIGATIONS[3], "actor"),)),
+                            Actor.argus("raise"), NOW).after  # fmt: skip
+    joined = machine.decide(
+        target, MergedIn(CASE_ID, (Member(INVESTIGATIONS[1], "merge", "case:1"),), (), "medium"),
+        engine, NOW,
+    )  # fmt: skip
+    assert INVESTIGATIONS[1] in joined.after.members
+    assert joined.after.state == "suspected"
+    proposal = opened(suspected=True).after  # the old proposer's: not ARGUS's to merge
+    with pytest.raises(CaseRefused, match="only a suspected case it raised"):
+        machine.decide(proposal, MergeInto(TARGET, "suspected", None), engine, NOW)
+    confirmed = machine.decide(source, Confirm(), person(), NOW).after
+    with pytest.raises(CaseRefused, match="is a person's action"):
+        machine.decide(confirmed, MergeInto(TARGET, "open", None), engine, NOW)
+    with pytest.raises(CaseRefused, match="needs the manage_cases capability"):
+        machine.decide(source, MergeInto(TARGET, "suspected", None),
+                       person(caps=frozenset({"review"})), NOW)  # fmt: skip

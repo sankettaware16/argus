@@ -85,6 +85,17 @@ async def server(seeded: AsyncEngine, test_database: str) -> Iterator[str]:
         log.close()
 
 
+def cost_bar_start() -> str:
+    """The cost bar's text before its call count, on no spend, for the caps the server runs with:
+    ``argus web`` reads this checkout's config/llm.yaml with the installation's llm.local.yaml laid
+    over it (a site may set its own budget), so the expected caps are read the same way."""
+    from argus.llm.providers import load_config
+
+    llm = load_config()
+    daily = "" if llm.daily_cap_usd is None else f" of ${llm.daily_cap_usd:.2f}"
+    return f"$0.00 of ${llm.monthly_cap_usd:.2f} this month · today $0.00{daily} ("
+
+
 async def plant_dossiers(engine: AsyncEngine) -> None:
     """Every investigation's dossier (the generic pack, nothing asked of the SIEM), so the report
     page (Q-F2) has a report to show, the hostile one's included."""
@@ -193,7 +204,7 @@ async def test_hostile_content_never_runs_and_pages_are_accessible(server: str) 
             "document.getElementById('cost-text').textContent.includes('this month')"
         )
         bar = await page.locator("#cost-text").inner_text()
-        assert bar.startswith("$0.00 of $40.00 this month · today $0.00 of $1.50 (")
+        assert bar.startswith(cost_bar_start())
         await page.goto(f"{server}/dashboard")  # the filter form, as a person uses it (10-21)
         await page.check('input[name="severity"][value="high"]')
         await page.click('form.filters button[type="submit"]')

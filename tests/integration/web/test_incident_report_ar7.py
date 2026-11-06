@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from argus.cases.machine import Dismiss
+from argus.cases.machine import Dismiss, Retitle
 from argus.cases.model import Actor, Capability
 from argus.cases.service import CaseService
 from argus.incident import gather, run
@@ -442,3 +442,42 @@ async def test_the_runtime_and_the_web_logins_are_held_to_their_grants(world: Wo
                     " VALUES (gen_random_uuid(), 'x', now())"
                 )
             )
+
+
+async def test_a_decision_holds_across_a_version_that_only_renames_the_case(world: World) -> None:
+    """Naming v2: a retitle renames what a person decided, it does not undo it; new evidence
+    does."""
+    case = await a_case(world, 2)
+    await write_report(world, case)
+    rita = await world.user_id("rita")
+    async with world.owner.begin() as conn:  # a person's decision on version 1
+        await conn.execute(
+            text("INSERT INTO incident_report_decisions (report_id, decision, by_user_id)"
+                 " SELECT id, 'confirmed', :u FROM incident_reports WHERE case_id = :c"),
+            {"u": rita, "c": case},
+        )  # fmt: skip
+    async with world.runtime.begin() as conn:  # the case is renamed (its title is a person's)
+        service = await CaseService.start(conn)
+        mina = Actor.person(
+            await world.user_id("mina"), frozenset(c.value for c in Capability), via="test"
+        )
+        await service.apply(mina, case, Retitle("Likely beaconing from 10.0.0.1", "clearer"),
+                            expected_version=None)  # fmt: skip
+    assert await write_report(world, case) == 2
+    async with world.app() as http:
+        await sign_in(http, "vera")
+        renamed = (await get(http, case)).json()
+    assert renamed["version"] == 2
+    assert renamed["report"]["header"]["title"].endswith("· Likely beaconing from 10.0.0.1")
+    assert renamed["report"]["header"]["certainty"] is None  # a person's words, kept as written
+    assert renamed["decision"]["decision"] == "confirmed"
+    assert renamed["decision"]["held_from"] == 1
+    assert renamed["decision"]["by"] == "Rita Reviewer"
+    await kit.pair_evidence(
+        world.owner, world.investigations[0], "198.51.100.150", 9, datetime.now(UTC)
+    )
+    assert await write_report(world, case) == 3
+    async with world.app() as http:
+        await sign_in(http, "vera")
+        changed = (await get(http, case)).json()
+    assert changed["decision"] is None  # the evidence changed: a person decides again

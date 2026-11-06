@@ -95,7 +95,7 @@ describe("R3-7: a button that cannot be used says why", () => {
   it("Assign, Confirm contained, Reopen and the closure form", async () => {
     const user = userEvent.setup();
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Assign" }));
     await pressed(await regionOf("Actions").findByRole("button", { name: "Review the request" }), user, "Choose a person first.");
   });
@@ -103,7 +103,7 @@ describe("R3-7: a button that cannot be used says why", () => {
   it("the closure form asks for a reason, then for the words a reason needs", async () => {
     const user = userEvent.setup();
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Request closure" }));
     await pressed(await regionOf("Actions").findByRole("button", { name: "Show what it would write" }), user, "Choose a reason first.");
     await user.click(screen.getByRole("radio", { name: /Fixed, as its owner says/ }));
@@ -113,7 +113,7 @@ describe("R3-7: a button that cannot be used says why", () => {
   it("merge asks for a case number", async () => {
     const user = userEvent.setup();
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Merge into another case" }));
     await pressed(await regionOf("Actions").findByRole("button", { name: "Show what it would write" }), user, "Type the number of the case to merge into.");
   });
@@ -121,7 +121,7 @@ describe("R3-7: a button that cannot be used says why", () => {
   it("Check more asks for a check, and the approvals page for the step-up", async () => {
     const user = userEvent.setup();
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const more = await screen.findByRole("region", { name: "Check more" });
     await pressed(await within(more).findByRole("button", { name: "Review the request" }), user, "Choose a check first.");
   });
@@ -153,7 +153,7 @@ describe("R3-11: what a list cuts off, it says", () => {
         mirror: { ...base.mirror, writes_total: 25, findings_total: 33, writes: [{ id: 1, op: "update", write_class: "W2", state: "verified", state_reason: null, case_version: 2, planned_at: "2026-10-20T04:00:00Z", sent_at: null, verified_at: null }] },
       }),
     );
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const text = async (name: string) => (await screen.findByRole("region", { name })).textContent ?? "";
     expect(await text("Notes")).toContain("229 older notes are not shown.");
     expect(await text("Members")).toContain("300 more indicators are not shown.");
@@ -167,7 +167,7 @@ describe("R3-11: what a list cuts off, it says", () => {
 
   it("says nothing when nothing is cut", async () => {
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await screen.findByRole("region", { name: "Notes" });
     expect(document.querySelector("main")?.textContent).not.toMatch(/(older|more) [a-z]+ (is|are) not shown/);
   });
@@ -192,7 +192,7 @@ describe("Q-C2: suggested members", () => {
     const hostile = `<img src=x onerror="window.__pwned=1"> ${RLO}ARGUS joined it`;
     serveCase(caseDetail({ suggestions: [suggestion(), suggestion({ id: 8, why: hostile, link_value: hostile, rule_name: hostile })], suggestions_total: 5 }));
     server.use(...shellHandlers(sessionWith(["view", "review", "manage_cases"])));
-    const { container } = renderApp(`/cases/${CASE_ID}`);
+    const { container } = renderApp(`/incidents/${CASE_ID}?tab=all`);
     const block = await screen.findByRole("region", { name: "Suggested members" });
     expect(await within(block).findAllByTestId("suggestion")).toHaveLength(2);
     expect(block.textContent).toContain("3 older suggestions are not shown.");
@@ -216,7 +216,7 @@ describe("Q-C2: suggested members", () => {
         return HttpResponse.json({ case_id: CASE_ID, suggestion_id: 7 });
       }),
     );
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Dismiss this suggestion" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toContain(`POST/api/v1/cases/${CASE_ID}/suggestions/7/dismiss`);
@@ -228,7 +228,7 @@ describe("Q-C2: suggested members", () => {
   it("is only read by an account that may not manage cases", async () => {
     serveCase(caseDetail({ suggestions: [suggestion()], suggestions_total: 1 }));
     server.use(...shellHandlers(sessionWith(["view", "review"])));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const block = await screen.findByRole("region", { name: "Suggested members" });
     expect(within(block).queryByRole("button", { name: "Dismiss this suggestion" })).toBeNull();
     expect(block.textContent).toContain("shares 77.221.155.150");
@@ -236,7 +236,7 @@ describe("Q-C2: suggested members", () => {
 
   it("says when there is nothing to suggest", async () => {
     serveCase();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     expect((await screen.findByRole("region", { name: "Suggested members" })).textContent).toContain("ARGUS has no investigation to suggest for this case.");
   });
 });
@@ -258,7 +258,7 @@ const watchStatus = (more: Partial<WatchStatusOut> = {}): WatchStatusOut => ({
 describe("Q-C2: the watch's status", () => {
   it("says when it last ran, each day's answers with their reasons, and whether the case is quiet", async () => {
     serveCase(caseDetail({ watch: watchStatus() }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const block = await screen.findByRole("region", { name: "The still-active watch" });
     const text = block.textContent?.replace(/\s+/g, " ") ?? "";
     expect(text).toContain("The watch last ran 26 Oct 2026");
@@ -273,13 +273,13 @@ describe("Q-C2: the watch's status", () => {
 
   it("calls a verified case quiet, a late run late, and a watch that never ran never run", async () => {
     serveCase(caseDetail({ watch: watchStatus({ quiet: true, quiet_words: "no activity for 3 whole UTC days", late: true }) }));
-    const first = renderApp(`/cases/${CASE_ID}`);
+    const first = renderApp(`/incidents/${CASE_ID}?tab=all`);
     const block = await screen.findByRole("region", { name: "The still-active watch" });
     expect(block.textContent).toContain("Quiet for 72 hours");
     expect(block.textContent).toContain("the daily run is late");
     first.unmount();
     serveCase(caseDetail({ watch: watchStatus({ last_run_at: null, days: [], quiet: null, quiet_words: null, proxy_checks_due: 2 }) }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const never = await screen.findByRole("region", { name: "The still-active watch" });
     expect(never.textContent).toContain("The watch has never run.");
     expect(never.textContent).toContain("2 proxy checks are due.");
@@ -288,7 +288,7 @@ describe("Q-C2: the watch's status", () => {
 
   it("shows nothing for a case the watch does not look at", async () => {
     serveCase(caseDetail({ watch: null }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await screen.findByRole("region", { name: "Suggested members" });
     expect(screen.queryByRole("region", { name: "The still-active watch" })).toBeNull();
   });
@@ -296,7 +296,7 @@ describe("Q-C2: the watch's status", () => {
   it("is text only, whatever a reason holds", async () => {
     const hostile = `<img src=x onerror="window.__pwned=1"> ${RLO}ARGUS says it is quiet`;
     serveCase(caseDetail({ watch: watchStatus({ quiet_words: hostile, days: [{ day: "2026-10-25", alerts: "unverified", alerts_reason: hostile, proxy: { unverified: 1 }, proxy_reasons: [hostile], seen: [hostile] }] }) }));
-    const { container } = renderApp(`/cases/${CASE_ID}`);
+    const { container } = renderApp(`/incidents/${CASE_ID}?tab=all`);
     await screen.findByRole("region", { name: "The still-active watch" });
     expect(container.querySelector("main img")).toBeNull();
     expect(container.querySelectorAll("main .ut-mark").length).toBeGreaterThan(2);

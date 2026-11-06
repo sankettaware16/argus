@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { CaseTeamOut } from "../../client/types.gen";
 import { useAnnounce } from "../../lib/announce";
@@ -64,11 +65,24 @@ function Step({ step, hidden }: { step: TeamStep; hidden: boolean }) {
 
 // ------------------------------------------------------------------ the canary
 
+/** The step-up link, back to this page and tab afterwards (the server's link names the old case page). */
+export function backHere(url: string, here: string): string {
+  try {
+    const u = new URL(url, "http://argus.invalid");
+    if (u.pathname !== "/stepup") return url;
+    u.searchParams.set("next", `/app${here.startsWith("/") ? here : `/${here}`}`);
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return url;
+  }
+}
+
 function Approval({ data }: { data: CaseTeamOut }) {
   const queries = useQueryClient();
   const { announce } = useAnnounce();
   const [asking, setAsking] = useState(false);
   const a = data.approval;
+  const here = useRouterState({ select: (st) => st.location.href });
   const hash = data.plan_hash;
   const guard = useGuard(a.can_approve && hash !== null ? null : (a.approve_why_not ?? "Not available."));
   const request = useMemo(() => ({ method: "POST" as const, path: `/api/v1/cases/${data.case_id}/team/approve`, body: approveBody(hash ?? "") }), [data.case_id, hash]);
@@ -90,7 +104,7 @@ function Approval({ data }: { data: CaseTeamOut }) {
             </Button>
             {guard.hint}
             {a.needs_step_up && a.step_up_url && (
-              <a href={a.step_up_url} className="text-sm">
+              <a href={backHere(a.step_up_url, here)} className="text-sm">
                 Confirm it is you
               </a>
             )}

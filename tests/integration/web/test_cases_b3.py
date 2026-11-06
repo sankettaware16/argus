@@ -49,7 +49,8 @@ async def test_the_list_puts_the_most_severe_first_and_counts_each_view(world: W
         page = (await http.get(f"{V1}/cases", params={"view": "active"})).json()
         assert [c["title"] for c in page["items"]] == ["Critical one", "Low one"]
         assert page["counts"] == {"active": 2, "notified": 0, "attention": 0, "mine": 1,
-                                  "suspected": 1, "closed": 0, "queue": 2, "all": 3}  # fmt: skip
+                                  "suspected": 1, "closed": 0, "queue": 2, "work": 2,
+                                  "all": 3, "incidents": 2}  # fmt: skip
         mine = (await http.get(f"{V1}/cases", params={"view": "mine"})).json()
         assert [c["title"] for c in mine["items"]] == ["Low one"]
         assert mine["items"][0]["owner"]["username"] == "mina"
@@ -456,7 +457,7 @@ async def test_a_suspected_case_cannot_be_closed_with_an_approval(world: World) 
         body = (await http.get(f"{V1}/cases/{sus}")).json()
         actions = {a["action"]: a for a in body["actions"]}
         assert actions["request_closure"]["enabled"] is False
-        assert "true-positive verdict" in actions["request_closure"]["why_not"]
+        assert "the decision at the top of its page" in actions["request_closure"]["why_not"]
         assert all(not c["enabled"] for c in body["closure_choices"])
         got = await http.get(f"{V1}/cases/{sus}/closure-preview",
                              params={"reason": "benign_expected"})  # fmt: skip

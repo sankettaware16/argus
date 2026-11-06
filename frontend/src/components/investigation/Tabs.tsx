@@ -78,7 +78,7 @@ export function Facts({ dossier }: { dossier: DossierOut }) {
           <ul className="m-0 pl-5 text-sm">
             {dossier.related.map((r) => (
               <li key={r.investigation_id}>
-                <Link to="/investigations/$id" params={{ id: r.investigation_id }}>
+                <Link to="/alert-groups/$id" params={{ id: r.investigation_id }}>
                   <UntrustedText value={r.rule_name ?? r.rule_id ?? "an investigation"} limits={{ maxChars: 120, maxLines: 1 }} />
                 </Link>
                 {r.key_fields.map((k, i) => (

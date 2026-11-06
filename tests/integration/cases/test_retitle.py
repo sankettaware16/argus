@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus import raising
 from argus.assets.classify import IpClassifier
 from argus.cases import chain, titling
-from argus.cases.machine import CaseRefused, Dismiss, Open, Retitle
+from argus.cases.machine import CaseRefused, Dismiss, Link, Open, Retitle
 from argus.cases.model import KIBANA_TO_OPEN, Actor, Indicator, Member
 from argus.cases.service import CaseService
 from tests.integration.cases.conftest import Person, investigation, rows
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.integration
 
 CTX = titling.Context(IpClassifier(None, ()), ("example.edu",))
 ARGUS = Actor.argus("title")
-FROM_FACTS = "Amadey contact from 2 campus devices to 158.94.208.81"
+FROM_FACTS = f"Suspected Amadey contact with {S} (VirusTotal: 7 engines) from 2 campus devices"
 
 
 async def flag_server(owner: AsyncEngine, tags: str = '["amadey"]') -> None:
@@ -64,15 +64,15 @@ async def test_a_person_renames_a_case_and_the_event_records_it(
     app_engine: AsyncEngine, six: Six, people: dict[str, Person]
 ) -> None:
     asha = people["asha"].actor()
-    await retitle(app_engine, asha, six.case, "Amadey infection on 10.198.36.230", "known family")
+    await retitle(app_engine, asha, six.case, "Amadey infection on 10.201.7.11", "known family")
     case, kinds = await stored(app_engine, six.case)  # the events rebuild the case exactly
     assert (case.title, case.version, case.state) == (
-        "Amadey infection on 10.198.36.230", 2, "suspected",
+        "Amadey infection on 10.201.7.11", 2, "suspected",
     )  # fmt: skip
     assert kinds == ["suspected", "retitled"]
     (details,) = await events_of(app_engine, six.case, "retitled")
     assert details["old"].startswith("Several campus devices")  # type: ignore[union-attr]
-    assert details["new"] == "Amadey infection on 10.198.36.230"
+    assert details["new"] == "Amadey infection on 10.201.7.11"
     assert details["by"] == f"user:{people['asha'].user_id}"
     assert details["reason"] == "known family"
     (event,) = await rows(
@@ -158,7 +158,9 @@ async def test_the_pass_follows_the_facts_when_they_change(
         )
     report = await titling.refresh(app_engine, CTX)
     assert report.applied == 1
-    assert await title_of(app_engine, six.case) == "Rule beacon: 2 campus devices"
+    assert await title_of(app_engine, six.case) == (
+        "Suspected: alerts of rule 'Rule beacon' for 2 campus devices"
+    )
     await retitle(app_engine, people["asha"].actor(), six.case, "Two devices, one server", "r")
     async with migrated_engine.begin() as conn:  # flagged again, but the title is a person's now
         await conn.execute(
@@ -233,7 +235,9 @@ async def test_a_beacon_with_a_listed_server_is_named_from_its_dossier(
                  attention="ARGUS suggests this case: x."),
         )  # fmt: skip
     await titling.refresh(app_engine, CTX)
-    assert await title_of(app_engine, applied.case.id) == f"Beaconing to {S} from {B}"
+    assert await title_of(app_engine, applied.case.id) == (
+        f"Suspected beaconing from {B} to {S} (on a threat list)"
+    )
 
 
 async def test_the_assessment_pass_refreshes_titles_at_most_every_quarter_hour(
@@ -259,7 +263,7 @@ async def test_the_refresh_survives_a_case_it_cannot_read(
     async def broken(*_: object, **__: object) -> str | None:
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(titling, "for_case", broken)
+    monkeypatch.setattr(titling, "titled_for_case", broken)
     done = await raising.run(app_engine, None, datetime.now(UTC), suggesting=False, last=None,
                              titles=CTX, titled_last=None)  # fmt: skip
     assert any("case titles failed (RuntimeError)" in w for w in done.warned)
@@ -305,5 +309,215 @@ async def test_a_follow_up_case_keeps_the_link_to_the_case_it_follows(
         )  # fmt: skip
     await titling.refresh(app_engine, CTX)
     assert await title_of(app_engine, applied.case.id) == (
-        f"Amadey beaconing from {B} to {S} — follows case 1"
+        f"Suspected Amadey beaconing from {B} to {S} — follows case 1"  # the details go first
     )
+
+
+# -- naming v2: what a retitle records, and when it happens ----------------------------------------
+
+DEVICES = [f"10.0.9.{i}" for i in range(1, 9)]
+FLAGGED = "198.51.100.77"
+
+
+async def device_case(owner: AsyncEngine, runtime: AsyncEngine, n: int) -> uuid.UUID:
+    """A suggested case of ``n`` made-up devices that each reached one flagged server."""
+    async with owner.begin() as conn:
+        await conn.execute(
+            text("INSERT INTO outside_lookups (source, kind, indicator, status, answer)"
+                 " VALUES ('virustotal', 'ip', :ip, 'found', CAST(:a AS jsonb))"),
+            {"ip": FLAGGED, "a": '{"malicious": 6, "suspicious": 0, "engines": 94}'},
+        )  # fmt: skip
+    members, marks = [], [Indicator("ip", FLAGGED, "indicator")]
+    for device in DEVICES[:n]:
+        inv = await investigation(owner, rule="beacon", actor=(("source.ip", device),),
+                                  entities=(("ip", FLAGGED),))  # fmt: skip
+        members.append(Member(inv, "actor", device))
+        marks.append(Indicator("ip", device, "actor"))
+    async with runtime.begin() as conn:
+        service = await CaseService.start(conn)
+        applied = await service.open(
+            Actor.argus("raise"),
+            Open("Old title", "high", "raised", tuple(members), tuple(marks), suspected=True,
+                 attention="ARGUS suggests this case: devices reached one server."),
+        )  # fmt: skip
+    return applied.case.id
+
+
+async def link_devices(owner: AsyncEngine, runtime: AsyncEngine, case: uuid.UUID,
+                       devices: list[str]) -> None:  # fmt: skip
+    members, marks = [], []
+    for device in devices:
+        inv = await investigation(owner, rule="beacon", actor=(("source.ip", device),),
+                                  entities=(("ip", FLAGGED),))  # fmt: skip
+        members.append(Member(inv, "actor", device))
+        marks.append(Indicator("ip", device, "actor"))
+    async with runtime.begin() as conn:
+        service = await CaseService.start(conn)
+        await service.apply(Actor.argus("raise"), case, Link(tuple(members), tuple(marks)),
+                            expected_version=None)  # fmt: skip
+
+
+async def test_a_retitle_records_what_changed_and_each_claim_with_its_fact(
+    app_engine: AsyncEngine, six: Six
+) -> None:
+    await titling.refresh(app_engine, CTX)
+    (details,) = await events_of(app_engine, six.case, "retitled")
+    assert isinstance(details, dict)
+    assert (details["change"], details["reason"]) == ("words", "the facts changed")
+    claims = {(c["slot"], c["words"], c["fact"]) for c in details["claims"]}
+    assert ("certainty", "Suspected", "certainty:Suspected") in claims
+    assert ("family", "Amadey", "family:Amadey") in claims
+    assert ("activity", "contact", "activity:contact") in claims
+    assert ("object", S, f"server:{S}") in claims
+    assert ("object", "VirusTotal: 7 engines", f"vt:{S}:7") in claims
+    assert ("actors", "2 campus devices", "actors:contact:2:2") in claims
+
+
+async def test_a_small_count_change_waits_and_a_large_one_is_retitled_at_once(
+    migrated_engine: AsyncEngine, app_engine: AsyncEngine
+) -> None:
+    case = await device_case(migrated_engine, app_engine, 4)
+    now = datetime.now(UTC)
+    first = await titling.refresh(app_engine, CTX, now=now)
+    assert first.applied == 1
+    assert (await title_of(app_engine, case)).endswith("from 4 campus devices")
+    await link_devices(migrated_engine, app_engine, case, DEVICES[4:5])  # 4 -> 5: a quarter more
+    soon = await titling.refresh(app_engine, CTX, now=now + timedelta(hours=1))
+    assert (soon.applied, soon.waiting) == (0, 1)
+    assert (await title_of(app_engine, case)).endswith("from 4 campus devices")
+    later = await titling.refresh(app_engine, CTX, now=now + timedelta(hours=7))
+    assert later.applied == 1
+    assert [c.change for c in later.changes] == ["counts"]
+    assert (await title_of(app_engine, case)).endswith("from 5 campus devices")
+    await link_devices(migrated_engine, app_engine, case, DEVICES[5:8])  # 5 -> 8: grew by half
+    grown = await titling.refresh(app_engine, CTX, now=now + timedelta(hours=7, minutes=1))
+    assert grown.applied == 1
+    assert (await title_of(app_engine, case)).endswith("from 8 campus devices")
+    kinds = [d["change"] for d in await events_of(app_engine, case, "retitled")]  # type: ignore[index]
+    assert kinds == ["words", "counts", "counts"]
+
+
+async def stored_check(
+    owner: AsyncEngine, inv: uuid.UUID, template: str, status: str, params: dict[str, object],
+    snapshot: dict[str, object] | None,
+) -> None:  # fmt: skip
+    """A stored web check of ``inv`` (what the follow-ups or a path check left)."""
+    import json
+
+    key = uuid.uuid4().hex + uuid.uuid4().hex
+    async with owner.begin() as conn:
+        await conn.execute(
+            text("INSERT INTO evidence_requests (investigation_id, eid, task_key, template,"
+                 " template_version, origin, first_version, created_at) VALUES (:i,"
+                 " (SELECT coalesce(max(eid), 0) + 1 FROM evidence_requests"
+                 " WHERE investigation_id = :i), :k, :t, 1, 'pack', 1, now())"),
+            {"i": inv, "k": key, "t": template},
+        )  # fmt: skip
+        await conn.execute(
+            text("INSERT INTO evidence (investigation_id, version, task_key, template,"
+                 " template_version, params, status, coverage, row_count, snapshot, result_hash,"
+                 " collected_at) VALUES (:i, 1, :k, :t, 1, CAST(:p AS jsonb), :s, '{}'::jsonb,"
+                 " 1, CAST(:snap AS jsonb), :h, now())"),
+            {"i": inv, "k": key, "t": template, "p": json.dumps(params), "s": status,
+             "snap": None if snapshot is None else json.dumps(snapshot), "h": "e" * 64},
+        )  # fmt: skip
+
+
+SITE = "www.lab.example.edu"
+
+
+def followup(path: str) -> dict[str, object]:
+    return {"_source": {"url": {"domain": SITE, "path": path},
+                        "http": {"response": {"status_code": 200}}}}  # fmt: skip
+
+
+async def test_a_web_case_is_named_from_the_stored_checks_and_the_verdicts(
+    migrated_engine: AsyncEngine, app_engine: AsyncEngine, people: dict[str, Person]
+) -> None:
+    from tests.integration.incident import kit
+
+    attackers = ("203.0.113.61", "203.0.113.62")
+    invs = [await investigation(migrated_engine, rule="Web: path probe",
+                                actor=(("source.ip", a),)) for a in attackers]  # fmt: skip
+    for inv in invs:
+        await kit.propose(migrated_engine, inv)
+    await stored_check(migrated_engine, invs[0], "web.followups", "ok",
+                       {"ip": attackers[0]}, {"rows": [followup("/.env")]})  # fmt: skip
+    marks = (
+        *(Indicator("ip", a, "actor") for a in attackers),
+        Indicator("url", "/.env", "indicator"),
+        Indicator("url", "/api/.env", "indicator"),
+    )
+    async with app_engine.begin() as conn:
+        service = await CaseService.start(conn)
+        applied = await service.open(
+            Actor.argus("raise"),
+            Open("Old title", "high", "raised", tuple(Member(i, "actor") for i in invs), marks,
+                 suspected=True, attention="ARGUS suggests this case: x."),
+        )  # fmt: skip
+    case = applied.case.id
+    await titling.refresh(app_engine, CTX)
+    assert await title_of(app_engine, case) == (
+        f"Likely .env scan of {SITE} by 2 outside IPs — got HTTP 200, not verified"
+    )
+    asked = {"ip": attackers[0], "site": SITE, "paths": ["/.env", "/nothing"]}
+    answer = {"aggregations": {"paths": {"buckets": []}}}
+    await stored_check(migrated_engine, invs[0], "web.path_outcomes", "ok", asked, answer)
+    found = await titling.refresh(app_engine, CTX, dry_run=True)
+    assert found.changes == []  # a path check that shows nothing served never says "served"
+    served = {"aggregations": {  # /.env answered 2xx with its own size; /nothing was refused
+        "paths": {"buckets": [
+            {"key": "/.env", "doc_count": 3,
+             "statuses": {"buckets": [{"key": 200, "doc_count": 3}]}},
+            {"key": "/nothing", "doc_count": 2,
+             "statuses": {"buckets": [{"key": 404, "doc_count": 2}]}},
+        ]},
+        "ok_0": {"doc_count": 3, "sizes": {"buckets": [{"key": 812, "doc_count": 3}]}},
+        "ok_1": {"doc_count": 0, "sizes": {"buckets": []}},
+    }}  # fmt: skip
+    await stored_check(migrated_engine, invs[1], "web.path_outcomes", "ok", asked, served)
+    await titling.refresh(app_engine, CTX)
+    assert await title_of(app_engine, case) == (
+        f"Likely .env scan of {SITE} by 2 outside IPs — a .env file served"
+    )
+    async with migrated_engine.begin() as conn:  # a person reviews both: confirmed
+        for inv in invs:
+            await conn.execute(
+                text("INSERT INTO review_state (investigation_id, latest_id, decision_id, action,"
+                     " version, alert_count, outcome, decided_at, user_id) VALUES (:i, 1, 1,"
+                     " 'reviewed', 1, 2, 'true_positive', now(), :u)"),
+                {"i": inv, "u": people["asha"].user_id},
+            )  # fmt: skip
+    await titling.refresh(app_engine, CTX)
+    assert await title_of(app_engine, case) == (
+        f"Confirmed .env scan of {SITE} by 2 outside IPs — a .env file served"
+    )
+    (*_, last) = await events_of(app_engine, case, "retitled")
+    assert (last["change"], last["reason"]) == (
+        "certainty",
+        "the certainty changed: Likely → Confirmed",
+    )
+
+
+async def test_a_single_device_names_the_earlier_case_that_holds_its_server(
+    migrated_engine: AsyncEngine, app_engine: AsyncEngine
+) -> None:
+    first = await device_case(migrated_engine, app_engine, 3)
+    inv = await investigation(migrated_engine, rule="beacon", actor=(("source.ip", "10.0.9.50"),),
+                              entities=(("ip", FLAGGED),))  # fmt: skip
+    await _dossier(migrated_engine, inv, BEACON, [])
+    async with app_engine.begin() as conn:
+        service = await CaseService.start(conn)
+        later = await service.open(
+            Actor.argus("raise"),
+            Open("Old title", "high", "raised", (Member(inv, "actor", "10.0.9.50"),),
+                 (Indicator("ip", "10.0.9.50", "actor"), Indicator("ip", FLAGGED, "indicator")),
+                 suspected=True, attention="ARGUS suggests this case: x."),
+        )  # fmt: skip
+    await titling.refresh(app_engine, CTX)
+    number = (await rows(app_engine, "SELECT number FROM cases WHERE id = :c", c=first))[0].number
+    assert await title_of(app_engine, later.case.id) == (
+        f"Suspected beaconing from 10.0.9.50 to {FLAGGED} (VirusTotal: 6 engines),"
+        f" the server of case {number}"
+    )
+    assert "the server of case" not in await title_of(app_engine, first)

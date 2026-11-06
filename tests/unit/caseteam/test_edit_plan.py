@@ -19,7 +19,7 @@ from tests.unit.caseteam.test_plan import alerts
 pytestmark = pytest.mark.unit
 CTX = team.CTX
 PARTS = ("evidence", "devices", "intel", "accounts", "actions", "queries")
-NEW_TITLE = "ACME-IR-2026-1026-01 · Amadey beaconing from 10.198.36.230"
+NEW_TITLE = "ACME-IR-2026-1026-01 · Amadey beaconing from 10.201.7.11"
 
 
 def retitled(report: m.IncidentReport, title: str = NEW_TITLE) -> m.IncidentReport:

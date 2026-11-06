@@ -192,3 +192,17 @@ describe("a cursor row scrolled out of the window", () => {
     expect(within(grid()).queryAllByRole("row", { selected: true })).toHaveLength(0);
   });
 });
+
+describe("a row's title (naming v2)", () => {
+  beforeEach(() => layout());
+
+  it("says what happened from the investigation's facts, and names the rule only as the rule's", () => {
+    const rows = [investigation(undefined, { rule_name: "Proxy: POST to a bare address (possible beacon)", title: "10.0.0.12 · beacon-timed", key_words: "from 10.0.0.12" })];
+    render(<InboxList rows={rows} hasMore={false} loadingMore={false} onLoadMore={() => {}} cursor={0} onCursor={() => {}} onOpen={() => {}} shortcuts onHelp={() => {}} since={null} viewport={{ width: 420, height: 600 }} />);
+    const row = within(grid()).getAllByRole("row")[1];
+    const [first, second] = Array.from(must(row?.querySelector('[role="gridcell"]')).children);
+    expect(first?.textContent).toBe("10.0.0.12 · beacon-timed");
+    expect(second?.textContent).toBe("Rule: Proxy: POST to a bare address (possible beacon) · from 10.0.0.12");
+    expect(grid().textContent).not.toContain("source.ip");
+  });
+});

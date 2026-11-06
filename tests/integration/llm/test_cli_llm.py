@@ -3,6 +3,7 @@ reaches a model."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -87,3 +88,48 @@ def test_a_successful_ping_names_the_provider_and_cost(cli_env: Path, llm: Fake)
     assert "this month: $0.000200 of $1.00" in out
     assert "today: $0.000200 (no daily cap)" in out
     assert "  paid              1      1         15 $0.000200" in out.splitlines()
+
+
+def test_status_and_reconcile_show_each_paid_providers_caps(
+    cli_env: Path,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    privacy: Privacy,
+) -> None:
+    """P4-E2: the paid provider's own month and day against its caps, in status and after a
+    reconcile; a free provider shows none."""
+    keys = tmp_path / "keys.env"
+    keys.write_text("PAID_KEY=sk-test-paid-0000\n", encoding="utf-8")
+    base = config()
+    capped = base.providers[0].model_copy(update={"monthly_cap_usd": 0.5, "daily_cap_usd": 0.25})
+    cfg = config(keys_file=str(keys), daily_cap_usd=0.5,
+                 providers=[capped.model_dump(), base.providers[1].model_dump()])  # fmt: skip
+    answer = LlmReply(200, json.dumps({"choices": [{"message": {"content": '{"ok": true}'}}],
+                                       "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
+                                      ).encode(), 42.0)  # fmt: skip
+
+    class Transport(Fake):
+        async def aclose(self) -> None:
+            pass
+
+    monkeypatch.setattr("argus.llm.cli.load_config", lambda: cfg)
+    monkeypatch.setattr("argus.llm.cli.HttpxLlmTransport",
+                        lambda config: Transport({"paid": [answer]}))  # fmt: skip
+    monkeypatch.setattr("argus.llm.cli._privacy", lambda settings: privacy)
+    config_args = ("-c", str(cli_env))
+    assert _invoke("db", "upgrade", *config_args)[0] == 0
+    code, out = _invoke("llm", "status", *config_args)
+    assert code == 0
+    lines = out.splitlines()
+    spend = lines.index("- paid (cloud, every task): key present; small=p-small, large=p-large") + 1
+    assert lines[spend] == "    spend: this month $0.000000 of $0.50, today $0.000000 of $0.25"
+    assert not any("spend:" in line for line in lines[spend + 1 :])  # free: none
+    code, out = _invoke("llm", "ping", *config_args)
+    assert (code, out) == (0, "paid p-small: '{\"ok\": true}' (10+5 tokens, $0.000020, 42 ms)\n")
+    code, out = _invoke("llm", "status", *config_args)
+    assert "    spend: this month $0.000020 of $0.50, today $0.000020 of $0.25" in out.splitlines()
+    code, out = _invoke("llm", "reconcile", *config_args)
+    assert (code, out.splitlines()) == (0, [
+        "this month's spend: $0.000020 -> $0.000020 (the ledger's settled costs)",
+        "  paid: $0.000020 -> $0.000020",
+    ])  # fmt: skip

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
+from argus.cases import naming
 from argus.cases.model import Case
 from argus.normalize.canon import canonical_json
 
@@ -60,17 +61,27 @@ def argus_tags(case: Case) -> list[str]:
     return sorted(tags)
 
 
-def title(case: Case) -> str:
-    """``[ARGUS <number>] <title>``, cut to Kibana's limit with an ellipsis. The title is
-    ARGUS's own words (:mod:`argus.cases.naming`: counts and values of a strict shape only)
-    or a person's, without control characters (the machine and the database refuse them)."""
+def words(case: Case, *, by_person: bool = False) -> str:
+    """The case's title as Kibana holds it: ARGUS's own without its certainty word (naming v2:
+    only confirmed cases go there; "Likely beaconing ..." is "Beaconing ..."), a person's
+    (``by_person``, D-230) as they wrote it."""
+    if by_person:
+        return case.title
+    return naming.without_certainty(case.title, naming.split_certainty(case.title)[0])
+
+
+def title(case: Case, *, by_person: bool = False) -> str:
+    """``[ARGUS <number>] <title>`` (:func:`words`), cut to Kibana's limit with an ellipsis. The
+    title is ARGUS's own words (:mod:`argus.cases.naming`: counts and values of a strict shape
+    only) or a person's, without control characters (the machine and the database refuse them)."""
     prefix = f"[ARGUS {case.number}] "
-    full = prefix + case.title
+    said = words(case, by_person=by_person)
+    full = prefix + said
     if _utf16(full) <= KIBANA_TITLE_LIMIT:
         return full
     room = KIBANA_TITLE_LIMIT - _utf16(prefix) - 1
     cut = ""
-    for char in case.title:
+    for char in said:
         if _utf16(cut + char) > room:
             break
         cut += char
@@ -100,19 +111,21 @@ class AlertSpan:
     latest: datetime | None
 
 
-def create(case: Case, span: AlertSpan | None = None) -> PlannedWrite:
+def create(case: Case, span: AlertSpan | None = None, *, by_person: bool = False) -> PlannedWrite:
     """W1: the case as it is now, with ``settings: {syncAlerts: false}`` (Kibana needs settings
     on a create; an update never sends them). The description is a short summary code writes
     from the case's alerts (what happened, its hosts and indicators, the first and latest
     alert), says decisions are made in ARGUS and links the case; findings from logs stay in
-    ARGUS. No connector, assignees or custom fields (the writer's strict body model)."""
+    ARGUS. No connector, assignees or custom fields (the writer's strict body model). The title
+    and "what happened" leave out ARGUS's certainty word unless a person wrote the title
+    (``by_person``)."""
     actors = sorted(i.value for i in case.indicators if i.role == "actor")
     marks = sorted(i.value for i in case.indicators if i.role != "actor")
     return PlannedWrite(
         "W1",
         "create",
         {
-            "title": title(case),
+            "title": title(case, by_person=by_person),
             **_fields(case),
             "settings": {"syncAlerts": False},
             "description": {
@@ -120,7 +133,7 @@ def create(case: Case, span: AlertSpan | None = None) -> PlannedWrite:
                 "params": {
                     "case": str(case.id),
                     "link": CASE_LINK.format(id=case.id),
-                    "what": case.title,
+                    "what": words(case, by_person=by_person),
                     "hosts": actors[:MAX_LISTED],
                     "more_hosts": max(0, len(actors) - MAX_LISTED),
                     "indicators": marks[:MAX_LISTED],

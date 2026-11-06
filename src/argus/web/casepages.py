@@ -25,7 +25,9 @@ from argus.cases.machine import (
     RAISED_REASON,
     Assign,
     CaseRefused,
+    Confirm,
     Contain,
+    Dismiss,
     MergeInto,
     Notify,
     RecordBlock,
@@ -49,7 +51,7 @@ from argus.cases.model import (
 from argus.cases.service import CaseService
 from argus.responder.machine import ist_day
 from argus.site import Words, say
-from argus.web import auth, queries, signinpages
+from argus.web import auth, decisions, needsyou, queries, signinpages
 from argus.web.capabilities import LABELS, Capability
 from argus.web.v1 import case_models as m
 
@@ -315,11 +317,14 @@ _VIEWS = {
     "notified": "c.state IN ('open', 'assigned') AND c.notified_at IS NOT NULL",
     "attention": f"c.state <> 'closed' AND ({_ATTENTION} OR EXISTS (SELECT 1 FROM"  # noqa: S608
     f" approval_requests r WHERE r.case_id = c.id AND {_PENDING}))",
-    "mine": "c.owner_user_id = :me AND c.state <> 'closed'",
+    "mine": needsyou.MINE,  # what the person owns or is checking (UI v2 A1)
     "suspected": "c.state = 'suspected'",
     "closed": "c.state = 'closed'",
-    "queue": WORK,  # the cases of Home's queue, whatever the reason
+    "queue": needsyou.NEEDS_YOU,  # Needs you: the same set as Today's (UI v2 §6.3)
+    "work": WORK,  # the cases of Home's queue, whatever the reason
     "all": "true",
+    # every incident, whoever was told: the dashboard's count of incidents is this view's
+    "incidents": "c.state IN ('open', 'assigned', 'contained')",
 }
 _ORDER = (
     "ORDER BY (c.state = 'closed'), (c.state = 'suspected'), "
@@ -339,13 +344,30 @@ async def counts(conn: AsyncConnection, me_id: int) -> m.CaseCounts:
                 f" count(*) FILTER (WHERE {_VIEWS['mine']}) AS mine,"
                 f" count(*) FILTER (WHERE {_VIEWS['suspected']}) AS suspected,"
                 f" count(*) FILTER (WHERE {_VIEWS['closed']}) AS closed,"
-                f" count(*) FILTER (WHERE {_VIEWS['queue']}) AS queue, count(*) AS all"
+                f" count(*) FILTER (WHERE {_VIEWS['queue']}) AS queue,"
+                f" count(*) FILTER (WHERE {_VIEWS['work']}) AS work, count(*) AS all,"
+                f" count(*) FILTER (WHERE {_VIEWS['incidents']}) AS incidents"
                 " FROM cases c"
             ),
             {"me": me_id},
         )
     ).one()
     return m.CaseCounts(**{k: int(v) for k, v in row._mapping.items()})
+
+
+# the list's filters and sorts (UI v2 A10); the engine's (band, certainty, lane, side, active,
+# raised by the AI, priority) come with its block
+_KIBANA = {
+    "in": "EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'"
+    " AND NOT (x.state = 'skipped' AND x.sent_count = 0))",
+    "waiting": "(c.state IN ('open', 'assigned', 'contained') AND c.kibana_wait IS NOT NULL)",
+    "failing": "EXISTS (SELECT 1 FROM case_team_steps s WHERE s.case_id = c.id"
+    " AND s.state = 'failed')",
+}
+_SORTS = {
+    "activity": "ORDER BY mem.last_at DESC NULLS LAST, c.number DESC",
+    "waiting": f"ORDER BY {needsyou.WAITING_SINCE} ASC NULLS LAST, c.number",
+}
 
 
 async def list_cases(
@@ -357,9 +379,21 @@ async def list_cases(
     limit: int,
     number: int | None = None,
     query: str | None = None,
+    taken_by: str | None = None,
+    kibana: str | None = None,
+    sort: str | None = None,
 ) -> m.CasePage:
     where = _VIEWS[view]
     params: dict[str, Any] = {"me": me_id, "off": offset, "lim": limit + 1}
+    if taken_by == "me":
+        where += " AND c.owner_user_id = :me"
+    elif taken_by == "nobody":
+        where += " AND c.owner_user_id IS NULL"
+    elif taken_by is not None:
+        where += " AND c.owner_user_id = (SELECT u.id FROM users u WHERE u.username = :taken)"
+        params["taken"] = taken_by
+    if kibana is not None:
+        where += f" AND {_KIBANA[kibana]}"
     if number is not None:
         where += " AND c.number = :number"
         params["number"] = number
@@ -368,12 +402,13 @@ async def list_cases(
         params["q"] = (
             "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         )
+    order = _ORDER if sort is None else _SORTS[sort]
     rows = (
-        await conn.execute(text(f"{_ROW} WHERE {where} {_ORDER} OFFSET :off LIMIT :lim"), params)
+        await conn.execute(text(f"{_ROW} WHERE {where} {order} OFFSET :off LIMIT :lim"), params)
     ).all()
     return m.CasePage(
-        items=[_row(r) for r in rows[:limit]], view=view, offset=offset, limit=limit,
-        has_more=len(rows) > limit, counts=await counts(conn, me_id),
+        items=await needsyou.decorate(conn, [_row(r) for r in rows[:limit]], me_id), view=view,
+        offset=offset, limit=limit, has_more=len(rows) > limit, counts=await counts(conn, me_id),
     )  # fmt: skip
 
 
@@ -396,6 +431,8 @@ _ONLY = {
     "recordblock": "a confirmed case that is not closed can have a block recorded",
     "request_closure": "an open, assigned or contained case can be closed",
     "merge": "a case that is not closed can be merged",
+    "confirm": "a possible incident (a suspected case) can be confirmed",
+    "dismiss": "a possible incident (a suspected case) can be dismissed",
 }
 
 
@@ -467,10 +504,27 @@ LABEL = {
     "reopen": "Reopen",
 }
 SUSPECTED_CLOSURE = (
-    "A suspected case is confirmed by a person's true-positive verdict on one of its"
-    " investigations, or merged into another case; it is not closed with an approval."
+    "A possible incident is confirmed or dismissed with the decision at the top of its page, or"
+    " merged into another case; it is not closed with an approval."
 )
 _NO_TARGET = uuid.UUID(int=1)  # a stand-in target: only the case's own side is asked here
+# The reasons the decision bar offers for "not an incident", in its order, each with its words.
+# ``duplicate`` names the other case and is a merge when it can be (the page sends the merge).
+DISMISS_CHOICES: tuple[tuple[m.DismissReason, str, str], ...] = (
+    ("benign_expected", "Expected activity",
+     "It happened and it is normal here (a scheduled vulnerability scan, a lab's nightly"
+     " backup)."),
+    ("attempt_no_impact", "Scan or attempt: no sign it worked",
+     "Someone probed or tried; nothing answered or changed."),
+    ("benign_policy", "Allowed by policy",
+     "Risky but allowed here (a sanctioned remote-access tool)."),
+    ("rule_false_positive", "Wrong rule", "The rule fired on something that was not an attack."),
+    ("duplicate", "Duplicate of…",
+     "Another incident covers it: name it, and this one is merged into it."),
+)  # fmt: skip
+AFTER_CONFIRM = (
+    "An owner, containment and closure become available once a person confirms it as an incident."
+)
 
 
 def closure_choices(
@@ -509,6 +563,44 @@ def closure_choices(
             )
         )  # fmt: skip
     return out
+
+
+def decision_bar(
+    case: Case, me: auth.Reviewer, others: int, now: datetime, posted: str | None = None
+) -> m.CaseDecisionOut | None:
+    """The decision on a possible incident (a suspected case): confirm it as an incident, say it
+    is not one (a reason), or merge it into another case; each with this person's answer from the
+    machine itself (the refusal the command would give). ``posted``: the IR number the case team
+    posted it to Kibana under (:meth:`CaseService.posted`), which a dismissal is refused for. None
+    for any other case."""
+    if case.state != "suspected":
+        return None
+    actor = actor_of(me)
+
+    def able(action: str, command: Any) -> m.DecisionActionOut:
+        if not me.can(Capability.MANAGE_CASES):  # one sentence for the whole bar
+            return m.DecisionActionOut(
+                enabled=False, why_not=needs(Capability.MANAGE_CASES, "decide possible incidents")
+            )
+        try:
+            decide(case, command, actor, now)
+        except CaseRefused as exc:
+            return m.DecisionActionOut(enabled=False, why_not=why_not(exc, action))
+        return m.DecisionActionOut(enabled=True, why_not=None)
+
+    merge = able("merge", MergeInto(_NO_TARGET, "suspected", None))
+    if merge.enabled and others == 0:
+        merge = m.DecisionActionOut(
+            enabled=False, why_not="There is no other case that is not closed to merge into."
+        )
+    return m.CaseDecisionOut(
+        confirm=able("confirm", Confirm()),
+        dismiss=able("dismiss", Dismiss("benign_expected", posted=posted)),
+        merge=merge,
+        reasons=[m.DismissChoiceOut(reason=reason, label=label, meaning=say(meaning))
+                 for reason, label, meaning in DISMISS_CHOICES],
+        after=AFTER_CONFIRM,
+    )  # fmt: skip
 
 
 def case_actions(
@@ -1000,7 +1092,7 @@ async def _mirror(conn: AsyncConnection, case_id: uuid.UUID, row: m.CaseRowOut) 
     elif row.kibana_wait:
         state, words = "waiting", row.kibana_wait
     elif row.state == "suspected":
-        state, words = "not_in_kibana", "Suspected cases stay in ARGUS; Kibana has nothing."
+        state, words = "not_in_kibana", "ARGUS does not mirror a possible incident to Kibana."
     else:
         state, words = "not_in_kibana", "This case is not in Kibana."
     return m.MirrorOut(
@@ -1865,6 +1957,24 @@ async def known_section(
     )  # fmt: skip
 
 
+async def incident_number(conn: AsyncConnection, case_id: uuid.UUID) -> str | None:
+    """The case's one IR number: the one its Kibana case was posted under, else its newest
+    report's; None before ARGUS wrote a report."""
+    posted = await conn.scalar(
+        text("SELECT incident_id FROM case_team_posts WHERE case_id = :c"), {"c": case_id}
+    )
+    if posted:
+        return str(posted)
+    found = await conn.scalar(
+        text(
+            "SELECT body #>> '{header,incident_id}' FROM incident_reports WHERE case_id = :c"
+            " ORDER BY version DESC LIMIT 1"
+        ),
+        {"c": case_id},
+    )
+    return None if found is None else str(found)
+
+
 async def detail(
     conn: AsyncConnection,
     service: CaseService,
@@ -1874,6 +1984,7 @@ async def detail(
     watch_context: Any | None = None,
     watch_mode: str | None = None,
     signins: Any | None = None,
+    team: Any | None = None,
 ) -> m.CaseDetail | None:
     """A case in the analyst's order: what it is, what is new, what happened, what it holds,
     what can be done, Kibana's side, the notes and the record of changes."""
@@ -1881,7 +1992,16 @@ async def detail(
     row = await row_of(conn, case_id)
     if case is None or row is None:
         return None
+    row = (await needsyou.decorate(conn, [row], me.user_id))[0]
     now = service.now
+    others = await others_open(conn, case_id)
+    bar = decision_bar(
+        case, me, others, now,
+        await service.posted(case_id) if case.state == "suspected" else None,
+    )  # fmt: skip
+    if bar is not None:  # the server's own sentences (UI v2 A6, A7)
+        bar.dismiss_effect = decisions.dismiss_effect()
+        bar.kibana_after_confirm = await decisions.kibana_after_confirm(conn, team, now)
     users = await case_user_names(conn, case_id)
     members, total = await _investigations(conn, case_id)
     can_manage = me.can(Capability.MANAGE_CASES)
@@ -1890,7 +2010,7 @@ async def detail(
     asked = can_manage and case.state in ACTIVE_STATES
     window = await service.quiet_windows(case) if asked else NO_QUIET_WINDOW
     choices = closure_choices(case, me, window, now)
-    actions = case_actions(case, me, window, choices, await others_open(conn, case_id), now)
+    actions = case_actions(case, me, window, choices, others, now)
     own = await approval_views(conn, "r.case_id = :c", {"c": case_id}, me, now,
                                limit=DETAIL_APPROVALS)  # fmt: skip
     children = (
@@ -1946,6 +2066,9 @@ async def detail(
                                context=watch_context, mode=watch_mode)
             if watched(case, now) else None
         ),
+        decision=bar, hold=row.hold,
+        undo_until=await decisions.undo_until(conn, case_id, me.user_id),
+        incident_id=await incident_number(conn, case_id),
         actions=actions, closure_choices=choices,
         assignees=await assignees(conn) if can_manage else [],
         approvals=own, approvals_total=approvals_total,

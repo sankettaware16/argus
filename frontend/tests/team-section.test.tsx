@@ -48,7 +48,7 @@ describe("the pure rules", () => {
 describe("the preview", () => {
   it("says that posting is off, why the case would qualify, and lists the steps in order by author", async () => {
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const decision = await s.findByTestId("team-decision");
     expect(decision.textContent).toContain("Posting is off: a dry run");
@@ -68,7 +68,7 @@ describe("the preview", () => {
   it("opens a step to its comment word for word and its exact request", async () => {
     const user = userEvent.setup();
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const evidence = (await s.findAllByTestId("team-step"))[2] as HTMLElement;
     await user.click(within(evidence).getByText(/comments \(evidence\)/));
@@ -86,7 +86,7 @@ describe("the preview", () => {
     const user = userEvent.setup();
     const hostile = '<img src=x onerror="document.title=1"> [x](javascript:alert(1)) <script>window.pwned=1</script> @everyone';
     serve(teamOut(CASE_ID, { steps: [step(1, "comment:evidence:1", "argus-evidence", "comment", "comments (evidence)", hostile)] }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     await user.click(await s.findByText(/comments \(evidence\)/));
     const text = s.getByTestId("team-text");
@@ -98,7 +98,7 @@ describe("the preview", () => {
 
   it("says that an account without log access sees the words hidden", async () => {
     serve(teamOut(CASE_ID, { logs_hidden: true, steps: STEPS.map((x) => ({ ...x, text: x.text === null ? null : "Hidden: needs log access in ELK.", request: null })) }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     expect(await s.findByText(/may not read the logs, so the words of each comment/)).toBeTruthy();
     expect(s.getAllByTestId("team-step")).toHaveLength(6);
@@ -108,7 +108,7 @@ describe("the preview", () => {
 
   it("lists what stops a post, as text", async () => {
     serve(teamOut(CASE_ID, { problems: ["no key is installed for argus-intel", "the guardian refuses comment:evidence:1: a raw '<' (HTML)"] }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const list = await s.findByTestId("team-problems");
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
@@ -117,7 +117,7 @@ describe("the preview", () => {
 
   it("says when there is nothing to write, and when there is no report yet", async () => {
     serve(noTeamOut(CASE_ID));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     expect((await s.findByTestId("team-nothing")).textContent).toContain("nothing to write to Kibana yet");
     expect(s.getByTestId("team-decision").textContent).toContain("ARGUS has not written this case's report yet");
@@ -132,7 +132,7 @@ describe("the preview", () => {
         steps: [],
       }),
     );
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const post = await s.findByTestId("team-post");
     expect(post.textContent).toContain("Held");
@@ -156,7 +156,7 @@ describe("the preview", () => {
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}/reports`, () => HttpResponse.json({ items: [REPORT], logs_hidden: false })),
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}`, () => HttpResponse.json(investigationDetail({}, { id: LEAD_ID }))),
     );
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     await user.click(await s.findByRole("button", { name: /try again|retry/i }));
     expect((await s.findByTestId("team-decision")).textContent).toContain("Posting is off");
@@ -176,7 +176,7 @@ describe("the approval of the first cases", () => {
         return HttpResponse.json({ approval_id: 5, plan_hash: PLAN_HASH, expires_at: "2026-10-30T17:30:00Z", words: "Approved. ARGUS writes this case to Kibana at its next posting run, inside the write window; the approval covers exactly the plan you read." });
       }),
     ]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const box = await s.findByTestId("team-approval");
     expect(box.textContent).toContain("The first cases need a person's approval");
@@ -196,7 +196,7 @@ describe("the approval of the first cases", () => {
   it("does not offer the approval to an account that may not give it, and says why", async () => {
     const user = userEvent.setup();
     serve(canary({ can_approve: false, approve_why_not: "your account may not approve (it needs the approve capability)" }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const button = await s.findByRole("button", { name: "Approve these steps" });
     expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -208,10 +208,11 @@ describe("the approval of the first cases", () => {
 
   it("sends a person who has not typed their password again to do so, and back to the case", async () => {
     serve(canary({ can_approve: false, approve_why_not: "confirm your password again first (a step-up within five minutes)", needs_step_up: true, step_up_url: `/stepup?next=/app/cases/${CASE_ID}` }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     const link = await s.findByRole("link", { name: "Confirm it is you" });
-    expect(link.getAttribute("href")).toBe(`/stepup?next=/app/cases/${CASE_ID}`);
+    // back to the page and tab the person is on, not the old case page
+    expect(link.getAttribute("href")).toBe(`/stepup?next=${encodeURIComponent(`/app/incidents/${CASE_ID}?tab=report`)}`);
     expect(s.getByRole("button", { name: "Approve these steps" }).getAttribute("aria-disabled")).toBe("true");
     expect(s.getAllByText(/confirm your password again first/).length).toBeGreaterThan(0);
   });
@@ -219,7 +220,7 @@ describe("the approval of the first cases", () => {
   it("keeps the dialog open and says so when the plan changed (409), sending nothing more", async () => {
     const user = userEvent.setup();
     serve(canary(), [http.post(`${URL_OF}/team/approve`, () => HttpResponse.json({ detail: "The plan changed while you read it. Read it again before you approve.", code: "conflict" }, { status: 409 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     await user.click(await s.findByRole("button", { name: "Approve these steps" }));
     const dialog = await screen.findByRole("alertdialog");
@@ -231,7 +232,7 @@ describe("the approval of the first cases", () => {
 
   it("asks for nothing when no approval is needed", async () => {
     serve(teamOut(CASE_ID, { post_enabled: true, decision: { action: "open", would: "none", why: "ready to open", route: "a person confirmed the report", dry_run: false, needs_approval: false } }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const s = await section();
     expect((await s.findByTestId("team-decision")).textContent).toContain("Ready to open the case");
     expect(s.queryByTestId("team-approval")).toBeNull();

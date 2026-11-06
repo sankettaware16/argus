@@ -11,68 +11,8 @@ mockApi();
 const HOSTILE = '<img src=x onerror="window.__pwned=1"> ‮';
 const get = (path: string, body: JsonBodyType) => http.get(`${BASE}/api/v1${path}`, () => HttpResponse.json(body));
 
-describe("By rule", () => {
-  const rule = (n: number, more: Record<string, string | number | null> = {}) => ({
-    rule_id: `rule-${n}`, rule_name: `Rule ${n}`, investigations: 3, open: 2, alerts: 10, last_event_at: "2026-10-09T06:30:00Z",
-    type: "query", revision: 1, interval: "5m", max_signals: 100, execution_status: null, truncated: 0, ...more,
-  });
-
-  it("lists each rule with its counts, the runs at the limit and a link to its unreviewed investigations", async () => {
-    server.use(get("/rules", [rule(1), rule(2, { truncated: 4, max_signals: 100, rule_name: null, type: null, interval: null })]));
-    renderApp("/rules");
-    const table = await screen.findByRole("table", { name: "Rules" });
-    const rows = within(table).getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
-    expect(rows).toEqual([
-      ["Rule 1", "2", "3", "10", "9 Oct 2026, 12:00 PM IST", "0", "query, every 5m"],
-      ["rule-2", "2", "3", "10", "9 Oct 2026, 12:00 PM IST", "4", "unknown"],
-    ]);
-    expect(within(table).getByRole("link", { name: "Rule 1" }).getAttribute("href")).toBe("/app/inbox?view=open&rule=rule-1");
-    expect(within(table).getByTitle(/maximum of 100 alerts/).textContent).toBe("4");
-    expect(screen.getByText(/Whether a rule is still running needs Kibana/)).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("By rule");
-    await waitFor(() => expect(document.title).toBe("By rule · ARGUS"));
-  });
-
-  it("says when there is nothing and when it cannot be read", async () => {
-    server.use(get("/rules", []));
-    const first = renderApp("/rules");
-    expect(await screen.findByText("No investigations yet.")).toBeTruthy();
-    first.unmount();
-    server.use(http.get(`${BASE}/api/v1/rules`, () => HttpResponse.text("down", { status: 503 })));
-    renderApp("/rules");
-    expect(await screen.findByText(/The rules could not be shown\./)).toBeTruthy();
-  });
-
-  it("shows a hostile rule name as text", async () => {
-    server.use(get("/rules", [rule(1, { rule_name: HOSTILE })]));
-    const { container } = renderApp("/rules");
-    await screen.findByRole("table", { name: "Rules" });
-    expect(container.querySelector("img")).toBeNull();
-  });
-});
-
-describe("By host or IP", () => {
-  it("lists each entity with its kind and a common mark, linking to the Inbox filtered to it", async () => {
-    server.use(get("/entities", [
-      { kind: "ip", value: "10.0.0.1", investigations: 7, supernode: false },
-      { kind: "domain", value: "proxy.example", investigations: 900, supernode: true },
-    ]));
-    renderApp("/hosts");
-    const table = await screen.findByRole("table", { name: "Hosts and addresses" });
-    const rows = within(table).getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent?.replace(/\s+/g, " ").trim()));
-    expect(rows).toEqual([["10.0.0.1 IP address", "7"], ["proxy.example Domain common", "900"]]);
-    expect(within(table).getByRole("link", { name: "10.0.0.1" }).getAttribute("href")).toBe("/app/inbox?view=all&kind=ip&value=10.0.0.1");
-    expect(screen.getByText(/more than 200 investigations/)).toBeTruthy();
-  });
-
-  it("does not make a link of a kind it does not know", async () => {
-    server.use(get("/entities", [{ kind: "mac", value: "aa:bb", investigations: 1, supernode: false }]));
-    renderApp("/hosts");
-    await screen.findByText("aa:bb");
-    expect(screen.queryByRole("link", { name: "aa:bb" })).toBeNull();
-  });
-});
-
+// By rule and By host or IP are retired (docs/p4f-ui-spec.md §4.3: /rules and /hosts open the
+// advanced search); Search and the entity pages answer the same questions.
 describe("Patterns", () => {
   const GROUP = {
     rule_id: "rule-1", rule_name: "Rule 1", steps: ["answered", "deferred", "manual"], listed: true, alerts: 5,
@@ -90,7 +30,7 @@ describe("Patterns", () => {
     expect(card.textContent).toContain("Rule 1: 3 investigations, 5 alerts");
     for (const word of ["Answered", "Not checked yet", "For you", "Threat-list hit"]) expect(within(card).getByText(word)).toBeTruthy();
     expect(card.textContent).toContain("In common: source.ip 10.0.0.1, 10.0.0.2");
-    expect(within(card).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([`/app/investigations/${ID}`, `/app/investigations/${ID2}`, "/app/investigations/99999999-aaaa-4bbb-8ccc-dddddddddddd"]);
+    expect(within(card).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([`/app/alert-groups/${ID}`, `/app/alert-groups/${ID2}`, "/app/alert-groups/99999999-aaaa-4bbb-8ccc-dddddddddddd"]);
   });
 
   it("says it is a sample when the groups were made from the newest only, and not otherwise", async () => {
@@ -218,9 +158,8 @@ describe("Health", () => {
     expect(container.textContent).toContain("partly read, last cycle");
     expect(container.textContent).toContain("(partial: budget)");
     expect(container.textContent).toContain("last complete");
-    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
-    expect(bar.textContent).toContain("partly read");
-    expect(bar.getAttribute("title")).toContain("last complete");
+    await userEvent.setup().click(within(screen.getByTestId("system-dot")).getByRole("button"));
+    expect((await screen.findByTestId("system-parts")).textContent).toContain("Kibana read-back: partly read");
   });
 
   it("says the read-back has not run yet, never that it works", async () => {
@@ -228,16 +167,17 @@ describe("Health", () => {
     const { container } = renderApp("/health");
     await screen.findByText(/12,000 alerts/);
     expect(container.textContent).toContain("not running yet no cycle recorded");
-    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
-    expect(bar.textContent).toContain("not running yet");
-    expect(bar.textContent).not.toContain("in sync");
+    await userEvent.setup().click(within(screen.getByTestId("system-dot")).getByRole("button"));
+    const parts = await screen.findByTestId("system-parts");
+    expect(parts.textContent).toContain("Kibana read-back: not running yet");
+    expect(parts.textContent).not.toContain("in sync");
   });
 
   it("calls a read-back in sync only when its newest cycle says so", async () => {
     server.use(get("/health", { ...HEALTH, kibana_sync: { state: "ok", last_cycle_at: "2026-10-25T23:40:00Z", last_outcome: "complete", last_reason: null, last_complete_at: "2026-10-25T23:40:00Z" } }));
     renderApp("/health");
-    const bar = await screen.findByRole("link", { name: /Kibana sync/ });
-    await waitFor(() => expect(bar.textContent).toContain("in sync"));
+    await userEvent.setup().click(within(await screen.findByTestId("system-dot")).getByRole("button"));
+    await waitFor(() => expect(screen.getByTestId("system-parts").textContent).toContain("Kibana read-back: in sync"));
   });
 
   it("says none are open and that nothing was collected yet", async () => {
@@ -275,7 +215,7 @@ describe("Metrics", () => {
     server.use(get("/metrics", METRICS));
     const { container } = renderApp("/metrics");
     await screen.findByRole("table", { name: "Assessments by assessor" });
-    expect(container.textContent).toContain("Benign: expected activity 7, no decision 2");
+    expect(container.textContent).toContain("Real but harmless 7, no decision 2");
     expect(container.textContent).toContain("Benign answers stopped by the safety floor: 3.");
     expect(container.textContent).toContain("agent@1: 4, the oldest for 10 minutes");
     expect(container.textContent).toContain("Calls allowed. This month: $1.2346.");
@@ -303,7 +243,7 @@ describe("Rule tuning", () => {
     server.use(get("/tuning", [REPORT, { ...REPORT, rule: "Quiet rule", suggestions: [], dropped: [] }]));
     const { container } = renderApp("/tuning");
     const card = (await screen.findAllByRole("region", { name: /Tuning:/ }))[0] as HTMLElement;
-    expect(card.textContent).toContain("120 alerts, 40 investigations; 6 of 50 runs hit the alert limit (100). Verdicts: Benign: expected activity 3, True positive 1.");
+    expect(card.textContent).toContain("120 alerts, 40 investigations; 6 of 50 runs hit the alert limit (100). Verdicts: Real but harmless 3, Real: act on it 1.");
     expect(card.textContent).toContain("Exception: source.ip = 10.0.0.9 — Add an exception for 10.0.0.9");
     expect(card.textContent).toContain("Why: Three benign verdicts Risk: Hides a real hit");
     expect(within(card).getByText("Evidence")).toBeTruthy();
@@ -332,8 +272,8 @@ describe("Gold set", () => {
     const table = await screen.findByRole("table", { name: "Gold set" });
     expect(container.textContent).toContain("1 of 3 answered · tuning part 1 · test part 0");
     const rows = within(table).getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
-    expect(rows).toEqual([["Rule 1", "not yet", "—", "tuning"], ["Rule 2", "Benign: allowed by policy", "25 Oct 2026, 3:30 PM IST", "test"]]);
-    expect(within(table).getByRole("link", { name: "Rule 1" }).getAttribute("href")).toBe(`/app/investigations/${ID}`);
+    expect(rows).toEqual([["Rule 1", "not yet", "—", "tuning"], ["Rule 2", "Allowed by policy", "25 Oct 2026, 3:30 PM IST", "test"]]);
+    expect(within(table).getByRole("link", { name: "Rule 1" }).getAttribute("href")).toBe(`/app/alert-groups/${ID}`);
   });
 
   it("says when no gold set is stored", async () => {
@@ -344,32 +284,46 @@ describe("Gold set", () => {
 });
 
 describe("the menu", () => {
-  it("opens each of these pages inside the app, and the two server pages as such", async () => {
-    server.use(get("/rules", []));
-    renderApp("/rules");
+  it("S-1: has four pages, the rest under More and the person's entries under their name", async () => {
+    const user = userEvent.setup();
+    server.use(get("/tuning", { items: [] }));
+    renderApp("/tuning");
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    const hrefs = Object.fromEntries(within(nav).getAllByRole("link").map((a) => [a.textContent?.replace(/\s+/g, " ").trim(), a.getAttribute("href")]));
-    expect(hrefs["By rule"]).toBe("/app/rules");
-    expect(hrefs["By host or IP"]).toBe("/app/hosts");
-    expect(hrefs["Patterns"]).toBe("/app/patterns");
-    expect(hrefs["Tuning"]).toBe("/app/tuning");
-    expect(hrefs["Metrics"]).toBe("/app/metrics");
-    expect(hrefs["Gold set"]).toBe("/app/gold");
-    expect(hrefs["Health"]).toBe("/app/health");
-    expect(hrefs["Glossary"]).toBe("/app/glossary");
-    expect(within(nav).getByRole("link", { name: /^Your access/ }).getAttribute("href")).toBe("/access");
-    expect(hrefs["Classic pages (read-only)"]).toBe("/classic");
-    expect(within(nav).queryByText("Classic Inbox")).toBeNull();
+    const top = within(nav).getAllByRole("link").map((a) => [a.textContent?.replace(/\s+/g, " ").trim(), a.getAttribute("href")]);
+    expect(top).toEqual([
+      ["Today", "/app/"],
+      ["Incidents", "/app/incidents?view=needs-you"],
+      ["Search", "/app/search"],
+      ["Reports", "/app/reports"],
+    ]);
+    await user.click(within(nav).getByRole("button", { name: /More/ }));
+    const more = Object.fromEntries(within(screen.getByTestId("more-list")).getAllByRole("link").map((a) => [a.textContent?.trim(), a.getAttribute("href")]));
+    expect(more).toMatchObject({ Overview: "/app/overview", Approvals: "/app/approvals", "Rule tuning": "/app/tuning", "ARGUS quality": "/app/quality?tab=metrics", "System health": "/app/health", "Help & glossary": "/app/glossary", Patterns: "/app/patterns", Proposals: "/app/proposals" });
+    expect(within(screen.getByTestId("more-list")).getByText("Classic queues")).toBeTruthy();
+    await user.click(screen.getByTestId("account-menu"));
+    const account = within(screen.getByTestId("account-items"));
+    expect(account.getByRole("link", { name: "Your access" }).getAttribute("href")).toBe("/access");
+    expect(account.getByRole("link", { name: "Classic pages" }).getAttribute("href")).toBe("/classic");
+    expect(account.getByRole("button", { name: "Sign out" })).toBeTruthy();
   });
 
-  it("makes the status bar's links links inside the app", async () => {
-    server.use(get("/rules", []));
-    renderApp("/rules");
-    const bar = await screen.findByRole("link", { name: /AI cost/ });
-    expect(bar.getAttribute("href")).toBe("/app/metrics");
-    // the classic cost bar's words: the month against the cap, then today against the daily cap
+  it("S-4: the header has the system dot as a word, and the AI cost only inside it, for an admin", async () => {
+    const user = userEvent.setup();
+    server.use(get("/tuning", { items: [] }));
+    const view = renderApp("/tuning");
+    const dot = await screen.findByTestId("system-dot");
+    expect(within(dot).getByRole("button").textContent).toMatch(/OK|Caution|Problem/);
+    expect(screen.getByTestId("app-header").textContent).not.toMatch(/AI cost/);
+    await user.click(within(dot).getByRole("button"));
+    expect(within(dot).queryByRole("link", { name: /AI cost/ })).toBeNull();
+    expect(within(dot).getByRole("link", { name: "System health" }).getAttribute("href")).toBe("/app/health");
+    view.unmount();
+    server.use(...shellHandlers(sessionWith(["view", "admin"])), get("/tuning", { items: [] }));
+    renderApp("/tuning");
+    const admin = await screen.findByTestId("system-dot");
+    await user.click(within(admin).getByRole("button"));
+    const bar = await within(admin).findByRole("link", { name: /AI cost/ });
     expect(bar.textContent).toContain("$0.00 of $10.00 this month · today $0.00 of $0.30 (0 calls)");
-    expect((await screen.findByRole("link", { name: /SIEM/ })).getAttribute("href")).toBe("/app/health");
   });
 });
 

@@ -79,6 +79,14 @@ The screenshots show a demo installation on made-up data. More in the
 - **Owns every alert** — takes in every Security alert of a Kibana space every minute, backfills
   a configurable history (`history.window`, 5 days by default), reconciles hourly so nothing is
   lost between reviews, and quarantines (never drops) an alert it cannot read.
+- **Incidents, not alerts** — an incident engine scores every alert group and evidence fact on the
+  campus side (device, account, site), links them across rules, days and log families by shared
+  hosts, accounts, flagged or rare indicators and campaigns (never through hubs such as NAT,
+  proxies or resolvers), and puts in front of a person only what crosses a lane (decisive, burst,
+  slow, campaign, exposure). Each incident carries a priority (P1–P4), a certainty word, a "why"
+  line whose points add up, what was checked, and the benign explanations it ruled out; plain
+  internet scanning goes to a "handled by ARGUS" digest. A campus site that really served a file
+  is verified by a capped checking lane before anyone reads "served".
 - **Groups before people look** — one investigation per rule, actor and day; alike investigations
   form patterns a reviewer decides at once. Thousands of alerts become hundreds of decisions.
 - **Deterministic evidence** — bounded, read-only questions to your proxy, web, DNS and sign-in
@@ -91,6 +99,11 @@ The screenshots show a demo installation on made-up data. More in the
   reads a **pseudonymised** dossier, may run a fixed list of read-only checks, and answers with a
   verdict, hypotheses and cited facts; code checks every citation. One run per **pattern**, not
   per alert.
+- **An analyst's queue modelled on the big SOC tools** — four pages (Today · Incidents · Search ·
+  Reports): incident cards and a queue with a preview pane, a sticky decision bar (confirm, not an
+  incident with a reason, merge, "I'm checking"), entity pages for devices, accounts, sites and
+  outside addresses, keyboard shortcuts, light and dark, phone layouts. Titles say what happened,
+  to what, how sure ARGUS is and what came of it; a checker refuses any claim without a fact.
 - **Cases and incident reports** — suggested cases (campaigns, a host flagged by several rules,
   actors on the same rare targets), a case lifecycle with two-person closures, known infections
   that stop re-raising what an owner was already told, and an incident report as a page, a PDF
@@ -102,9 +115,9 @@ The screenshots show a demo installation on made-up data. More in the
 - **Protects the SIEM** — every request goes through the Elastic Gateway: a budget in server time
   (60 minutes a day by default; one site measures 6–9), health states that slow ARGUS down and
   then stop it, quiet hours, an overload breaker, kill switches and a ledger of every request.
-- **Cost-first AI** — no keys means $0; free tiers (Groq, OpenRouter, Google Gemini) first; a paid
-  fallback (OpenAI) only when no free provider can answer, within a daily and a monthly cap.
-  Measured: about **$0.60 a day**.
+- **Cost-first AI** — no keys means $0; free tiers (Groq, OpenRouter, Google Gemini) first; paid
+  fallbacks (OpenAI, then Anthropic) only when no free provider can answer, within daily and
+  monthly caps overall and per provider. Measured: about **$0.60 to $1.20 a day**.
 - **Operable** — one command installs it (`argus init`, interactive or scripted), `argus doctor`
   checks every part with the fix for each problem, verified backups with a weekly restore drill,
   a retention purge, systemd units rendered for your machine.
@@ -171,7 +184,7 @@ The whole path from a fresh machine, with every value and the file it lands in:
 
 ```bash
 install -m 600 /dev/null ~/llm-keys.env          # then paste NAME=value lines into it:
-# GROQ_API_KEY=...  OPENROUTER_API_KEY=...  GEMINI_API_KEY=...  OPENAI_API_KEY=...
+# GROQ_API_KEY=...  OPENROUTER_API_KEY=...  GEMINI_API_KEY=...  OPENAI_API_KEY=...  ANTHROPIC_API_KEY=...
 uv run argus assets import asset_map.yaml        # your networks: needed before any key
 uv run argus init                                # step 7: give ~/llm-keys.env
 uv run argus llm probe && uv run argus llm ping
@@ -244,7 +257,7 @@ of the $1.50 daily cap. Why it stays cheap:
 - **One model run per pattern, not per alert.**
 - **Free providers first**: 62 % of all calls cost nothing.
 - **Small models by default**, medium only for items with a danger sign.
-- **Hard caps**: $1.50 a day and $40 a month by default, shared out by priority, reserved before
+- **Hard caps**: $1.50 a day and $40 a month by default (and optionally per provider), shared out by priority, reserved before
   each call.
 - **No keys, no calls: $0.** ARGUS still investigates every alert.
 
@@ -258,6 +271,7 @@ Prices, the budget's rules and how to choose your caps: [docs/costs.md](docs/cos
 | 2 | [OpenRouter](https://openrouter.ai/settings/keys) | free models (`:free`) | `OPENROUTER_API_KEY` | any call, when its free models answer |
 | 3 | [Google Gemini](https://aistudio.google.com/apikey) | free tier | `GEMINI_API_KEY` | any call (`gemini-3.5-flash-lite`) |
 | 4 | [OpenAI](https://platform.openai.com/api-keys) | **paid**, prepaid credit | `OPENAI_API_KEY` | only when no free provider can answer, within the caps (`gpt-5.4-nano`, `gpt-5.4-mini`) |
+| 5 | [Anthropic](https://console.anthropic.com/settings/keys) | **paid**, prepaid credit | `ANTHROPIC_API_KEY` | after OpenAI, within its own caps (`claude-haiku-5-5`, `claude-sonnet-5-5`; spoken through its own Messages API) |
 | – | your own OpenAI-compatible server | your hardware | `LOCAL_LLM_API_KEY` | optional; shipped disabled |
 
 The keys live in one `NAME=value` file (mode 600) outside the checkout, which `argus init` records

@@ -20,10 +20,10 @@ from fastapi.responses import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from argus.incident import files, gather, store
+from argus.incident import files, gather, glance, store
 from argus.incident import review as incident_review
 from argus.incident.view import hide_logs
-from argus.web import auth
+from argus.web import auth, lookups
 from argus.web.capabilities import Capability
 from argus.web.deps import Conn, Refusal, Surface, need
 from argus.web.reviews import OUTCOME_LABELS
@@ -59,7 +59,7 @@ def refusal(exc: incident_review.ReportRefused) -> Refusal:
     return Refusal(status, code, exc.message, Surface.V1)
 
 
-def _decision(d: store.Decision) -> m.ReportDecisionOut:
+def _decision(d: store.Decision, held_from: int | None = None) -> m.ReportDecisionOut:
     return m.ReportDecisionOut(
         id=d.id,
         decision=d.decision,  # type: ignore[arg-type]
@@ -68,10 +68,30 @@ def _decision(d: store.Decision) -> m.ReportDecisionOut:
         by=d.by_name or "someone",
         decided_at=d.decided_at,
         labelled=len(d.review_ids),
+        held_from=held_from,
     )
 
 
-def _files(
+def _items(items: Any) -> list[m.GlanceItemOut]:
+    return [m.GlanceItemOut(label=i.label, value=i.value, note=i.note) for i in items]
+
+
+def glance_out(g: glance.Glance) -> m.GlanceOut:
+    """The Visualiser's glance as the API serves it."""
+    return m.GlanceOut(
+        alerts=g.alerts, actors=g.actors, actors_more=g.actors_more,
+        actors_title=g.shape.actors_title, targets=g.targets, targets_more=g.targets_more,
+        targets_title=g.shape.targets_title, targets_word=g.targets_word, listed=g.listed,
+        first=g.first, last=g.last, rules=g.rules, rules_more=g.rules_more, bucket=g.bucket,
+        days=list(g.days),
+        layers=[m.GlanceLayerOut(name=layer.name, values=list(layer.values)) for layer in g.layers],
+        top_actors=_items(g.top_actors), top_targets=_items(g.top_targets),
+        rule_rows=_items(g.rule_rows), severity=g.severity, call=g.call, activity=g.activity,
+        dwell=g.dwell,
+    )  # fmt: skip
+
+
+def report_files(
     case_id: uuid.UUID, can_logs: bool, with_accounts: bool = False
 ) -> list[m.ReportFileOut]:
     base = f"/api/v1/cases/{case_id}/report/files"
@@ -152,6 +172,8 @@ async def report_out(
     confirm, reject = _actions(
         case.state, chosen, newest.version if newest is not None else None, me
     )
+    holding = None if chosen is None else await store.holding(conn, chosen)
+    shown = None if chosen is None else (chosen.report if can_logs else hide_logs(chosen.report))
     return m.CaseReportOut(
         case_id=case_id,
         case_number=int(case.number),
@@ -162,10 +184,8 @@ async def report_out(
         case_version=None if chosen is None else chosen.case_version,
         prose_by=None if chosen is None else chosen.prose_by,
         stale=stale,
-        report=None
-        if chosen is None
-        else (chosen.report if can_logs else hide_logs(chosen.report)),
-        decision=None if chosen is None or chosen.decision is None else _decision(chosen.decision),
+        report=shown,
+        decision=None if holding is None else _decision(holding.decision, holding.held_from),
         versions=[
             m.ReportVersionOut(
                 version=v.version,
@@ -176,11 +196,15 @@ async def report_out(
             )
             for v in listed
         ],
-        files=_files(case_id, can_logs, chosen is not None and files.has_accounts(chosen.report)),
+        files=report_files(
+            case_id, can_logs, chosen is not None and files.has_accounts(chosen.report)
+        ),
         logs_hidden=not can_logs,
         confirm=confirm,
         reject=reject,
         note=note,
+        glance=None if shown is None else glance_out(glance.glance_of(shown)),
+        sent=(await lookups.sent_of(conn, [case_id])).get(case_id),
     )
 
 

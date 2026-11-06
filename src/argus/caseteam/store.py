@@ -18,8 +18,17 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from argus.caseteam.model import DONE_STATES, OPEN_STATES, PERSON_EDIT, Author, Plan, Step
-from argus.caseteam.plan import Posted, PostedComment
+from argus.caseteam import visual
+from argus.caseteam.model import (
+    DONE_STATES,
+    OPEN_STATES,
+    PERSON_EDIT,
+    Author,
+    Plan,
+    Step,
+    left_by_person,
+)
+from argus.caseteam.plan import Posted, PostedComment, PostedGlance
 
 LOOKUP_AFTER = (
     timedelta(minutes=2),
@@ -400,15 +409,25 @@ async def posted_state(conn: AsyncConnection, case_id: uuid.UUID) -> Posted | No
     gone: set[str] = set()
     verdict: tuple[str | None, float | None] | None = None
     title: str | None = None
+    title_at: datetime | None = None
     description: str | None = None
     comments: dict[str, PostedComment] = {}
+    glance: PostedGlance | None = None
     for r in rows:
         if r.kind in ("comment", "edit_comment"):
             units.setdefault(r.part, set()).update(r.units)
+        if r.part == visual.PART and r.kind in ("comment", "edit_comment"):  # the newest wins
+            glance = PostedGlance(
+                r.units[0] if r.units else "",
+                visual.Seen.load(r.payload.get("seen")),
+                visual.Seen.load(r.payload.get("since")),
+            )
         if r.kind == "open":
             title, description = str(r.payload.get("title")), r.text_body
+            title_at = r.sent_at or r.verified_at
         elif r.kind == "retitle":
             title = str(r.payload.get("title"))
+            title_at = r.sent_at or r.verified_at
         elif r.kind == "redescribe":
             description = r.text_body
         elif r.kind == "comment":
@@ -438,6 +457,13 @@ async def posted_state(conn: AsyncConnection, case_id: uuid.UUID) -> Posted | No
         and (r.state_reason or "").endswith(PERSON_EDIT)
         for r in every
     )
+    left = frozenset(
+        str(r.payload.get("of"))
+        for r in every
+        if r.kind == "edit_comment" and r.state == "skipped" and left_by_person(r.state_reason)
+    )
+    # every attach's, sent or skipped (an attach to a case that is not open is skipped whole)
+    left_out = frozenset(a for r in every if r.kind == "attach" for a in left_out_of(r))
     version = max((r.report_version for r in rows), default=post.last_version or 1)
     gen = await latest_gen(conn, case_id)
     return Posted(
@@ -451,8 +477,12 @@ async def posted_state(conn: AsyncConnection, case_id: uuid.UUID) -> Posted | No
         frozenset(gone),
         title,
         by_person,
+        title_at,
         description,
         comments,
+        glance,
+        left,
+        left_out - attached,
     )
 
 

@@ -16,7 +16,7 @@ from argus.incident.build import Context
 
 D0 = datetime(2026, 10, 23, 4, 30, tzinfo=UTC)  # 10:00 AM IST
 AS_AT = D0 + timedelta(days=6, hours=3)
-HOST = "10.198.36.230"
+HOST = "10.201.7.11"
 SERVERS = ("77.221.155.150", "77.221.155.151", "77.221.155.152", "77.221.155.153")
 BEACON = "regular traffic, like a beacon"
 OUTSIDE = "flagged by outside threat intel"

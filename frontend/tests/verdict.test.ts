@@ -3,30 +3,33 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { KnownRefOut, Report, StanceOut } from "../src/client/types.gen";
-import { factLink, keyFacts, knownSentence, KEYED_OUTCOMES, MAX_FACTS, needsReview, patternSize, stanceHeadline, stanceSource, surePart } from "../src/lib/verdict";
+import { factLink, keyFacts, knownSentence, KEYED_OUTCOMES, MAX_FACTS, needsReview, patternSize, stanceHeadline, stanceSource, stanceWhy, surePart } from "../src/lib/verdict";
 import { NO_STANCE, REPORT, stanceOf } from "./helpers";
 
 const stance = (more: Partial<StanceOut>): StanceOut => stanceOf(more);
 
 describe("the headline", () => {
   it("says what ARGUS recommends, with its confidence", () => {
-    expect(stanceHeadline(stance({ kind: "recommends", outcome: "true_positive", confidence: 0.8 }))).toBe("ARGUS recommends: True positive (80%)");
-    expect(stanceHeadline(stance({ kind: "recommends", outcome: "benign_policy", confidence: null }))).toBe("ARGUS recommends: Benign: allowed by policy");
-    expect(stanceHeadline(stance({ kind: "recommends", outcome: "benign_expected", confidence: 0.755 }))).toBe("ARGUS recommends: Benign: expected activity (76%)");
+    expect(stanceHeadline(stance({ kind: "recommends", outcome: "true_positive", confidence: 0.8 }))).toBe("ARGUS's call: Real: act on it (80%)");
+    expect(stanceHeadline(stance({ kind: "recommends", outcome: "benign_policy", confidence: null }))).toBe("ARGUS's call: Allowed by policy");
+    expect(stanceHeadline(stance({ kind: "recommends", outcome: "benign_expected", confidence: 0.755 }))).toBe("ARGUS's call: Real but harmless (76%)");
   });
 
-  it("says a reading is not proposed, and why", () => {
+  it("says a reading is not proposed; why is the Details' (the machine's own reason)", () => {
     const s = stance({ kind: "reading", outcome: "true_positive", confidence: 0.7, why: "it quoted something that is not in the evidence" });
-    expect(stanceHeadline(s)).toBe("ARGUS's reading: True positive (70%), not proposed because it quoted something that is not in the evidence");
-    expect(stanceHeadline(stance({ kind: "reading", outcome: "inconclusive", confidence: null, why: null }))).toBe("ARGUS's reading: Inconclusive, not proposed");
+    expect(stanceHeadline(s)).toBe("ARGUS leans to: Real: act on it (70%), but did not propose it");
+    expect(stanceWhy(s)).toBe("Not proposed because it quoted something that is not in the evidence.");
+    const bare = stance({ kind: "reading", outcome: "inconclusive", confidence: null, why: null });
+    expect(stanceHeadline(bare)).toBe("ARGUS leans to: Can't tell yet, but did not propose it");
+    expect(stanceWhy(bare)).toBeNull();
   });
 
   it("says when ARGUS has nothing", () => {
-    expect(stanceHeadline(NO_STANCE)).toBe("ARGUS has no reading of this yet");
+    expect(stanceHeadline(NO_STANCE)).toBe("ARGUS has made no call on this yet");
   });
 
   it("never shows an outcome it does not know as raw text", () => {
-    expect(stanceHeadline(stance({ kind: "recommends", outcome: "<script>" as StanceOut["outcome"], confidence: 0.5 }))).toBe("ARGUS recommends: An outcome this page does not know (50%)");
+    expect(stanceHeadline(stance({ kind: "recommends", outcome: "<script>" as StanceOut["outcome"], confidence: 0.5 }))).toBe("ARGUS's call: An outcome this page does not know (50%)");
   });
 
   it("rounds a confidence to a whole percent, and shows none when there is none", () => {
@@ -46,18 +49,18 @@ describe("the headline", () => {
 
 describe("where it comes from", () => {
   it("names the source and says a proposal is not a decision and a reading is not a proposal", () => {
-    expect(stanceSource(stance({ kind: "recommends", source: "the AI investigator" }))).toBe("From the AI investigator. A proposal, not a decision.");
-    expect(stanceSource(stance({ kind: "reading", source: "the AI investigator" }))).toBe("From the AI investigator. A reading is not a proposal: nothing is closed from it.");
-    expect(stanceSource(stance({ kind: "recommends", source: "the AI investigator", from_investigation_id: "x" }))).toMatch(/^The AI investigator read another investigation of the same pattern/);
+    expect(stanceSource(stance({ kind: "recommends", source: "the AI investigator" }))).toBe("From the AI investigator. A proposal, not a decision: yours is below.");
+    expect(stanceSource(stance({ kind: "reading", source: "the AI investigator" }))).toBe("From the AI investigator. Nothing is closed from it.");
+    expect(stanceSource(stance({ kind: "recommends", source: "the AI investigator", from_investigation_id: "x" }))).toMatch(/^The AI investigator read another alert group of the same pattern/);
     expect(stanceSource(NO_STANCE)).toBeNull();
   });
 });
 
 describe("the pattern's size", () => {
   it("says how many investigations and alerts the run stands for", () => {
-    expect(patternSize(stance({ pattern_investigations: 14, pattern_alerts: 230 }))).toBe("This pattern: 14 investigations, 230 alerts");
-    expect(patternSize(stance({ pattern_investigations: 2, pattern_alerts: 1 }))).toBe("This pattern: 2 investigations, 1 alert");
-    expect(patternSize(stance({ pattern_investigations: 1, pattern_alerts: 4 }))).toBe("This pattern: only this investigation so far");
+    expect(patternSize(stance({ pattern_investigations: 14, pattern_alerts: 230 }))).toBe("The same call covers 14 alike alert groups, 230 alerts");
+    expect(patternSize(stance({ pattern_investigations: 2, pattern_alerts: 1 }))).toBe("The same call covers 2 alike alert groups, 1 alert");
+    expect(patternSize(stance({ pattern_investigations: 1, pattern_alerts: 4 }))).toBeNull(); // this one alone: nothing to say
     expect(patternSize(NO_STANCE)).toBeNull();
   });
 });
@@ -108,7 +111,7 @@ describe("known and changed since the notice", () => {
 
 describe("the keys of the outcomes", () => {
   it("are the five outcomes in the order the pages list them", () => {
-    expect(KEYED_OUTCOMES).toEqual(["benign_expected", "benign_policy", "rule_false_positive", "true_positive", "inconclusive"]);
+    expect(KEYED_OUTCOMES).toEqual(["true_positive", "benign_expected", "benign_policy", "rule_false_positive", "inconclusive"]);
   });
 
   it("offer a review only for what is not reviewed", () => {

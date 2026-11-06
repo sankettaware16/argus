@@ -164,8 +164,7 @@ def user_add(
     capability: Annotated[
         list[str] | None,
         typer.Option(
-            "--capability",
-            "-c",
+            "--capability",  # no short flag: -c is --config everywhere
             help="what it may do (repeat it); without it: view,"
             " see_logs, review and answer_gold, as every account had before",
         ),

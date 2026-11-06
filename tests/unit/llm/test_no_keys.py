@@ -40,9 +40,44 @@ def test_the_overlay_sets_the_keys_file(tmp_path: Path) -> None:
     assert load_config(_config(tmp_path, {"keys_file": "/x/k.env"})).keys_file == Path("/x/k.env")
 
 
-def test_the_overlay_may_set_nothing_else(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="may set keys_file only"):
-        load_config(_config(tmp_path, {"monthly_cap_usd": 1000}))
+def test_the_overlay_sets_the_budget_and_nothing_else(tmp_path: Path) -> None:
+    config = load_config(_config(tmp_path, {"monthly_cap_usd": 80, "daily_cap_usd": 2.6}))
+    assert (config.monthly_cap_usd, config.daily_cap_usd) == (80, 2.6)
+    with pytest.raises(ValueError, match="may set daily_cap_usd, keys_file, monthly_cap_usd,"
+                                         " provider_caps only"):  # fmt: skip
+        load_config(_config(tmp_path, {"margin": 1.0}))
+
+
+def _priced(tmp_path: Path, caps: object) -> Path:
+    priced = {**CONFIG, "monthly_cap_usd": 80, "daily_cap_usd": 2.6, "providers": [
+        {**CONFIG["providers"][0], "models": {"small": {"name": "m", "input_per_m": 1.0}}},
+        CONFIG["providers"][1]]}  # fmt: skip
+    path = tmp_path / "llm.yaml"
+    path.write_text(yaml.safe_dump(priced))
+    (tmp_path / "llm.local.yaml").write_text(yaml.safe_dump({"provider_caps": caps}))
+    return path
+
+
+def test_the_overlay_sets_a_providers_own_caps(tmp_path: Path) -> None:
+    config = load_config(_priced(tmp_path, {"a": {"monthly_cap_usd": 40, "daily_cap_usd": 1.3}}))
+    a, b = config.providers
+    assert (a.monthly_cap_usd, a.daily_cap_usd) == (40, 1.3)
+    assert (b.monthly_cap_usd, b.daily_cap_usd) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("caps", "why"),
+    [
+        ({"nope": {"monthly_cap_usd": 1}}, "names no such provider: nope"),
+        ({"a": {"margin": 1}}, "provider_caps.a sets daily_cap_usd, monthly_cap_usd only"),
+        ({"a": 5}, "provider_caps.a sets"),
+        (["a"], "maps a provider's name to its caps"),
+        ({"a": {"monthly_cap_usd": 100}}, "monthly"),  # above the overall cap
+    ],
+)
+def test_the_overlays_provider_caps_are_checked(tmp_path: Path, caps: object, why: str) -> None:
+    with pytest.raises(ValueError, match=why):
+        load_config(_priced(tmp_path, caps))
 
 
 def test_no_keys_file_gives_no_key_and_no_callable_provider(

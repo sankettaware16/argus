@@ -15,11 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.llm import budget
 from argus.llm.budget import Ask, Bucket, Limits, Priority
-from argus.llm.gateway import Call, CallEntry, LlmGateway, NoCapacity
+from argus.llm.gateway import MESSAGE_OVERHEAD, Call, CallEntry, LlmGateway, NoCapacity, body_for
 from argus.llm.privacy import Privacy
-from argus.llm.store import PgLlmStore
-from tests.unit.llm.test_gateway import KEYS, Clock, Fake, config
+from argus.llm.providers import Tier
+from argus.llm.store import PgLlmStore, Reconciled
+from argus.llm.wire import LlmReply, TransportError
+from tests.unit.llm.test_gateway import KEYS, Clock, Fake, config, ok
 from tests.unit.llm.test_privacy import RAW, dossier
+from tests.unit.llm.test_token_estimate import cut_off
 
 pytestmark = pytest.mark.integration
 
@@ -190,7 +193,7 @@ async def test_reconcile_sets_the_month_to_the_ledger(app_engine: AsyncEngine) -
         await store.record(CallEntry(at=when, call_id=uuid.uuid4(), attempt=1, provider="p",
                                      model="m", tier="small", purpose="t", priority="normal",
                                      outcome="ok", cost_usd=cost))  # fmt: skip
-    assert await store.reconcile(NOW, actor="cli") == (7.5, 0.875)
+    assert await store.reconcile(NOW, actor="cli") == Reconciled(7.5, 0.875, {"p": (0.0, 0.875)})
     state = await store.state()
     assert state.spent_usd == 0.875
     assert (state.day, state.day_spent_usd) == ("2026-10-16", 0.375)
@@ -200,7 +203,81 @@ async def test_reconcile_sets_the_month_to_the_ledger(app_engine: AsyncEngine) -
         audit = (await conn.execute(text(query))).all()
     assert audit == [("llm.reconcile", "llm_gateway", "gateway", "7.5", "0.875")]
     november = NOW.replace(month=11, day=2)
-    assert await store.reconcile(november, actor="cli") == (0.0, 0.0)
+    assert await store.reconcile(november, actor="cli") == Reconciled(0.0, 0.0, {})
+
+
+async def test_reconcile_sets_each_providers_month_and_day_to_the_ledger(
+    app_engine: AsyncEngine,
+) -> None:
+    """P4-E2: per-provider spend follows the ledger like the overall spend; a provider with
+    nothing settled this month drops out, a free one never appears."""
+    store = PgLlmStore(app_engine)
+    inflated = budget.State(month="2026-10", spent_usd=9.0, day="2026-10-16", day_spent_usd=3.0,
+                            provider_spent_usd={"openai": 6.0, "gone": 3.0},
+                            provider_day_spent_usd={"openai": 2.0, "gone": 1.0})  # fmt: skip
+    await store.change(lambda s: (None, inflated))
+    yesterday = NOW - timedelta(days=1)
+    last_month = NOW.replace(day=1, hour=0, minute=0) - timedelta(seconds=1)
+    entries = (
+        ("openai", NOW, 0.25), ("openai", yesterday, 0.5), ("openai", last_month, 7.0),
+        ("anthropic", NOW, 0.125), ("anthropic", NOW, 0.0000004), ("groq", NOW, 0.0),
+        ("gone", last_month, 2.0),
+    )  # fmt: skip
+    for provider, when, cost in entries:
+        await store.record(CallEntry(at=when, call_id=uuid.uuid4(), attempt=1,
+                                     provider=provider, model="m", tier="small", purpose="t",
+                                     priority="normal", outcome="ok", cost_usd=cost))  # fmt: skip
+    done = await store.reconcile(NOW, actor="cli")
+    assert done == Reconciled(9.0, 0.875, {"anthropic": (0.0, 0.125), "gone": (3.0, 0.0),
+                                            "openai": (6.0, 0.75)})  # fmt: skip
+    state = await store.state()
+    assert state.provider_spent_usd == {"openai": 0.75, "anthropic": 0.125}
+    assert state.provider_day_spent_usd == {"openai": 0.25, "anthropic": 0.125}
+    assert (state.spent_usd, state.day_spent_usd) == (0.875, 0.375)
+    assert budget.spend(state, NOW, "groq") == (0.0, 0.0)
+    async with app_engine.connect() as conn:
+        details = (await conn.execute(text(
+            "SELECT details->'providers' FROM audit_events WHERE action = 'llm.reconcile'"
+        ))).scalar_one()  # fmt: skip
+    assert details == {"anthropic": [0.0, 0.125], "gone": [3.0, 0.0], "openai": [6.0, 0.75]}
+    # admission goes on from the ledger's figures
+    config = budget.Config(monthly_cap_usd=10.0, caps={"openai": budget.Caps(1.0)})
+    over = Ask("openai", "m", (), 10, 0.3, Priority.HIGH)
+    admission = await store.change(lambda s: budget.admit(s, over, NOW, config))
+    assert admission.why == "openai: monthly cost cap"
+
+
+async def test_reconcile_keeps_what_the_gateway_left_charged(
+    app_engine: AsyncEngine, privacy: Privacy
+) -> None:
+    """The review of P4-E2: an answer cut off at its cap and a timeout once the call reached the
+    provider stay charged in the budget at their whole reservation. Their ledger rows carry it,
+    so a reconcile leaves the provider's own spend and the overall spend as they were."""
+    store, clock = PgLlmStore(app_engine), Clock()
+    replies: list[LlmReply | Exception] = [ok(), cut_off(), TransportError("ReadTimeout")]
+    gw = LlmGateway(config(), KEYS, Fake({"paid": list(replies)}), store, clock)
+    call = Call(privacy.request([dossier()]), "Assess the item. Answer in JSON.", "assess")
+    assert [(await gw.complete(call)).provider for _ in replies] == ["paid", "free", "free"]
+    paid = config().providers[0]
+    model = paid.models[Tier.SMALL]
+    reserved = model.cost(len(body_for(paid, call)) + MESSAGE_OVERHEAD,
+                          model.output_cap(call.max_output))  # fmt: skip
+    charged = model.cost(400, 50) + 2 * reserved  # ok() settles 400 + 50 tokens
+    before = await store.state()
+    assert budget.spend(before, clock.now, "paid") == pytest.approx((charged, charged))
+    async with app_engine.connect() as conn:
+        rows = (await conn.execute(text(
+            "SELECT outcome, cost_usd FROM llm_calls WHERE provider = 'paid' ORDER BY id"
+        ))).all()  # fmt: skip
+    assert [r[0] for r in rows] == ["ok", "truncated", "no_answer: ReadTimeout"]
+    assert [r[1] for r in rows][1:] == [reserved, reserved]
+    done = await store.reconcile(clock.now, actor="cli")
+    assert done.after == pytest.approx(done.before, abs=1e-6)
+    assert done.providers["paid"] == pytest.approx((charged, charged), abs=1e-6)
+    after = await store.state()
+    for provider in ("paid", None):
+        spend = budget.spend(after, clock.now, provider)
+        assert spend == pytest.approx((charged, charged), abs=1e-6)
 
 
 async def test_a_probe_found_up_clears_the_alarm_audited(

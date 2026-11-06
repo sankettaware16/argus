@@ -179,6 +179,7 @@ ALLOWED: Mapping[str, tuple[str, ...]] = {
     "agent/reading.py": ("a destination few campus hosts reach",),  # a stored floor part, keyed
     "assess/engine.py": ("a destination few campus hosts reach",),
     "assess/raised.py": ("many campus devices reach one rare domain",),  # a stored flag
+    "cases/naming.py": ("many campus devices reach one rare domain",),  # the same flag, read
     "assets/classify.py": ("campus",),  # IpClass.CAMPUS
     "cases/blocklist.py": ("first_seen_on_campus", "campus_devices"),  # API field names
     "cases/cli.py": ("campus-managed",),  # operator CLI labels

@@ -35,8 +35,8 @@ function Views({ search }: { search: InboxSearch }) {
         {VIEWS.map((view) => (
           <Link
             key={view}
-            to="/inbox"
-            search={{ view }}
+            to="/search"
+            search={{ advanced: "1", view }}
             aria-current={search.view === view ? "page" : undefined}
             className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-sm text-text no-underline hover:bg-surface-3 aria-[current=page]:bg-accent-soft aria-[current=page]:font-semibold"
           >
@@ -60,7 +60,7 @@ function Views({ search }: { search: InboxSearch }) {
 }
 
 function FindAndSort({ search }: { search: InboxSearch }) {
-  const navigate = useNavigate({ from: "/inbox" });
+  const navigate = useNavigate({ from: "/search" });
   const id = useId();
   const rules = useQuery(rulesOptions);
   const [kind, setKind] = useState<string>(search.kind ?? "ip");
@@ -107,7 +107,7 @@ function FindAndSort({ search }: { search: InboxSearch }) {
               </Select>
             </Field>
             <Field label="Value" htmlFor={`${id}-value`} className="min-w-40 flex-1">
-              <TextInput id={`${id}-value`} value={value} maxLength={300} placeholder="e.g. 10.8.235.157" aria-invalid={problem !== null} aria-describedby={problem ? `${id}-problem` : undefined} onChange={(e) => setValue(e.target.value)} />
+              <TextInput id={`${id}-value`} value={value} maxLength={300} placeholder="e.g. 10.201.7.13" aria-invalid={problem !== null} aria-describedby={problem ? `${id}-problem` : undefined} onChange={(e) => setValue(e.target.value)} />
             </Field>
             <Button type="submit">Find</Button>
           </div>
@@ -153,7 +153,7 @@ function FindAndSort({ search }: { search: InboxSearch }) {
               </>
             )}
             .{" "}
-            <Link to="/inbox" search={{ view: search.view }}>
+            <Link to="/search" search={{ advanced: "1", view: search.view }}>
               Clear
             </Link>
           </p>
@@ -169,7 +169,7 @@ function FindAndSort({ search }: { search: InboxSearch }) {
  * time (the list, or the investigation with a way back).
  */
 export function Inbox({ search }: { search: InboxSearch }) {
-  const navigate = useNavigate({ from: "/inbox" });
+  const navigate = useNavigate({ from: "/search" });
   const session = useSession();
   const wide = useWide();
   const list = useInfiniteQuery(listOptions(search));

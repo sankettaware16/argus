@@ -69,6 +69,8 @@ alerts.cadence_cv:
   label: Alert regularity
   sentence: "{value} (0 = perfectly regular)"
   how_to_read: How evenly the alerts were spaced; rule suppression shapes it, so it is not proof of a beacon.
+  plain_label: Alert timing
+  plain: evenness
 proxy.destinations:
   label: Destinations reached
   sentence: "{value} destinations reached by the host through the proxy"
@@ -77,6 +79,8 @@ proxy.bytes:
   label: Bytes received
   sentence: "{value} bytes received through the proxy"
   how_to_read: The size of the replies the host received in the window.
+  plain_label: Received through the proxy
+  plain: bytes
 proxy.busy_slots:
   label: Active periods
   sentence: "{value} ten-minute periods with traffic"
@@ -85,6 +89,8 @@ proxy.regularity:
   label: Traffic regularity
   sentence: "{value} (0 = perfectly regular)"
   how_to_read: Near 0, the host talks at a fixed rhythm, as a beacon or an update check would.
+  plain_label: Timing
+  plain: regularity
 proxy.hosts_to_destination:
   label: Hosts reaching the destination
   sentence: "{value} internal hosts reached this destination"

@@ -33,7 +33,9 @@ from argus.cases.identity import IdentityProvider, LiveCheck, LocalIdentityProvi
 from argus.cases.machine import (
     Assign,
     CaseRefused,
+    Confirm,
     Contain,
+    Dismiss,
     Notify,
     RecordBlock,
     Release,
@@ -51,6 +53,7 @@ from argus.web import auth, casepages, deps, queries
 from argus.web.capabilities import Capability
 from argus.web.deps import Conn, Refusal, Surface, need
 from argus.web.v1 import case_models as m
+from argus.web.v1 import engine_routes
 from argus.web.v1.models import CLEAN
 
 CaseId = Annotated[uuid.UUID, Path(description="a case's id")]
@@ -188,11 +191,26 @@ def install(
         q: Annotated[str | None, Query(max_length=120, pattern=CLEAN)] = None,
         offset: Annotated[int, Query(ge=0, le=queries.DEEPEST)] = 0,
         limit: Annotated[int, Query(ge=1, le=casepages.ROW_PAGE)] = casepages.ROW_PAGE,
+        taken_by: Annotated[
+            str | None,
+            Query(pattern=r"^[A-Za-z0-9._@-]{1,64}$", description="me, nobody, or a username"),
+        ] = None,
+        kibana: Annotated[m.KibanaFilter | None, Query()] = None,
+        sort: Annotated[m.CaseSort | None, Query()] = None,
     ) -> m.CasePage:
-        """The cases, most severe first: a view (active, needing attention, mine, suspected,
-        closed, all), optionally one case by its number or a word of its title."""
-        return await casepages.list_cases(conn, me.user_id, view, offset=offset, limit=limit,
-                                          number=number, query=q)  # fmt: skip
+        """The cases, most severe first: a view (Needs you is ``queue``: possible incidents
+        nobody else is checking and incidents nobody took; ``work`` is Home's, every case that
+        needs a person for any reason; active, needing attention, mine, suspected, notified,
+        closed, all), optionally one case by its number or a word of its title, who took it
+        (``taken_by``), its Kibana state (``kibana``: in Kibana, waiting for it, posting
+        failed), sorted by last activity or by how long it has waited (``sort``)."""
+        page = await casepages.list_cases(conn, me.user_id, view, offset=offset, limit=limit,
+                                          number=number, query=q, taken_by=taken_by,
+                                          kibana=kibana, sort=sort)  # fmt: skip
+        engines = await engine_routes.views_for(conn, (c.id for c in page.items))  # P4-F E5
+        if engines:
+            page.items = [c.model_copy(update={"engine": engines.get(c.id)}) for c in page.items]
+        return page
 
     @router.get("/cases/{case_id}", tags=["cases"], operation_id="getCase",
                 responses=errors(401, 403, 404, 422))  # fmt: skip
@@ -208,9 +226,14 @@ def install(
             conn, await service_for(request, conn), case_id, me,
             watch_context=request.app.state.watch_context, watch_mode=request.app.state.watch_mode,
             signins=getattr(request.app.state, "signins", None),
+            team=getattr(request.app.state, "team", None),
         )  # fmt: skip
         if found is None:
             raise refuse(404, "not_found", "no such case")
+        engine = (await engine_routes.views_for(conn, [found.case.id])).get(found.case.id)
+        if engine is not None:  # the incident engine's view (P4-F E5)
+            found.engine = engine
+            found.case = found.case.model_copy(update={"engine": engine})
         return found
 
     @router.get("/cases/{case_id}/closure-preview", tags=["cases"], operation_id="previewClosure",
@@ -302,6 +325,30 @@ def install(
         row = await casepages.row_of(conn, case_id)
         assert row is not None
         return m.CaseChanged(case=row, result="done", request_id=None)
+
+    @router.post("/cases/{case_id}/confirm", tags=["cases"], operation_id="confirmCase",
+                 responses=change)  # fmt: skip
+    async def confirm_case(
+        case_id: CaseId, body: m.CaseConfirmIn, request: Request, me: Manager, conn: Conn
+    ) -> m.CaseChanged:
+        """Confirm a possible incident (a suspected case): it becomes an open case, an incident
+        a person stands behind. The same command as ``argus case confirm``: the version you saw
+        (409 when it moved), audited as yours. Kibana gets it as any confirmed case does."""
+        return await command(request, conn, me, case_id, body.expected_version,
+                             Confirm(body.note))  # fmt: skip
+
+    @router.post("/cases/{case_id}/dismiss", tags=["cases"], operation_id="dismissCase",
+                 responses=change)  # fmt: skip
+    async def dismiss_case(
+        case_id: CaseId, body: m.DismissIn, request: Request, me: Manager, conn: Conn
+    ) -> m.CaseChanged:
+        """Say a possible incident (a suspected case) is not an incident, for a reason: it is
+        closed at once. The same command as ``argus case dismiss``; a dismissal also needs the
+        review capability. A case the case team posted to Kibana is refused (409): its Kibana
+        case would stay open, so it is confirmed and its closure asked for instead. To name the
+        case it duplicates, merge it instead."""
+        return await command(request, conn, me, case_id, body.expected_version,
+                             Dismiss(body.reason, body.note))  # fmt: skip
 
     @router.post("/cases/{case_id}/take", tags=["cases"], operation_id="takeCase",
                  responses=change)  # fmt: skip

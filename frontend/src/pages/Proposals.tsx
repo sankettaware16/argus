@@ -17,7 +17,7 @@ import { changed, proposalsOptions } from "../lib/queries";
 function ProposalLine({ p, withReason }: { p: ProposalOut; withReason: boolean }) {
   return (
     <li>
-      <Link to="/investigations/$id" params={{ id: p.investigation_id }}>
+      <Link to="/alert-groups/$id" params={{ id: p.investigation_id }}>
         <UntrustedText value={p.rule} limits={{ maxChars: 100, maxLines: 1 }} />
       </Link>
       , {count(p.alerts)} {plural(p.alerts, "alert")}, <Time value={p.bucket_start} />
@@ -48,15 +48,25 @@ function Group({ g }: { g: ProposalGroupOut }) {
       <p className="m-0 mb-2 text-sm text-muted">
         {g.rule !== null && g.rule !== undefined ? (
           <>
-            By {g.source} on <strong><UntrustedText value={g.rule} limits={{ maxChars: 200, maxLines: 1 }} /></strong> (models: <UntrustedText value={[...g.models].sort().join(", ")} limits={{ maxChars: 200, maxLines: 1 }} />)
+            By {g.source} on <strong><UntrustedText value={g.rule} limits={{ maxChars: 200, maxLines: 1 }} /></strong>
           </>
         ) : (
-          <>
-            By {g.source}; decided by <UntrustedText value={g.decided_by} limits={{ maxChars: 200, maxLines: 2 }} />
-          </>
+          <>By {g.source}</>
         )}
         {g.size > g.items.length && <> · {count(g.size)} in the group, the first {count(g.items.length)} listed</>}
       </p>
+      <details className="mb-2 text-xs text-muted">
+        <summary className="cursor-pointer">Details</summary>
+        {g.rule !== null && g.rule !== undefined ? (
+          <>
+            Models: <UntrustedText value={[...g.models].sort().join(", ")} limits={{ maxChars: 200, maxLines: 1 }} />
+          </>
+        ) : (
+          <>
+            Decided by <UntrustedText value={g.decided_by} limits={{ maxChars: 200, maxLines: 2 }} />
+          </>
+        )}
+      </details>
       <h3 className="m-0 mb-1 text-sm font-semibold">Audit sample</h3>
       <ul className="m-0 mb-2 pl-5 text-sm">
         {g.sample.map((p) => (
@@ -73,7 +83,11 @@ function Group({ g }: { g: ProposalGroupOut }) {
           </ul>
         </details>
       )}
-      {canReview ? (
+      {g.outcome === "true_positive" ? (
+        <p className="m-0 max-w-prose text-sm" data-testid="one-by-one">
+          A real attack starts an incident, so these are never confirmed together: open each one and decide it on its own page, where it can open an incident or join one.
+        </p>
+      ) : canReview ? (
         <>
           <Button onClick={() => setOpen(true)}>
             Confirm all {count(g.items.length)} as {outcomeLabel(g.outcome)}

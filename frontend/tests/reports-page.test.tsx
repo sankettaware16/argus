@@ -84,7 +84,7 @@ describe("the list", () => {
   it("says so when none has been made", async () => {
     server.use(http.get(`${BASE}/api/v1/reports`, () => HttpResponse.json([])));
     renderApp("/reports");
-    expect(await screen.findByText(/No report has been made yet/)).toBeTruthy();
+    expect(await screen.findByText("The first daily summary appears after ARGUS's first full day.")).toBeTruthy();
   });
 
   it("is in the menu", async () => {

@@ -33,9 +33,9 @@ LEVEL = {
 BY_LEVEL = {level: state for state, level in LEVEL.items()}
 SCALE = {HealthState.NORMAL: 1.0, HealthState.CAUTION: 0.5, HealthState.DEGRADED: 0.1}
 
-# Which work each state allows: investigation, measurement and every write only in NORMAL;
-# freshness and Kibana reads also in CAUTION (half the share) and DEGRADED (a tenth);
-# identity checks in every state (STOP does not block sign-in), on their own lane.
+# Which work each state allows: investigation, measurement, the checking lane and every write
+# only in NORMAL; freshness and Kibana reads also in CAUTION (half the share) and DEGRADED (a
+# tenth); identity checks in every state (STOP does not block sign-in), on their own lane.
 _NORMAL_ONLY = frozenset(
     {
         Purpose.BACKFILL,
@@ -45,6 +45,7 @@ _NORMAL_ONLY = frozenset(
         Purpose.MEASURE,
         Purpose.KIBANA_WRITE,
         Purpose.DISCOVER,
+        Purpose.CHECK,
     }
 )
 ALLOWED: dict[HealthState, frozenset[Purpose]] = {

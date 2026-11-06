@@ -8,7 +8,7 @@ import { UntrustedText } from "../UntrustedText";
 import { Badge, SeverityBadge, type Tone } from "../ui/badge";
 
 export const KIND_WORDS: Record<QueueCaseOut["kind"], [Tone, string]> = {
-  suggested: ["info", "Suggested by ARGUS"],
+  suggested: ["info", "Possible incident"],
   changed: ["warn", "Changed since the owner was told"],
   attention: ["warn", "Needs a person"],
   unowned: ["neutral", "Nobody owns it"],
@@ -24,7 +24,24 @@ function Stance({ s }: { s: QueueCaseOut["stance"] }) {
   );
 }
 
-/** A case that needs a person: ARGUS's verdict, its devices and severity, and why it is here. */
+/** A short list of values, "and N more" after the shown ones. */
+function Few({ label, values, total }: { label: string; values: readonly string[]; total: number }) {
+  return (
+    <>
+      {label}:{" "}
+      {values.map((d, i) => (
+        <span key={d} className="font-mono">
+          {i > 0 && ", "}
+          <UntrustedText value={d} limits={{ maxChars: 80, maxLines: 1 }} />
+        </span>
+      ))}
+      {total > values.length && ` and ${count(total - values.length)} more`}
+      {" · "}
+    </>
+  );
+}
+
+/** A case that needs a person: ARGUS's call, its campus devices and the outside addresses (never "devices", P4-F U13), its severity, and why it is here. */
 export function QueueCase({ c }: { c: QueueCaseOut }) {
   const [tone, kind] = KIND_WORDS[c.kind];
   return (
@@ -59,22 +76,10 @@ export function QueueCase({ c }: { c: QueueCaseOut }) {
         </ul>
       )}
       <p className="m-0 text-sm text-muted">
-        {c.devices.length > 0 ? (
-          <>
-            {plural(c.devices_total, "Device")}:{" "}
-            {c.devices.map((d, i) => (
-              <span key={d} className="font-mono">
-                {i > 0 && ", "}
-                <UntrustedText value={d} limits={{ maxChars: 80, maxLines: 1 }} />
-              </span>
-            ))}
-            {c.devices_total > c.devices.length && ` and ${count(c.devices_total - c.devices.length)} more`}
-            {" · "}
-          </>
-        ) : (
-          "No device named yet · "
-        )}
-        {count(c.investigations)} {plural(c.investigations, "investigation")}, {count(c.unreviewed)} to review · {count(c.alerts)} {plural(c.alerts, "alert")}
+        {c.devices.length > 0 && <Few label={c.devices_total === 1 ? "Campus device" : "Campus devices"} values={c.devices} total={c.devices_total} />}
+        {(c.outside ?? []).length > 0 && <Few label={c.outside_total === 1 ? "Outside address" : "Outside addresses"} values={c.outside ?? []} total={c.outside_total ?? 0} />}
+        {c.devices.length === 0 && (c.outside ?? []).length === 0 && "No device or address named yet · "}
+        {count(c.investigations)} {plural(c.investigations, "alert group")}, {count(c.unreviewed)} to decide · {count(c.alerts)} {plural(c.alerts, "alert")}
         {c.last_alert_at && (
           <>
             {" "}
@@ -84,14 +89,20 @@ export function QueueCase({ c }: { c: QueueCaseOut }) {
         {c.waiting_for_approval > 0 && ` · ${c.waiting_for_approval} ${plural(c.waiting_for_approval, "request")} waiting for an approver`}
       </p>
       <p className="m-0 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {c.state === "suspected" ? (
+          <Link to="/cases/$id" params={{ id: c.id }} hash="decision" className="inline-flex min-h-8 items-center font-medium">
+            Decide: is it an incident?
+          </Link>
+        ) : (
+          <Link to="/cases/$id" params={{ id: c.id }} className="inline-flex min-h-8 items-center">
+            Open the case
+          </Link>
+        )}
         {c.first_investigation_id ? (
-          <Link to="/investigations/$id" params={{ id: c.first_investigation_id }} className="inline-flex min-h-8 items-center">
-            Review the first investigation
+          <Link to="/alert-groups/$id" params={{ id: c.first_investigation_id }} className="inline-flex min-h-8 items-center">
+            {c.state === "suspected" ? "Look at the first alert group" : "Review the first alert group"}
           </Link>
         ) : null}
-        <Link to="/cases/$id" params={{ id: c.id }} className="inline-flex min-h-8 items-center">
-          Open the case
-        </Link>
       </p>
     </li>
   );
@@ -103,7 +114,7 @@ export function QueueSingle({ s }: { s: QueueSingleOut }) {
   return (
     <li className="flex flex-col gap-1 border-b border-border py-2 last:border-b-0" data-testid="queue-single">
       <div className="flex flex-wrap items-center gap-2">
-        <Link to="/investigations/$id" params={{ id: i.id }} className="font-medium">
+        <Link to="/alert-groups/$id" params={{ id: i.id }} className="font-medium">
           <UntrustedText value={i.rule_name ?? i.rule_id} limits={{ maxChars: 160, maxLines: 2 }} />
         </Link>
         <SeverityBadge severity={i.severity} />

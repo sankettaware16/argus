@@ -1,39 +1,21 @@
-// Home shows the cases and the approvals at a glance, each number a link to its list.
-import { screen, within } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+// Home is the queue, not a dashboard (P4-F U20): no tiles of numbers, no leftover card; the numbers
+// are the Dashboard's.
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { approval, casePage, queue } from "./caseFixtures";
-import { BASE, mockApi, renderApp, server } from "./helpers";
+import { BASE, mockApi, renderApp, sent } from "./helpers";
 
 mockApi();
+void BASE;
 
-describe("the cases on Home", () => {
-  it("are tiles with their numbers, and the approvals waiting", async () => {
-    server.use(
-      http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json(casePage([], { counts: { active: 7, notified: 1, attention: 2, mine: 3, suspected: 11, closed: 4, queue: 3, all: 25 } }))),
-      http.get(`${BASE}/api/v1/approvals`, () => HttpResponse.json(queue({ pending: [approval(), approval({ id: 32 })] }))),
-    );
+describe("Home", () => {
+  it("has no tiles and no leftover card, and does not read the case counts for them", async () => {
     renderApp("/");
-    const region = await screen.findByRole("region", { name: "Cases" });
-    await within(region).findByText("11");
-    const text = within(region)
-      .getAllByRole("link")
-      .map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(text).toEqual([
-      ["7Open cases", "/app/cases?view=active"],
-      ["2Cases needing attention", "/app/cases?view=attention"],
-      ["3Your cases", "/app/cases?view=mine"],
-      ["11Suspected", "/app/cases?view=suspected"],
-      ["2Waiting for an approval", "/app/approvals"],
-    ]);
-  });
-
-  it("show a question mark when the numbers cannot be read, and the rest of Home still works", async () => {
-    server.use(http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json({ detail: "boom", code: "internal" }, { status: 500 })));
-    renderApp("/");
-    const region = await screen.findByRole("region", { name: "Cases" });
-    await within(region).findByText("Open cases");
-    expect(within(region).getAllByText("?").length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Home" })).toBeTruthy();
+    await screen.findByRole("heading", { name: "Home" });
+    await screen.findByRole("heading", { name: /Possible incidents and incidents that need you/ });
+    expect(screen.queryByRole("region", { name: "Cases" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Investigations" })).toBeNull();
+    expect(screen.queryByText("At a glance")).toBeNull();
+    expect(screen.queryByText("The ARGUS app")).toBeNull();
+    expect(sent("GET", "/api/v1/cases").filter((r) => r.path.includes("limit=1"))).toHaveLength(0);
   });
 });

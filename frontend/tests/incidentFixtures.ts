@@ -18,8 +18,8 @@ export function query(more: Partial<ReportQuery> = {}): ReportQuery {
     kind: "logs",
     language: "esql",
     index: "acme-logs-squid-*",
-    text: 'FROM acme-logs-squid-* | WHERE source.ip == "10.198.36.230" | LIMIT 100',
-    other: 'source.ip : "10.198.36.230"',
+    text: 'FROM acme-logs-squid-* | WHERE source.ip == "10.201.7.11" | LIMIT 100',
+    other: 'source.ip : "10.201.7.11"',
     time_from: "2026-10-25T04:30:00Z",
     time_to: "2026-10-25T10:30:00Z",
     url: KIBANA,
@@ -34,7 +34,7 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     fact("F2", "The AI investigator proposed a true positive with confidence 80% for 5 investigations of 5.", { kind: "verdict" }),
     fact("F3", "VirusTotal flags 4 indicators of the case; the strongest, 77.221.155.153, is flagged by 10 of 94 engines.", { kind: "intel" }),
     fact("F4", "The detection rules raised 35 alerts in this case between 23 Oct 2026, 11:00 AM IST and 28 Oct 2026, 6:00 AM IST."),
-    fact("F5", "10.198.36.230 made 42 requests to 77.221.155.150, 480 KB between 25 Oct 2026, 10:00 AM IST and 25 Oct 2026, 4:00 PM IST.", { kind: "evidence", from_logs: true }),
+    fact("F5", "10.201.7.11 made 42 requests to 77.221.155.150, 480 KB between 25 Oct 2026, 10:00 AM IST and 25 Oct 2026, 4:00 PM IST.", { kind: "evidence", from_logs: true }),
     fact("F6", "The still-active watch calls a case quiet after 3 whole UTC days without activity.", { kind: "case" }),
   ];
   return {
@@ -50,6 +50,9 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
       first_alert_at: "2026-10-23T05:30:00Z",
       last_alert_at: "2026-10-28T00:30:00Z",
       tags: ["ACME-IR-2026-1026-01", "incident", "verdict:true-positive"],
+      first_detected_at: "2026-10-23T05:35:00Z",
+      last_detected_at: "2026-10-28T00:40:00Z",
+      certainty: null,
     },
     summary: {
       headline: "A true positive: Regular beaconing from a campus host",
@@ -68,6 +71,8 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
       confidence_words: "medium-high",
       source: "the AI investigator",
       sentences: [sentence(facts[1]?.text ?? "", "F2"), sentence(facts[2]?.text ?? "", "F3")],
+      reviewed: 0,
+      investigations: 5,
     },
     timeline: {
       first_seen: "2026-10-23T05:30:00Z",
@@ -83,8 +88,8 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
       alerts: 35,
       notes: [sentence("All times are IST.", "F4")],
     },
-    actors: [{ value: "10.198.36.230", kind: "ip", role: "campus device", role_words: "A campus device that reached the case's servers.", inside: true, network: null, country: null, user_agents: [], first_seen: "2026-10-23T05:30:00Z", last_seen: "2026-10-28T00:30:00Z", alerts: 35, requests: null, answered: null, answered_exact: false, intel: null, listed: false, served: [], sentence: sentence("10.198.36.230 (campus device): 35 alerts.", "F1") }],
-    assets: [{ kind: "device", value: "10.198.36.230", label: "77.221.155.150", alerts: 35, days: 5, first_seen: "2026-10-23T05:30:00Z", last_seen: "2026-10-28T00:30:00Z" }],
+    actors: [{ value: "10.201.7.11", kind: "ip", role: "campus device", role_words: "A campus device that reached the case's servers.", inside: true, network: null, country: null, user_agents: [], first_seen: "2026-10-23T05:30:00Z", last_seen: "2026-10-28T00:30:00Z", alerts: 35, requests: null, answered: null, answered_exact: false, intel: null, listed: false, served: [], sentence: sentence("10.201.7.11 (campus device): 35 alerts.", "F1") }],
+    assets: [{ kind: "device", value: "10.201.7.11", label: "77.221.155.150", alerts: 35, days: 5, first_seen: "2026-10-23T05:30:00Z", last_seen: "2026-10-28T00:30:00Z" }],
     assets_total: 1,
     outsiders_total: 0,
     targets: [],
@@ -100,7 +105,7 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     ],
     indicators: [
       { kind: "ip", value: "77.221.155.150", role: "c2", role_words: "command-and-control (the server or name the actor reached)", source: "threat_intel", evidence: "VirusTotal: 7 of 94 engines flag this IP; first seen on campus 23 Oct 2026" },
-      { kind: "ip", value: "10.198.36.230", role: "actor", role_words: "the actor (a device or address the alerts name)", source: "investigation", evidence: "first seen on campus 23 Oct 2026" },
+      { kind: "ip", value: "10.201.7.11", role: "actor", role_words: "the actor (a device or address the alerts name)", source: "investigation", evidence: "first seen on campus 23 Oct 2026" },
     ],
     indicators_total: 2,
     actions: {
@@ -111,7 +116,7 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     queries: [query(), query({ kind: "alerts", template: "alerts", index: ".alerts-security.alerts-acme-soc", text: 'FROM .alerts-security.alerts-acme-soc | MV_EXPAND kibana.alert.workflow_tags | WHERE kibana.alert.workflow_tags == "ACME-IR-2026-1026-01"' })],
     out_of_scope: [sentence("ARGUS reads alerts and logs only: it has no endpoint data, so what runs on a device is not known.", "F4")],
     facts,
-    meta: { schema_version: "incident-report@1", writer: "incident-writer@1", as_at: "2026-10-29T07:30:00Z", catalogue_version: 1, alerts_read: 35, alerts_total: 35, limits: ["2 more checks of the case are not listed"] },
+    meta: { schema_version: "incident-report@1", writer: "incident-writer@1", as_at: "2026-10-29T07:30:00Z", catalogue_version: 1, alerts_read: 35, alerts_total: 35, limits: ["2 more checks of the case are not listed"], carried: ["source.ip", "destination.ip"] },
     ...more,
   };
 }

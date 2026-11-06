@@ -41,29 +41,34 @@ shown to reviewers as ARGUS's reading, with the reason.
 
 ## 2. The providers at a glance
 
-ARGUS talks to every provider through the same OpenAI-compatible chat API, so no provider SDK is
-installed. The four cloud providers below are the ones ARGUS ships with and has run in
-production; they are tried **in this order**, free tiers first and the paid one last:
+ARGUS talks to the providers itself, so no provider SDK is installed: every one through the same
+OpenAI-compatible chat API, except Anthropic, whose own Messages API it speaks
+([section 3.4](#34-anthropic-paid)). The five cloud providers below are the ones ARGUS ships
+with; they are tried **in this order**, free tiers first and the paid ones last:
 
 | Order | Provider | Cost | Key name(s) in the keys file | Models ARGUS uses (small / medium) | Limits ARGUS keeps to (from `config/llm.yaml`) |
 |---|---|---|---|---|---|
 | 1 | **Groq** | free tier | `GROQ_API_KEY` (and `GROQ_API_KEY_2`) | `openai/gpt-oss-20b` / `openai/gpt-oss-120b` | 30 requests and 8,000 tokens a minute, 1,000 requests and 200,000 tokens a day, per model; one quota per Groq organisation |
-| 2 | **OpenRouter** | free models (`:free`) | `OPENROUTER_API_KEY` | `minimax/minimax-m3.1-flash:free` / `nvidia/nemotron-3-ultra-550b-a55b:free` | 20 a minute, 50 a day for the whole account |
+| 2 | **OpenRouter** | free models (`:free`) | `OPENROUTER_API_KEY` | `google/gemma-4-31b-it:free` / `nvidia/nemotron-3-ultra-550b-a55b:free` | 20 a minute, 50 a day for the whole account |
 | 3 | **Google Gemini** | free tier | `GEMINI_API_KEY` | `gemini-3.5-flash-lite` (both tiers) | 10 a minute, 500 a day, 250,000 tokens a minute |
 | 4 | **OpenAI** | **paid** (prepaid credit) | `OPENAI_API_KEY` | `gpt-5.4-nano` / `gpt-5.4-mini` | 500 a minute, 200,000 tokens a minute; **your daily and monthly caps** ([costs.md](costs.md)) |
+| 5 | **Anthropic** | **paid** (prepaid credit) | `ANTHROPIC_API_KEY` | `claude-haiku-5-5` / `claude-sonnet-5-5` | 50 a minute; **your daily and monthly caps** ([costs.md](costs.md)) |
 | – | **Your own model** (optional) | your hardware | `LOCAL_LLM_API_KEY` | any OpenAI-compatible server | shipped disabled ([section 12](#12-an-optional-local-model)) |
 
 - **One key is enough.** A provider without a key is skipped. More providers mean fewer waits
   when a free tier's limit is reached.
-- **Why this order.** Free first, so the paid key pays only for what the free tiers cannot
-  answer. Gemini is the last of the free ones because prompts sent on its free tier may be used
-  to improve Google's products. Groq is first but serves mostly small calls: its 8,000 tokens a
+- **Why this order.** Free first, so the paid keys pay only for what the free tiers cannot
+  answer; of the two paid ones OpenAI is asked first: on the gold set its medium model gave the
+  better value (Anthropic's Sonnet at low effort cost about 2.6 times as much a call and proposed
+  fewer of the true positives), and Anthropic takes over when OpenAI reaches its own cap.
+  Gemini is the last of the free ones because prompts sent on its free tier may be used to
+  improve Google's products. Groq is first but serves mostly small calls: its 8,000 tokens a
   minute is below the investigator's larger prompts, which ARGUS then refuses locally without
   sending anything.
 - **Data terms.** Only pseudonymised, validated text is ever sent ([section 9](#9-the-privacy-layer)),
   but it is still your security data: read each provider's data-use terms before you add its key.
-  Free tiers and free models may keep or use prompts; OpenAI's API does not train on API data by
-  default.
+  Free tiers and free models may keep or use prompts; OpenAI's and Anthropic's APIs do not train
+  on API data by default.
 - **Limits change.** Providers change their free limits and model names. The table is what ARGUS
   is configured with; check your own account's limits page and adjust `config/llm.yaml` if yours
   differ.
@@ -115,7 +120,69 @@ which is why ARGUS asks Gemini last of the free providers. Do **not** enable bil
 project unless you mean to pay: ARGUS does not price Gemini, so its paid use would not count
 against ARGUS's caps.
 
-### 3.4 OpenAI (paid fallback)
+### 3.4 Anthropic (paid)
+
+1. Open Anthropic's Console (<https://console.anthropic.com>) and sign up, or sign in to your
+   organisation.
+2. **Add credit first.** In **Settings → Billing** buy prepaid credit; leave auto-reload off
+   unless you want it, so the credit you bought is a ceiling of its own.
+3. Recommended: in **Settings → Limits** set a monthly spend limit (for example $40) as an
+   independent second stop beside ARGUS's caps.
+4. Open **Settings → API keys**, create a key named `argus` (in a workspace of its own if you
+   use workspaces), and copy it. It starts with `sk-ant-`.
+
+**How ARGUS speaks to it** (`api: anthropic` in `config/llm.yaml`):
+
+- **The API.** Anthropic's own Messages API, `POST https://api.anthropic.com/v1/messages`, sent
+  by ARGUS's own transport like every other provider, so the egress validator checks the exact
+  bytes, and TLS, no proxy, no redirect and the answer's size cap all hold. The key goes in the
+  `x-api-key` header with `anthropic-version: 2026-10-21` (`api_version`); no `Authorization`
+  header. The key is never in a recording, the ledger, a log line or an error.
+- **The body.** ARGUS's instructions are the `system` prompt and the pseudonymised item the one
+  user message; `max_tokens` is the call's answer plus the model's `thinking_tokens`. Sampling
+  settings (`temperature`, `top_p`, `top_k`) are refused by this API version, and
+  `config/llm.yaml` refuses them in a model's `extra` before anything is sent.
+- **Effort and thinking.** The models think before they answer; thinking cannot be turned off on
+  Sonnet and Opus, and their `extra` may not hold `thinking: {type: disabled}`. Haiku takes it at
+  effort `high` or below (not `xhigh` or `max`). The thinking is billed as output and counts
+  against `max_tokens`, so each model has room for it (`thinking_tokens`: 2,048, 4,096 for
+  Opus). ARGUS sets `output_config: {effort: low}`, which keeps the thinking short. A thinking
+  block is never taken as the answer: the answer is the text blocks only.
+- **Structured outputs.** A call with a JSON schema sends it as `output_config.format`
+  (`json_schema`) beside the effort. ARGUS converts the schema to what Anthropic takes: every
+  object closed (`additionalProperties: false`), the constraints it does not take dropped
+  (`maxItems`, `maxLength`, `minimum`, ...), `oneOf` as `anyOf`. A schema it cannot express
+  (recursion, an open object) goes without a format. Either way ARGUS checks every answer itself
+  after the reply, as for every provider. A JSON call without a schema rests on its instructions
+  (Anthropic has no plain JSON mode); a code fence around the whole answer is removed, and an
+  empty fence is no answer (`bad_answer`: the next provider is asked).
+- **Refusals.** When a safety classifier declines (`stop_reason: refusal`), the reply is no
+  answer: the ledger records `refused` with its category (`refused: cyber`), never the
+  explanation, nothing cools down, and the next provider is asked.
+- **Errors.** `429` waits for its `retry-after`; `529` (overloaded), `500` and `504` trip the
+  model's breaker; `401`/`403` raise the `unauthorized` alarm; `402`, or a `400` saying the
+  credit balance is too low or the spend limit is reached, pauses Anthropic for six hours
+  (`no_credit`); `400 prompt is too long` and `413` go to the next provider (`too_large`); `404`
+  raises the `model_mismatch` alarm. A `404` that names the model (`model: <id>`) pauses that
+  model for an hour and its sibling tiers keep answering; the alarm stays until that model
+  answers or `argus llm probe` finds it listed. Any other `404` (a `base_url` that is wrong)
+  pauses Anthropic for an hour.
+- **Prices** (US dollars per million tokens; prompt-cache reads and writes count as input):
+
+  | Tier | Model | Input | Output |
+  |---|---|---:|---:|
+  | small | `claude-haiku-5-5` | $0.10 | $0.50 |
+  | medium | `claude-sonnet-5-5` | $2.00 | $10.00 |
+  | large | `claude-opus-5-5` | $4.00 | $20.00 |
+
+  Haiku's price holds for prompts under 100,000 tokens, which ARGUS's always are. Anthropic's
+  spending counts against the same daily and monthly caps as OpenAI's.
+
+`uv run argus llm probe --provider anthropic` lists the models the key may use
+(`GET /v1/models?limit=1000`) and says `model_mismatch` if one in `config/llm.yaml` is not among
+them; `uv run argus llm ping --provider anthropic` sends one fixed test text.
+
+### 3.5 OpenAI (paid fallback)
 
 1. Open <https://platform.openai.com> and sign up, or sign in to your organisation.
 2. **Add credit first.** In the organisation's **Billing** settings add a payment method and buy
@@ -132,7 +199,7 @@ and only within your caps ([section 8](#8-budget-and-caps)). If the credit runs 
 refuses with `insufficient_quota`; ARGUS then pauses OpenAI for six hours and goes on with the
 free providers.
 
-### 3.5 Other optional keys (outside threat intel)
+### 3.6 Other optional keys (outside threat intel)
 
 Not model keys, but the same idea: free personal keys that add outside reputation lookups for
 **public** addresses and names. They go in `.env`, not in the LLM keys file:
@@ -157,6 +224,7 @@ cat > ~/secrets/llm-keys.env <<'EOF'
 GROQ_API_KEY=gsk_...
 OPENROUTER_API_KEY=sk-or-v1-...
 GEMINI_API_KEY=AIza...
+ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-proj-...
 EOF
 chmod 600 ~/secrets/llm-keys.env
@@ -168,8 +236,8 @@ history. Format rules (`src/argus/llm/providers.py`):
 - One `NAME=value` per line; spaces around `=` and quotes around the value are removed; blank
   lines and every other line are ignored.
 - Only the names `config/llm.yaml` lists are read: `GROQ_API_KEY`, `GROQ_API_KEY_2`,
-  `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `LOCAL_LLM_API_KEY`. A name left out,
-  or with an empty value, leaves its provider out.
+  `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+  `LOCAL_LLM_API_KEY`. A name left out, or with an empty value, leaves its provider out.
 - Each value is registered for log redaction when it is read and is never printed.
 
 **How ARGUS finds the file.** `argus init` asks for its path at step 7:
@@ -177,7 +245,7 @@ history. Format rules (`src/argus/llm/providers.py`):
 ```
 7. the LLM providers' keys (optional)
 The providers' keys file (NAME=value lines, mode 600) (none to skip) [none]: /home/argus/secrets/llm-keys.env
-   keys for groq, openrouter, gemini, openai: written config/llm.local.yaml
+   keys for groq, openrouter, gemini, anthropic, openai: written config/llm.local.yaml
 ```
 
 Init refuses a file that does not exist or that others can read
@@ -258,8 +326,8 @@ Every model call goes through the LLM gateway (`src/argus/llm/gateway.py`). For 
 
 1. **The privacy check first.** The request must pass the egress validator, and then the exact
    bytes for each provider must pass it again. A refused request is never sent anywhere.
-2. **Providers in file order:** Groq → OpenRouter → Gemini → OpenAI. A provider is **skipped
-   without a request** when:
+2. **Providers in file order:** Groq → OpenRouter → Gemini → Anthropic → OpenAI. A provider is
+   **skipped without a request** when:
    - it is disabled, has no key, or has no model for the call's tier;
    - the task is not on its allowlist (`tasks`), or its answer for this item was unusable before;
    - the call is too large for its token limits;
@@ -267,10 +335,10 @@ Every model call goes through the LLM gateway (`src/argus/llm/gateway.py`). For 
      after a `429` (for the `Retry-After` it asked, at most a day), or its breaker is open after
      server errors or timeouts (5, then 15, then 60 minutes);
    - its key or certificate was refused (paused for an hour, with an alarm in `argus llm status`);
-   - for the paid provider: the call would pass the **daily or monthly cost cap**.
-3. **On a failure at one provider** (a timeout, a server error, an answer cut off or malformed)
-   ARGUS goes on to the next one within the same call.
-4. **The paid provider is reached only when every free provider was skipped or failed.**
+   - for a paid provider: the call would pass the **daily or monthly cost cap**.
+3. **On a failure at one provider** (a timeout, a server error, an answer cut off, malformed or
+   refused by the model) ARGUS goes on to the next one within the same call.
+4. **The paid providers are reached only when every free provider was skipped or failed.**
 5. **When none can take the call now**, the item is deferred to the earliest time one could (never
    more than an hour for a provider that is off or misconfigured) and stays queued. Nothing is
    lost and nothing is marked done without an answer.
@@ -295,17 +363,27 @@ short, from `config/llm.yaml`:
 | `shares` | high 1.0, normal 0.8, low 0.5 | The share of each cap and each day limit a priority may use: the investigator (normal) stops at $1.20 a day and $32 a month |
 | `margin` | 0.8 | The share of each provider's published rate limits ARGUS uses |
 | `evaluation` | 17:30–24:00 UTC, 150 calls a night per provider | Evaluation runs (`argus gold ...`) go at low priority, overnight only |
+| per provider: `monthly_cap_usd`, `daily_cap_usd` | none | That paid provider's own spending a UTC month and day, at most the overall caps (which stay the ceiling over every paid provider); a capped provider must price every model |
+| per provider: `bytes_per_token` | groq 2, the others 1 | How many body bytes count as one prompt token in that provider's rate limits (1 to 4); the cost reserved always counts a byte a token |
 
 - Each call is reserved at an upper-bound cost before it is sent and settled with the
   provider's own token counts after; a call whose estimate alone exceeds a cap is never sent.
+  An attempt that may have been charged without a usable answer (cut off, malformed, or no
+  answer once it reached the provider) keeps its whole reservation, and its ledger row carries it.
 - Past a cap the paid provider is skipped until the next UTC day or month; the free providers go
-  on.
+  on. Past its own cap one paid provider is skipped and the next paid one in file order is
+  asked; `argus llm status` shows each paid provider's month and day against its caps.
 - **No keys means no model calls at all: $0.**
 - `argus llm stop` stops every call at once (assessments wait, nothing is lost); `argus llm
-  reconcile` sets the month's spending to the ledger's settled costs.
+  reconcile` sets the month's and the day's spending, overall and per provider, to the ledger's
+  costs: settled answers and the reservations kept as above; only a reservation a crash left
+  without a ledger row is dropped. Run it once after upgrading to per-provider caps: until then a
+  provider's own spending starts at zero. Ledger rows from before the upgrade carry no cost for
+  charged attempts without an answer, so that first reconcile leaves those out of the month.
 
 To change a cap, edit `config/llm.yaml` (a tracked file: keep your change in a local commit) and
-restart `argus-assess`. To make paid use impossible, give no `OPENAI_API_KEY`.
+restart `argus-assess`. To make paid use impossible, give no `OPENAI_API_KEY` and no
+`ANTHROPIC_API_KEY`.
 
 ## 9. The privacy layer
 
@@ -380,6 +458,7 @@ uv run argus llm probe         # each enabled provider: up, down, loading, unaut
 uv run argus llm probe --provider groq
 uv run argus llm ping          # one tiny call with a fixed test text: which provider answered, what it cost
 uv run argus llm ping --provider gemini --tier small
+uv run argus llm probe --provider anthropic   # the models Anthropic lists for the key
 uv run argus llm stop --reason "..."      # no call to any model until resumed
 uv run argus llm resume --reason "..."
 uv run argus llm reconcile     # set this month's spending to the ledger's settled costs

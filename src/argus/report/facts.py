@@ -620,7 +620,7 @@ def signal_fact(signal: Mapping[str, Any], keys: Keys) -> Fact:
     read = reads(signal, keys)
     known = signal.get("status") == "known"
     why, blamed = (None, []) if known else unknown_why(signal, keys)
-    sentence = display.sentence(signal) if known else f"{label(name)}: could not tell."
+    sentence = display.sentence(signal, plain=True) if known else f"{label(name)}: could not tell."
     source = SOURCES.get(name)
     if known and name in TI_COUNTS and _positive(signal.get("value")):
         # a hit traces to the lookups that list an indicator and to ARGUS's stored answers,
@@ -817,7 +817,7 @@ def _proxy_host(
     last = _ms_time(busy[-1].get("key")) if busy else None
     if first is not None and last is not None:
         slots, regular = proxy.cadence(timeline)
-        how = "" if regular is None else f", regularity {regular} (0 = perfectly even)"
+        how = "" if regular is None else f"; timing {display.timing(regular, beacon=True)}"
         try:
             until: datetime | None = last + timedelta(minutes=10)
         except OverflowError:

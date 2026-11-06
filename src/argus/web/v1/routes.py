@@ -29,6 +29,7 @@ from argus.web import (
     assessed,
     auth,
     dashboard,
+    lookups,
     patternsummary,
     queries,
     queuepage,
@@ -40,7 +41,15 @@ from argus.web.capabilities import LABELS, Capability, ordered
 from argus.web.deps import Conn, Refusal, Surface, forbidden, need
 from argus.web.params import CLEAN, DashboardFilters
 from argus.web.reviews import NotFoundError, ReviewConflictError, add_review
-from argus.web.v1 import case_routes, report_routes, team_routes, views
+from argus.web.v1 import (  # UI v2's additions (spec §2.3), the engine's (P4-F E5)
+    case_routes,
+    engine_routes,
+    entity_routes,
+    report_routes,
+    team_routes,
+    views,
+    work_routes,
+)
 from argus.web.v1 import models as m
 from argus.web.v1 import queue_models as qm
 
@@ -193,13 +202,16 @@ def build(
         )  # fmt: skip
 
     @router.get("/queue", tags=["investigations"], operation_id="getQueue", responses=READ)
-    async def get_queue(me: Viewer, conn: Conn) -> qm.QueueOut:
+    async def get_queue(request: Request, me: Viewer, conn: Conn) -> qm.QueueOut:
         """What needs a person, in order (AR4): ARGUS's open cases that need one (suggested
         cases and cases with a change since the owner was told first), each with its verdict or
-        reading, its devices and why it is here; then the single investigations in Needs
-        attention that belong to no case; and the order the app's "Next" walks through them. The
-        patterns to close are ``/patterns``; the numbers of new and known work are ``/counts``."""
-        return await queuepage.build(conn, me.user_id, hide_logs=not me.can(Capability.SEE_LOGS))
+        reading, its campus devices and its outside addresses (apart) and why it is here; then
+        the single investigations in Needs attention that belong to no case; and the order the
+        app's "Next" walks through them. The patterns to close are ``/patterns``; the numbers of
+        new and known work are ``/counts``."""
+        watch = request.app.state.watch_context
+        return await queuepage.build(conn, me.user_id, hide_logs=not me.can(Capability.SEE_LOGS),
+                                     classifier=getattr(watch, "classifier", None))  # fmt: skip
 
     @router.get("/counts", tags=["investigations"], operation_id="getCounts", responses=READ)
     async def get_counts(me: Viewer, conn: Conn) -> m.CountsOut:
@@ -258,6 +270,7 @@ def build(
                 conn, getattr(request.app.state, "signins", None), investigation_id, clock(),
                 hidden=hidden,
             ),
+            case=await lookups.case_of(conn, investigation_id),
         )  # fmt: skip
 
     @router.get("/investigations/{investigation_id}/reports", tags=["investigations"],
@@ -450,12 +463,21 @@ def build(
         return views.proposal_groups(await assessed.proposals(conn, clock().date()))
 
     @router.post("/proposals/confirm", tags=["proposals"], operation_id="confirmProposals",
-                 responses=errors(400, 401, 403, 422))  # fmt: skip
+                 responses={**errors(400, 401, 403, 422),
+                            409: {"model": m.ErrorOut, "description": "the list holds a true"
+                                  " positive (conflict): nothing was accepted"}})  # fmt: skip
     async def confirm_proposals(body: m.ConfirmIn, me: Reviewer, conn: Conn) -> m.ConfirmOut:
         """Accept a group's proposals: only those listed, and only while each is still
-        current and of that group (the others are skipped and counted)."""
+        current and of that group (the others are skipped and counted). A list holding a true
+        positive is refused (409, nothing accepted): what the proposal says, not the request,
+        stands in the way; each one starts an incident and is decided on its own."""
+        listed = list(body.assessment_ids)[: assessed.GROUP_LIMIT]
+        if await assessed.true_positives(conn, listed):
+            raise refuse(409, "conflict", "A true positive starts an incident, so it is never"
+                         " confirmed with its group: open each one and decide it on its own"
+                         " page.")  # fmt: skip
         accepted, skipped = await assessed.confirm(
-            conn, body.group, list(body.assessment_ids)[: assessed.GROUP_LIMIT], me.user_id,
+            conn, body.group, listed, me.user_id,
             "confirmed with its group", kibana_ok=me.kibana_ok,
         )  # fmt: skip
         await auth.audit(conn, actor=f"user:{me.username}", action="assessment.confirm",
@@ -543,8 +565,11 @@ def build(
 
     @router.get("/health", tags=["system"], operation_id="getHealth", responses=READ)
     async def get_health(me: Viewer, conn: Conn) -> m.HealthOut:
-        """Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps."""
-        return views.health(await queries.health(conn, clock()))
+        """Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps, and
+        whether confirmed incidents reach Kibana (``case_team``)."""
+        found = views.health(await queries.health(conn, clock()))
+        found.case_team = await lookups.case_team_health(conn)
+        return found
 
     @router.get("/glossary", tags=["system"], operation_id="getGlossary", responses=READ)
     async def get_glossary(me: Viewer) -> list[m.TermOut]:
@@ -638,7 +663,10 @@ def build(
         found = await queries.since(conn, me.user_id, me.previous_seen_at)
         return views.since_out(me.previous_seen_at, found)
 
+    work_routes.install(router, clock=clock, errors=errors)  # UI v2: holds, seen, bulk
+    entity_routes.install(router, clock=clock, errors=errors)  # UI v2: entities, search
     case_routes.install(router, clock=clock, errors=errors)  # cases, approvals, notes, checks
     report_routes.install(router, clock=clock, errors=errors)  # the incident report
     team_routes.install(router, clock=clock, errors=errors)  # the Kibana case preview
+    engine_routes.install(router, clock=clock, errors=errors)  # Today (P4-F E5)
     return router

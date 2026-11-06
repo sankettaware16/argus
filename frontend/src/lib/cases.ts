@@ -6,33 +6,39 @@
 import { first } from "./search";
 import type { Tone } from "../components/ui/badge";
 
-export const CASE_VIEWS = ["active", "queue", "notified", "attention", "mine", "suspected", "closed", "all"] as const;
+export const CASE_VIEWS = ["active", "queue", "notified", "attention", "mine", "suspected", "closed", "all", "incidents"] as const;
 export type CaseViewName = (typeof CASE_VIEWS)[number];
+/** The tabs the case list shows (P4-F U12), the first is where it opens; the other views stay
+ * reachable by their address and show as a tab while they are the one open. */
+export const CASE_TABS: readonly CaseViewName[] = ["queue", "mine", "active", "notified", "closed", "all"];
+export const DEFAULT_CASE_VIEW: CaseViewName = "queue";
 
 export const CASE_VIEW_TITLES: Readonly<Record<CaseViewName, string>> = {
-  queue: "Needs a person",
-  active: "Open cases",
-  notified: "Notified, still active",
+  queue: "Needs a decision",
+  active: "Open",
+  notified: "Owner told",
   attention: "Needs attention",
   mine: "Mine",
-  suspected: "Suspected",
+  suspected: "Possible incidents",
   closed: "Closed",
   all: "All",
+  incidents: "Incidents",
 };
 
 export const CASE_VIEW_HINTS: Readonly<Record<CaseViewName, string>> = {
-  queue: "The cases of Home's queue: suggested, changed since the owner was told, flagged, nobody's, or holding new work",
-  active: "Confirmed cases that are open, assigned or contained, apart from the notified ones",
-  notified: "Cases whose owner was told: tracked quietly, back in the queue only when something changes",
+  queue: "What needs a person: possible incidents to confirm or dismiss, changes since the owner was told, incidents nobody owns, new work",
+  active: "Incidents (confirmed cases) that are open, assigned or contained, apart from those whose owner was told",
+  notified: "Incidents whose owner was told: tracked quietly, back in the queue only when something changes",
   attention: "Cases ARGUS wants a person to look at, or that wait for an approval",
   mine: "Cases you own",
-  suspected: "Cases ARGUS suspects from its own proposals; a person's true-positive verdict confirms one",
-  closed: "Cases that were closed",
+  suspected: "Possible incidents: ARGUS thinks they may be incidents; a person confirms or dismisses each one",
+  closed: "Cases that were closed or dismissed",
   all: "Every case",
+  incidents: "Every incident (a confirmed case) not closed: open, assigned or contained, with those whose owner was told",
 };
 
 export const CASE_STATE_WORDS: Readonly<Record<string, string>> = {
-  suspected: "Suspected",
+  suspected: "Possible incident",
   open: "Open",
   assigned: "Assigned",
   contained: "Contained",
@@ -49,12 +55,21 @@ export const CASE_STATE_TONE: Readonly<Record<string, Tone>> = {
 
 /** What each state means, in a sentence (the case page's summary). */
 export const CASE_STATE_MEANING: Readonly<Record<string, string>> = {
-  suspected: "ARGUS suspects it; nobody has confirmed it, and Kibana has nothing.",
-  open: "A person confirmed it and nobody owns it yet.",
-  assigned: "A person owns it.",
+  suspected: "ARGUS thinks it may be an incident; nobody has confirmed it yet.",
+  open: "A person confirmed it is an incident and nobody owns it yet.",
+  assigned: "An incident a person owns.",
   contained: "A person confirmed it is contained, with 72 quiet hours behind it.",
   closed: "It was closed.",
 };
+
+/** The next step a case asks for, in the list's Needs column (P4-F U12); null when nothing waits. */
+export function nextStep(c: { state: string; owner?: unknown; notified_at?: string | null; needs_attention: boolean; waiting_for_approval: number }): string | null {
+  if (c.state === "suspected") return "Confirm or dismiss";
+  if (c.waiting_for_approval > 0) return "Waiting for an approval";
+  if (c.needs_attention) return "Look at what changed";
+  if (c.state === "open" && c.owner == null && c.notified_at == null) return "Assign an owner";
+  return null;
+}
 
 export const REASON_LABELS: Readonly<Record<string, string>> = {
   remediated_verified: "Fixed, and shown quiet",
@@ -104,7 +119,7 @@ export interface CasesSearch {
 export function parseCases(raw: Record<string, unknown>): CasesSearch {
   const view = first(raw.view);
   const q = first(raw.q)?.trim();
-  const out: CasesSearch = { view: CASE_VIEWS.find((known) => known === view) ?? "active" };
+  const out: CasesSearch = { view: CASE_VIEWS.find((known) => known === view) ?? DEFAULT_CASE_VIEW };
   if (q !== undefined && q !== "" && q.length <= 120 && !q.includes("\u0000")) out.q = q;
   return out;
 }

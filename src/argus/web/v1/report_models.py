@@ -19,6 +19,7 @@ from pydantic import AwareDatetime, Field
 from argus.incident.model import IncidentReport
 from argus.web.v1.case_models import CaseState
 from argus.web.v1.models import SAFE_MAX, In, Out, Outcome, RequiredText
+from argus.web.v1.work_models import SentOut
 
 Decision = Literal["confirmed", "rejected"]
 FileKind = Literal["pdf", "indicators_csv", "affected_csv", "accounts_csv"]
@@ -29,7 +30,10 @@ ReportReason = Annotated[RequiredText, Field(min_length=3, max_length=4000)]
 
 class ReportDecisionOut(Out):
     """What a person said about a version: confirmed, or rejected with the outcome they hold
-    instead and why. The labels written from it are counted in ``labelled``."""
+    instead and why. The labels written from it are counted in ``labelled``. ``held_from``: the
+    earlier version it was made on, when it still holds for this one (the two differ only in the
+    case's title or the accounts: a retitle renames what the person decided, it does not change
+    it); None when it was made on this version."""
 
     id: Annotated[int, Field(ge=1, le=SAFE_MAX)]
     decision: Decision
@@ -38,6 +42,7 @@ class ReportDecisionOut(Out):
     by: str
     decided_at: AwareDatetime
     labelled: int
+    held_from: int | None = None
 
 
 class ReportVersionOut(Out):
@@ -63,6 +68,52 @@ class ReportActionOut(Out):
     why_not: str | None
 
 
+class GlanceItemOut(Out):
+    """One bar or list item of the glance: a label from the report, its alerts (None: the
+    report names it without a count), what the report says of it."""
+
+    label: str
+    value: int | None
+    note: str
+
+
+class GlanceLayerOut(Out):
+    """One stacked series of alerts over time: a rule (or all the rest), a value per bar."""
+
+    name: str
+    values: list[int]
+
+
+class GlanceOut(Out):
+    """The incident at a glance, as the Visualiser draws it (UI v2 A17), from the report shown
+    (what the logs said is hidden for an account without ``see_logs``). Names of people never
+    appear."""
+
+    alerts: int
+    actors: int
+    actors_more: bool
+    actors_title: str
+    targets: int
+    targets_more: bool
+    targets_title: str
+    targets_word: str
+    listed: int  # indicators the local threat lists hold
+    first: AwareDatetime | None
+    last: AwareDatetime | None
+    rules: int
+    rules_more: bool
+    bucket: str  # what one bar counts: day, week, ...
+    days: list[str]  # the local day each bar starts on
+    layers: list[GlanceLayerOut]
+    top_actors: list[GlanceItemOut]
+    top_targets: list[GlanceItemOut]
+    rule_rows: list[GlanceItemOut]
+    severity: str
+    call: str
+    activity: str
+    dwell: str
+
+
 class CaseReportOut(Out):
     """The case's report (the newest version, or the one asked for), or why there is none."""
 
@@ -83,6 +134,8 @@ class CaseReportOut(Out):
     confirm: ReportActionOut
     reject: ReportActionOut
     note: str | None  # why there is no report, in plain words
+    glance: GlanceOut | None = None  # the Visualiser's glance of the shown version (A17)
+    sent: SentOut | None = None  # the newest "sent to the CISO" (A14)
 
 
 class ConfirmReportIn(In):

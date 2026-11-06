@@ -67,6 +67,60 @@
         "title": "Action",
         "type": "object"
       },
+      "ActionDoneIn": {
+        "additionalProperties": false,
+        "description": "A next step was done, in your words (what was done, by whom).",
+        "properties": {
+          "attestation": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "pattern": "^[^\\x00]*[^\\x00\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000][^\\x00]*$",
+            "title": "Attestation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attestation"
+        ],
+        "title": "ActionDoneIn",
+        "type": "object"
+      },
+      "ActionDoneOut": {
+        "additionalProperties": false,
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "action_id",
+          "state",
+          "by",
+          "at"
+        ],
+        "title": "ActionDoneOut",
+        "type": "object"
+      },
       "AddressOut": {
         "additionalProperties": false,
         "properties": {
@@ -291,6 +345,35 @@
           "items"
         ],
         "title": "AlertsOut",
+        "type": "object"
+      },
+      "AlternativeOut": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ruled_out",
+              "fits",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "test": {
+            "title": "Test",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "test"
+        ],
+        "title": "AlternativeOut",
         "type": "object"
       },
       "AnswerOut": {
@@ -884,6 +967,34 @@
         "title": "AssessmentOut",
         "type": "object"
       },
+      "AssetOut": {
+        "additionalProperties": false,
+        "description": "What the asset map says of an address (its own fields, as the site wrote them).",
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "network": {
+            "title": "Network",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "network",
+          "fields"
+        ],
+        "title": "AssetOut",
+        "type": "object"
+      },
       "AssignIn": {
         "additionalProperties": false,
         "properties": {
@@ -905,6 +1016,48 @@
           "user_id"
         ],
         "title": "AssignIn",
+        "type": "object"
+      },
+      "AuditItemOut": {
+        "additionalProperties": false,
+        "description": "One item the digest handled, to spot-check in ten seconds: was ARGUS right?",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "closed_as": {
+            "title": "Closed As",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "alert_group",
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "closed_as",
+          "category",
+          "at"
+        ],
+        "title": "AuditItemOut",
         "type": "object"
       },
       "BacklogOut": {
@@ -1170,6 +1323,92 @@
         "title": "BlocklistOut",
         "type": "object"
       },
+      "BulkDismissIn": {
+        "additionalProperties": false,
+        "description": "Close up to 25 possible incidents as \"not an incident\", for one reason, each at the\nversion you looked at. All or nothing: a refusal of one closes none, and says which.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BulkItemIn"
+            },
+            "maxItems": 25,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "pattern": "^[^\\x00]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reason": {
+            "enum": [
+              "rule_false_positive",
+              "benign_expected",
+              "benign_policy",
+              "attempt_no_impact",
+              "created_in_error",
+              "duplicate"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "reason"
+        ],
+        "title": "BulkDismissIn",
+        "type": "object"
+      },
+      "BulkDismissed": {
+        "additionalProperties": false,
+        "properties": {
+          "closed": {
+            "items": {
+              "$ref": "#/components/schemas/CaseRowOut"
+            },
+            "title": "Closed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "closed"
+        ],
+        "title": "BulkDismissed",
+        "type": "object"
+      },
+      "BulkItemIn": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expected_version"
+        ],
+        "title": "BulkItemIn",
+        "type": "object"
+      },
       "CapabilityOut": {
         "additionalProperties": false,
         "properties": {
@@ -1300,6 +1539,37 @@
         "title": "CaseChanged",
         "type": "object"
       },
+      "CaseConfirmIn": {
+        "additionalProperties": false,
+        "description": "Confirm a possible incident: the suspected case becomes an open case. (``ConfirmIn`` is\nthe body of ``/proposals/confirm``: one schema name each.)",
+        "properties": {
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "pattern": "^[^\\x00]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "CaseConfirmIn",
+        "type": "object"
+      },
       "CaseCounts": {
         "additionalProperties": false,
         "properties": {
@@ -1319,6 +1589,10 @@
             "title": "Closed",
             "type": "integer"
           },
+          "incidents": {
+            "title": "Incidents",
+            "type": "integer"
+          },
           "mine": {
             "title": "Mine",
             "type": "integer"
@@ -1334,6 +1608,11 @@
           "suspected": {
             "title": "Suspected",
             "type": "integer"
+          },
+          "work": {
+            "default": 0,
+            "title": "Work",
+            "type": "integer"
           }
         },
         "required": [
@@ -1344,9 +1623,67 @@
           "suspected",
           "closed",
           "queue",
-          "all"
+          "all",
+          "incidents"
         ],
         "title": "CaseCounts",
+        "type": "object"
+      },
+      "CaseDecisionOut": {
+        "additionalProperties": false,
+        "description": "The decision bar of a possible incident (a suspected case): confirm it as an incident,\nsay it is not one with a reason, or merge it into another case; each with whether this\nperson may now. ``after`` says what becomes possible once it is confirmed.",
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "confirm": {
+            "$ref": "#/components/schemas/DecisionActionOut"
+          },
+          "dismiss": {
+            "$ref": "#/components/schemas/DecisionActionOut"
+          },
+          "dismiss_effect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismiss Effect"
+          },
+          "kibana_after_confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kibana After Confirm"
+          },
+          "merge": {
+            "$ref": "#/components/schemas/DecisionActionOut"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/DismissChoiceOut"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "confirm",
+          "dismiss",
+          "merge",
+          "reasons",
+          "after"
+        ],
+        "title": "CaseDecisionOut",
         "type": "object"
       },
       "CaseDetail": {
@@ -1402,6 +1739,26 @@
             "title": "Closure Choices",
             "type": "array"
           },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseDecisionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "history": {
             "items": {
               "$ref": "#/components/schemas/HistoryItemOut"
@@ -1412,6 +1769,27 @@
           "history_total": {
             "title": "History Total",
             "type": "integer"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HoldOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
           },
           "indicators": {
             "items": {
@@ -1520,6 +1898,18 @@
             "title": "Timeline Total",
             "type": "integer"
           },
+          "undo_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo Until"
+          },
           "watch": {
             "anyOf": [
               {
@@ -1553,6 +1943,8 @@
           "suggestions_total",
           "watch",
           "known",
+          "decision",
+          "incident_id",
           "actions",
           "closure_choices",
           "assignees",
@@ -1620,6 +2012,20 @@
           "note_count"
         ],
         "title": "CaseIndicatorOut",
+        "type": "object"
+      },
+      "CaseMarked": {
+        "additionalProperties": false,
+        "description": "The case as it is now, with its hold, waiting time and your last look.",
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/CaseRowOut"
+          }
+        },
+        "required": [
+          "case"
+        ],
+        "title": "CaseMarked",
         "type": "object"
       },
       "CaseMemberOut": {
@@ -1788,7 +2194,9 @@
               "closed",
               "all",
               "notified",
-              "queue"
+              "queue",
+              "work",
+              "incidents"
             ],
             "title": "View",
             "type": "string"
@@ -1909,6 +2317,16 @@
             ],
             "title": "Generated At"
           },
+          "glance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GlanceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "logs_hidden": {
             "title": "Logs Hidden",
             "type": "boolean"
@@ -1953,6 +2371,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IncidentReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SentOut"
               },
               {
                 "type": "null"
@@ -2080,6 +2508,16 @@
             ],
             "title": "Closure Reason"
           },
+          "engine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "first_alert_at": {
             "anyOf": [
               {
@@ -2091,6 +2529,16 @@
               }
             ],
             "title": "First Alert At"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HoldOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "format": "uuid",
@@ -2180,6 +2628,16 @@
               }
             ]
           },
+          "seen": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeenOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "severity": {
             "enum": [
               "low",
@@ -2217,6 +2675,18 @@
           "waiting_for_approval": {
             "title": "Waiting For Approval",
             "type": "integer"
+          },
+          "waiting_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting Since"
           }
         },
         "required": [
@@ -2409,6 +2879,57 @@
         "title": "CaseSummaryOut",
         "type": "object"
       },
+      "CaseTeamHealthOut": {
+        "additionalProperties": false,
+        "description": "Posting confirmed incidents to Kibana: ``failing`` (a request failed and waits for a\nperson), ``waiting`` (confirmed incidents are not in Kibana yet), or ``ok``.",
+        "properties": {
+          "failing_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failing Since"
+          },
+          "held": {
+            "title": "Held",
+            "type": "integer"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "waiting",
+              "failing"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "last_run_at",
+          "failing_since",
+          "held"
+        ],
+        "title": "CaseTeamHealthOut",
+        "type": "object"
+      },
       "CaseTeamOut": {
         "additionalProperties": false,
         "properties": {
@@ -2549,6 +3070,22 @@
           "note"
         ],
         "title": "CaseTeamOut",
+        "type": "object"
+      },
+      "CaughtUpOut": {
+        "additionalProperties": false,
+        "description": "Your \"since\" is now: Today counts what ARGUS handled from here.",
+        "properties": {
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since"
+        ],
+        "title": "CaughtUpOut",
         "type": "object"
       },
       "Change": {
@@ -3666,6 +4203,10 @@
             "title": "Follow Up",
             "type": "integer"
           },
+          "incident_cases": {
+            "title": "Incident Cases",
+            "type": "integer"
+          },
           "incidents": {
             "title": "Incidents",
             "type": "integer"
@@ -3697,6 +4238,10 @@
             "title": "Open Critical",
             "type": "integer"
           },
+          "possible_incidents": {
+            "title": "Possible Incidents",
+            "type": "integer"
+          },
           "reviewed": {
             "title": "Reviewed",
             "type": "integer"
@@ -3714,6 +4259,8 @@
           "follow_up",
           "incidents",
           "suspected",
+          "incident_cases",
+          "possible_incidents",
           "reviewed",
           "assessed",
           "open_critical",
@@ -3874,6 +4421,32 @@
         "title": "DayAlertsOut",
         "type": "object"
       },
+      "DecisionActionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Not"
+          }
+        },
+        "required": [
+          "enabled",
+          "why_not"
+        ],
+        "title": "DecisionActionOut",
+        "type": "object"
+      },
       "DecisionDone": {
         "additionalProperties": false,
         "properties": {
@@ -4015,6 +4588,82 @@
         "title": "DecisionRecordOut",
         "type": "object"
       },
+      "DismissChoiceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "meaning": {
+            "title": "Meaning",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "rule_false_positive",
+              "benign_expected",
+              "benign_policy",
+              "attempt_no_impact",
+              "created_in_error",
+              "duplicate"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "label",
+          "meaning"
+        ],
+        "title": "DismissChoiceOut",
+        "type": "object"
+      },
+      "DismissIn": {
+        "additionalProperties": false,
+        "description": "Say a possible incident is not one, for a reason: the suspected case is closed.",
+        "properties": {
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "pattern": "^[^\\x00]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reason": {
+            "enum": [
+              "rule_false_positive",
+              "benign_expected",
+              "benign_policy",
+              "attempt_no_impact",
+              "created_in_error",
+              "duplicate"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason"
+        ],
+        "title": "DismissIn",
+        "type": "object"
+      },
       "DossierOut": {
         "additionalProperties": false,
         "description": "What ARGUS checked: the newest dossier, in the words the investigation page uses.",
@@ -4118,6 +4767,254 @@
           "alerts_read"
         ],
         "title": "DossierOut",
+        "type": "object"
+      },
+      "EngineCheckOut": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "checked",
+              "ruled_out",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "text"
+        ],
+        "title": "EngineCheckOut",
+        "type": "object"
+      },
+      "EngineObjectOut": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "device",
+              "account",
+              "site"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "affected",
+              "actor"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "role"
+        ],
+        "title": "EngineObjectOut",
+        "type": "object"
+      },
+      "EngineOut": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "alert_groups": {
+            "title": "Alert Groups",
+            "type": "integer"
+          },
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "alternatives": {
+            "items": {
+              "$ref": "#/components/schemas/AlternativeOut"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "band": {
+            "enum": [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "certainty": {
+            "enum": [
+              "Likely",
+              "Suspected",
+              "Unclear",
+              "Likely harmless"
+            ],
+            "title": "Certainty",
+            "type": "string"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/EngineCheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "first_seen": {
+            "format": "date-time",
+            "title": "First Seen",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "integer"
+          },
+          "lane": {
+            "enum": [
+              "decisive",
+              "burst",
+              "slow",
+              "campaign",
+              "exposure"
+            ],
+            "title": "Lane",
+            "type": "string"
+          },
+          "last_seen": {
+            "format": "date-time",
+            "title": "Last Seen",
+            "type": "string"
+          },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/EngineObjectOut"
+            },
+            "title": "Objects",
+            "type": "array"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "raised_by_ai": {
+            "title": "Raised By Ai",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "why": {
+            "items": {
+              "$ref": "#/components/schemas/WhyItemOut"
+            },
+            "title": "Why",
+            "type": "array"
+          },
+          "why_line": {
+            "title": "Why Line",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "priority",
+          "band",
+          "lane",
+          "certainty",
+          "why",
+          "why_line",
+          "checks",
+          "alternatives",
+          "objects",
+          "raised_by_ai",
+          "active",
+          "first_seen",
+          "last_seen",
+          "version",
+          "changed",
+          "alert_groups",
+          "alerts"
+        ],
+        "title": "EngineOut",
+        "type": "object"
+      },
+      "EntityDayOut": {
+        "additionalProperties": false,
+        "description": "One day of the value in ARGUS's records: its alert groups (by the site's day their bucket\nis named for), and for an address the host names that day's alert groups named (from the\nSIEM, untrusted) and the accounts that signed in from it (by UTC day, as ARGUS keeps\nsign-ins; names only with ``see_logs``).",
+        "properties": {
+          "account_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Names"
+          },
+          "accounts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accounts"
+          },
+          "alert_groups": {
+            "title": "Alert Groups",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Hosts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "alert_groups",
+          "hosts",
+          "accounts",
+          "account_names"
+        ],
+        "title": "EntityDayOut",
         "type": "object"
       },
       "EntityNoteIn": {
@@ -4235,6 +5132,199 @@
           "value"
         ],
         "title": "EntityOut",
+        "type": "object"
+      },
+      "EntityPageOut": {
+        "additionalProperties": false,
+        "description": "What ARGUS knows of a device, account, campus site or outside address: its incidents, its\nalert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps\nalert detail (it keeps every incident and decision).",
+        "properties": {
+          "address_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Class"
+          },
+          "alert_groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupRowOut"
+            },
+            "title": "Alert Groups",
+            "type": "array"
+          },
+          "alert_groups_total": {
+            "title": "Alert Groups Total",
+            "type": "integer"
+          },
+          "asset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/EntityDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "dynamic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dynamic"
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "history_days": {
+            "title": "History Days",
+            "type": "integer"
+          },
+          "incidents": {
+            "items": {
+              "$ref": "#/components/schemas/CaseRowOut"
+            },
+            "title": "Incidents",
+            "type": "array"
+          },
+          "incidents_total": {
+            "title": "Incidents Total",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "device",
+              "account",
+              "site",
+              "outside"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/EntityNoteOut"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "notes_total": {
+            "title": "Notes Total",
+            "type": "integer"
+          },
+          "noun": {
+            "title": "Noun",
+            "type": "string"
+          },
+          "open_incidents": {
+            "title": "Open Incidents",
+            "type": "integer"
+          },
+          "owner_told": {
+            "title": "Owner Told",
+            "type": "boolean"
+          },
+          "reputation": {
+            "items": {
+              "$ref": "#/components/schemas/ReputationOut"
+            },
+            "title": "Reputation",
+            "type": "array"
+          },
+          "shared_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared By"
+          },
+          "stored_kind": {
+            "enum": [
+              "ip",
+              "host",
+              "domain",
+              "user"
+            ],
+            "title": "Stored Kind",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEventOut"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "stored_kind",
+          "noun",
+          "history_days",
+          "address_class",
+          "asset",
+          "first_seen",
+          "last_seen",
+          "owner_told",
+          "incidents",
+          "incidents_total",
+          "open_incidents",
+          "alert_groups",
+          "alert_groups_total",
+          "timeline",
+          "days",
+          "dynamic",
+          "shared_by",
+          "reputation",
+          "notes",
+          "notes_total"
+        ],
+        "title": "EntityPageOut",
         "type": "object"
       },
       "EntityRowOut": {
@@ -4885,6 +5975,217 @@
         "title": "GapOut",
         "type": "object"
       },
+      "GlanceItemOut": {
+        "additionalProperties": false,
+        "description": "One bar or list item of the glance: a label from the report, its alerts (None: the\nreport names it without a count), what the report says of it.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "note"
+        ],
+        "title": "GlanceItemOut",
+        "type": "object"
+      },
+      "GlanceLayerOut": {
+        "additionalProperties": false,
+        "description": "One stacked series of alerts over time: a rule (or all the rest), a value per bar.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values"
+        ],
+        "title": "GlanceLayerOut",
+        "type": "object"
+      },
+      "GlanceOut": {
+        "additionalProperties": false,
+        "description": "The incident at a glance, as the Visualiser draws it (UI v2 A17), from the report shown\n(what the logs said is hidden for an account without ``see_logs``). Names of people never\nappear.",
+        "properties": {
+          "activity": {
+            "title": "Activity",
+            "type": "string"
+          },
+          "actors": {
+            "title": "Actors",
+            "type": "integer"
+          },
+          "actors_more": {
+            "title": "Actors More",
+            "type": "boolean"
+          },
+          "actors_title": {
+            "title": "Actors Title",
+            "type": "string"
+          },
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "call": {
+            "title": "Call",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "dwell": {
+            "title": "Dwell",
+            "type": "string"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/GlanceLayerOut"
+            },
+            "title": "Layers",
+            "type": "array"
+          },
+          "listed": {
+            "title": "Listed",
+            "type": "integer"
+          },
+          "rule_rows": {
+            "items": {
+              "$ref": "#/components/schemas/GlanceItemOut"
+            },
+            "title": "Rule Rows",
+            "type": "array"
+          },
+          "rules": {
+            "title": "Rules",
+            "type": "integer"
+          },
+          "rules_more": {
+            "title": "Rules More",
+            "type": "boolean"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "targets": {
+            "title": "Targets",
+            "type": "integer"
+          },
+          "targets_more": {
+            "title": "Targets More",
+            "type": "boolean"
+          },
+          "targets_title": {
+            "title": "Targets Title",
+            "type": "string"
+          },
+          "targets_word": {
+            "title": "Targets Word",
+            "type": "string"
+          },
+          "top_actors": {
+            "items": {
+              "$ref": "#/components/schemas/GlanceItemOut"
+            },
+            "title": "Top Actors",
+            "type": "array"
+          },
+          "top_targets": {
+            "items": {
+              "$ref": "#/components/schemas/GlanceItemOut"
+            },
+            "title": "Top Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alerts",
+          "actors",
+          "actors_more",
+          "actors_title",
+          "targets",
+          "targets_more",
+          "targets_title",
+          "targets_word",
+          "listed",
+          "first",
+          "last",
+          "rules",
+          "rules_more",
+          "bucket",
+          "days",
+          "layers",
+          "top_actors",
+          "top_targets",
+          "rule_rows",
+          "severity",
+          "call",
+          "activity",
+          "dwell"
+        ],
+        "title": "GlanceOut",
+        "type": "object"
+      },
       "GoldAnswerIn": {
         "additionalProperties": false,
         "properties": {
@@ -5293,6 +6594,139 @@
         "title": "GroupItemOut",
         "type": "object"
       },
+      "GroupRowOut": {
+        "additionalProperties": false,
+        "description": "An alert group (an investigation) that holds the value.",
+        "properties": {
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InCaseOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "rule_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Name"
+          }
+        },
+        "required": [
+          "id",
+          "rule_name",
+          "alerts",
+          "first_at",
+          "last_at",
+          "case"
+        ],
+        "title": "GroupRowOut",
+        "type": "object"
+      },
+      "HandledCategoryOut": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "count"
+        ],
+        "title": "HandledCategoryOut",
+        "type": "object"
+      },
+      "HandledOut": {
+        "additionalProperties": false,
+        "properties": {
+          "audit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditItemOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/HandledCategoryOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since",
+          "count",
+          "categories",
+          "audit"
+        ],
+        "title": "HandledOut",
+        "type": "object"
+      },
       "HealthOut": {
         "additionalProperties": false,
         "properties": {
@@ -5311,6 +6745,16 @@
               }
             ],
             "title": "Backfill Cursor"
+          },
+          "case_team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseTeamHealthOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "checkpoint_bytes": {
             "title": "Checkpoint Bytes",
@@ -5488,6 +6932,92 @@
         "title": "HistoryItemOut",
         "type": "object"
       },
+      "HoldIn": {
+        "additionalProperties": false,
+        "description": "I'm checking: what you wait on (one line, your words) and when it comes back (at most\n14 days ahead).",
+        "properties": {
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]*[^\\x00-\\x1f\\x7f-\\x9f\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000](?:[^\\x00-\\x1f\\x7f-\\x9f]*[^\\x00-\\x1f\\x7f-\\x9f\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000])?[\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]*$",
+            "title": "Reason",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason",
+          "until"
+        ],
+        "title": "HoldIn",
+        "type": "object"
+      },
+      "HoldOut": {
+        "additionalProperties": false,
+        "description": "A person's \"I'm checking\" on a possible incident: it leaves everyone else's Needs you\nuntil ``until`` (or a material change, or P1).",
+        "properties": {
+          "by": {
+            "$ref": "#/components/schemas/HolderOut"
+          },
+          "mine": {
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "reason",
+          "until",
+          "since",
+          "mine"
+        ],
+        "title": "HoldOut",
+        "type": "object"
+      },
+      "HolderOut": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "name"
+        ],
+        "title": "HolderOut",
+        "type": "object"
+      },
       "Hypothesis": {
         "additionalProperties": false,
         "properties": {
@@ -5555,6 +7085,44 @@
           "evidence_against"
         ],
         "title": "HypothesisOut",
+        "type": "object"
+      },
+      "InCaseOut": {
+        "additionalProperties": false,
+        "description": "The incident (case) an alert group belongs to: it is decided there, not on its own.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "suspected",
+              "open",
+              "assigned",
+              "contained",
+              "closed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "state"
+        ],
+        "title": "InCaseOut",
         "type": "object"
       },
       "IncidentReport": {
@@ -5706,6 +7274,84 @@
           "meta"
         ],
         "title": "IncidentReport",
+        "type": "object"
+      },
+      "IncidentReportRowOut": {
+        "additionalProperties": false,
+        "description": "A confirmed incident's report, newest version.",
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "case_state": {
+            "title": "Case State",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFileOut"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "in_kibana": {
+            "title": "In Kibana",
+            "type": "boolean"
+          },
+          "ir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ir"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "case_id",
+          "number",
+          "ir",
+          "title",
+          "case_state",
+          "version",
+          "generated_at",
+          "files",
+          "in_kibana",
+          "sent"
+        ],
+        "title": "IncidentReportRowOut",
         "type": "object"
       },
       "InvestigationBrief": {
@@ -6042,6 +7688,16 @@
             "title": "Assessments",
             "type": "array"
           },
+          "case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InCaseOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "coverage": {
             "items": {
               "$ref": "#/components/schemas/CoverageOut"
@@ -6196,6 +7852,10 @@
             "title": "Key Fields",
             "type": "array"
           },
+          "key_words": {
+            "title": "Key Words",
+            "type": "string"
+          },
           "known": {
             "anyOf": [
               {
@@ -6318,6 +7978,10 @@
             ],
             "title": "Severity"
           },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "version": {
             "title": "Version",
             "type": "integer"
@@ -6327,6 +7991,8 @@
           "id",
           "rule_id",
           "rule_name",
+          "title",
+          "key_words",
           "key_fields",
           "bucket_start",
           "alert_count",
@@ -6766,6 +8432,144 @@
           "notified_at"
         ],
         "title": "KnownRefOut",
+        "type": "object"
+      },
+      "MemberReviewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "investigation_id": {
+            "format": "uuid",
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "seen_review": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen Review"
+          },
+          "seen_version": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seen Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "investigation_id",
+          "seen_version",
+          "seen_review"
+        ],
+        "title": "MemberReviewIn",
+        "type": "object"
+      },
+      "MemberReviewOut": {
+        "additionalProperties": false,
+        "properties": {
+          "investigation_id": {
+            "format": "uuid",
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "review_id": {
+            "title": "Review Id",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "investigation_id",
+          "review_id",
+          "version"
+        ],
+        "title": "MemberReviewOut",
+        "type": "object"
+      },
+      "MemberReviewsDone": {
+        "additionalProperties": false,
+        "properties": {
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/MemberReviewOut"
+            },
+            "title": "Reviews",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviews"
+        ],
+        "title": "MemberReviewsDone",
+        "type": "object"
+      },
+      "MemberReviewsIn": {
+        "additionalProperties": false,
+        "description": "Mark several of one incident's alert groups at once: a verdict (an outcome) or \"can't\ntell yet\" (``follow_up``). Each names the version and the latest review you saw. \"Real: act\non it\" (``true_positive``) only on a confirmed incident. All or nothing.",
+        "properties": {
+          "action": {
+            "enum": [
+              "reviewed",
+              "follow_up"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MemberReviewIn"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "pattern": "^[^\\x00]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "benign_expected",
+                  "benign_policy",
+                  "rule_false_positive",
+                  "true_positive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          }
+        },
+        "required": [
+          "action",
+          "items"
+        ],
+        "title": "MemberReviewsIn",
         "type": "object"
       },
       "MergeIn": {
@@ -8509,6 +10313,17 @@
             "title": "Number",
             "type": "integer"
           },
+          "outside": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outside",
+            "type": "array"
+          },
+          "outside_total": {
+            "title": "Outside Total",
+            "type": "integer"
+          },
           "severity": {
             "enum": [
               "low",
@@ -8563,6 +10378,8 @@
           "stance",
           "devices",
           "devices_total",
+          "outside",
+          "outside_total",
           "investigations",
           "new_members",
           "unreviewed",
@@ -9669,7 +11486,7 @@
       },
       "ReportDecisionOut": {
         "additionalProperties": false,
-        "description": "What a person said about a version: confirmed, or rejected with the outcome they hold\ninstead and why. The labels written from it are counted in ``labelled``.",
+        "description": "What a person said about a version: confirmed, or rejected with the outcome they hold\ninstead and why. The labels written from it are counted in ``labelled``. ``held_from``: the\nearlier version it was made on, when it still holds for this one (the two differ only in the\ncase's title or the accounts: a retitle renames what the person decided, it does not change\nit); None when it was made on this version.",
         "properties": {
           "by": {
             "title": "By",
@@ -9687,6 +11504,17 @@
             ],
             "title": "Decision",
             "type": "string"
+          },
+          "held_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held From"
           },
           "id": {
             "maximum": 9007199254740991.0,
@@ -10001,6 +11829,18 @@
             "title": "Case State",
             "type": "string"
           },
+          "certainty": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certainty"
+          },
           "detected_by": {
             "maxLength": 500,
             "title": "Detected By",
@@ -10018,6 +11858,18 @@
             ],
             "title": "First Alert At"
           },
+          "first_detected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Detected At"
+          },
           "incident_id": {
             "pattern": "^[A-Z][A-Z0-9-]{0,15}-[0-9]{4}-[0-9]{4}-[0-9]{2}$",
             "title": "Incident Id",
@@ -10034,6 +11886,18 @@
               }
             ],
             "title": "Last Alert At"
+          },
+          "last_detected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Detected At"
           },
           "opened_in": {
             "maxLength": 160,
@@ -10069,7 +11933,10 @@
           "detected_by",
           "first_alert_at",
           "last_alert_at",
-          "tags"
+          "tags",
+          "first_detected_at",
+          "last_detected_at",
+          "certainty"
         ],
         "title": "ReportHeader",
         "type": "object"
@@ -10180,6 +12047,20 @@
             "title": "As At",
             "type": "string"
           },
+          "carried": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried"
+          },
           "catalogue_version": {
             "anyOf": [
               {
@@ -10219,7 +12100,8 @@
           "catalogue_version",
           "alerts_read",
           "alerts_total",
-          "limits"
+          "limits",
+          "carried"
         ],
         "title": "ReportMeta",
         "type": "object"
@@ -10857,6 +12739,11 @@
             "title": "Served",
             "type": "array"
           },
+          "shared": {
+            "default": false,
+            "title": "Shared",
+            "type": "boolean"
+          },
           "value": {
             "maxLength": 300,
             "title": "Value",
@@ -10873,7 +12760,8 @@
           "last_seen",
           "answered",
           "answered_exact",
-          "served"
+          "served",
+          "shared"
         ],
         "title": "ReportTarget",
         "type": "object"
@@ -11049,6 +12937,12 @@
             ],
             "title": "Confidence Words"
           },
+          "investigations": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Investigations",
+            "type": "integer"
+          },
           "kind": {
             "enum": [
               "person",
@@ -11078,6 +12972,12 @@
             ],
             "title": "Outcome"
           },
+          "reviewed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Reviewed",
+            "type": "integer"
+          },
           "sentences": {
             "default": [],
             "items": {
@@ -11104,7 +13004,9 @@
           "confidence",
           "confidence_words",
           "source",
-          "sentences"
+          "sentences",
+          "reviewed",
+          "investigations"
         ],
         "title": "ReportVerdict",
         "type": "object"
@@ -11184,6 +13086,69 @@
           "logs_hidden"
         ],
         "title": "ReportsOut",
+        "type": "object"
+      },
+      "ReportsPageOut": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentReportRowOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "limit",
+          "has_more"
+        ],
+        "title": "ReportsPageOut",
+        "type": "object"
+      },
+      "ReputationOut": {
+        "additionalProperties": false,
+        "description": "What one outside source said of the value, when ARGUS last asked.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "words": {
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "words",
+          "flagged",
+          "at"
+        ],
+        "title": "ReputationOut",
         "type": "object"
       },
       "ReviewCreated": {
@@ -11721,6 +13686,242 @@
         "title": "SamePatternOut",
         "type": "object"
       },
+      "SearchEntityOut": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "device",
+              "account",
+              "site",
+              "outside"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "noun": {
+            "title": "Noun",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "noun"
+        ],
+        "title": "SearchEntityOut",
+        "type": "object"
+      },
+      "SearchOut": {
+        "additionalProperties": false,
+        "description": "One box: what the text looks like, the entity it names, and what holds it (at most five\nof each, with how many there are in all).",
+        "properties": {
+          "alert_groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupRowOut"
+            },
+            "title": "Alert Groups",
+            "type": "array"
+          },
+          "alert_groups_total": {
+            "title": "Alert Groups Total",
+            "type": "integer"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchEntityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "guess": {
+            "enum": [
+              "number",
+              "ir",
+              "device_address",
+              "outside_address",
+              "domain",
+              "name",
+              "words"
+            ],
+            "title": "Guess",
+            "type": "string"
+          },
+          "incidents": {
+            "items": {
+              "$ref": "#/components/schemas/CaseRowOut"
+            },
+            "title": "Incidents",
+            "type": "array"
+          },
+          "incidents_total": {
+            "title": "Incidents Total",
+            "type": "integer"
+          },
+          "q": {
+            "title": "Q",
+            "type": "string"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentReportRowOut"
+            },
+            "title": "Reports",
+            "type": "array"
+          },
+          "reports_total": {
+            "title": "Reports Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "q",
+          "guess",
+          "entity",
+          "incidents",
+          "incidents_total",
+          "alert_groups",
+          "alert_groups_total",
+          "reports",
+          "reports_total"
+        ],
+        "title": "SearchOut",
+        "type": "object"
+      },
+      "SeenDone": {
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "seen": {
+            "$ref": "#/components/schemas/SeenOut"
+          }
+        },
+        "required": [
+          "case_id",
+          "seen"
+        ],
+        "title": "SeenDone",
+        "type": "object"
+      },
+      "SeenIn": {
+        "additionalProperties": false,
+        "description": "You looked at the case as the engine showed it at ``engine_version`` (None: a case the\nengine did not make): its changes up to then are not new to you any more.",
+        "properties": {
+          "engine_version": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Version"
+          }
+        },
+        "title": "SeenIn",
+        "type": "object"
+      },
+      "SeenOut": {
+        "additionalProperties": false,
+        "description": "What the viewer last looked at of this case (\"New since you last looked\").",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "engine_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Version"
+          }
+        },
+        "required": [
+          "engine_version",
+          "case_version",
+          "at"
+        ],
+        "title": "SeenOut",
+        "type": "object"
+      },
+      "SentIn": {
+        "additionalProperties": false,
+        "description": "You sent the incident report (this version) to the CISO's office.",
+        "properties": {
+          "report_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "to": {
+            "const": "ciso",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "report_version"
+        ],
+        "title": "SentIn",
+        "type": "object"
+      },
+      "SentOut": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "report_version": {
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "to": {
+            "const": "ciso",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "report_version",
+          "at",
+          "by"
+        ],
+        "title": "SentOut",
+        "type": "object"
+      },
       "SeriesPoint": {
         "additionalProperties": false,
         "properties": {
@@ -12249,6 +14450,127 @@
         "title": "SpecialistOut",
         "type": "object"
       },
+      "SpotCheckDone": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "enum": [
+              "right",
+              "wrong",
+              "cant_tell"
+            ],
+            "title": "Answer",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "closed_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed As"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "incident",
+              "alert_group"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "score": {
+            "$ref": "#/components/schemas/SpotScoreOut"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "answer",
+          "closed_as",
+          "by",
+          "at",
+          "score"
+        ],
+        "title": "SpotCheckDone",
+        "type": "object"
+      },
+      "SpotCheckIn": {
+        "additionalProperties": false,
+        "description": "Your answer to a spot-check: ARGUS's closing looks right, it is wrong (it should have\nbeen raised), or you cannot tell. ``kind`` is needed only when the id could be either.",
+        "properties": {
+          "answer": {
+            "enum": [
+              "right",
+              "wrong",
+              "cant_tell"
+            ],
+            "title": "Answer",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "incident",
+                  "alert_group"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "SpotCheckIn",
+        "type": "object"
+      },
+      "SpotScoreOut": {
+        "additionalProperties": false,
+        "description": "Your team's spot-checks over the last ``days`` days.",
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "integer"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "wrong": {
+            "title": "Wrong",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "checked",
+          "wrong"
+        ],
+        "title": "SpotScoreOut",
+        "type": "object"
+      },
       "StanceOut": {
         "additionalProperties": false,
         "description": "What ARGUS thinks of an investigation, in the order a person wants it (AR4, D-182): a\n**recommendation** (``recommends``: a proposal of its own, or the one its pattern's run made),\nelse a **reading** (``reading``: a run that proposed nothing, with why it did not), else\n``none``. A reading and a pattern's run are never a proposal for this investigation:\n``acceptable`` is true only for its own current proposal, which ``/accept`` takes.",
@@ -12642,6 +14964,25 @@
           "note"
         ],
         "title": "Summary",
+        "type": "object"
+      },
+      "TakenByOut": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "name"
+        ],
+        "title": "TakenByOut",
         "type": "object"
       },
       "TeamApprovalOut": {
@@ -13073,6 +15414,57 @@
         "title": "ThreatTileOut",
         "type": "object"
       },
+      "TimelineEventOut": {
+        "additionalProperties": false,
+        "description": "An alert group of the value, at its newest alert: the rule's name (from the SIEM,\nuntrusted), its alerts, and the incident it is in (None: in none).",
+        "properties": {
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "case_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Number"
+          },
+          "investigation_id": {
+            "format": "uuid",
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "rule_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Name"
+          }
+        },
+        "required": [
+          "at",
+          "rule_name",
+          "alerts",
+          "investigation_id",
+          "case_number"
+        ],
+        "title": "TimelineEventOut",
+        "type": "object"
+      },
       "TimelineItemOut": {
         "additionalProperties": false,
         "properties": {
@@ -13142,6 +15534,189 @@
           "investigation_id"
         ],
         "title": "TimelineItemOut",
+        "type": "object"
+      },
+      "TodayCardOut": {
+        "additionalProperties": false,
+        "description": "One card of Today (the spec's ``Card``): the case that presents the incident (kind\n``incident``); in shadow (``risk.present`` off) there is none, and the card is the engine's\nown incident (kind ``shadow``, ``id`` its incident id); a gray item is kind ``gray``.",
+        "properties": {
+          "engine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "in_kibana": {
+            "title": "In Kibana",
+            "type": "boolean"
+          },
+          "kibana_wait": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kibana Wait"
+          },
+          "kind": {
+            "enum": [
+              "incident",
+              "alert_group",
+              "shadow",
+              "gray"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "notified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notified At"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "suspected",
+                  "open",
+                  "assigned",
+                  "contained",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "taken_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TakenByOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "waiting_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting Since"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "number",
+          "title",
+          "state",
+          "version",
+          "engine",
+          "taken_by",
+          "notified_at",
+          "in_kibana",
+          "kibana_wait",
+          "waiting_since"
+        ],
+        "title": "TodayCardOut",
+        "type": "object"
+      },
+      "TodayOut": {
+        "additionalProperties": false,
+        "properties": {
+          "gray": {
+            "items": {
+              "$ref": "#/components/schemas/TodayCardOut"
+            },
+            "title": "Gray",
+            "type": "array"
+          },
+          "handled": {
+            "$ref": "#/components/schemas/HandledOut"
+          },
+          "mode": {
+            "enum": [
+              "shadow",
+              "present"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "more_waiting": {
+            "title": "More Waiting",
+            "type": "integer"
+          },
+          "needs_you": {
+            "items": {
+              "$ref": "#/components/schemas/TodayCardOut"
+            },
+            "title": "Needs You",
+            "type": "array"
+          },
+          "new_activity": {
+            "items": {
+              "$ref": "#/components/schemas/TodayCardOut"
+            },
+            "title": "New Activity",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "needs_you",
+          "more_waiting",
+          "new_activity",
+          "gray",
+          "handled"
+        ],
+        "title": "TodayOut",
         "type": "object"
       },
       "TuningReportOut": {
@@ -13277,6 +15852,23 @@
           "created_at"
         ],
         "title": "TuningReportOut",
+        "type": "object"
+      },
+      "UndoDismissIn": {
+        "additionalProperties": false,
+        "description": "Undo your own dismissal, right after it (within 15 minutes, nothing changed since).",
+        "properties": {
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "UndoDismissIn",
         "type": "object"
       },
       "UnverifiedOut": {
@@ -13752,6 +16344,34 @@
         "title": "WhatsNewOut",
         "type": "object"
       },
+      "WhyItemOut": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "enum": [
+              "+",
+              "×"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "points": {
+            "title": "Points",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "points",
+          "text"
+        ],
+        "title": "WhyItemOut",
+        "type": "object"
+      },
       "WithdrawNoticeIn": {
         "additionalProperties": false,
         "description": "Withdraw the notice recorded by mistake: who is withdrawing it (default: you) and why. The\ncase is not notified any more and ARGUS stops absorbing its device's alerts; what it already\ndecided known stays decided. The notice rows stay as the record of what was said.",
@@ -14156,7 +16776,7 @@
     },
     "/api/v1/cases": {
       "get": {
-        "description": "The cases, most severe first: a view (active, needing attention, mine, suspected,\nclosed, all), optionally one case by its number or a word of its title.",
+        "description": "The cases, most severe first: a view (Needs you is ``queue``: possible incidents\nnobody else is checking and incidents nobody took; ``work`` is Home's, every case that\nneeds a person for any reason; active, needing attention, mine, suspected, notified,\nclosed, all), optionally one case by its number or a word of its title, who took it\n(``taken_by``), its Kibana state (``kibana``: in Kibana, waiting for it, posting\nfailed), sorted by last activity or by how long it has waited (``sort``).",
         "operationId": "listCases",
         "parameters": [
           {
@@ -14173,7 +16793,9 @@
                 "closed",
                 "all",
                 "notified",
-                "queue"
+                "queue",
+                "work",
+                "incidents"
               ],
               "title": "View",
               "type": "string"
@@ -14223,6 +16845,45 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "me, nobody, or a username",
+            "in": "query",
+            "name": "taken_by",
+            "required": false,
+            "schema": {
+              "description": "me, nobody, or a username",
+              "pattern": "^[A-Za-z0-9._@-]{1,64}$",
+              "title": "Taken By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kibana",
+            "required": false,
+            "schema": {
+              "enum": [
+                "in",
+                "waiting",
+                "failing"
+              ],
+              "title": "Kibana",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": [
+                "activity",
+                "waiting"
+              ],
+              "title": "Sort",
+              "type": "string"
             }
           }
         ],
@@ -14284,6 +16945,114 @@
           }
         ],
         "summary": "List Cases",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/bulk-dismiss": {
+      "post": {
+        "description": "Not an incident, for up to 25 possible incidents at once, for one reason: each closed\nas ``dismissCase`` closes it (the same command, at the version you looked at, audited as\nyours). All or nothing: when one is refused (it moved, it is not a possible incident any\nmore, your access), none is closed, and the answer names it. There is no bulk\nconfirm.",
+        "operationId": "bulkDismissCases",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDismissIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDismissed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Bulk Dismiss",
         "tags": [
           "cases"
         ]
@@ -14375,6 +17144,142 @@
           }
         ],
         "summary": "Get Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/actions/{action_id}/done": {
+      "post": {
+        "description": "A next step was done: your words (what, by whom). The same record as ``argus case\nactions --done``: ARGUS checks it later against the logs where it can (verified, or not\nverified); it executes nothing. Only a step advised for a confirmed incident.",
+        "operationId": "markActionDone",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a next step's catalogue id (<family>.<key>)",
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "description": "a next step's catalogue id (<family>.<key>)",
+              "maxLength": 80,
+              "minLength": 3,
+              "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$",
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionDoneIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionDoneOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Mark Action Done",
         "tags": [
           "cases"
         ]
@@ -15157,6 +18062,128 @@
         ]
       }
     },
+    "/api/v1/cases/{case_id}/confirm": {
+      "post": {
+        "description": "Confirm a possible incident (a suspected case): it becomes an open case, an incident\na person stands behind. The same command as ``argus case confirm``: the version you saw\n(409 when it moved), audited as yours. Kibana gets it as any confirmed case does.",
+        "operationId": "confirmCase",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseChanged"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Confirm Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
     "/api/v1/cases/{case_id}/contain": {
       "post": {
         "description": "Say the case is contained, in your words. Refused until ARGUS can show 72 quiet\nhours of complete logs for the case's actors and indicators.",
@@ -15274,6 +18301,462 @@
           }
         ],
         "summary": "Contain Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/dismiss": {
+      "post": {
+        "description": "Say a possible incident (a suspected case) is not an incident, for a reason: it is\nclosed at once. The same command as ``argus case dismiss``; a dismissal also needs the\nreview capability. A case the case team posted to Kibana is refused (409): its Kibana\ncase would stay open, so it is confirmed and its closure asked for instead. To name the\ncase it duplicates, merge it instead.",
+        "operationId": "dismissCase",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseChanged"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Dismiss Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/hold": {
+      "delete": {
+        "description": "Stop checking: your hold ends and the possible incident is back in everyone's Needs\nyou. 404 when you are not checking it.",
+        "operationId": "releaseHold",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseMarked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Release Hold",
+        "tags": [
+          "cases"
+        ]
+      },
+      "post": {
+        "description": "I'm checking: you are finding out about a possible incident (what you wait on, and\nwhen it comes back, at most 14 days ahead). It leaves everyone else's Needs you and is in\nyour Mine until then, until you stop, until it is decided, or until ARGUS sees a material\nchange or it reaches P1. Holding it again replaces your hold; 409 while someone else\nholds it. It changes nothing about the case (its version stays).",
+        "operationId": "holdCase",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseMarked"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Hold Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/members/reviews": {
+      "post": {
+        "description": "Mark several of this incident's alert groups at once (up to 100): each a review\nexactly as ``createReview`` records it, at the version and latest review you saw. \"Real:\nact on it\" only on a confirmed incident: this never opens one. All or nothing: a group\nthat moved is 409 and none is saved.",
+        "operationId": "reviewCaseMembers",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberReviewsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberReviewsDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Review Members",
         "tags": [
           "cases"
         ]
@@ -16734,6 +20217,250 @@
         ]
       }
     },
+    "/api/v1/cases/{case_id}/seen": {
+      "post": {
+        "description": "Mark as seen: what changed up to the engine's ``engine_version`` is not new to you\nany more (your \"New since you last looked\" empties; other people's stays). A look never\ngoes back: an older version than the one you saw keeps the newer.",
+        "operationId": "markCaseSeen",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeenDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Mark Seen",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/sent": {
+      "post": {
+        "description": "Mark as sent: you sent this version of the incident report to the CISO's office (by\ne-mail, outside ARGUS). ARGUS sends nothing; it keeps who sent which version, when. Only\na confirmed incident's report (one confirmed at some point, as the incident reports list\nhas it), and a version ARGUS wrote.",
+        "operationId": "markReportSent",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Mark Sent",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/cases/{case_id}/suggestions/{suggestion_id}/dismiss": {
       "post": {
         "description": "Dismiss an investigation ARGUS suggested for the case: it is not shown for this case\nagain. It joins nothing, and nothing about the case changes; the dismissal is audited as\nyours (what ``argus case suggestions --dismiss`` also does).",
@@ -17189,6 +20916,128 @@
           }
         ],
         "summary": "Approve Case Team",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}/undo-dismissal": {
+      "post": {
+        "description": "Undo your own \"Not an incident\", right after it: within 15 minutes, while nothing\nelse happened to the case. It is reopened as a possible incident (the dismissal's\ntwo-week memory ends with it), as ``reopenCase`` would, without the reopen capability.\nAnyone else's dismissal, or an older one, needs ``reopenCase``.",
+        "operationId": "undoDismissal",
+        "parameters": [
+          {
+            "description": "a case's id",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "a case's id",
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoDismissIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseChanged"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Undo Dismissal",
         "tags": [
           "cases"
         ]
@@ -17897,6 +21746,104 @@
         ]
       }
     },
+    "/api/v1/entities/{kind}/{value}": {
+      "get": {
+        "description": "What ARGUS knows of a device, an account, a campus site or an outside address: the\nasset map's entry, its incidents and alert groups, a timeline, its days (and for an\naddress, each day's host names and sign-ins: whether the host names show a different\ndevice on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),\nwhat outside sources said, and people's notes. An account's page needs ``see_logs``. A\nvalue ARGUS has no record of answers with empty lists, never 404.",
+        "operationId": "getEntity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "device",
+                "account",
+                "site",
+                "outside"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "description": "the address, host, domain or account name",
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+              "description": "the address, host, domain or account name",
+              "maxLength": 512,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f/]*[^\\x00-\\x1f\\x7f-\\x9f/\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000][^\\x00-\\x1f\\x7f-\\x9f/]*$",
+              "title": "Value",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Entity",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
     "/api/v1/entity-notes": {
       "get": {
         "description": "The notes people wrote about one host, address, domain or user, newest first.",
@@ -18239,7 +22186,7 @@
     },
     "/api/v1/health": {
       "get": {
-        "description": "Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps.",
+        "description": "Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps, and\nwhether confirmed incidents reach Kibana (``case_team``).",
         "operationId": "getHealth",
         "responses": {
           "200": {
@@ -18301,6 +22248,112 @@
         "summary": "Get Health",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/v1/incident-reports": {
+      "get": {
+        "description": "The incident reports of confirmed incidents, newest first: each incident's IR number,\nits newest report version and when ARGUS wrote it, its files, whether it is in Kibana,\nand the newest \"sent to the CISO\".",
+        "operationId": "listIncidentReports",
+        "parameters": [
+          {
+            "description": "an IR number, number or title",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "description": "an IR number, number or title",
+              "maxLength": 120,
+              "pattern": "^[^\\x00]*$",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportsPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "List Incident Reports",
+        "tags": [
+          "reports"
         ]
       }
     },
@@ -20008,7 +24061,7 @@
     },
     "/api/v1/proposals/confirm": {
       "post": {
-        "description": "Accept a group's proposals: only those listed, and only while each is still\ncurrent and of that group (the others are skipped and counted).",
+        "description": "Accept a group's proposals: only those listed, and only while each is still\ncurrent and of that group (the others are skipped and counted). A list holding a true\npositive is refused (409, nothing accepted): what the proposal says, not the request,\nstands in the way; each one starts an incident and is decided on its own.",
         "operationId": "confirmProposals",
         "requestBody": {
           "content": {
@@ -20061,6 +24114,16 @@
             },
             "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the list holds a true positive (conflict): nothing was accepted"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -20096,7 +24159,7 @@
     },
     "/api/v1/queue": {
       "get": {
-        "description": "What needs a person, in order (AR4): ARGUS's open cases that need one (suggested\ncases and cases with a change since the owner was told first), each with its verdict or\nreading, its devices and why it is here; then the single investigations in Needs\nattention that belong to no case; and the order the app's \"Next\" walks through them. The\npatterns to close are ``/patterns``; the numbers of new and known work are ``/counts``.",
+        "description": "What needs a person, in order (AR4): ARGUS's open cases that need one (suggested\ncases and cases with a change since the owner was told first), each with its verdict or\nreading, its campus devices and its outside addresses (apart) and why it is here; then\nthe single investigations in Needs attention that belong to no case; and the order the\napp's \"Next\" walks through them. The patterns to close are ``/patterns``; the numbers of\nnew and known work are ``/counts``.",
         "operationId": "getQueue",
         "responses": {
           "200": {
@@ -20410,6 +24473,89 @@
         ]
       }
     },
+    "/api/v1/search": {
+      "get": {
+        "description": "One box: an incident number (``31``, ``#31``), an IR number, an address, a host, an\naccount (with ``see_logs``, as an account's page), a domain, or words of an incident\ntitle or a rule name. What the text looks like (``guess``), the entity it names, and at\nmost five incidents, alert groups and incident reports, with how many there are in\nall.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "description": "an address, host, account, domain, rule, incident number or IR number",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "an address, host, account, domain, rule, incident number or IR number",
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]*[^\\x00-\\x1f\\x7f-\\x9f\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000][^\\x00-\\x1f\\x7f-\\x9f]*$",
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Search",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
     "/api/v1/session": {
       "delete": {
         "description": "Sign out: the session ends at once and its cookie is cleared.",
@@ -20580,6 +24726,263 @@
         "summary": "Get Since",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/v1/today": {
+      "get": {
+        "description": "Today: what needs a person (the queue's cases: possible incidents to confirm or\ndismiss, confirmed ones nobody has taken; by band then priority; at most ten new cards a\nday, P1 and P2 always), how many more of the queue wait for room, confirmed incidents\nwith new activity (and closed ones told of new strong evidence), the gray band (just\nunder a lane) and what ARGUS handled since the person's last visit, with one item to\nspot-check. In shadow (``risk.present`` off) the cards are the engine's own incidents\n(kind ``shadow``) and carry no case.",
+        "operationId": "getToday",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Today",
+        "tags": [
+          "engine"
+        ]
+      }
+    },
+    "/api/v1/today/audit/{target_id}": {
+      "post": {
+        "description": "Your answer to a spot-check of something ARGUS closed on its own: it looks right, it\nis wrong (it should have been raised), or you cannot tell. Only what ARGUS decided\nwithout a person is accepted (409 otherwise): an alert group it joined to an incident\nthat already existed or closed on its own proposal, an incident it closed itself. One\nanswer per person and item: answering again replaces yours. \"Wrong\" reopens nothing by\nitself: reopen it with ``reopenCase``. The answer comes back with the team's score.",
+        "operationId": "answerSpotCheck",
+        "parameters": [
+          {
+            "description": "the spot-checked incident or alert group",
+            "in": "path",
+            "name": "target_id",
+            "required": true,
+            "schema": {
+              "description": "the spot-checked incident or alert group",
+              "format": "uuid",
+              "title": "Target Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpotCheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotCheckDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Answer Spot Check",
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/v1/today/caught-up": {
+      "post": {
+        "description": "I'm caught up: your \"since\" is now. Today counts what ARGUS handled from here, and\n\"While you were away\" starts again.",
+        "operationId": "markCaughtUp",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaughtUpOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Caught Up",
+        "tags": [
+          "today"
         ]
       }
     },

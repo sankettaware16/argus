@@ -16,21 +16,24 @@ import shutil
 import socket
 import subprocess
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from argus.config.settings import ConfigError, Settings, load_settings
+from argus.config.settings import ConfigError, DatabaseSettings, Settings, load_settings
 from argus.install import files, prereq, roles, webcert
 from argus.install.answers import Asker, InitError
 from argus.install.siem import GatewayReads, SiemReads
 from argus.install.trust import RealTls, Tls, establish, host_port
 from argus.observability.redaction import register_secret
 from argus.ops import units
+
+if TYPE_CHECKING:
+    from argus.ops.case_team_login import TeamLogin
 
 SIEM_KEY = "ARGUS_SIEM__API_KEY"
 KIBANA_KEY = "ARGUS_KIBANA__READER_API_KEY"
@@ -157,6 +160,34 @@ def _people(config: Path) -> int:
     return asyncio.run(count())
 
 
+def _writer_login(database: DatabaseSettings) -> str | None:
+    """Why the writer's login (``writer_user`` with ``writer_password``) does not work as the case
+    team uses it: it does not log in, or ``argus db bootstrap`` would repair something of it; None
+    when it works."""
+    import asyncio
+
+    from argus.db import roles as db_roles
+    from argus.db.engine import create_engine
+    from argus.db.errors import DB_ERRORS, is_connection_failure, short_db_error
+
+    async def probe() -> str | None:
+        try:
+            engine = create_engine(database, role="writer")
+        except ConfigError as exc:
+            return str(exc)
+        try:
+            problems = await db_roles.writer_role_problems(engine)
+        except DB_ERRORS as exc:
+            if is_connection_failure(exc):
+                return f"did not log in ({short_db_error(exc)})"
+            return f"could not be checked ({short_db_error(exc)})"
+        finally:
+            await engine.dispose()
+        return "; ".join(p for p in problems if db_roles.repaired_by_bootstrap(p)) or None
+
+    return asyncio.run(probe())
+
+
 def _add_person(config: Path, username: str, name: str, password: str) -> None:
     import asyncio
 
@@ -196,8 +227,31 @@ class Host:
     uv: Callable[[], str | None] = _uv
     local_ip: Callable[[str], str | None] = _local_ip
     people: Callable[[Path], int] = _people
+    writer_login: Callable[[DatabaseSettings], str | None] = _writer_login
     add_person: Callable[[Path, str, str, str], None] = _add_person
     user: Callable[[], str] = getpass.getuser
+
+
+@dataclass(frozen=True)
+class CaseTeam:
+    """The case team's login as its unit uses it, read before the database step's first
+    bootstrap (``Init.case_team``)."""
+
+    login: TeamLogin
+    database: DatabaseSettings | None
+    """The login's settings with the unit's credential; None without one bootstrap can set."""
+    unmade: str | None
+    """Why bootstrap cannot make that login (its switches name one it cannot be), or None."""
+    shadowed: bool
+    """.env or the environment holds another writer password: a bootstrap would set that one."""
+    before: str | None = None
+    """Why the login did not work before the first bootstrap (asked only when shadowed)."""
+
+    @property
+    def first(self) -> dict[str, str]:
+        """The unit's credential for the first bootstrap when .env's would replace it; else
+        nothing (that bootstrap leaves the login alone)."""
+        return self.login.environment() if self.shadowed and self.database is not None else {}
 
 
 class Init:
@@ -349,11 +403,13 @@ class Init:
             self.say("   docker compose: db is up")
             self.wait_healthy()
         folder = self.web_credentials()
-        with _credentials(folder):
+        team = self.case_team()
+        with _credentials(folder), _environ(team.first):
             self.host.bootstrap(self.o.config)
         if folder is not None:
             self.say(f"   the web's own login: its password from {folder}")
         self.host.upgrade(self.o.config)
+        self.case_team_login(folder, team)
         env = files.read_env(self.o.env_file)
         local = files.read_yaml(self.o.local_file)
         if (
@@ -374,6 +430,91 @@ class Init:
             return None
         path = Path(folder) if Path(folder).is_absolute() else self.o.root / folder
         return path if (path / WEB_CREDENTIAL).is_file() else None
+
+    def case_team(self) -> CaseTeam:
+        """The case team's login as its unit uses it: its credential, the login its switches
+        name, whether this installation runs it. When .env (or the environment) holds another
+        writer password, every bootstrap would set that one and lock the case team out until the
+        repair after the upgrade: the first bootstrap gets the unit's own, and whether the login
+        worked is asked before it."""
+        from argus.db import roles as db_roles
+        from argus.ops import case_team_login as team
+
+        settings = self.settings()
+        folder = self.host.unit_dir or units.user_unit_dir()
+        installed = units.installed_root(folder)
+        mine = installed is not None and installed.resolve() == self.o.root.resolve()
+        login = team.team_login(
+            self.o.root,
+            run=settings.units.run,
+            enabled=units.enabled_units(folder) if mine else frozenset(),
+            post=settings.case_team.post,
+        )
+        if login.password is None:
+            return CaseTeam(login, None, None, shadowed=False)
+        register_secret(login.password)
+        shared = settings.database.writer_password
+        shadowed = db_roles.writer_login_configured(settings.database) and (
+            shared is not None and shared.get_secret_value() != login.password
+        )
+        database = settings.database.model_copy(update=login.database_update())
+        try:
+            db_roles.check_writer_settings(database)
+        except ConfigError as exc:
+            return CaseTeam(login, None, str(exc), shadowed)
+        before = self.host.writer_login(database) if shadowed else None
+        return CaseTeam(login, database, None, shadowed, before)
+
+    def case_team_login(self, web_folder: Path | None, found: CaseTeam) -> None:
+        """The case team's own database login, set from its credential when it does not log in
+        with it (a new database, or a credential copied from another machine: D-305); what to do
+        when the case team is set to run without one. Nothing is done when it logs in."""
+        from argus.ops import case_team_login as team
+
+        login = found.login
+        if login.problem is not None:
+            self.say(f"   warn: {team.SHOWN} {login.problem}: the case team cannot start with it")
+            return
+        if login.password is None:
+            if login.runs:
+                self.say(
+                    f"   warn: the case team is set to run ({'; '.join(login.runs)}), but its"
+                    f" database login has no password: `umask 077; openssl rand -hex 32 >"
+                    f" {team.SHOWN}`, then argus init again (it makes the login); or stop it:"
+                    f" {team.STOPS}"
+                )
+            return
+        if found.shadowed:
+            self.say(
+                f"   warn: ARGUS_DATABASE__WRITER_PASSWORD (.env or the environment) is not the"
+                f" password in {team.SHOWN}, which the case team uses: remove it from .env (the"
+                " writer's password belongs in its credential only; init sets the credential's,"
+                " a bootstrap by hand would set the other)"
+            )
+        if found.database is None:
+            self.say(f"   warn: the case team's login cannot be made: {found.unmade}")
+            return
+        database = found.database
+        user = database.writer_user
+        why = self.host.writer_login(database)
+        if why is None:
+            if found.before is None:
+                self.say(f"   the case team's login: kept ({user} logs in with {team.SHOWN})")
+            else:  # the first bootstrap set it from the credential
+                self.say(
+                    f"   the case team's login: repaired from {team.SHOWN} ({user} {found.before})"
+                )
+            return
+        with _credentials(web_folder), _environ(login.environment()):
+            self.host.bootstrap(self.o.config)
+        still = self.host.writer_login(database)
+        if still is None:
+            self.say(f"   the case team's login: repaired from {team.SHOWN} ({user} {why})")
+        else:
+            self.say(
+                f"   warn: the case team's login: {user} {still}, even after `argus db bootstrap`"
+                f" set it from {team.SHOWN} (argus doctor says more)"
+            )
 
     def wait_healthy(self) -> None:
         waited = 0.0
@@ -982,21 +1123,25 @@ def _strings(data: Any, prefix: str = "") -> Iterator[tuple[str, str]]:
         yield prefix.rstrip("."), data
 
 
-@contextlib.contextmanager
-def _credentials(folder: Path | None) -> Iterator[None]:
+def _credentials(folder: Path | None) -> contextlib.AbstractContextManager[None]:
     """``CREDENTIALS_DIRECTORY`` set to ``folder`` for the block, as systemd sets it for a unit."""
-    if folder is None:
-        yield
-        return
-    before = os.environ.get("CREDENTIALS_DIRECTORY")
-    os.environ["CREDENTIALS_DIRECTORY"] = str(folder)
+    return _environ({} if folder is None else {"CREDENTIALS_DIRECTORY": str(folder)})
+
+
+@contextlib.contextmanager
+def _environ(values: Mapping[str, str]) -> Iterator[None]:
+    """``values`` in the environment for the block, as a unit's environment holds them; then
+    each variable as it was."""
+    before = {name: os.environ.get(name) for name in values}
+    os.environ.update(values)
     try:
         yield
     finally:
-        if before is None:
-            os.environ.pop("CREDENTIALS_DIRECTORY", None)
-        else:
-            os.environ["CREDENTIALS_DIRECTORY"] = before
+        for name, value in before.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def _host_of(url: str) -> str | None:

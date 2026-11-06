@@ -49,6 +49,7 @@ from argus.gateway.templates import REGISTRY, CostClass, Params, Purpose, Templa
 from argus.gateway.transport import Transport, WireRequest, WireResponse
 from argus.reference.templates import NewestParams, TiLookup, TiNewest, lookup_params
 from argus.reference.ti import variants
+from argus.risk import webchecks as _exposure_templates  # noqa: F401  (their cost)
 from argus.signins import template as _signins_template  # noqa: F401  (its cost)
 
 COMPONENT = "measure"  # the session's ledger rows: its requests and its own probes

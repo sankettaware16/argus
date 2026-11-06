@@ -19,7 +19,9 @@
     {% for p in g.items[g.sample | length:] %}<li><a href="/investigations/{{ p.investigation_id }}">{{ p.rule | u(100) }}</a>, {{ p.alerts }} alerts</li>{% endfor %}
   </ul></details>
   {% endif %}
-  {% if me.can("review") %}
+  {% if g.outcome == "true_positive" %}
+  <p class="hint">A real attack starts an incident, so these are never confirmed together: open each one and decide it on its own page, where it can open an incident or join one.</p>
+  {% elif me.can("review") %}
   <form method="post" action="/proposals/confirm">
     <input type="hidden" name="csrf_token" value="{{ me.csrf_token }}">
     <input type="hidden" name="group" value="{{ g.group }}">

@@ -129,7 +129,7 @@ def test_the_devices_comment_is_a_table_with_one_row_for_each_device() -> None:
     assert "| Device | Reached | Days | First (IST) | Last (IST) |" in comment
     rows = [ln for ln in comment.split("\n") if ln.startswith("| `")]
     assert len(rows) == len([a for a in report.assets if a.kind == "device"]) == 1
-    assert "` 10.198.36.230 `" in rows[0]  # written plain in a code span (D-237)
+    assert "` 10.201.7.11 `" in rows[0]  # written plain in a code span (D-237)
 
 
 def test_the_actions_comment_has_owner_status_and_the_condition_to_close() -> None:

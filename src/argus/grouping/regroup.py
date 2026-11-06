@@ -50,13 +50,20 @@ async def regroup(engine: AsyncEngine, now: datetime) -> tuple[int, int]:
                 " investigation_raises, case_known_matches, case_known_keys, case_reminders,"
                 " case_notices, incident_report_checks, incident_report_decisions,"
                 " incident_reports, case_team_looks, case_team_reads, case_team_seen,"
-                " case_team_approvals, case_team_steps, case_team_posts"
+                " case_team_approvals, case_team_steps, case_team_posts, risk_crossings,"
+                " risk_object_scores, risk_observations, risk_entities, risk_groups,"
+                " risk_objects, risk_sources, risk_links, risk_incident_groups,"
+                " risk_incident_objects, risk_incidents, risk_threats, risk_aliases,"
+                " risk_gray_items, case_holds, case_seen, report_sends"
                 # Append-only tables (review events, the gold set, the cases) are empty here:
                 # their guards refuse a TRUNCATE that would lose a row. Everything else listed is
                 # derived from the investigations or names cases/investigations by foreign key,
-                # so it is emptied with them. Not listed: the case writer's runs and ramp steps
-                # (its own history) and the sign-in sightings (not derived from grouping, and
-                # the only copy).
+                # so it is emptied with them; the incident engine's tables (risk_*) too, all of
+                # them derived from the alert groups (its next pass reads the new ones; the
+                # switch's row, risk_mode, is not). Not
+                # listed: the case writer's runs and ramp steps (its own history), the sign-in
+                # sightings (not derived from grouping, and the only copy) and the rules'
+                # engine columns (a rule's lineage, tactics and family are not the groups').
             )
         )
     grouped = 0

@@ -400,7 +400,7 @@ function Known({ known }: { known: KnownOut }) {
           <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm" aria-label="Changes since the notice">
             {known.changes.map((c) => (
               <li key={c.investigation_id}>
-                <Link to="/investigations/$id" params={{ id: c.investigation_id }}>
+                <Link to="/alert-groups/$id" params={{ id: c.investigation_id }}>
                   <Text value={c.rule_name} max={120} lines={1} />
                 </Link>
                 : <Text value={c.why} max={500} lines={4} />

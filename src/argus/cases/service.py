@@ -26,6 +26,7 @@ from argus.cases.machine import (
     Command,
     Confirm,
     Contain,
+    Dismiss,
     EventRecord,
     Link,
     MergedIn,
@@ -211,6 +212,22 @@ class CaseService:
         ).scalar_one_or_none()
         return bool(found)
 
+    async def posted(self, case_id: uuid.UUID) -> str | None:
+        """The IR number the case team posted the case to Kibana under, when it may be there:
+        its Kibana case was read back, or a request of its post has left ARGUS. None otherwise."""
+        found = (
+            await self.conn.execute(
+                text(
+                    "SELECT p.incident_id FROM case_team_posts p WHERE p.case_id = :c AND"
+                    " (p.kibana_case_id IS NOT NULL OR EXISTS (SELECT 1 FROM case_team_steps s"
+                    " WHERE s.case_id = p.case_id AND s.state IN ('sending', 'sent', 'verified',"
+                    " 'ambiguous', 'resend')))"
+                ),
+                {"c": case_id},
+            )
+        ).scalar_one_or_none()
+        return None if found is None else str(found)
+
     async def assignable(self, user_id: int) -> bool:
         row = (
             await self.conn.execute(
@@ -294,6 +311,10 @@ class CaseService:
             command = replace(command, window=await self.quiet_windows(case))
         if isinstance(command, Assign):
             command = replace(command, assignable=await self.assignable(command.user_id))
+        if isinstance(command, Confirm | Publish):  # Kibana keeps a person's title as written
+            command = replace(command, title_by_person=await self.titled_by_person(case_id))
+        if isinstance(command, Dismiss):
+            command = replace(command, posted=await self.posted(case_id))
         span = await self._span(case.members) if isinstance(command, Confirm | Publish) else None
         step = machine.decide(case, command, actor, self.now, span)
         await self._members_free(case_id, step.members_added)

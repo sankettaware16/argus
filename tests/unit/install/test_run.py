@@ -5,13 +5,17 @@ that is not read-only stops; the person can refuse the proposal; no keys file me
 
 from __future__ import annotations
 
+import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
 
+from argus.config.settings import DatabaseSettings
+from argus.install import files
 from argus.install.answers import ScriptedAnswers, TerminalAnswers
 from argus.install.run import Host, Options, run_init
 from argus.ops import units
@@ -43,6 +47,26 @@ class Run:
         self.units = tmp_path / "units"
         self.tmp = tmp_path
         self.people: list[tuple[str, str, str]] = []
+        self.writers: dict[str, str] = {}  # the fake database's writer logins and passwords
+        self.bootstrap: Callable[[Path], None] = self._bootstrap
+        self.upgrade: Callable[[Path], None] = lambda _c: self.db.append("upgrade")
+        self.writer_login: Callable[[DatabaseSettings], str | None] = self._writer_login
+
+    def _bootstrap(self, _config: Path) -> None:
+        """As `argus db bootstrap` sets the writer's login: from its settings, where the
+        environment outranks .env."""
+        self.db.append("bootstrap")
+        env = {**files.read_env(self.root / ".env"), **os.environ}
+        password = env.get("ARGUS_DATABASE__WRITER_PASSWORD")
+        if password:
+            user = env.get("ARGUS_DATABASE__WRITER_USER", "argus_writer_app")
+            self.writers[user] = password
+
+    def _writer_login(self, database: DatabaseSettings) -> str | None:
+        assert database.writer_password is not None
+        if self.writers.get(database.writer_user) == database.writer_password.get_secret_value():
+            return None
+        return "did not log in (password authentication failed)"
 
     def host(self) -> Host:
         def systemctl(argv: list[str]) -> int:
@@ -53,8 +77,9 @@ class Run:
             say=self.said.append, run=self.commands, which=lambda _: "/usr/bin/x",
             port_free=lambda _h, _p: True, disk_free=lambda _p: 100 * 2**30,
             sleep=lambda _s: None, tls=self.tls, siem=self.siem, unit_dir=self.units,
-            systemctl=systemctl, bootstrap=lambda _c: self.db.append("bootstrap"),
-            upgrade=lambda _c: self.db.append("upgrade"), doctor=lambda _c: self.doctor,
+            systemctl=systemctl, bootstrap=lambda c: self.bootstrap(c),
+            writer_login=lambda d: self.writer_login(d),
+            upgrade=lambda c: self.upgrade(c), doctor=lambda _c: self.doctor,
             uv=lambda: "/usr/bin/uv", local_ip=lambda _t: "192.0.2.10",
             people=lambda _c: len(self.people),
             add_person=lambda _c, u, n, pw: self.people.append((u, n, pw)), user=lambda: "argus",
@@ -297,6 +322,24 @@ def test_a_keys_file_names_the_providers_it_holds_keys_for(tmp_path: Path) -> No
     (tmp_path / "x").mkdir(exist_ok=True)
     assert loose.go(loose.answers(**{"llm.keys_file": str(keys)})) == 2
     assert "readable by others" in loose.text
+
+
+def test_the_anthropic_key_is_one_init_knows(tmp_path: Path) -> None:
+    keys = tmp_path / "llm.env"
+    keys.write_text("ANTHROPIC_API_KEY=made-up-anthropic-key-0004\n"
+                    "OPENAI_API_KEY=made-up-openai-key-0005\n")  # fmt: skip
+    keys.chmod(0o600)
+    run = Run(tmp_path)
+    assert run.go(run.answers(**{"llm.keys_file": str(keys)})) == 0, run.text
+    assert "keys for openai, anthropic: written config/llm.local.yaml" in run.text
+    assert "made-up-anthropic-key-0004" not in run.text
+    other = tmp_path / "other.env"
+    other.write_text("SOMETHING_ELSE=x\n")
+    other.chmod(0o600)
+    none = Run(tmp_path / "y")
+    (tmp_path / "y").mkdir(exist_ok=True)
+    assert none.go(none.answers(**{"llm.keys_file": str(other)})) == 0, none.text
+    assert "holds no key config/llm.yaml names (ANTHROPIC_API_KEY, GEMINI_API_KEY," in none.text
 
 
 def test_units_left_out_run_nothing(tmp_path: Path) -> None:

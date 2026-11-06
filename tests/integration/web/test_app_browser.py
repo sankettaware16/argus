@@ -57,8 +57,17 @@ class Watch:
 
     def attach(self, page: Any) -> None:
         page.on("pageerror", lambda e: self.errors.append(f"page error: {e}"))
-        page.on("console", lambda m: self.errors.append(f"console {m.type}: {m.text}")
-                if m.type == "error" and not _aborted_font(m.text) else None)  # fmt: skip
+        page.on("console", self._console)
+
+    def _console(self, m: Any) -> None:
+        if m.type != "error" or _aborted_font(m.text):
+            return
+        where = str((m.location or {}).get("url", ""))
+        # GET /api/v1/today answers 404 until the engine's presenter is served: the app's signal to
+        # show Home (docs/p4f-ui-spec.md §2.4), not a failure
+        if "404" in m.text and where.endswith("/api/v1/today"):
+            return
+        self.errors.append(f"console {m.type}: {m.text} ({where})")
 
     async def violations(self, page: Any) -> list[str]:
         found: list[str] = await page.evaluate("window.__violations || []")
@@ -99,13 +108,18 @@ async def test_the_tripwire_stays_silent_and_hostile_values_stay_inert(
         watch.attach(page)
         await sign_in(page, server)
         await page.get_by_role("heading", name="Home").wait_for()
-        tile = page.locator("section[aria-label=Investigations] a").first
-        await tile.locator("span").first.filter(has_text=re.compile(r"^\d")).wait_for()
+        totals = page.get_by_test_id("totals")  # Home's counts (it has no tiles, P4-F U20)
+        await totals.locator("strong").first.filter(has_text=re.compile(r"^\d")).wait_for()
         assert await page.locator("header .ut-mark").count() >= 1  # the name's RLO, shown
         assert await page.locator("header img, header script, header a.ut").count() == 0
-        await page.get_by_role("link", name="Design system").click()  # an in-app navigation
+        # an in-app navigation (the side nav's Reports), then the design page (More's entry is an
+        # admin's): its hostile fixtures
+        nav = page.get_by_role("navigation", name="Main")
+        await nav.get_by_role("link", name="Reports").click()
+        await page.get_by_role("heading", name="Reports", exact=True).wait_for()
+        assert page.url == f"{server}/app/reports"
+        await page.goto(f"{server}/app/design")
         await page.get_by_role("heading", name="Design system").wait_for()
-        assert page.url == f"{server}/app/design"
         # hostile fixtures: nothing ran, nothing became markup, a link or a style
         assert await page.evaluate("window.__pwned") is None
         region = page.get_by_test_id("hostile")
@@ -143,11 +157,10 @@ async def test_the_tripwire_stays_silent_and_hostile_values_stay_inert(
         assert await page.get_by_role("navigation", name="Main").count() == 1
         assert await page.title() == "Not found \u00b7 ARGUS"
         await page.set_viewport_size({"width": 390, "height": 844})
-        menu = page.get_by_role("button", name="Menu")
-        await menu.click()
-        await page.get_by_role("link", name="Home").first.click()
+        # a phone: the four pages are the bottom tab bar (Today is Home until Today is served)
+        await page.get_by_test_id("bottom-bar").get_by_role("link", name="Today").click()
         await page.get_by_role("heading", name="Home").wait_for()
-        assert await page.title() == "Home \u00b7 ARGUS"
+        assert await page.title() == "Today \u00b7 ARGUS"
         await page.wait_for_function("() => document.activeElement?.id === 'main'")  # focus moved
         assert await page.evaluate("window.__pwned") is None
         violations = await watch.violations(page)
@@ -326,20 +339,21 @@ async def test_a_stale_page_reloads_once_never_in_a_loop(
         loads.clear()
         # a deploy: the server now serves another build (the page in the browser is older)
         set_build_id(build_copy, "0123456789abcdef")
-        await page.get_by_role("link", name="Dashboard").count()  # still the same page
+        await page.get_by_role("link", name="Overview").count()  # still the same page
         await page.reload()  # the page itself is the old code with the new page's id ...
         await page.get_by_role("heading", name="Home").wait_for()
         loads.clear()
         # ... and the server's answers say another id: the next navigation reloads, once
-        await page.get_by_role("link", name="Design system").click()
-        await page.get_by_role("heading", name="Design system").wait_for()
+        nav = page.get_by_role("navigation", name="Main")
+        await nav.get_by_role("link", name="Reports").click()
+        await page.get_by_role("heading", name="Reports", exact=True).wait_for()
         await page.wait_for_load_state("networkidle")
-        assert loads == [f"{stale_server}/app/design"]
+        assert loads == [f"{stale_server}/app/reports"]
         # still stale after that one reload (the code cannot match the id): no loop
-        await page.get_by_role("link", name="Home").first.click()
+        await nav.get_by_role("link", name="Today").click()
         await page.get_by_role("heading", name="Home").wait_for()
         await page.wait_for_timeout(1_500)
-        assert loads == [f"{stale_server}/app/design"]
+        assert loads == [f"{stale_server}/app/reports"]
         await page.get_by_text("ARGUS was updated on the server").wait_for()
         violations = await watch.violations(page)
         await browser.close()
@@ -362,14 +376,15 @@ async def test_a_missing_chunk_reloads_once_then_says_so(
         await sign_in(page, stale_server)
         await page.get_by_role("heading", name="Home").wait_for()
         loads.clear()
-        for chunk in (build_copy / "assets").glob("Design-*.js"):  # a deploy removed it
+        for chunk in (build_copy / "assets").glob("Reports-*.js"):  # a deploy removed it
             chunk.unlink()
-        await page.get_by_role("link", name="Design system").click()
+        nav = page.get_by_role("navigation", name="Main")
+        await nav.get_by_role("link", name="Reports").click()
         await page.get_by_role("heading", name="This page could not be shown").wait_for()
         await page.wait_for_timeout(1_500)
         assert len(loads) == 1  # one reload, then the message: never a loop
         assert await page.get_by_role("button", name="Reload").count() >= 1
-        missing = await page.request.get(f"{stale_server}/app/assets/Design-gone.js")
+        missing = await page.request.get(f"{stale_server}/app/assets/Reports-gone.js")
         assert missing.status == 404
         await browser.close()
 

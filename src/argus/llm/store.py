@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, TypeVar
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
 from argus.db.audit import record_audit
 from argus.llm import budget
@@ -25,6 +25,24 @@ async def read_state(conn: AsyncConnection) -> budget.State:
     row = await conn.execute(text("SELECT state FROM llm_state WHERE name = 'gateway'"))
     data: dict[str, Any] = row.scalar_one()
     return budget.from_json(data)
+
+
+@dataclass(frozen=True)
+class Reconciled:
+    before: float  # this month's paid spend, every provider
+    after: float
+    providers: dict[str, tuple[float, float]]  # provider: (before, after), this month
+
+
+async def _by_provider(session: AsyncSession, since: datetime) -> dict[str, float]:
+    rows = await session.execute(
+        text(
+            "SELECT provider, sum(cost_usd) FROM llm_calls WHERE at >= :t GROUP BY provider"
+            " HAVING sum(cost_usd) > 0"
+        ),
+        {"t": since},
+    )
+    return {provider: round(float(cost), 6) for provider, cost in rows.all()}
 
 
 class PgLlmStore:
@@ -115,10 +133,13 @@ class PgLlmStore:
                 )  # fmt: skip
             return cleared
 
-    async def reconcile(self, now: datetime, *, actor: str) -> tuple[float, float]:
-        """Set this month's spend to the ledger's settled costs, dropping reservations that were
-        never settled (a crash, or connections that never reached a provider). Audited. Returns
-        (before, after)."""
+    async def reconcile(self, now: datetime, *, actor: str) -> Reconciled:
+        """Set this month's and today's spend, overall and per provider, to the ledger's costs:
+        each answer's settled cost, and the whole reservation of an attempt that may have been
+        charged (cut off, malformed, or no answer once it reached the provider), which the
+        ledger carries since P4-E2. Only a reservation with no ledger row is dropped (a crash
+        mid-call); ledger rows from before P4-E2 carry no cost for those attempts, so a
+        reconcile drops them too. Audited."""
         month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         async with self.sessions() as session, session.begin():
             row = await session.execute(
@@ -134,11 +155,16 @@ class PgLlmStore:
                 text("SELECT coalesce(sum(cost_usd), 0) FROM llm_calls WHERE at >= :d"),
                 {"d": day},
             )
-            before = state.spent_usd if state.month == budget.month_of(now) else 0.0
+            before = budget.spend(state, now)[0]
             after = round(float(settled), 6)
+            own = await _by_provider(session, month)
+            own_before = state.provider_spent_usd if state.month == budget.month_of(now) else {}
+            providers = {p: (own_before.get(p, 0.0), own.get(p, 0.0))
+                         for p in sorted(set(own_before) | set(own))}  # fmt: skip
             new = replace(state, month=budget.month_of(now), spent_usd=after,
-                          day=day.date().isoformat(),
-                          day_spent_usd=round(float(today), 6))  # fmt: skip
+                          day=day.date().isoformat(), day_spent_usd=round(float(today), 6),
+                          provider_spent_usd=own,
+                          provider_day_spent_usd=await _by_provider(session, day))  # fmt: skip
             await session.execute(
                 text(
                     "UPDATE llm_state SET state = CAST(:s AS jsonb), updated_at = now()"
@@ -148,6 +174,7 @@ class PgLlmStore:
             )
             await record_audit(
                 session, actor=actor, action="llm.reconcile", target_type="llm_gateway",
-                target_id="gateway", details={"before": before, "after": after},
+                target_id="gateway", details={"before": before, "after": after,
+                                              "providers": providers},
             )  # fmt: skip
-            return before, after
+            return Reconciled(before, after, providers)

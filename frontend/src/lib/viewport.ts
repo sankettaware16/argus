@@ -16,3 +16,30 @@ function subscribe(onChange: () => void): () => void {
 export function useWide(): boolean {
   return useSyncExternalStore(subscribe, () => query()?.matches ?? true, () => true);
 }
+
+const PHONE = "(max-width: 639px)";
+const PANE = "(min-width: 1280px)";
+
+function watch(media: string) {
+  const q = () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(media) : null);
+  return {
+    subscribe(onChange: () => void): () => void {
+      const m = q();
+      m?.addEventListener("change", onChange);
+      return () => m?.removeEventListener("change", onChange);
+    },
+    read: () => q()?.matches ?? false,
+  };
+}
+const phone = watch(PHONE);
+const pane = watch(PANE);
+
+/** Under 640 px (the UI v2's phone layout, docs/p4f-ui-spec.md §15). */
+export function usePhone(): boolean {
+  return useSyncExternalStore(phone.subscribe, phone.read, () => false);
+}
+
+/** 1280 px and wider: the Incidents queue has its preview pane (§6.4). */
+export function usePaneWide(): boolean {
+  return useSyncExternalStore(pane.subscribe, pane.read, () => false);
+}

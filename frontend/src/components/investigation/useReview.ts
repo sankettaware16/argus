@@ -10,13 +10,18 @@ import { ApiError } from "../../lib/session";
 import { useCan } from "./actions";
 
 export type Action = "reviewed" | "follow_up" | "note";
-const DONE: Record<Action, string> = { reviewed: "Saved: marked reviewed.", follow_up: "Saved: follow-up requested.", note: "Saved: note added." };
+const DONE: Record<Action, string> = { reviewed: "Saved: your decision.", follow_up: "Saved: kept for a follow-up.", note: "Saved: note added." };
 
 /** What a review needs before it is sent (the server says the same in 422). */
 export function reviewProblem(action: Action, outcome: string, note: string): string | null {
-  if (action === "reviewed" && outcome === "") return "Choose an outcome to mark it reviewed.";
+  if (action === "reviewed" && outcome === "") return "Choose your decision first (the keys 1 to 5), or tick “Come back to it” to keep it for a follow-up.";
   if (action === "note" && note.trim() === "") return "Write a note first.";
   return null;
+}
+
+/** Whether a decision keeps the alert group for a follow-up unless the person says otherwise: "Can't tell yet" does. */
+export function followsUp(outcome: string): boolean {
+  return outcome === "inconclusive";
 }
 
 const CONFLICT =
@@ -26,7 +31,13 @@ export interface Review {
   canReview: boolean;
   canGold: boolean;
   outcome: string;
+  /** choose a decision; "Can't tell yet" ticks "Come back to it", any other unticks it */
   setOutcome: (outcome: string) => void;
+  /** keep it in Needs attention for a follow-up (the review model's follow_up), with the decision or without one */
+  followUp: boolean;
+  setFollowUp: (on: boolean) => void;
+  /** Save decision: a follow-up when "Come back to it" is ticked, else a review */
+  decide: () => Promise<void>;
   note: string;
   setNote: (note: string) => void;
   alsoGold: boolean;
@@ -43,25 +54,25 @@ export interface Review {
   /** ARGUS's recommendation can be confirmed as it stands: it recommends an outcome and nobody has reviewed this version */
   confirmable: boolean;
   /**
-   * Why Confirm waits: the form holds another outcome than ARGUS's or a note, and Confirm would
-   * send neither. Confirm says so and does nothing until the form is cleared or Mark reviewed is
-   * used (AR4 review, D-186); null when nothing in the form stands in its way.
+   * Why accepting ARGUS's call waits: the form holds another outcome than ARGUS's or a note, and
+   * accepting would send neither. It says so and does nothing until the form is cleared or Save
+   * decision is used (AR4 review, D-186); null when nothing in the form stands in its way.
    */
   hold: string | null;
   /** The reviewed gold-set item: the one button saves the gold-set answer alone, and is not the C key's */
   goldOnly: boolean;
-  /** Confirm ARGUS's recommendation (its own proposal is accepted; the pattern's becomes the person's review); true when it was saved */
+  /** Accept ARGUS's call (its own proposal is accepted; the pattern's becomes the person's review); true when it was saved */
   confirm: () => Promise<boolean>;
 }
 
 /**
- * Your review (D-052) and, on top of it, Confirm (AR4, D-182): the one place an outcome is chosen
- * and sent. It names the latest review and version you saw. What you saw is fixed when the form
+ * Your decision (D-052; P4-F U6) and, on top of it, accepting ARGUS's call (AR4, D-182): the one
+ * place an outcome is chosen and sent. It names the latest review and version you saw. What you saw is fixed when the form
  * opens (review B2-R1): if the investigation moves while you type (a background read, someone
  * else's review, new alerts) it says so and sends nothing until you confirm that you have looked
  * at the change; then it names what you are looking at now. If it moved before you got to send,
  * the answer is 409, nothing is saved, what you typed stays, and the investigation is read again.
- * Confirm sends at once (the review path's own rule: a person's single decision, named in the
+ * Accepting sends at once (the review path's own rule: a person's single decision, named in the
  * message that says it was saved); it is refused in the same two ways.
  */
 export function useReview(detail: InvestigationDetail): Review {
@@ -70,7 +81,12 @@ export function useReview(detail: InvestigationDetail): Review {
   const canGold = useCan("answer_gold");
   const queries = useQueryClient();
   const { announce } = useAnnounce();
-  const [outcome, setOutcome] = useState("");
+  const [outcome, setChosen] = useState("");
+  const [followUp, setFollowUp] = useState(false);
+  const setOutcome = (next: string) => {
+    setChosen(next);
+    setFollowUp(followsUp(next));
+  };
   const [note, setNote] = useState("");
   // unticked (AR4 review, D-186): a gold-set answer is the person's own judgement; a box that
   // starts ticked makes ARGUS's suggestion the default answer, which anchors it
@@ -95,9 +111,9 @@ export function useReview(detail: InvestigationDetail): Review {
     !confirmable || goldOnly
       ? null
       : outcome !== "" && outcome !== stance.outcome
-        ? `You chose ${outcomeLabel(outcome)}: use Mark reviewed to save your choice. Confirm sends ARGUS's recommendation only.`
+        ? `You chose ${outcomeLabel(outcome)}: use Save decision to save your choice. Accepting sends ARGUS's call only.`
         : note.trim() !== ""
-          ? "You wrote a note: choose the outcome and use Mark reviewed to keep it. Confirm would not keep the note."
+          ? "You wrote a note: choose your decision and use Save decision to keep it. Accepting would not keep the note."
           : null;
 
   /** One send at a time; on success `done` says what was saved and the investigation is read again. Returns whether it was saved. */
@@ -153,7 +169,8 @@ export function useReview(detail: InvestigationDetail): Review {
       "The review could not be saved. Try again.",
       () => {
         setNote("");
-        setOutcome("");
+        setChosen("");
+        setFollowUp(false);
       },
     );
   }
@@ -180,18 +197,23 @@ export function useReview(detail: InvestigationDetail): Review {
       }
       if (stance.acceptable && stance.assessment_id != null && !alsoSaved) {
         await unwrap(acceptProposal({ path: { investigation_id: inv.id }, body: { assessment_id: stance.assessment_id } }));
-        return `Saved: you confirmed ARGUS's recommendation, ${words}.`;
+        return `Saved: you accepted ARGUS's call, ${words}.`;
       }
       const done = await unwrap(createReview({ path: { investigation_id: inv.id }, body: { action: "reviewed", outcome: agreed, note: null, ...named, also_gold: alsoSaved } }));
-      return `Saved: you confirmed ${words} as your review.${done.gold_saved ? " Also saved as your gold-set answer." : ""}`;
-    }, "It could not be confirmed. Try again.");
+      return `Saved: your decision is ${words}, as ARGUS called it.${done.gold_saved ? " Also saved as your gold-set answer." : ""}`;
+    }, "It could not be saved. Try again.");
   }
+
+  const decide = () => send(followUp ? "follow_up" : "reviewed");
 
   return {
     canReview,
     canGold,
     outcome,
     setOutcome,
+    followUp,
+    setFollowUp,
+    decide,
     note,
     setNote,
     alsoGold,

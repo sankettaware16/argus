@@ -1,11 +1,14 @@
 """The one-page picture dashboard of an incident, drawn by code.
 
 The same four panels as the Visualiser's charts (:mod:`argus.caseteam.visual`), made from the same
-:class:`argus.incident.glance.Glance` with reportlab's own graphics: alerts per day stacked by rule,
-the top actors, the targets and the table of rules, under a row of numbers. It is the second part
-of the incident PDF and, alone, the file ``<incident>_dashboard.pdf``. Rendered from the stored
-report only; the same report gives the same bytes. A series is never identified by colour alone,
-and names of people are never drawn."""
+:class:`argus.incident.glance.Glance` with reportlab's own graphics: alerts per day (per week for
+a long case) stacked by rule, every day from the first alert to the last; the top actors and the
+targets, as bars from two counted items up and as a short list otherwise; and the table of rules.
+Above them, what a person decides on first (severity, the call, active or quiet, dwell) and a row
+of numbers. It is the second part of the incident PDF and, alone, the one-page file
+``<incident>_dashboard.pdf`` with the same foot. Rendered from the stored report only; the same
+report gives the same bytes. A series is never identified by colour alone, and names of people
+are never drawn."""
 
 from __future__ import annotations
 
@@ -37,6 +40,10 @@ MUTED = "#52514e"
 GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 LABEL_AT = 30  # characters of a bar's label before it is cut
+LIST_LABEL_AT = 36  # and of a list's (two lines of its column)
+LIST_ROWS = 6  # rows of a list before "and N more": the page stays one page
+RULES_SHOWN = 8  # and of the rules table
+TITLE_AT = 120  # characters of the case's title under the heading (two lines)
 MAX_DAYS_LABELLED = 12
 
 
@@ -148,7 +155,7 @@ def alerts_over_time(glance: g.Glance, width: float, height: float) -> Drawing:
     legend.dx = legend.dy = 6
     legend.strokeColor = None
     legend.colorNamePairs = [
-        (_hex(shade), _cut(layer.name, 44)) for shade, layer in zip(shades, layers, strict=True)
+        (_hex(shade), _cut(layer.name)) for shade, layer in zip(shades, layers, strict=True)
     ]
     d.add(legend)
     return d
@@ -165,13 +172,13 @@ def top_bars(items: Sequence[g.Slice], width: float, height: float, none: str) -
     chart.x, chart.y = left, 6
     chart.width, chart.height = width - left - 26, height - 12
     ordered = list(reversed(items))  # the first category is drawn at the bottom
-    chart.data = [[s.value for s in ordered]]
+    chart.data = [[s.value or 0 for s in ordered]]
     chart.categoryAxis.categoryNames = [_cut(s.label) for s in ordered]
     chart.categoryAxis.labels.boxAnchor = "e"
     chart.categoryAxis.labels.dx = -3
     _axis_style(chart.categoryAxis, sans)
     chart.valueAxis.valueMin = 0
-    peak = max(s.value for s in items)
+    peak = max(s.value or 0 for s in items)
     step = _nice_step(peak)
     chart.valueAxis.valueMax = step * max(ceil(peak / step), 1)
     chart.valueAxis.valueStep = step
@@ -203,16 +210,11 @@ def _noun(n: int, word: str) -> str:
     return word if n == 1 else word + "s"
 
 
-def _numbers(glance: g.Glance, st: files.Styles, width: float) -> Table:
-    cells = [
-        (count(glance.alerts), _noun(glance.alerts, "alert")),
-        (g.more(glance.actors, glance.actors_more), _noun(glance.actors, "actor")),
-        (str(glance.targets), f"{_noun(glance.targets, glance.targets_word)} reached"),
-        (str(glance.listed), "on threat lists"),
-        (g.more(glance.rules, glance.rules_more), _noun(glance.rules, "rule")),
-    ]
-    row = [[files._p(n, st["BIG"]), files._p(label, st["SM"])] for n, label in cells]
-    table = Table([row], colWidths=[width / len(cells)] * len(cells))
+def _row_table(
+    cells: Sequence[tuple[Flowable, Flowable]], width: float, shares: Sequence[float] = ()
+) -> Table:
+    widths = [width * x for x in shares] if shares else [width / len(cells)] * len(cells)
+    table = Table([[[a, b] for a, b in cells]], colWidths=widths)
     table.setStyle(
         TableStyle(
             [
@@ -227,11 +229,86 @@ def _numbers(glance: g.Glance, st: files.Styles, width: float) -> Table:
     return table
 
 
+def status_row(glance: g.Glance, st: files.Styles, width: float) -> Table:
+    """What a person decides on first: the severity, the call and whose it is, whether it is
+    still going on, and how long it has lasted."""
+    cells = [
+        ("Severity", glance.severity),
+        ("Call", glance.call),
+        ("Activity", glance.activity),
+        ("Dwell (first to last alert)", glance.dwell),
+    ]
+    made = [(files._p(k, st["SM"]), files._p(v, st["B"])) for k, v in cells]
+    return _row_table(made, width, (0.16, 0.44, 0.16, 0.24))  # the call is the longest
+
+
+def _numbers(glance: g.Glance, st: files.Styles, width: float) -> Table:
+    cells = [
+        (count(glance.alerts), _noun(glance.alerts, "alert")),
+        (g.more(glance.actors, glance.actors_more), _noun(glance.actors, "actor")),
+        (
+            g.more(glance.targets, glance.targets_more),
+            f"{_noun(glance.targets, glance.targets_word)} reached",
+        ),
+        (str(glance.listed), "on threat lists"),
+        (g.more(glance.rules, glance.rules_more), _noun(glance.rules, "rule")),
+    ]
+    return _row_table([(files._p(n, st["BIG"]), files._p(k, st["SM"])) for n, k in cells], width)
+
+
+def item_list(items: Sequence[g.Slice], st: files.Styles, width: float, none: str) -> Flowable:
+    """A short labelled list, for a panel of one item or of items the report names without a
+    count: the label, the alerts of the investigations naming it when the report counts them
+    (an investigation's alerts may not all name it), and what the report says of it."""
+    if not items:
+        return files._p(none, st["SM"])
+    counted = all(s.value is not None for s in items)
+    noted = any(s.note for s in items)
+    head = (
+        ["Name"]
+        + (["Alerts of its investigations"] if counted else [])
+        + (["What ARGUS holds"] if noted else [])
+    )
+    rows = [head]
+    for s in items[:LIST_ROWS]:
+        row = [_cut(s.label, LIST_LABEL_AT)]
+        if counted:
+            row.append(count(s.value or 0))
+        if noted:
+            row.append(_cut(s.note, 48))
+        rows.append(row)
+    if len(items) > LIST_ROWS:
+        rows.append([f"and {len(items) - LIST_ROWS} more"] + [""] * (len(head) - 1))
+    if len(head) == 1:
+        widths = [width]
+    else:
+        side = 84.0 if counted else 0.0  # its head, "Alerts of its investigations", in two lines
+        rest = width - side
+        widths = (
+            [rest * 0.45 if noted else rest]
+            + ([side] if counted else [])
+            + ([rest * 0.55] if noted else [])
+        )
+    return files._table(rows, widths, st)
+
+
+def _items(
+    items: Sequence[g.Slice], st: files.Styles, width: float, height: float, none: str
+) -> tuple[str, Flowable]:
+    """A panel's caption ending and its body: bars from two counted items up, else a list (the
+    items of counts that overlap are not counted: :func:`argus.incident.glance.counted`)."""
+    if g.bars(items):
+        return " (alerts of their investigations)", top_bars(items, width, height, none)
+    return "", item_list(items, st, width, none)
+
+
 def _rules(glance: g.Glance, st: files.Styles, width: float) -> Flowable:
     if not glance.rule_rows:
         return files._p("No rule is named.", st["SM"])
     rows = [["Rule", "Alerts"]]
-    rows += [[_cut(r.label, 70), count(r.value)] for r in glance.rule_rows[:12]]
+    rows += [[_cut(r.label, 44), count(r.value or 0)] for r in glance.rule_rows[:RULES_SHOWN]]
+    if len(glance.rule_rows) > RULES_SHOWN:
+        rows.append([f"and {len(glance.rule_rows) - RULES_SHOWN} more", ""])
     return files._table(rows, [width - 44, 44], st)
 
 
@@ -247,18 +324,14 @@ def panels(report: m.IncidentReport, width: float) -> list[Flowable]:
     cell = (width - 6) / 2
     h = 168.0
     left = _panel(
-        f"Alerts per day, by rule ({site.zone_label()})", alerts_over_time(glance, cell - 12, h), st
-    )
-    actors = _panel(
-        shape.actors_title + " (alerts)",
-        top_bars(glance.top_actors, cell - 12, h, "The case names no actor to draw."),
+        f"Alerts per {glance.bucket}, by rule ({site.zone_label()})",
+        alerts_over_time(glance, cell - 12, h),
         st,
     )
-    targets = _panel(
-        shape.targets_title + " (alerts)",
-        top_bars(glance.top_targets, cell - 12, h, "The case names no target to draw."),
-        st,
-    )
+    said, body = _items(glance.top_actors, st, cell - 12, h, "The case names no actor to draw.")
+    actors = _panel(shape.actors_title + said, body, st)
+    said, body = _items(glance.top_targets, st, cell - 12, h, "The case names no target to draw.")
+    targets = _panel(shape.targets_title + said, body, st)
     rules = _panel("Rules that raised the alerts", _rules(glance, st, cell - 12), st)
     grid = Table([[left, actors], [targets, rules]], colWidths=[cell, cell])
     grid.setStyle(
@@ -277,7 +350,15 @@ def panels(report: m.IncidentReport, width: float) -> list[Flowable]:
     when = []
     if glance.first is not None and glance.last is not None:
         when.append(files._p(f"{ist_moment(glance.first)} to {ist_moment(glance.last)}", st["SM"]))
-    return [_numbers(glance, st, width), Spacer(1, 3), *when, Spacer(1, 4), grid]
+    return [
+        status_row(glance, st, width),
+        Spacer(1, 3),
+        _numbers(glance, st, width),
+        Spacer(1, 3),
+        *when,
+        Spacer(1, 4),
+        grid,
+    ]
 
 
 def section(report: m.IncidentReport, width: float) -> list[Flowable]:
@@ -290,14 +371,15 @@ def section(report: m.IncidentReport, width: float) -> list[Flowable]:
 
 
 def pdf(report: m.IncidentReport) -> bytes:
-    """The dashboard alone, on one A4 page: the file ``<incident>_dashboard.pdf``."""
-    sans, _, _ = files._fonts()
+    """The dashboard alone, on one A4 page: the file ``<incident>_dashboard.pdf``, with the same
+    foot as the incident report's pages (the incident, the organisation, the handling mark, the
+    page)."""
     st = _styles()
     width = A4[0] - 36 * mm
     h = report.header
     story: list[Flowable] = [
         files._p(f"Incident at a glance: {h.incident_id}", st["H1"]),
-        files._p(h.title.split(" · ", 1)[-1], st["H2"]),
+        files._p(_cut(h.title.split(" · ", 1)[-1], TITLE_AT), st["H2"]),
         *panels(report, width),
         Spacer(1, 6),
         files._p(
@@ -307,14 +389,7 @@ def pdf(report: m.IncidentReport) -> bytes:
             st["SM"],
         ),
     ]
-
-    def footer(canvas: Any, doc: Any) -> None:
-        canvas.saveState()
-        canvas.setFont(sans, 7.5)
-        canvas.setFillColor(_hex("#6b7280"))
-        canvas.drawString(18 * mm, 10 * mm, files._shown(f"{h.incident_id} · {files.FOOTER}"))
-        canvas.restoreState()
-
+    footer = files.page_footer(report)
     buffer = io.BytesIO()
     template = SimpleDocTemplate(
         buffer,
@@ -324,7 +399,7 @@ def pdf(report: m.IncidentReport) -> bytes:
         topMargin=16 * mm,
         bottomMargin=18 * mm,
         title=files._shown(dashboard_title(report)),
-        author="ARGUS",
+        author=files.pdf_author(),
         invariant=1,
     )
     template.build(story, onFirstPage=footer, onLaterPages=footer)

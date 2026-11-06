@@ -37,7 +37,7 @@ async def test_the_command_suggests_one_case_and_then_nothing(
 
     dry = _ok(await asyncio.to_thread(_run, "case", "suggest", "--dry-run"))
     assert "dry run: unreviewed investigations of the last 72 hours" in dry
-    assert "suggested   2 investigations: Beaconing from 10.1.1.1" in dry
+    assert "suggested   2 investigations: Suspected beaconing from 10.1.1.1" in dry
     assert "planned: suggested 1" in dry
     assert await rows(app_engine, "SELECT * FROM cases") == []
 

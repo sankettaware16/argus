@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -487,7 +487,6 @@ def pdf(report: m.IncidentReport) -> bytes:
     actors, indicators, evidence, hypotheses, affected assets, actions, queries, limits."""
     from argus.incident import dashboard  # borrows this module's fonts and styles: no cycle
 
-    sans, _, _ = _fonts()
     st = _styles()
     width = A4[0] - 36 * mm
     story: list[Any] = [
@@ -505,17 +504,7 @@ def pdf(report: m.IncidentReport) -> bytes:
         *_limits(report, st),
     ]
     ident = report.header.incident_id
-    team, organisation = site.organisation().short_name, site.organisation().name
-
-    def footer(canvas: Any, doc: Any) -> None:
-        canvas.saveState()
-        canvas.setFont(sans, 7.5)
-        canvas.setFillColor(colors.HexColor("#6b7280"))
-        footer = site.say(FOOTER)
-        canvas.drawString(18 * mm, 10 * mm, _shown(f"{ident} · {team}, {organisation} · {footer}"))
-        canvas.drawRightString(A4[0] - 18 * mm, 10 * mm, f"Page {doc.page}")
-        canvas.restoreState()
-
+    footer = page_footer(report)
     buffer = io.BytesIO()
     template = SimpleDocTemplate(
         buffer,
@@ -525,11 +514,41 @@ def pdf(report: m.IncidentReport) -> bytes:
         topMargin=16 * mm,
         bottomMargin=18 * mm,
         title=_shown(f"{ident} incident report"),
-        author=f"{team} {organisation} (ARGUS)",
+        author=pdf_author(),
         invariant=1,
     )
     template.build(story, onFirstPage=footer, onLaterPages=footer)
     return buffer.getvalue()
+
+
+def footer_text(report: m.IncidentReport) -> str:
+    """The line at the foot of every page of both PDFs: the incident, who made it and its
+    handling mark, in the site's words (never a ``{token}``)."""
+    org = site.organisation()
+    return _shown(
+        f"{report.header.incident_id} · {org.short_name}, {org.name} · {site.say(FOOTER)}"
+    )
+
+
+def pdf_author() -> str:
+    org = site.organisation()
+    return f"{org.short_name} {org.name} (ARGUS)"
+
+
+def page_footer(report: m.IncidentReport) -> Callable[[Any, Any], None]:
+    """What reportlab draws on each page: :func:`footer_text` on the left, the page on the right."""
+    sans, _, _ = _fonts()
+    line = footer_text(report)
+
+    def footer(canvas: Any, doc: Any) -> None:
+        canvas.saveState()
+        canvas.setFont(sans, 7.5)
+        canvas.setFillColor(colors.HexColor("#6b7280"))
+        canvas.drawString(18 * mm, 10 * mm, line)
+        canvas.drawRightString(A4[0] - 18 * mm, 10 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    return footer
 
 
 def bundle(report: m.IncidentReport) -> dict[str, bytes]:

@@ -51,7 +51,16 @@ async def test_a_new_version_is_posted_as_update_comments_by_the_users_who_own_t
     assert report.decision.action == "update", report.lines()
     assert report.stopped is None, report.lines()
     after = r.kibana.user_comments(kid)
-    assert after[: len(before)] == before  # nothing earlier was edited or removed
+    # nothing earlier was edited or removed but the Visualiser's one living glance (P4-F V3)
+    glance_at = next(i for i, (u, _) in enumerate(before) if u == "argus-visualiser")
+    assert [c for i, c in enumerate(after[: len(before)]) if i != glance_at] == [
+        c for i, c in enumerate(before) if i != glance_at
+    ]
+    by, glance = after[glance_at]
+    assert by == "argus-visualiser"
+    assert glance.startswith("## Incident at a glance\n")
+    assert "95% sure" in glance
+    assert "New since report version 1: the same counts." in glance
     fresh = after[len(before) :]
     assert [u for u, _ in fresh] == ["argus-evidence", "argus-reporter", "argus-lead"]
     assert fresh[0][1].startswith("## Update: Evidence\n")
@@ -62,16 +71,20 @@ async def test_a_new_version_is_posted_as_update_comments_by_the_users_who_own_t
     assert fresh[2][1].startswith("**Update: ARGUS's verdict is now true positive (0.95); it was")
     assert fresh[2][1].endswith(ENDING)  # the lead's is the last word of the round
 
-    # the PDF changed (it holds the evidence), the CSVs did not: one new file, versioned
+    # the PDF changed (it holds the evidence) and so did the dashboard (it says the call), the
+    # CSVs did not: two new files, versioned
     files = r.kibana.files[kid]
-    assert len(files) == files_before + 1
-    assert files[-1]["by"] == "argus-reporter"
-    assert files[-1]["name"].endswith("_Incident_Report_v2.pdf")
-    assert all("_v2" not in f["name"] for f in files[:-1])
+    assert len(files) == files_before + 2
+    assert {f["by"] for f in files[-2:]} == {"argus-reporter"}
+    assert files[-2]["name"].endswith("_Incident_Report_v2.pdf")
+    assert files[-1]["name"].endswith("_dashboard_v2.pdf")
+    assert all("_v2" not in f["name"] for f in files[:-2])
 
-    # a write is a POST: no edit (PATCH) and no delete ever
+    # a write is a POST, but for the glance's one edit in place; never a delete
     new_writes = r.kibana.writes[writes_before:]
-    assert {w.method for w in r.kibana.writes} == {"POST"}
+    assert [(w.method, w.as_user) for w in r.kibana.writes if w.method != "POST"] == [
+        ("PATCH", "argus-visualiser")
+    ]
     assert all(w.as_user is not None for w in new_writes)
 
     # recorded: the round is a generation of its own, each step by its author
@@ -80,7 +93,9 @@ async def test_a_new_version_is_posted_as_update_comments_by_the_users_who_own_t
     )
     assert [(x.author, x.key, x.state) for x in rows] == [
         ("argus-evidence", "comment:evidence:1", "verified"),
+        ("argus-visualiser", "edit:comment:glance:1", "verified"),
         ("argus-reporter", "file:pdf", "verified"),
+        ("argus-reporter", "file:dashboard", "verified"),
         ("argus-reporter", "comment:files", "verified"),
         ("argus-lead", "comment:verdict", "verified"),
     ]

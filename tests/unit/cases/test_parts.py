@@ -184,7 +184,7 @@ def test_impact_and_floor_signals_are_only_known_ones() -> None:
     assert opener.impact(listed) == ["a campus host in contact with a threat-listed address"]
     rare = cand(0, person=False, signals={"proxy.hosts_to_destination": ("known", 1)})
     assert opener.floor(rare) == ["a destination few campus hosts reach"]
-    assert opener.title(cand(0), ["a regular beacon"]) == "Beaconing from 10.0.0.1"
+    assert opener.title(cand(0), ["a regular beacon"]) == "Suspected beaconing from 10.0.0.1"
 
 
 def test_a_create_describes_the_case_from_its_alerts() -> None:
@@ -308,7 +308,7 @@ def test_the_campus_test_alone_is_the_openers_own() -> None:
 
     classifier = IpClassifier(None, campus_prefixes=[ipaddress.ip_network("10.8.0.0/16")])
     for pairs, expected in (
-        ([["source.ip", "10.8.235.157"]], True),
+        ([["source.ip", "10.201.7.13"]], True),
         ([["source.ip", "8.8.8.8"]], False),
         ([["host.name", "lab-pc-7"]], True),
         ([["source.ip", "8.8.8.8"], ["host.name", "lab-pc-7"]], True),

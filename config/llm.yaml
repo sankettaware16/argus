@@ -1,5 +1,5 @@
 # The LLM gateway (docs/llm.md). Non-secret: the keys are read from keys_file by name and never
-# shown. Providers are tried in this order: the free ones first, the paid one last. A provider
+# shown. Providers are tried in this order: the free ones first, the paid ones last. A provider
 # without the asked-for tier is skipped. Limits are the providers' published or observed limits;
 # ARGUS uses `margin` of them. Prices are USD per million tokens (check the providers' pages);
 # the gpt-5.5 price is set high on purpose, so the monthly cap errs on the safe side.
@@ -7,7 +7,10 @@
 # Per provider, optionally: trust (cloud | campus), ca_file (trust that certificate only),
 # timeout_s (one call's deadline), concurrency (calls in flight across every ARGUS process),
 # tasks (the allowlist of Call.purpose; default every task), probe (GET /v1/models before calls),
-# schema_output and slow_s (a model whose median latency is above it cools down for 30 minutes).
+# schema_output, slow_s (a model whose median latency is above it cools down for 30 minutes),
+# api (openai, the default, or anthropic, with api_version), monthly_cap_usd and daily_cap_usd
+# (its own paid spend, at most the overall caps) and bytes_per_token (1 to 4: the body bytes
+# counted as a prompt token in its rate limits only; the cost reserved always counts a byte a token).
 # Per model: context_tokens, thinking_tokens (room for the reasoning a model writes before its
 # answer) and max_output.
 
@@ -32,6 +35,11 @@ providers:
     keys: [GROQ_API_KEY, GROQ_API_KEY_2]
     timeout_s: 120
     max_tokens_field: max_completion_tokens
+    # Its 263 answered assess prompts (21 Oct-4 Nov) ran at least 3.4 bytes a token (3.7 on
+    # average). At a byte a token no prompt above 4,868 bytes (4,368 on medium) fitted a minute
+    # with its answer's cap; at 2, up to 9,736 (8,736) do, still counted high. Its tokens cost
+    # nothing.
+    bytes_per_token: 2
     models:
       small: {name: openai/gpt-oss-20b, limits: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000}}
       medium: {name: openai/gpt-oss-120b, limits: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000}}
@@ -41,9 +49,11 @@ providers:
     keys: [OPENROUTER_API_KEY]
     timeout_s: 120
     max_tokens_field: max_tokens
+    # Free models come and go: a model that answers 404 raises a model_mismatch alarm (doctor).
+    # The medium model reasons before it answers: thinking_tokens keeps its answer from being cut.
     models:
-      small: {name: "minimax/minimax-m3.1-flash:free"}
-      medium: {name: "nvidia/nemotron-3-ultra-550b-a55b:free"}
+      small: {name: "google/gemma-4-31b-it:free"}
+      medium: {name: "nvidia/nemotron-3-ultra-550b-a55b:free", thinking_tokens: 4096}
     limits: {rpm: 20, rpd: 50}
 
   - name: gemini  # last of the free: its free prompts may improve Google's products
@@ -56,7 +66,13 @@ providers:
       # the circuit breaker is per provider, so one overloaded model would close the other too
       medium: {name: gemini-3.5-flash-lite, limits: {rpm: 10, rpd: 500, tpm: 250000}}
 
-  - name: openai  # last: paid, used when no free provider can answer
+  # Paid. Anthropic's own Messages API (x-api-key, anthropic-version), not its OpenAI-compatible
+  # one: the gateway builds and checks the exact body. Sampling settings are refused on this
+  # API version; the effort sits in output_config beside the answer's schema. The models think
+  # before answering (it cannot be turned off on Sonnet and Opus), billed as output and counted
+  # against max_tokens, hence thinking_tokens. Haiku's price holds for prompts under 100K
+  # tokens, which ARGUS's (at most 60,000 characters) always are.
+  - name: openai  # paid, after the free ones: their gold-set value was best on medium (D-312)
     base_url: https://api.openai.com/v1
     keys: [OPENAI_API_KEY]
     timeout_s: 120
@@ -69,6 +85,22 @@ providers:
       large: {name: gpt-5.5, input_per_m: 5.00, output_per_m: 30.00,
               extra: {reasoning_effort: low}}  # reasoning counts against the answer's cap
     limits: {rpm: 500, tpm: 200000}
+
+  - name: anthropic  # paid, after OpenAI: its caps take over the overflow (D-312)
+    api: anthropic
+    base_url: https://api.anthropic.com/v1
+    keys: [ANTHROPIC_API_KEY]
+    timeout_s: 120
+    schema_output: true
+    max_tokens_field: max_tokens
+    models:
+      small: {name: claude-haiku-5-5, input_per_m: 0.10, output_per_m: 0.50,
+              thinking_tokens: 2048, extra: {output_config: {effort: low}}}
+      medium: {name: claude-sonnet-5-5, input_per_m: 2.00, output_per_m: 10.00,
+               thinking_tokens: 2048, extra: {output_config: {effort: low}}}
+      large: {name: claude-opus-5-5, input_per_m: 4.00, output_per_m: 20.00,
+              thinking_tokens: 4096, extra: {output_config: {effort: low}}}
+    limits: {rpm: 50}
 
   # An optional self-hosted OpenAI-compatible model. Off by default; see docs/llm.md.
   - name: local

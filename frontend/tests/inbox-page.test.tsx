@@ -52,7 +52,7 @@ describe("two panes", () => {
     await views.findByText("13");
     expect(views.getAllByRole("link").map((a) => a.textContent)).toEqual(["Needs attention6", "Not reviewed yet13", "Reviewed4", "All17", "Notified, still active3"]);
     expect(views.getByRole("link", { name: /Not reviewed yet/ }).getAttribute("aria-current")).toBe("page");
-    expect(views.getByRole("link", { name: /^All/ }).getAttribute("href")).toBe("/app/inbox?view=all");
+    expect(views.getByRole("link", { name: /^All/ }).getAttribute("href")).toBe("/app/search?advanced=1&view=all");
     expect(sent("GET", "/api/v1/investigations?")[0]?.path).toContain("view=open");
   });
 
@@ -189,7 +189,7 @@ describe("one pane below 1024 px", () => {
     await screen.findByRole("grid", { name: "Investigations" });
     await new Promise((r) => setTimeout(r, 200));
     expect(screen.queryByRole("region", { name: "Investigation details" })).toBeNull();
-    expect(router.state.location.search).toEqual({ view: "attention" });
+    expect(router.state.location.search).toEqual({ view: "attention", advanced: "1" });
     expect(sent("GET", `/api/v1/investigations/${ID}`)).toHaveLength(0);
   });
 
@@ -222,7 +222,7 @@ describe("the search", () => {
     await user.click(screen.getByText("Find, filter and sort"));
     await user.type(screen.getByLabelText("Value"), "999.1.1.1");
     await user.click(screen.getByRole("button", { name: "Find" }));
-    expect((await screen.findByText(/That is not an IP address\. Write it like 10\.8\.235\.157/)).getAttribute("role")).toBe("alert");
+    expect((await screen.findByText(/That is not an IP address\. Write it like 10\.201\.7\.13/)).getAttribute("role")).toBe("alert");
     expect(sent("GET", "/api/v1/investigations?")).toHaveLength(1);
   });
 
@@ -238,7 +238,7 @@ describe("the search", () => {
     await waitFor(() => expect(router.state.location.search).toMatchObject({ view: "all", kind: "domain", value: "example.com" }));
     await waitFor(() => expect(sent("GET", "/api/v1/investigations?").some((r) => r.path.includes("kind=domain&value=example.com"))).toBe(true));
     await waitFor(() => expect(screen.getByText("Find, filter and sort").closest("details")?.textContent).toContain("Showing domain example.com."));
-    expect(screen.getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/app/inbox?view=all");
+    expect(screen.getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/app/search?advanced=1&view=all");
   });
 
   it("narrows to one rule from the rule menu and turns the sort around", async () => {

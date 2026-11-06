@@ -61,11 +61,14 @@ CASE WHEN {_WAITING} OR {_HELD} THEN kc.notified_at END AS known_since
 # ARGUS raised it: the evidence of the current version carries
 # a threat-list hit, an outside detection or a tie to the operator of one, and another flag
 # (``raised.raises``)
+# (with ``risk.present`` on, the incident engine's cases are the queue and nothing is raised here:
+# ``risk_mode``, written by every pass)
 RAISED = (
-    "EXISTS (SELECT 1 FROM investigation_raises rz WHERE rz.investigation_id = i.id"  # noqa: S608 - constants
+    "(NOT EXISTS (SELECT 1 FROM risk_mode rm WHERE rm.present)"  # noqa: S608 - constants
+    " AND EXISTS (SELECT 1 FROM investigation_raises rz WHERE rz.investigation_id = i.id"
     " AND rz.version = i.version AND ("
     + " OR ".join(f"rz.flags ? '{flag}'" for flag in raised.STRONG)
-    + f") AND jsonb_array_length(rz.flags) >= {raised.MIN_FLAGS})"
+    + f") AND jsonb_array_length(rz.flags) >= {raised.MIN_FLAGS}))"
 )
 #  an investigation of a notified case's device that belongs to the
 # known infection (the owner was told; it is counted, not raised), and one that changed since the
@@ -504,7 +507,7 @@ async def dossier(conn: AsyncConnection, investigation_id: uuid.UUID) -> dict[st
     found = dict(row._mapping)
     body = found["body"]
     found["sentences"] = [
-        sentence(s) for s in [*body.get("local_signals", []), *body.get("signals", [])]
+        sentence(s, plain=True) for s in [*body.get("local_signals", []), *body.get("signals", [])]
     ]
     found["report"] = body.get("report", {})
     found["fields"] = body.get("context", {}).get("pack", {}).get("fields", {})

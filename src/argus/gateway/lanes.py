@@ -3,10 +3,12 @@
 Every request to the SIEM spends one lane's share: its own server-time bucket, daily cap, heavy
 queries a day and concurrency, so a debt (a slow search, a timeout charged whole) slows only that
 lane. Lanes: collector (collect, backfill, reconcile, enrich, measure), investigation, freshness,
-kibana_read, kibana_write, identity and measurement (closed until adopted). ``LanePlan`` refuses
-lanes that add up to more than the ceiling. Across lanes the concurrency is one pool
-(``shared_wait``), heavy queries run one at a time, and health probes spend their own allowance.
-``lane_of`` maps a purpose to its lane; ``admit`` / ``settle`` are pure, like the one-bucket ones.
+kibana_read, kibana_write, identity, measurement (closed until adopted) and checking (the
+incident engine's few targeted checks, P4-F E3: 10 minutes a day, taken from the collector's
+share). ``LanePlan`` refuses lanes that add up to more than the ceiling. Across lanes the
+concurrency is one pool (``shared_wait``), heavy queries run one at a time, and health probes
+spend their own allowance. ``lane_of`` maps a purpose to its lane; ``admit`` / ``settle`` are
+pure, like the one-bucket ones.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ class Lane(StrEnum):
     KIBANA_WRITE = "kibana_write"  # Kibana case writes and alert writes
     IDENTITY = "identity"
     MEASUREMENT = "measurement"
+    CHECKING = "checking"  # the incident engine's checks (P4-F E3)
 
 
 LANE_OF: Mapping[Purpose, Lane | None] = MappingProxyType(
@@ -50,6 +53,7 @@ LANE_OF: Mapping[Purpose, Lane | None] = MappingProxyType(
         Purpose.KIBANA_READ: Lane.KIBANA_READ,
         Purpose.KIBANA_WRITE: Lane.KIBANA_WRITE,
         Purpose.DISCOVER: Lane.COLLECTOR,  # a person's few metadata reads, in NORMAL only
+        Purpose.CHECK: Lane.CHECKING,
     }
 )
 
@@ -89,19 +93,23 @@ class LaneSpec:
 # another ceiling (a test's, or a measured one) every lane keeps its proportion.
 SHARES: Mapping[Lane, tuple[int, int, int, int]] = MappingProxyType(
     {
-        Lane.COLLECTOR: (1_800, 40, 1_600, 2),
+        Lane.COLLECTOR: (1_400, 30, 1_500, 2),
         Lane.INVESTIGATION: (400, 6, 300, 1),
         Lane.FRESHNESS: (100, 3, 0, 1),
         Lane.KIBANA_READ: (200, 4, 0, 1),
         Lane.KIBANA_WRITE: (200, 3, 0, 1),
         Lane.IDENTITY: (300, 2, 0, 1),
         Lane.MEASUREMENT: (0, 2, 100, 1),
+        # 400 ms a minute refills 9.6 min a day; its burst lets an hourly pass send a few
+        # heavy checks at once (NORMAL only)
+        Lane.CHECKING: (400, 10, 100, 1),
     }
 )
 SHARE_TOTALS = (3_000, 60, 2_000)
 # Lanes whose bucket may hold more than a minute's share at NORMAL: the Kibana
-# write lane may spend 60 s of server time at once, so a case of ~45 s posts in one or two runs.
-BURSTS: Mapping[Lane, int] = MappingProxyType({Lane.KIBANA_WRITE: 60_000})
+# write lane may spend 60 s of server time at once, so a case of ~45 s posts in one or two runs;
+# the checking lane 30 s, a pass's few heavy checks.
+BURSTS: Mapping[Lane, int] = MappingProxyType({Lane.KIBANA_WRITE: 60_000, Lane.CHECKING: 30_000})
 IDENTITY_CHECKS_PER_MINUTE = 6
 
 

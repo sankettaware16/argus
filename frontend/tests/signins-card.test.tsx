@@ -10,7 +10,7 @@ const LEAD = "Probable user, from SSO sign-ins on this address — a lead, not p
 
 function device(more: Partial<SigninDeviceOut> = {}): SigninDeviceOut {
   return {
-    address: "10.198.36.230",
+    address: "10.201.7.11",
     state: "likely",
     words: "Probable user: user-ar6-alpha.",
     accounts: [{ user: "user-ar6-alpha", first_at: "2026-10-26T03:40:00Z", last_at: "2026-10-26T12:10:00Z", events: 24, successes: 22, failures: 2, days: ["2026-10-26"], devices: ["Chrome on Windows"] }],
@@ -43,7 +43,7 @@ describe("the card", () => {
     expect(region.textContent).toContain("user-ar6-alpha");
     expect(region.textContent).toContain("22, 2 failed");
     expect(region.textContent).toContain("Chrome on Windows");
-    expect(within(region).getByText("10.198.36.230")).toBeTruthy();
+    expect(within(region).getByText("10.201.7.11")).toBeTruthy();
   });
 
   it("shows times in IST", () => {

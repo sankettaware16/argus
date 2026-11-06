@@ -121,9 +121,11 @@ def assess_run(
                     if settings.investigation.wave:
                         async with db.connect() as conn:
                             owed = await wave.owed(deep[0], conn, datetime.now(UTC))
+                # v2 presents: the old feeds stop, only while its presenter runs (P4-F E5)
+                engine_on = await raising.record_switch(db, settings.risk.present, now, typer.echo)
                 flagged = await raising.run(
                     db, classifier, now,
-                    suggesting=settings.cases.suggest, last=suggested_at,
+                    suggesting=settings.cases.suggest and not engine_on, last=suggested_at,
                     outside=outside, shared=shared, window=settings.history.window,
                     resolvers=settings.campaigns.resolvers,
                     offers_per_hour=settings.cases.offers_per_hour,
@@ -189,7 +191,10 @@ def assess_run(
                     if investigator is None:
                         investigator, close = _agent(settings, privacy, db, agents, outside)
                     handed = patterns.Scheduled(0, 0)
-                    if investigator.takes(Trigger.ENGINE_NO_DECISION):  # its file may say not
+                    # with risk.present the per-pattern runs stop: v2's incidents are the queue
+                    if not engine_on and investigator.takes(
+                        Trigger.ENGINE_NO_DECISION
+                    ):  # its file may say not
                         async with db.begin() as conn:
                             handed = await patterns.schedule(
                                 conn, privacy, investigator.name, now, limit=agent_batch,

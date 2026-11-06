@@ -115,6 +115,7 @@ SETTINGS = SimpleNamespace(
     notified=NotifiedSettings(),
     incident=SimpleNamespace(enabled=False, prose=False),  # AR7's pass, off here
     signins=SigninsSettings(),  # AR6's pass, off by default
+    risk=SimpleNamespace(present=False, shown_per_day=10),  # P4-F E5's switch, off here
 )  # all the pass reads of them
 
 

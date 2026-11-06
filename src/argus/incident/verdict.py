@@ -98,7 +98,18 @@ def _upper(text: str) -> str:
 
 
 def resolve(scene: Scene, book: Book) -> m.ReportVerdict:
-    """The case's verdict (see the module's order)."""
+    """The case's verdict (see the module's order), with how many of the case's investigations
+    people reviewed: a verdict of people's reviews is the whole case's only when they reviewed
+    every one (the investigations not read count as not reviewed)."""
+    f = scene.f
+    counts = {
+        "reviewed": sum(1 for x in f.members if x.reviewed_outcome),
+        "investigations": max(f.members_total, len(f.members)),
+    }
+    return _resolve(scene, book).model_copy(update=counts)
+
+
+def _resolve(scene: Scene, book: Book) -> m.ReportVerdict:
     f = scene.f
     total = len(f.members)
     reviewed = Counter(x.reviewed_outcome for x in f.members if x.reviewed_outcome)

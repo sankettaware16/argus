@@ -11,7 +11,7 @@ import { outcomeLabel } from "./labels";
 export type LineKind = Item["kind"];
 
 export const LINE_LABEL: Record<LineKind, string> = {
-  new: "New",
+  new: "Found",
   nothing_found: "Nothing found",
   could_not_tell: "Could not tell",
   failed: "Failed",
@@ -30,6 +30,26 @@ export const LINE_TONE: Record<LineKind, LineTone> = {
   still_open: "warn",
   hidden: "neutral",
 };
+
+/**
+ * The lines of "What ARGUS found", each sentence once (P4-F U18): a sentence repeated in the
+ * report is kept the first time, and a sentence already shown above (the key facts) is left out
+ * and counted in `above`. Pure.
+ */
+export function distinctLines<T extends { sentence: string }>(items: readonly T[], shown: readonly string[]): { items: T[]; above: number } {
+  const seen = new Set(shown.map((t) => t.trim()));
+  const said = new Set<string>();
+  const out: T[] = [];
+  let above = 0;
+  for (const item of items) {
+    const key = item.sentence.trim();
+    if (said.has(key)) continue;
+    said.add(key);
+    if (seen.has(key)) above += 1;
+    else out.push(item);
+  }
+  return { items: out, above };
+}
 
 /** "3 checks, 2.1 s of SIEM server time" */
 export function foundHeading(checks: number, serverMs: number): string {

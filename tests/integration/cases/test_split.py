@@ -39,7 +39,7 @@ from tests.integration.cases.knownkit import context as known_context
 
 pytestmark = pytest.mark.integration
 
-A = "10.198.36.230"  # the Amadey host, whose owner the CISO told
+A = "10.201.7.11"  # the Amadey host, whose owner the CISO told
 B = "10.152.49.26"  # a second device, not yet reviewed
 C = "10.77.3.4"
 S = "158.94.208.81"  # the server both reached

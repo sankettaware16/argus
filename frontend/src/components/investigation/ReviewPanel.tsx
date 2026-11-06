@@ -1,3 +1,5 @@
+import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { REAL_SENTENCE } from "../decide/AlertGroupDecide";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useId, useRef, useState, type FormEvent } from "react";
@@ -5,7 +7,7 @@ import { answerGold } from "../../client/sdk.gen";
 import type { InvestigationDetail, ReviewedIn } from "../../client/types.gen";
 import { useAnnounce } from "../../lib/announce";
 import { unwrap } from "../../lib/call";
-import { OUTCOME_KEYS, OUTCOMES, outcomeLabel } from "../../lib/labels";
+import { OUTCOME_HINTS, OUTCOME_KEYS, OUTCOMES, outcomeLabel } from "../../lib/labels";
 import { changed } from "../../lib/queries";
 import { ApiError } from "../../lib/session";
 import { Time } from "../Time";
@@ -16,71 +18,123 @@ import { Check, Field, Select, TextArea } from "../ui/field";
 import { NeedsCapability, useCan } from "./actions";
 import type { Review } from "./useReview";
 
+/** The key a choice answers to, drawn beside it (the choice's name stays its own words). */
+function KeyCap({ children }: { children: string }) {
+  return (
+    <kbd aria-hidden="true" className="rounded-control border border-border-strong bg-surface px-1 text-xs text-muted">
+      {children}
+    </kbd>
+  );
+}
+
 /**
- * Your review (D-052): an outcome (the keys 1 to 5 choose it too) and a note, then Mark reviewed,
- * Needs follow-up or Add note only. The state and the sending are `useReview`'s: the verdict card
- * above owns them, so Confirm and this form are one control with one set of rules.
+ * Your decision on an alert group (P4-F U6/U7, over D-052's review): one choice of five (the keys
+ * 1 to 5 choose it too), "Come back to it" to keep it for a follow-up (ticked by "Can't tell
+ * yet"), a note, then Save decision or Add note only. The state and the sending are `useReview`'s:
+ * the card above owns them, so accepting ARGUS's call and this form are one control with one set
+ * of rules. The review model is unchanged: a decision is a review with its outcome, "Come back to
+ * it" a follow-up (with the decision, or without one).
  */
 export function ReviewPanel({ detail, review, inCard = false }: { detail: InvestigationDetail; review: Review; inCard?: boolean }) {
   const id = useId();
-  const { canReview, canGold, outcome, setOutcome, note, setNote, alsoGold, setAlsoGold, busy, problem, moved, looked, look, send } = review;
+  const { canReview, canGold, outcome, setOutcome, followUp, setFollowUp, decide, note, setNote, alsoGold, setAlsoGold, busy, problem, moved, looked, look, send } = review;
+  const [askReal, setAskReal] = useState(false);
+  const realDialog = (
+    <AlertDialog.Root open={askReal} onOpenChange={setAskReal}>
+      <AlertDialog.Portal>
+        <AlertDialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
+        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-surface p-5 text-text shadow-card">
+          <AlertDialog.Title className="m-0 text-lg font-semibold">Real: open an incident?</AlertDialog.Title>
+          <AlertDialog.Description className="m-0 text-sm">{REAL_SENTENCE}</AlertDialog.Description>
+          <div className="flex flex-wrap justify-end gap-2">
+            <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAskReal(false);
+                void decide();
+              }}
+            >
+              Mark it real
+            </Button>
+          </div>
+        </AlertDialog.Popup>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
+  );
   const Body = (
     <>
       {!canReview ? (
         <NeedsCapability what="reviewing" capability="review" />
       ) : (
         <form
-          className="grid gap-3 sm:grid-cols-[minmax(0,15rem)_1fr]"
+          className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void send("reviewed");
+            // Real opens or joins an incident: said in a dialog first (docs/p4f-ui-spec.md §8, F6)
+            if (outcome === "true_positive" && !followUp && !moved && !busy) setAskReal(true);
+            else void decide();
           }}
-          aria-label="Review this investigation"
+          aria-label="Your decision"
         >
-          <Field label="Outcome" hint="(needed to mark it reviewed; keys 1 to 5)" htmlFor={`${id}-outcome`}>
-            <Select id={`${id}-outcome`} value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-              <option value="">— not decided —</option>
+          <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1 text-sm font-medium">
+              What is it? <span className="font-normal text-muted">(keys 1 to 5)</span>
+            </legend>
+            <div className="flex flex-wrap gap-2">
               {OUTCOME_KEYS.map((key, i) => (
-                <option key={key} value={key}>
-                  {i + 1} · {OUTCOMES[key]}
-                </option>
+                <label
+                  key={key}
+                  title={OUTCOME_HINTS[key]}
+                  className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-control border border-border-strong bg-surface px-2.5 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
+                >
+                  <input type="radio" name={`${id}-outcome`} value={key} checked={outcome === key} onChange={() => setOutcome(key)} className="sr-only" />
+                  <KeyCap>{String(i + 1)}</KeyCap>
+                  {key === "true_positive" ? "Real: open an incident…" : OUTCOMES[key]}
+                </label>
               ))}
-            </Select>
-          </Field>
+            </div>
+            {outcome !== "" && (
+              <p className="m-0 text-sm text-muted" data-testid="outcome-hint">
+                {OUTCOME_HINTS[outcome]}
+              </p>
+            )}
+          </fieldset>
+          <Check checked={followUp} onChange={(e) => setFollowUp(e.target.checked)}>
+            Come back to it: keep it in Needs attention for a follow-up
+          </Check>
           <Field label="Note" htmlFor={`${id}-note`}>
             <TextArea id={`${id}-note`} rows={2} maxLength={4000} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           {detail.gold !== null && canGold && (
-            <Check className="sm:col-span-2" checked={alsoGold} onChange={(e) => setAlsoGold(e.target.checked)}>
+            <Check checked={alsoGold} onChange={(e) => setAlsoGold(e.target.checked)}>
               Also save the outcome as my gold-set answer
             </Check>
           )}
           {problem && (
-            <p role="alert" className="m-0 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger sm:col-span-2">
+            <p role="alert" className="m-0 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
               {problem.text}
             </p>
           )}
           {moved && (
-            <div role="alert" className="flex flex-wrap items-center gap-2 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-sm text-warn sm:col-span-2">
+            <div role="alert" className="flex flex-wrap items-center gap-2 rounded-control border border-warn/40 bg-warn-soft px-3 py-2 text-sm text-warn">
               <p className="m-0 flex-1">
-                <strong>This investigation changed while you were typing</strong> (new alerts, a newer assessment, or a review by someone else). Look at what changed above and in the tabs. Nothing is sent until you say you have; what you typed stays.
+                <strong>This alert group changed while you were deciding</strong> (new alerts, a newer assessment, or a review by someone else). Look at what changed above and in the tabs. Nothing is sent until you say you have; what you chose stays.
               </p>
               <Button ref={looked} size="sm" onClick={look}>
                 I have looked at what changed
               </Button>
             </div>
           )}
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="primary" aria-disabled={busy || moved || undefined}>
-              Mark reviewed
-            </Button>
-            <Button aria-disabled={busy || moved || undefined} onClick={() => void send("follow_up")}>
-              Needs follow-up
+              {followUp ? "Save, and come back to it" : "Save decision"}
             </Button>
             <Button aria-disabled={busy || moved || undefined} onClick={() => void send("note")}>
               Add note only
             </Button>
           </div>
+          {realDialog}
         </form>
       )}
     </>
@@ -89,7 +143,7 @@ export function ReviewPanel({ detail, review, inCard = false }: { detail: Invest
     return (
       <section aria-labelledby={`${id}-title`} className="flex flex-col gap-2 border-t border-border pt-3">
         <h3 id={`${id}-title`} className="m-0 text-sm font-semibold">
-          Your review
+          Your decision
         </h3>
         {Body}
       </section>
@@ -97,7 +151,7 @@ export function ReviewPanel({ detail, review, inCard = false }: { detail: Invest
   }
   return (
     <Card aria-labelledby={`${id}-title`}>
-      <CardTitle id={`${id}-title`}>Your review</CardTitle>
+      <CardTitle id={`${id}-title`}>Your decision</CardTitle>
       {Body}
     </Card>
   );
@@ -219,7 +273,7 @@ export function GoldBox({ detail }: { detail: InvestigationDetail }) {
               (next === null ? (
                 <span className="text-sm text-muted">No unanswered gold-set item is left.</span>
               ) : (
-                <Link to="/investigations/$id" params={{ id: next }} className="text-sm">
+                <Link to="/alert-groups/$id" params={{ id: next }} className="text-sm">
                   Go to the next unanswered item
                 </Link>
               ))}

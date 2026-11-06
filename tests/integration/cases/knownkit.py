@@ -23,7 +23,7 @@ from argus.cases.service import CaseService
 from argus.outside.read import View
 from tests.integration.cases.conftest import Person, investigation
 
-HOST = "10.198.36.230"
+HOST = "10.201.7.11"
 OTHER_HOST = "10.55.7.9"
 SERVERS = ("77.221.155.150", "77.221.155.151", "77.221.155.152", "77.221.155.153")
 NEW_SERVER = "185.9.9.9"

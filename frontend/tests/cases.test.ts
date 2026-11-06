@@ -3,20 +3,20 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { entityProblem, entityShape } from "../src/lib/checkEntity";
-import { APPROVAL_KIND_HINTS, APPROVAL_STATUS_TONE, APPROVAL_STATUS_WORDS, CASE_STATE_MEANING, CASE_STATE_TONE, CASE_STATE_WORDS, CASE_VIEW_HINTS, CASE_VIEW_TITLES, CASE_VIEWS, caseStateWord, casePath, casesQuery, describeWrite, parseCases, REASON_LABELS, reasonLabel } from "../src/lib/cases";
+import { APPROVAL_KIND_HINTS, APPROVAL_STATUS_TONE, APPROVAL_STATUS_WORDS, CASE_STATE_MEANING, CASE_STATE_TONE, CASE_STATE_WORDS, CASE_TABS, CASE_VIEW_HINTS, CASE_VIEW_TITLES, CASE_VIEWS, caseStateWord, casePath, casesQuery, describeWrite, parseCases, REASON_LABELS, reasonLabel } from "../src/lib/cases";
 import { titleFor } from "../src/lib/titles";
 
 describe("the address of the case list", () => {
   it("keeps a view it knows and a word, and drops the rest", () => {
-    expect(parseCases({})).toEqual({ view: "active" });
+    expect(parseCases({})).toEqual({ view: "queue" });
     expect(parseCases({ view: "mine", q: " beacon " })).toEqual({ view: "mine", q: "beacon" });
     expect(parseCases({ view: ["closed", "mine"] })).toEqual({ view: "closed" });
-    expect(parseCases({ view: "nonsense", q: "" })).toEqual({ view: "active" });
-    expect(parseCases({ q: "x".repeat(121) })).toEqual({ view: "active" });
-    expect(parseCases({ q: "x".repeat(120) })).toEqual({ view: "active", q: "x".repeat(120) });
+    expect(parseCases({ view: "nonsense", q: "" })).toEqual({ view: "queue" });
+    expect(parseCases({ q: "x".repeat(121) })).toEqual({ view: "queue" });
+    expect(parseCases({ q: "x".repeat(120) })).toEqual({ view: "queue", q: "x".repeat(120) });
     for (const view of CASE_VIEWS) expect(parseCases({ view })).toStrictEqual({ view });
-    expect(parseCases({ q: "a\u0000b" })).toEqual({ view: "active" });
-    expect(parseCases({ view: { __proto__: "x" } as unknown as string })).toEqual({ view: "active" });
+    expect(parseCases({ q: "a\u0000b" })).toEqual({ view: "queue" });
+    expect(parseCases({ view: { __proto__: "x" } as unknown as string })).toEqual({ view: "queue" });
   });
 
   it("asks for a number alone across every view, and for any other text as a word of the title", () => {
@@ -62,17 +62,12 @@ describe("the words", () => {
   });
 
   it("keep their exact words, tones and hints", () => {
-    expect(CASE_VIEW_TITLES).toEqual({ active: "Open cases", queue: "Needs a person", notified: "Notified, still active", attention: "Needs attention", mine: "Mine", suspected: "Suspected", closed: "Closed", all: "All" });
-    expect(CASE_VIEW_HINTS).toEqual({
-      active: "Confirmed cases that are open, assigned or contained, apart from the notified ones",
-      queue: "The cases of Home's queue: suggested, changed since the owner was told, flagged, nobody's, or holding new work",
-      notified: "Cases whose owner was told: tracked quietly, back in the queue only when something changes",
-      attention: "Cases ARGUS wants a person to look at, or that wait for an approval",
-      mine: "Cases you own",
-      suspected: "Cases ARGUS suspects from its own proposals; a person's true-positive verdict confirms one",
-      closed: "Cases that were closed",
-      all: "Every case",
-    });
+    expect(CASE_VIEW_TITLES).toEqual({ queue: "Needs a decision", active: "Open", notified: "Owner told", attention: "Needs attention", mine: "Mine", suspected: "Possible incidents", closed: "Closed", all: "All", incidents: "Incidents" });
+    expect(Object.keys(CASE_VIEW_HINTS).sort()).toEqual([...CASE_VIEWS].sort());
+    expect(casesQuery({ view: "incidents" })).toStrictEqual({ view: "incidents" }); // the dashboard's Incidents opens it
+    expect(CASE_TABS).not.toContain("incidents"); // shown as a tab only while it is the one open
+    expect(CASE_VIEW_HINTS.suspected).toBe("Possible incidents: ARGUS thinks they may be incidents; a person confirms or dismisses each one");
+    for (const hint of Object.values(CASE_VIEW_HINTS)) expect(hint).not.toMatch(/true-positive verdict|argus case/);
     expect(CASE_STATE_TONE).toEqual({ suspected: "neutral", open: "warn", assigned: "info", contained: "ok", closed: "neutral" });
     expect(REASON_LABELS).toEqual({
       remediated_verified: "Fixed, and shown quiet",

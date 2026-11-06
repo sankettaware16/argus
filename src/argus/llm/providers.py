@@ -2,8 +2,8 @@
 ``keys_file`` into ``SecretStr`` and registered for log redaction; a missing key leaves its
 provider out; only names are ever printed. Each provider has its own trust (``cloud`` or
 ``campus``: an on-premises model that must be on this machine, pinned, limited to named tasks and
-capped per day), certificate, timeout, concurrency, task allowlist, probe and output mode; each
-model its context and output limits."""
+capped per day), certificate, timeout, concurrency, task allowlist, probe, output mode, cost caps
+and token estimate; each model its context and output limits."""
 
 from __future__ import annotations
 
@@ -196,12 +196,44 @@ def _loopback(url: str) -> bool:
         return False
 
 
+# Anthropic's Messages API: what a model's ``extra`` may not hold. The sampling settings are
+# refused (400) on every model from API version 2026-10-21; the body's own fields are ARGUS's.
+# Thinking turns off on Haiku only, and only at effort high or below (400 on Sonnet and Opus).
+ANTHROPIC_SAMPLING = ("temperature", "top_p", "top_k")
+ANTHROPIC_OWN = ("model", "max_tokens", "system", "messages", "stream")
+ANTHROPIC_THINKING_EFFORTS = ("xhigh", "max")  # efforts at which thinking cannot be disabled
+
+
+def _anthropic_extra(model: str, extra: dict[str, Any]) -> str | None:
+    """Why ``extra`` cannot go into an Anthropic body, or None."""
+    sampling = [k for k in ANTHROPIC_SAMPLING if k in extra]
+    if sampling:
+        return f"{', '.join(sampling)}: refused by the API (400 on every model)"
+    own = [k for k in ANTHROPIC_OWN if k in extra]
+    if own:
+        return f"{', '.join(own)}: set by ARGUS, not by extra"
+    output = extra.get("output_config")
+    if output is not None and (not isinstance(output, dict) or "format" in output):
+        return "output_config holds the effort only: the answer's format is set by ARGUS"
+    thinking = extra.get("thinking")
+    if isinstance(thinking, dict) and thinking.get("type") == "disabled":
+        if "haiku" not in model.lower():
+            return "only Haiku takes disabled thinking (400 on Sonnet and Opus): lower the effort"
+        effort = (output or {}).get("effort")
+        if effort in ANTHROPIC_THINKING_EFFORTS:
+            return f"disabled thinking takes effort high or below (400 at {effort})"
+    return None
+
+
 class ProviderConfig(_Model):
     name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{0,31}$")]
     base_url: Annotated[str, AfterValidator(_https)]
     keys: tuple[Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]*$")], ...] = Field(min_length=1)
+    # The wire: OpenAI-compatible chat, or Anthropic's Messages API (sent with api_version)
+    api: Literal["openai", "anthropic"] = "openai"
+    api_version: Annotated[str, Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")] = "2026-10-21"
     max_tokens_field: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
-    json_mode: bool = True
+    json_mode: bool = True  # OpenAI's json_object; no meaning for anthropic
     schema_output: bool = False  # it takes response_format json_schema when a call has one
     # json_schema only: a call without a schema never goes to it (no plain JSON mode)
     schema_required: bool = False
@@ -218,11 +250,30 @@ class ProviderConfig(_Model):
     # Each helper task a campus provider serves names the decision that promoted it.
     promoted: dict[str, Annotated[str, Field(pattern=_DECISION)]] = {}
     licence: Annotated[str, Field(pattern=_DECISION)] | None = None
+    # Its own paid spend caps (USD), under the overall ones; None: the overall cap only.
+    monthly_cap_usd: float | None = Field(default=None, ge=0)
+    daily_cap_usd: float | None = Field(default=None, ge=0)
+    # Body bytes a prompt token, for its rate limits (rpm/tpm/rpd/tpd) only; the cost reserved
+    # stays one byte a token, an upper bound.
+    bytes_per_token: float = Field(default=1.0, ge=1, le=4)
 
     @model_validator(mode="after")
     def _check(self) -> ProviderConfig:
         if self.schema_required and not self.schema_output:
             raise ValueError("schema_required needs schema_output")
+        if self.api == "anthropic":
+            if self.max_tokens_field != "max_tokens":
+                raise ValueError("an anthropic provider takes max_tokens")
+            for tier, model in self.models.items():
+                why = _anthropic_extra(model.name, model.extra)
+                if why is not None:
+                    raise ValueError(f"{tier.value} model {model.name}: {why}")
+        capped = self.monthly_cap_usd is not None or self.daily_cap_usd is not None
+        if capped and not all(m.input_per_m > 0 or m.output_per_m > 0
+                              for m in self.models.values()):  # fmt: skip
+            # a model without a price is reserved at $0: the cap would never hold it
+            raise ValueError("a provider with its own cost cap needs every model's price"
+                             " (input_per_m, output_per_m)")  # fmt: skip
         if self.tasks is not None:
             unknown = sorted(set(self.tasks) - TASKS)
             if unknown or not self.tasks:
@@ -255,6 +306,13 @@ class ProviderConfig(_Model):
                 raise ValueError("a promotion needs the licence's confirmation (licence: D-NNN)")
         return self
 
+    @property
+    def paid(self) -> bool:
+        return any(m.input_per_m > 0 or m.output_per_m > 0 for m in self.models.values())
+
+    def caps(self) -> budget.Caps:
+        return budget.Caps(self.monthly_cap_usd, self.daily_cap_usd)
+
     def _day_capped(self) -> bool:
         if self.limits is not None and self.limits.rpd is not None:
             return True
@@ -262,6 +320,13 @@ class ProviderConfig(_Model):
 
     def serves(self, task: str) -> bool:
         return self.tasks is None or task in self.tasks
+
+    def call_url(self) -> str:
+        return f"{self.base_url}/{'messages' if self.api == 'anthropic' else 'chat/completions'}"
+
+    def models_url(self) -> str:
+        """The probe's model list: Anthropic's pages at 20 unless asked for more."""
+        return f"{self.base_url}/models" + ("?limit=1000" if self.api == "anthropic" else "")
 
     def ca_path(self) -> Path | None:
         if self.ca_file is None:
@@ -306,11 +371,20 @@ class LlmConfig(_Model):
             raise ValueError("provider names must be unique")
         if set(self.shares) != set(budget.Priority):
             raise ValueError(f"shares needs exactly {', '.join(budget.Priority)}")
+        for p in self.providers:  # the overall caps are the ceiling over every paid provider
+            if p.monthly_cap_usd is not None and p.monthly_cap_usd > self.monthly_cap_usd:
+                raise ValueError(f"{p.name}: monthly_cap_usd is above the overall"
+                                 f" monthly_cap_usd ({self.monthly_cap_usd})")  # fmt: skip
+            daily = self.daily_cap_usd
+            if p.daily_cap_usd is not None and daily is not None and p.daily_cap_usd > daily:
+                raise ValueError(f"{p.name}: daily_cap_usd is above the overall daily_cap_usd"
+                                 f" ({daily})")  # fmt: skip
         return self
 
     def budget_config(self) -> budget.Config:
+        caps = {p.name: p.caps() for p in self.providers if p.caps() != budget.Caps()}
         return budget.Config(self.monthly_cap_usd, self.margin, dict(self.shares),
-                             self.daily_cap_usd)  # fmt: skip
+                             self.daily_cap_usd, caps)  # fmt: skip
 
 
 def pinned(config: LlmConfig, name: str, *, allow_disabled: bool = False) -> LlmConfig:
@@ -343,20 +417,48 @@ def models_of(config: LlmConfig) -> str:
 
 
 LOCAL_OVERLAY = "llm.local.yaml"
-_OVERLAY_KEYS = frozenset({"keys_file"})
+_OVERLAY_KEYS = frozenset({"keys_file", "monthly_cap_usd", "daily_cap_usd", "provider_caps"})
+_PROVIDER_CAPS = frozenset({"monthly_cap_usd", "daily_cap_usd"})
 
 
 def load_config(path: Path = DEFAULT_PATH) -> LlmConfig:
     """``path``, with this installation's overlay laid over it when there is one:
-    ``llm.local.yaml`` beside it (``argus init`` writes it), which may set ``keys_file`` only."""
+    ``llm.local.yaml`` beside it (``argus init`` writes its ``keys_file``), which may also set this
+    installation's budget: the overall caps and, under ``provider_caps``, a provider's own."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     overlay = path.with_name(LOCAL_OVERLAY)
     if overlay != path and overlay.is_file() and isinstance(data, dict):
         extra = yaml.safe_load(overlay.read_text(encoding="utf-8")) or {}
         if not isinstance(extra, dict) or set(extra) - _OVERLAY_KEYS:
             raise ValueError(f"{LOCAL_OVERLAY} may set {', '.join(sorted(_OVERLAY_KEYS))} only")
+        caps = extra.pop("provider_caps", None) or {}
         data = {**data, **extra}
+        if caps:
+            data["providers"] = _with_caps(data.get("providers"), caps)
     return LlmConfig.model_validate(data)
+
+
+def _with_caps(providers: Any, caps: Any) -> list[Any]:
+    """The providers with the overlay's own caps set on the ones it names."""
+    if not isinstance(caps, dict) or not isinstance(providers, list):
+        raise ValueError(f"{LOCAL_OVERLAY}: provider_caps maps a provider's name to its caps")
+    names = {p.get("name") for p in providers if isinstance(p, dict)}
+    unknown = sorted(str(n) for n in caps if n not in names)
+    if unknown:
+        raise ValueError(
+            f"{LOCAL_OVERLAY}: provider_caps names no such provider: {', '.join(unknown)}"
+        )
+    out = []
+    for p in providers:
+        own = caps.get(p.get("name")) if isinstance(p, dict) else None
+        if own is None:
+            out.append(p)
+            continue
+        if not isinstance(own, dict) or set(own) - _PROVIDER_CAPS:
+            allowed = ", ".join(sorted(_PROVIDER_CAPS))
+            raise ValueError(f"{LOCAL_OVERLAY}: provider_caps.{p['name']} sets {allowed} only")
+        out.append({**p, **own})
+    return out
 
 
 def load_keys(path: Path | None, names: set[str]) -> dict[str, SecretStr]:

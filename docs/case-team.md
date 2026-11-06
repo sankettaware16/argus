@@ -35,7 +35,7 @@ step-by-step runbook, with every detail of pacing and recovery, is
 |---|---|---|---|---|
 | `argus-lead` | ARGUS · Lead | the case and its alerts | **opens** the case (incident ID, title, severity, `key:value` tags, description), **attaches** the case's alerts and **tags** them, writes the **verdict comment last**, and later the notes after a person's verdict | `case_team.lead_api_key` |
 | `argus-evidence` | ARGUS · Evidence | the evidence | **Evidence** (every line with the query behind it, and the hypotheses), **Affected devices**, and the accounts that signed in from them where sign-ins are known | `case_team.evidence_api_key` |
-| `argus-visualiser` | ARGUS · Visualiser | the glance (**optional**) | **Incident at a glance**: a numbers row (alerts, actors, targets, indicators on your threat lists, first and last alert, rules) and up to four **live Kibana charts** of the case's alerts, right after the evidence | `case_team.visualiser_api_key` |
+| `argus-visualiser` | ARGUS · Visualiser | the glance (**optional**) | **Incident at a glance**, right after the evidence: the severity, the call and whose it is, still active or quiet, the dwell; a numbers row (alerts, actors, targets, indicators on your threat lists, first and last alert, rules); what is new since the last version; and up to four **live Kibana charts** of the case's tagged alerts (a short list where a chart would hold one bar or a field the alerts lack). **One living comment**: later rounds edit it in place | `case_team.visualiser_api_key` |
 | `argus-intel` | ARGUS · Intel | threat intel | **Threat intel**, only when the report holds an outside answer (VirusTotal, Shodan, Censys); nothing to add is not posted | `case_team.intel_api_key` |
 | `argus-responder` | ARGUS · Responder | the actions | **Recommended actions**: each with its owner, status and the condition to close | `case_team.responder_api_key` |
 | `argus-hunter` | ARGUS · Hunter | the queries | **Queries to check it yourself**: KQL and ES\|QL in code blocks, the time range, a Discover link (code only) | `case_team.hunter_api_key` |
@@ -60,7 +60,8 @@ The order is fixed (`src/argus/caseteam/model.py`, `ORDER`):
    and **tags** them.
 3. `argus-evidence`: **Evidence** with the hypotheses (split into "Evidence (2 of 3)" ... when
    long; a table row or a query is never cut).
-4. `argus-visualiser`: **Incident at a glance** (if its key is installed).
+4. `argus-visualiser`: **Incident at a glance** (if its key is installed), the one comment ARGUS
+   later edits in place (section 7).
 5. `argus-evidence`: **Affected devices**.
 6. `argus-intel`: **Threat intel** (only if there is an outside answer).
 7. `argus-responder`: **Recommended actions**.
@@ -197,6 +198,9 @@ openssl rand -hex 32 > local/creds-writer/database.writer_password
 CREDENTIALS_DIRECTORY="$PWD/local/creds-writer" uv run argus db bootstrap
 ```
 
+`argus init` does the same whenever the login does not log in with that file (a new database, a
+copy of the folder from another machine), and leaves it alone when it does.
+
 **2. The approval key, for the writer.** The writer verifies the canary's approval with the same
 key the web signs with:
 
@@ -292,6 +296,12 @@ case's plan**:
 A file is uploaded again only if its bytes changed, under a versioned name (`..._v2`). Nothing is
 ever deleted.
 
+**The glance is one living comment.** It is the one exception to "Update" comments: when the
+glance changed, the round **edits** the visualiser's comment in place (one `PATCH`, read first, as
+every edit is) and the comment says what is new since the version before ("New since report
+version 2: 40 more alerts, 1 more rule"). So a long case holds one glance, always the newest. A
+glance a person changed or removed in Kibana is left alone from then on, and the run says so.
+
 **Corrections in place.** A retitle in ARGUS edits the Kibana title in the next round. The
 description and the comments are rewritten only when a person asks:
 
@@ -301,7 +311,9 @@ uv run argus case team refresh <n> --apply    # plan the edits (the next run sen
 ```
 
 Every edit reads Kibana first: if a **person** changed that text in Kibana, ARGUS leaves it
-(`a person changed it in Kibana, so ARGUS leaves it`).
+(`a person changed it in Kibana, so ARGUS leaves it`). A refresh also corrects the glance (a chart
+whose form Kibana did not draw, for one); it never posts a first glance, which the next round does.
+Without the visualiser's key a refresh leaves the glance out and goes on.
 
 **Sync alerts.** A Kibana case's *Sync alerts* setting is the team's; ARGUS never changes it. With
 it on, Kibana sets every attached alert's status to the case's status, so the lead reads the case
@@ -369,7 +381,8 @@ has read why.
 
 From gentlest to strongest:
 
-1. `ARGUS_CASE_TEAM__POST=false` in `local/argus-writer.env` (the next run sends nothing).
+1. `ARGUS_CASE_TEAM__POST=false` in `local/argus-writer.env` (the next run sends nothing: each run
+   refuses before it logs in; doctor notes it and fails nothing).
 2. `systemctl --user disable --now argus-case-team.timer`.
 3. `uv run argus siem stop --component cases --reason "..."` (every Kibana write, at once).
 4. Invalidate the team's keys in Kibana (Stack Management → API keys), or disable the users.

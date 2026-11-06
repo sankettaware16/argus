@@ -1,0 +1,118 @@
+# The incident engine v2 (P4-F E1, docs/p4f-plan.md §5): how alert groups and evidence facts
+# become scored observations on campus objects, and which lanes make a possible incident.
+# It runs in shadow (its own tables; the queue, the suggester and the raises are unchanged).
+# Every value here is generic: a severity, a dossier signal, an ATT&CK stage. No rule is named.
+# Thresholds are changed by a person only (the monthly calibration report); unknown keys are
+# errors.
+version: 1
+
+# A rule observation's base weight: its severity's, scaled by the rule's risk score over the
+# severity's default when the rule overrides it (bounded by risk_scale).
+severity_base: {low: 10, medium: 20, high: 35, critical: 60}
+default_risk_score: {low: 21, medium: 47, high: 73, critical: 99}
+risk_scale: {min: 0.5, max: 2.0}
+unknown_severity_base: 10
+
+# One evidence observation per kind present in the group's newest dossier. A kind holds when
+# any of its signals passes its test (positive: a number above 0; true: true or above 0;
+# below / at_most: a number under / up to the value), or the stored raise flags carry one of
+# its flags. `strong` kinds can make the decisive lane; `feeds` names the threat-intel mode a
+# signal was read from, so a stale feed gives `stale_base` and is not strong. Stages: recon,
+# access, foothold (persistence to C2) and actions (collection, exfiltration, impact).
+evidence:
+  - {kind: outside, flags: ["flagged by outside threat intel"], base: 50, stage: foothold,
+     strong: true}
+  - {kind: ti, signals: {ti.listed: positive, ti.listed_remote: positive},
+     feeds: {ti.listed: mirror, ti.listed_remote: lookup}, base: 40, stale_base: 20,
+     stage: foothold, strong: true}
+  - {kind: operator, flags: ["same operator as a flagged destination"], base: 30,
+     stage: foothold, strong: true}
+  - {kind: success, signals: {web.successes_after: positive, web.paths_success: positive},
+     base: 25, stage: access}
+  - {kind: tunnel, signals: {dns.tunnel_suspected: "true"}, base: 25, stage: foothold}
+  - {kind: beacon, signals: {proxy.regularity: {below: 0.3}}, base: 15, stage: foothold}
+  - {kind: ports, signals: {ports.risky: positive}, base: 10, stage: foothold}
+  - {kind: rare_dest, signals: {proxy.hosts_to_destination: {at_most: 1}}, base: 10}
+  # Inbound exposure (E3): what the checking lane verified for an outside address on a campus
+  # site: a sensitive file really served (not the site's soft-404 page), many files taken under
+  # one sensitive prefix, or rare paths that got through for it and for another address.
+  - {kind: served, signals: {exposure.served: positive}, base: 35, stage: actions}
+  - {kind: bulk_take, signals: {exposure.bulk_take: positive}, base: 35, stage: actions}
+  - {kind: shared_paths, signals: {exposure.shared_paths: positive}, base: 25, stage: access}
+
+# Distinct days on one rare outside destination (reached by few campus objects in the window).
+persistence: {base: 15, stage: foothold, days: 3, window_days: 7, max_reach: 6}
+
+# A threat-intel feed is fresh when its newest indicator is this recent.
+feed_fresh_days: 7
+
+# Each source counts once per window, at its best, decayed by the window's half-life.
+windows:
+  24h: {hours: 24, half_life_hours: 24}
+  7d: {hours: 168, half_life_hours: 72}
+  14d: {hours: 336, half_life_hours: 168}
+
+# Label-free noise: Q = 1 / (1 + log10(max(1, m / k))), m the median distinct objects a day the
+# source touched over `days`. A rule seen first less than `probation_days` ago is on probation:
+# Q at most `probation_factor`, and no lane may need it, except a decisive rule that has touched
+# at most `probation_reach` objects so far (a new advisory's IOC match on two hosts).
+prevalence: {k: 10, days: 14}
+probation: {days: 7, factor: 0.5, reach: 10}
+
+# A second log family on one object multiplies its score by 1 + step; each further one adds a
+# step, up to `cap` families.
+families: {step: 0.5, cap: 3}
+
+# Lanes (on campus objects that act: devices and accounts). L1 decisive: a source at least
+# `base` (a critical rule), or a strong evidence kind with at least `with_sources` sources in
+# 24 h. L2 burst: the 24 h score and sources. L3 slow: the 7 d score, active days, and two
+# families, two matched stages or a strong source (a fact adds a stage only outside its own alert
+# group's rule's stages). L2 and L3 need an anchor (an evidence fact, intel, a campaign or a
+# person's true-positive verdict): rule hits alone never present anything. The gray band (an
+# anchored object at gray_band x a lane's score or more) is what just misses a lane.
+lanes:
+  decisive: {base: 60, with_sources: 2}
+  burst: {score: 40, sources: 2}
+  slow: {score: 50, active_days: 2, families: 2, stages: 2}
+gray_band: 0.7
+
+# An object that enters a lane is a new item when no lane held it for this long before.
+item_quiet_days: 7
+# Observations and processed groups are kept this long; lane crossings longer.
+keep_days: 30
+keep_crossings_days: 90
+max_actors: 64
+max_threats: 50
+digest_samples: 5
+
+# L5 exposure (E3): for an inbound attack the campus site is the thing at risk and the outside
+# address a threat. A site is in the lane with one of `lane_kinds` (a verified served file, a
+# bulk take, rare paths shared by two outside addresses that got through); plain scanning stays
+# in the digest. The checking lane (`argus risk check`, gateway lane `checking`: NORMAL only,
+# never in the quiet hours, at most `day_ms` of server time a day) finds the site of a thin
+# alert (one batched lookup an hour, at most 50 addresses) and checks only exposure candidates:
+# a site that gave an outside address a 2xx for a sensitive path. `templates` lists the checks
+# it may send, each switched on only after its first production run passed (none: nothing is
+# sent). The checks are kept `keep_days`.
+exposure:
+  templates: []
+  lookup_every_minutes: 60
+  lookup_hours: 48
+  candidate_hours: 48
+  pass_requests: 10
+  day_ms: 600000
+  recheck_hours: 24
+  take_hint: 5
+  served_min_bytes: 16  # a real /.git/HEAD is 23 bytes; an empty or 'OK' answer is less
+  window_days: 7
+  keep_days: 180
+  lane_kinds: [served, bulk_take, shared_paths]
+  sensitive:
+    hidden: true
+    extensions: [env, sql, bak, old, orig, save, swp, backup, zip, tar, gz, tgz, 7z, rar, ini,
+                 conf, cfg, config, yml, yaml, pem, key, log, db, sqlite, sqlite3, kdbx, ovpn,
+                 ppk, pfx, p12, git]
+    names: [wp-config.php, web.config, settings.php, config.php, configuration.php,
+            credentials, id_rsa, htpasswd, dockerfile, phpinfo.php]
+  bulk: {paths: 20, sizes: 3, share: 0.8}
+  shared: {sources: 2, paths: 2, rare_sources: 6}

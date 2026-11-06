@@ -118,7 +118,7 @@ async def test_once_the_key_is_installed_the_next_round_brings_the_glance_as_a_f
     by_visualiser = [text for user, text in comments if user == "argus-visualiser"]
     assert len(by_visualiser) == 1
     assert by_visualiser[0].startswith("## Incident at a glance\n")  # not "Update: ..."
-    assert by_visualiser[0].count("!{lens{") == 4
+    assert by_visualiser[0].count("!{lens{") == 3  # the one device is a list (P4-F V4)
     rows = await glance_rows(r, case)
     assert rows[0] == (1, "skipped", "no visualiser key")
     assert rows[1][1] == "verified"

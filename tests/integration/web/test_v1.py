@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.assess import queue
+from argus.cases import naming
 from argus.evaluation import store as gold_store
 from argus.web import auth, queries
 from argus.web.app import create_app
@@ -158,12 +159,18 @@ async def test_the_inbox_list(seeded: AsyncEngine, web_engine: AsyncEngine) -> N
         assert [i["id"] for i in page["items"] + rest["items"]] == [str(s.id) for s in every]
         first = page["items"][0]
         assert set(first) == {
-            "id", "rule_id", "rule_name", "key_fields", "bucket_start", "alert_count",
-            "duplicate_count", "first_event_at", "last_event_at", "severity", "risk_score",
-            "version", "created_at", "continues_id", "human_state", "latest_review",
-            "new_since_review", "last_outcome", "last_reviewed_at", "last_reviewer", "reasons",
-            "ai", "known"}  # fmt: skip
+            "id", "rule_id", "rule_name", "title", "key_words", "key_fields", "bucket_start",
+            "alert_count", "duplicate_count", "first_event_at", "last_event_at", "severity",
+            "risk_score", "version", "created_at", "continues_id", "human_state",
+            "latest_review", "new_since_review", "last_outcome", "last_reviewed_at",
+            "last_reviewer", "reasons", "ai", "known"}  # fmt: skip
         assert first["key_fields"][0]["field"] == "source.ip"
+        # naming v2: the row's two lines come from its own facts, never the rule's name
+        flags = [f for f in every[0].raised_flags or () if isinstance(f, str)]
+        assert (first["title"], first["key_words"]) == naming.row_title(
+            every[0].key_fields, flags, every[0].alert_count
+        )
+        assert all(i["title"] and i["key_words"] for i in page["items"] + rest["items"])
         by_entity = (await http.get(f"{V1}/investigations", params={
             "view": "all", "kind": "ip", "value": "10.0.0.1"})).json()["items"]  # fmt: skip
         assert by_entity

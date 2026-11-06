@@ -342,8 +342,8 @@ def test_observations_keep_untrusted_values_beside_the_sentence() -> None:
     assert by["obs:E1:destinations"].values[0].text == HOSTILE
     assert len(by["obs:E1:answers"].values[1].text) == fx.VALUE_CHARS
     activity = by["obs:E1:activity"]
-    assert activity.sentence == ("The host's proxy traffic ran in 6 ten-minute periods,"
-                                 " regularity 0.0 (0 = perfectly even).")  # fmt: skip
+    assert activity.sentence == ("The host's proxy traffic ran in 6 ten-minute periods;"
+                                 " timing very regular, like a beacon (100/100).")  # fmt: skip
     assert (activity.at, activity.until) == (T0, T0 + timedelta(minutes=160))
 
 

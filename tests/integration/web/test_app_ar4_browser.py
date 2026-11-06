@@ -4,7 +4,7 @@ database login, throwaway database), in Chromium and Firefox:
 - the TA's walk: the queue on Home lists the suggested case first with ARGUS's verdict; open its
   first investigation, the card says what ARGUS recommends; C confirms (the proposal is accepted),
   N lands on the next investigation of the case; the keys do nothing while the note is being typed;
-  5 chooses an outcome and the focus goes to Mark reviewed; no policy violation on the way;
+  4 chooses a decision and the focus goes to Save decision; no policy violation on the way;
 - a notified case on the case page: the notice is recorded through the form and its exact request,
   the case leaves the queue and is counted ("Notified, still active"), a reminder is shown and
   dismissed, a block is recorded, the block list is viewed and downloaded, the notice is withdrawn;
@@ -39,6 +39,12 @@ from tests.integration.web.b3_support import Live, World
 from tests.integration.web.conftest import PASSWORD
 from tests.integration.web.test_app_b3_browser import WCAG, live, person, sign_in_as
 from tests.integration.web.test_queue_review_ar4 import bulk, lows, match, raise_it
+
+
+def everything(case: object) -> str:
+    """The incident page with every part on one page (the UI v2 keeps the old case page there)."""
+    return f"/app/incidents/{case}?tab=all"
+
 
 pytestmark = pytest.mark.integration
 __all__ = ["live"]
@@ -110,35 +116,37 @@ async def test_the_ta_walks_the_queue_confirms_with_c_and_lands_on_the_next_with
     await suggested_case(world, ids[0], ids[1])
     async with async_playwright() as play:
         browser, _, page, watch = await person(play, name, live.url, "mina", "/app")
-        await page.get_by_role("heading", name="1. ARGUS's cases that need a person").wait_for()
+        await page.get_by_role(
+            "heading", name="1. Possible incidents and incidents that need you"
+        ).wait_for()
         first_case = page.get_by_test_id("queue-case").first
         await first_case.wait_for()
         assert "Beaconing from two hostel laptops" in await first_case.inner_text()
         stance = await first_case.get_by_test_id("queue-stance").inner_text()
-        assert stance == "ARGUS recommends: True positive (80%)"
-        assert "Suggested by ARGUS" in await first_case.inner_text()
+        assert stance == "ARGUS's call: Real: act on it (80%)"
+        assert "Possible incident" in await first_case.inner_text()
         assert (await page.title()) == "Home · ARGUS"
         headings = await page.locator("main h2").all_inner_texts()
         assert [h for h in headings if re.match(r"\d\. ", h)] == [
-            "1. ARGUS's cases that need a person",
+            "1. Possible incidents and incidents that need you",
             "2. Patterns ARGUS recommends closing",
             "3. Single investigations that need attention",
         ]
         # open the case's first investigation from the queue
-        await first_case.get_by_role("link", name="Review the first investigation").click()
-        await page.wait_for_url(re.compile(r"/app/investigations/[0-9a-f-]{36}$"))
+        await first_case.get_by_role("link", name="Look at the first alert group").click()
+        await page.wait_for_url(re.compile(r"/app/alert-groups/[0-9a-f-]{36}$"))
         first_id = page.url.rsplit("/", 1)[1]
         assert first_id in {str(ids[0]), str(ids[1])}
         second_id = str(ids[1]) if first_id == str(ids[0]) else str(ids[0])
         headline = page.get_by_test_id("verdict-headline")
         await headline.wait_for()
-        assert await headline.inner_text() == "ARGUS recommends: True positive (80%)"
+        assert await headline.inner_text() == "ARGUS's call: Real: act on it (80%)"
         await page.get_by_text(
             re.compile(r"\d+ more in the queue after this one\.")
         ).first.wait_for()
         # C confirms: the proposal is accepted
         await page.keyboard.press("c")
-        saved = "Saved: you confirmed ARGUS's recommendation, True positive."
+        saved = "Saved: you accepted ARGUS's call, Real: act on it."
         await page.get_by_text(saved).first.wait_for()
         async with world.runtime.connect() as conn:
             reviews = (
@@ -154,9 +162,9 @@ async def test_the_ta_walks_the_queue_confirms_with_c_and_lands_on_the_next_with
         assert reviews[0].assessment_id is not None  # accepted as a proposal, not a plain verdict
         # N lands on the next item of the queue: the case's other investigation
         await page.keyboard.press("n")
-        await page.wait_for_url(re.compile(f"/app/investigations/{second_id}$"))
+        await page.wait_for_url(re.compile(f"/app/alert-groups/{second_id}$"))
         await headline.wait_for()
-        assert await headline.inner_text() == "ARGUS recommends: True positive (80%)"
+        assert await headline.inner_text() == "ARGUS's call: Real: act on it (80%)"
         # the keys are not for the note: typing c, n and 5 there is typing
         note = page.get_by_label("Note")
         await note.click()
@@ -170,13 +178,18 @@ async def test_the_ta_walks_the_queue_confirms_with_c_and_lands_on_the_next_with
             )
         assert count == 0
         await note.fill("")
-        # 5 chooses "inconclusive" and the focus goes to Mark reviewed
+        # 4 chooses "Wrong alert" and the focus goes to Save decision
         await headline.click()
-        await page.keyboard.press("5")
-        assert await page.get_by_label(re.compile("^Outcome")).input_value() == "inconclusive"
-        await page.wait_for_function("document.activeElement?.textContent === 'Mark reviewed'")
+        await page.keyboard.press("4")
+        assert (
+            await page.locator(
+                'form[aria-label="Your decision"] input[type="radio"]:checked'
+            ).get_attribute("value")
+            == "rule_false_positive"
+        )
+        await page.wait_for_function("document.activeElement?.textContent === 'Save decision'")
         await page.keyboard.press("Enter")
-        await page.get_by_text("Saved: marked reviewed.").first.wait_for()
+        await page.get_by_text("Saved: your decision.").first.wait_for()
         async with world.runtime.connect() as conn:
             outcomes = (
                 await conn.execute(
@@ -185,10 +198,10 @@ async def test_the_ta_walks_the_queue_confirms_with_c_and_lands_on_the_next_with
                     {"i": second_id},
                 )
             ).scalars().all()  # fmt: skip
-        assert outcomes == ["inconclusive"]
+        assert outcomes == ["rule_false_positive"]
         # N again: past the case, to a single investigation of the queue
         await page.keyboard.press("n")
-        await page.wait_for_url(re.compile(r"/app/investigations/[0-9a-f-]{36}$"))
+        await page.wait_for_url(re.compile(r"/app/alert-groups/[0-9a-f-]{36}$"))
         assert page.url.rsplit("/", 1)[1] not in {first_id, second_id}
         assert await watch.violations(page) == []
         await browser.close()
@@ -221,24 +234,24 @@ async def test_the_keys_can_be_switched_off_and_a_reading_has_nothing_to_confirm
         )  # fmt: skip
     async with async_playwright() as play:
         browser, _, page, watch = await person(
-            play, name, live.url, "mina", f"/app/investigations/{inv}"
+            play, name, live.url, "mina", f"/app/alert-groups/{inv}"
         )
         headline = page.get_by_test_id("verdict-headline")
         await headline.wait_for()
-        assert await headline.inner_text() == (
-            "ARGUS's reading: True positive (70%), not proposed because it quoted something"
-            " that is not in the evidence"
+        assert (
+            await headline.inner_text()
+            == "ARGUS leans to: Real: act on it (70%), but did not propose it"
         )
-        assert await page.get_by_role("button", name=re.compile("^Confirm")).count() == 0
-        await page.keyboard.press("c")  # nothing to confirm: it says so and sends nothing
-        await page.get_by_text("There is no recommendation to confirm here").first.wait_for()
-        outcome = page.get_by_label(re.compile("^Outcome"))
+        assert await page.get_by_role("button", name=re.compile("^Accept ARGUS")).count() == 0
+        await page.keyboard.press("c")  # nothing to accept: it says so and sends nothing
+        await page.get_by_text("ARGUS made no call to accept here").first.wait_for()
+        chosen = page.locator('form[aria-label="Your decision"] input[type="radio"]:checked')
         await page.get_by_label(SHORTCUTS).uncheck()
-        await page.keyboard.press("4")
-        assert await outcome.input_value() == ""
+        await page.keyboard.press("1")
+        assert await chosen.count() == 0
         await page.get_by_label(SHORTCUTS).check()
-        await page.keyboard.press("4")
-        assert await outcome.input_value() == "true_positive"
+        await page.keyboard.press("1")
+        assert await chosen.get_attribute("value") == "true_positive"
         assert await watch.violations(page) == []
         await browser.close()
     assert watch.errors == []
@@ -316,7 +329,7 @@ async def test_home_holds_the_whole_queue_in_order_and_its_lists_equal_the_apis(
         hrefs = await page.get_by_test_id("queue-single").evaluate_all(
             "(items) => items.map((i) => i.querySelector('a').getAttribute('href'))"
         )
-        assert hrefs == [f"/app/investigations/{i}" for i in singles]
+        assert hrefs == [f"/app/alert-groups/{i}" for i in singles]
         assert (
             await page.get_by_text(
                 re.compile(rf"The 20 first of {queue['singles_total']} are shown\.")
@@ -330,14 +343,14 @@ async def test_home_holds_the_whole_queue_in_order_and_its_lists_equal_the_apis(
         await page.get_by_role("link", name="These cases in the cases list").click()
         table = page.get_by_role("table", name="Cases")
         await table.get_by_role("link", name=re.compile("^Case ")).first.wait_for()
-        assert page.url.endswith("/app/cases?view=queue")
+        assert page.url.endswith("/app/incidents?view=needs-you")
         listed = await table.get_by_role("link", name=re.compile("^Case ")).all_inner_texts()
         assert sorted(listed) == sorted(cards)
         # and the singles' link is the Inbox in the same order
         async with page.expect_response(
             re.compile(r"/api/v1/investigations\?.*sort=queue")
         ) as asked:
-            await page.goto(f"{live.url}/app/inbox?view=attention&sort=queue")
+            await page.goto(f"{live.url}/app/search?advanced=1&view=attention&sort=queue")
         shown = (await (await asked.value).json())["items"]
         assert [i["id"] for i in shown if i["id"] not in members][:20] == singles
         assert await watch.violations(page) == []
@@ -358,7 +371,7 @@ async def test_the_end_of_the_walk_never_says_nothing_else_needs_a_person_while_
     last = queue["order"][-1]
     async with async_playwright() as play:
         browser, _, page, watch = await person(
-            play, name, live.url, "mina", f"/app/investigations/{last}"
+            play, name, live.url, "mina", f"/app/alert-groups/{last}"
         )
         more = queue["order_total"] - len(queue["order"])
         walked = len(queue["order"])
@@ -370,7 +383,7 @@ async def test_the_end_of_the_walk_never_says_nothing_else_needs_a_person_while_
         await page.get_by_text(words.replace("This is", "That was")).first.wait_for()
         assert await page.get_by_text("nothing else needs a person").count() == 0
         await page.get_by_role("link", name="Open them in the Inbox").click()
-        await page.wait_for_url(re.compile(r"/app/inbox\?view=attention&sort=queue"))
+        await page.wait_for_url(re.compile(r"/app/search\?advanced=1&view=attention&sort=queue"))
         assert await watch.violations(page) == []
         await browser.close()
     assert watch.errors == []
@@ -388,13 +401,13 @@ async def test_confirm_keeps_what_the_form_holds_and_the_focus_goes_on(
     await proposal(world, ids[1])
     async with async_playwright() as play:
         browser, _, page, watch = await person(
-            play, name, live.url, "mina", f"/app/investigations/{ids[0]}"
+            play, name, live.url, "mina", f"/app/alert-groups/{ids[0]}"
         )
         headline = page.get_by_test_id("verdict-headline")
         await headline.wait_for()
-        confirm = page.get_by_role("button", name="Confirm: True positive")
-        # another outcome chosen, a note written: Confirm waits and says why; nothing is sent
-        await page.get_by_label(re.compile("^Outcome")).select_option("benign_policy")
+        confirm = page.get_by_role("button", name="Accept ARGUS's call: Real: act on it")
+        # another outcome chosen, a note written: accepting waits and says why; nothing is sent
+        await page.get_by_role("radio", name=re.compile("Allowed by policy")).check(force=True)
         await page.get_by_label("Note").fill("a lab printer, says the lab")
         await page.get_by_test_id("confirm-hold").wait_for()
         assert await confirm.get_attribute("aria-disabled") == "true"
@@ -402,9 +415,9 @@ async def test_confirm_keeps_what_the_form_holds_and_the_focus_goes_on(
         async with world.runtime.connect() as conn:
             before = await conn.scalar(text("SELECT count(*) FROM review_events"))
         assert before == 0
-        # Mark reviewed saves the person's own choice and the note
-        await page.get_by_role("button", name="Mark reviewed", exact=True).click()
-        await page.get_by_text("Saved: marked reviewed.").first.wait_for()
+        # Save decision saves the person's own choice and the note
+        await page.get_by_role("button", name="Save decision", exact=True).click()
+        await page.get_by_text("Saved: your decision.").first.wait_for()
         async with world.runtime.connect() as conn:
             saved = (
                 await conn.execute(text("SELECT outcome, note, assessment_id FROM review_events"))
@@ -412,9 +425,9 @@ async def test_confirm_keeps_what_the_form_holds_and_the_focus_goes_on(
         assert [(r.outcome, r.note, r.assessment_id) for r in saved] == [
             ("benign_policy", "a lab printer, says the lab", None)]  # fmt: skip
         # the next one: Shift+C and a capital do nothing, C confirms, and the focus lands on Next
-        await page.goto(f"{live.url}/app/investigations/{ids[1]}")
+        await page.goto(f"{live.url}/app/alert-groups/{ids[1]}")
         await headline.wait_for()
-        await page.get_by_role("button", name="Confirm: True positive").wait_for()
+        await page.get_by_role("button", name="Accept ARGUS's call: Real: act on it").wait_for()
         await page.keyboard.press("Shift+C")
         await page.keyboard.press("Shift+N")
         assert page.url.endswith(str(ids[1]))
@@ -422,7 +435,7 @@ async def test_confirm_keeps_what_the_form_holds_and_the_focus_goes_on(
             assert await conn.scalar(text("SELECT count(*) FROM review_events")) == 1
         await page.keyboard.press("c")
         await page.get_by_text(
-            "Saved: you confirmed ARGUS's recommendation, True positive."
+            "Saved: you accepted ARGUS's call, Real: act on it."
         ).first.wait_for()
         await page.wait_for_function(
             "() => document.activeElement !== document.body"
@@ -433,7 +446,7 @@ async def test_confirm_keeps_what_the_form_holds_and_the_focus_goes_on(
         await page.keyboard.press("?")
         keys = page.get_by_role("dialog", name="Keyboard shortcuts on an investigation")
         await keys.wait_for()
-        assert "confirm what ARGUS recommends" in await keys.inner_text()
+        assert "accept ARGUS's call" in await keys.inner_text()
         await page.keyboard.press("Escape")
         assert await watch.violations(page) == []
         await browser.close()
@@ -451,16 +464,16 @@ async def test_an_account_that_may_only_view_has_no_confirm_and_its_keys_do_noth
     await proposal(world, ids[0])
     async with async_playwright() as play:
         browser, _, page, watch = await person(
-            play, name, live.url, "vera", f"/app/investigations/{ids[0]}"
+            play, name, live.url, "vera", f"/app/alert-groups/{ids[0]}"
         )
         headline = page.get_by_test_id("verdict-headline")
         await headline.wait_for()
-        assert await page.get_by_role("button", name=re.compile("^Confirm")).count() == 0
+        assert await page.get_by_role("button", name=re.compile("^Accept ARGUS")).count() == 0
         await page.keyboard.press("4")
         await page.keyboard.press("c")
         body = await page.locator("body").inner_text()
         assert "Chosen:" not in body
-        assert "no recommendation to confirm" not in body
+        assert "no call to accept" not in body
         async with world.runtime.connect() as conn:
             assert await conn.scalar(text("SELECT count(*) FROM review_events")) == 0
         await browser.close()
@@ -479,7 +492,7 @@ async def test_the_notice_dialog_reads_the_time_in_ist_twelve_hour_form(
     world = live.world
     case = await world.open_case(1, title="Beaconing", indicators=(Indicator("ip", HOST, "actor"),))
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
         section = page.get_by_role("region", name="Owner notified")
         await section.wait_for()
         await section.get_by_role("button", name="Record that the owner was told").click()
@@ -490,7 +503,7 @@ async def test_the_notice_dialog_reads_the_time_in_ist_twelve_hour_form(
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
         assert "It is dated 26 Oct 2026, 7:20 PM IST." in await dialog.inner_text()
-        shown = json.loads(await dialog.get_by_test_id("payload").inner_text())
+        shown = json.loads(await dialog.get_by_test_id("payload").text_content())
         assert shown["at"] == "2026-10-26T19:20:00+05:30"
         await dialog.get_by_role("button", name="Record the notice").click()
         await page.get_by_text("Recorded: the owner of case 1 was told.").first.wait_for()
@@ -513,7 +526,7 @@ async def test_a_notice_is_recorded_listed_blocked_downloaded_and_withdrawn(
         indicators=(Indicator("ip", HOST, "actor"), Indicator("ip", SERVER, "c2")),
     )  # fmt: skip
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
         section = page.get_by_role("region", name="Owner notified")
         await section.wait_for()
         assert "Not told yet" in await section.get_by_test_id("managed-words").inner_text()
@@ -527,7 +540,7 @@ async def test_a_notice_is_recorded_listed_blocked_downloaded_and_withdrawn(
         await section.get_by_role("button", name="Review the request").click()
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
-        shown = json.loads(await dialog.get_by_test_id("payload").inner_text())
+        shown = json.loads(await dialog.get_by_test_id("payload").text_content())
         assert shown == {"expected_version": 1, "told": "Hostel 5 warden", "how": "phone"}
         await dialog.get_by_role("button", name="Record the notice").click()
         await page.get_by_text("Recorded: the owner of case 1 was told.").first.wait_for()
@@ -556,7 +569,7 @@ async def test_a_notice_is_recorded_listed_blocked_downloaded_and_withdrawn(
         await page.get_by_role("link", name="the list").click()
         table = page.get_by_role("table", name="Cases")
         await table.get_by_role("link", name=re.compile("Case 1:")).wait_for()
-        assert page.url.endswith("/app/cases?view=notified")
+        assert page.url.endswith("/app/incidents?view=owner-told")
         # a reminder is suggested by the pass; the person sees it and dismisses it
         async with world.runtime.begin() as conn:
             await conn.execute(
@@ -564,7 +577,7 @@ async def test_a_notice_is_recorded_listed_blocked_downloaded_and_withdrawn(
                      " 'Still active 7 days after the owner was told.')"),
                 {"c": case},
             )  # fmt: skip
-        await page.goto(f"{live.url}/app/cases/{case}")
+        await page.goto(f"{live.url}/app/incidents/{case}?tab=all")
         reminder = page.get_by_test_id("reminder")
         await reminder.wait_for()
         assert "Tell the owner again" in await reminder.inner_text()
@@ -637,7 +650,7 @@ async def test_a_view_only_account_sees_why_it_may_not_record_a_notice(
     world = live.world
     case = await world.open_case(1, title="Beaconing", indicators=(Indicator("ip", HOST, "actor"),))
     async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "vera", f"/app/cases/{case}")
+        browser, _, page, watch = await person(play, name, live.url, "vera", everything(case))
         section = page.get_by_role("region", name="Owner notified")
         await section.wait_for()
         button = section.get_by_role("button", name="Record that the owner was told")
@@ -702,7 +715,7 @@ async def test_the_dashboard_tile_and_the_counts_equal_the_classic_pages(
         classic = await page.evaluate(probe("ar4_classic_dashboard"))
         await page.goto(f"{live.url}/")
         summary = await page.evaluate(probe("ar4_classic_summary"))
-        await page.goto(f"{live.url}/app/dashboard?range=90d")
+        await page.goto(f"{live.url}/app/overview?range=90d")
         await page.locator("ul[aria-label='Key numbers'] li").first.wait_for()
         await page.get_by_role("table", name="Notified cases").wait_for()
         await page.wait_for_load_state("networkidle")
@@ -731,11 +744,11 @@ async def test_the_dashboard_tile_and_the_counts_equal_the_classic_pages(
         assert f"Needs attention: {summary['need attention']}" in line
         assert f"Notified, still active: {summary['notified, still active']}" in line
         # the tile's list is the Inbox's known view, and it holds the same investigations
-        await page.goto(f"{live.url}/app/dashboard?range=90d")
+        await page.goto(f"{live.url}/app/overview?range=90d")
         await page.locator(
             "ul[aria-label='Key numbers'] a", has_text="Notified, still active"
         ).click()
-        await page.wait_for_url(re.compile(r"/app/inbox\?view=known"))
+        await page.wait_for_url(re.compile(r"/app/search\?advanced=1&view=known"))
         grid = page.get_by_role("grid", name="Investigations")
         await grid.wait_for()
         assert int(await grid.get_attribute("aria-rowcount") or "0") - 1 == int(classic["tile"])
@@ -766,11 +779,11 @@ async def test_axe_finds_nothing_serious_on_the_new_screens_light_dark_narrow_an
         )  # fmt: skip
     pages = [
         ("home", "/app", "queue"),
-        ("investigation", f"/app/investigations/{ids[4]}", "card"),
-        ("case, notified", f"/app/cases/{notified}", "notified"),
-        ("cases, notified", "/app/cases?view=notified", "cases"),
-        ("dashboard", "/app/dashboard?range=90d", "dashboard"),
-        ("inbox, known", "/app/inbox?view=known", "inbox"),
+        ("investigation", f"/app/alert-groups/{ids[4]}", "card"),
+        ("case, notified", f"/app/incidents/{notified}?tab=all", "notified"),
+        ("cases, notified", "/app/incidents?view=owner-told", "cases"),
+        ("dashboard", "/app/overview?range=90d", "dashboard"),
+        ("inbox, known", "/app/search?advanced=1&view=known", "inbox"),
     ]
     axe = Axe()
     problems: list[Any] = []
@@ -792,7 +805,9 @@ async def test_axe_finds_nothing_serious_on_the_new_screens_light_dark_narrow_an
                         await page.get_by_test_id("queue-case").first.wait_for()
                     elif what == "card":
                         await page.get_by_test_id("verdict-headline").wait_for()
-                        await page.get_by_role("button", name=re.compile("^Confirm")).wait_for()
+                        await page.get_by_role(
+                            "button", name=re.compile("^Accept ARGUS")
+                        ).wait_for()
                     elif what == "notified":
                         section = page.get_by_role("region", name="Owner notified")
                         await section.wait_for()

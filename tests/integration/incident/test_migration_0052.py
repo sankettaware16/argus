@@ -200,7 +200,7 @@ async def test_a_downgrade_that_would_lose_a_decision_is_refused_and_a_clean_one
         )
     with pytest.raises(DBAPIError, match="labels were written"):
         await migrate.downgrade(migrated_engine, "0051")
-    assert await migrate.current_revision(migrated_engine) == "0065"
+    assert await migrate.current_revision(migrated_engine) == migrate.head_revision()
     # the decision is the record: the owner removes it the one way there is (the guard is the point)
     async with migrated_engine.begin() as conn:
         await conn.execute(

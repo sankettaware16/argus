@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
+import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SearchData, SearchErrors, SearchResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -81,8 +81,12 @@ export const decideApproval = <ThrowOnError extends boolean = false>(options: Op
 /**
  * List Cases
  *
- * The cases, most severe first: a view (active, needing attention, mine, suspected,
- * closed, all), optionally one case by its number or a word of its title.
+ * The cases, most severe first: a view (Needs you is ``queue``: possible incidents
+ * nobody else is checking and incidents nobody took; ``work`` is Home's, every case that
+ * needs a person for any reason; active, needing attention, mine, suspected, notified,
+ * closed, all), optionally one case by its number or a word of its title, who took it
+ * (``taken_by``), its Kibana state (``kibana``: in Kibana, waiting for it, posting
+ * failed), sorted by last activity or by how long it has waited (``sort``).
  */
 export const listCases = <ThrowOnError extends boolean = false>(options?: Options<ListCasesData, ThrowOnError>): RequestResult<ListCasesResponses, ListCasesErrors, ThrowOnError> => (options?.client ?? client).get<ListCasesResponses, ListCasesErrors, ThrowOnError>({
     security: [{
@@ -92,6 +96,29 @@ export const listCases = <ThrowOnError extends boolean = false>(options?: Option
         }],
     url: '/api/v1/cases',
     ...options
+});
+
+/**
+ * Bulk Dismiss
+ *
+ * Not an incident, for up to 25 possible incidents at once, for one reason: each closed
+ * as ``dismissCase`` closes it (the same command, at the version you looked at, audited as
+ * yours). All or nothing: when one is refused (it moved, it is not a possible incident any
+ * more, your access), none is closed, and the answer names it. There is no bulk
+ * confirm.
+ */
+export const bulkDismissCases = <ThrowOnError extends boolean = false>(options: Options<BulkDismissCasesData, ThrowOnError>): RequestResult<BulkDismissCasesResponses, BulkDismissCasesErrors, ThrowOnError> => (options.client ?? client).post<BulkDismissCasesResponses, BulkDismissCasesErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/bulk-dismiss',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -113,6 +140,27 @@ export const getCase = <ThrowOnError extends boolean = false>(options: Options<G
         }],
     url: '/api/v1/cases/{case_id}',
     ...options
+});
+
+/**
+ * Mark Action Done
+ *
+ * A next step was done: your words (what, by whom). The same record as ``argus case
+ * actions --done``: ARGUS checks it later against the logs where it can (verified, or not
+ * verified); it executes nothing. Only a step advised for a confirmed incident.
+ */
+export const markActionDone = <ThrowOnError extends boolean = false>(options: Options<MarkActionDoneData, ThrowOnError>): RequestResult<MarkActionDoneResponses, MarkActionDoneErrors, ThrowOnError> => (options.client ?? client).post<MarkActionDoneResponses, MarkActionDoneErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/actions/{action_id}/done',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -241,6 +289,27 @@ export const requestClosure = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
+ * Confirm Case
+ *
+ * Confirm a possible incident (a suspected case): it becomes an open case, an incident
+ * a person stands behind. The same command as ``argus case confirm``: the version you saw
+ * (409 when it moved), audited as yours. Kibana gets it as any confirmed case does.
+ */
+export const confirmCase = <ThrowOnError extends boolean = false>(options: Options<ConfirmCaseData, ThrowOnError>): RequestResult<ConfirmCaseResponses, ConfirmCaseErrors, ThrowOnError> => (options.client ?? client).post<ConfirmCaseResponses, ConfirmCaseErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Contain Case
  *
  * Say the case is contained, in your words. Refused until ARGUS can show 72 quiet
@@ -253,6 +322,90 @@ export const containCase = <ThrowOnError extends boolean = false>(options: Optio
             type: 'apiKey'
         }],
     url: '/api/v1/cases/{case_id}/contain',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Dismiss Case
+ *
+ * Say a possible incident (a suspected case) is not an incident, for a reason: it is
+ * closed at once. The same command as ``argus case dismiss``; a dismissal also needs the
+ * review capability. A case the case team posted to Kibana is refused (409): its Kibana
+ * case would stay open, so it is confirmed and its closure asked for instead. To name the
+ * case it duplicates, merge it instead.
+ */
+export const dismissCase = <ThrowOnError extends boolean = false>(options: Options<DismissCaseData, ThrowOnError>): RequestResult<DismissCaseResponses, DismissCaseErrors, ThrowOnError> => (options.client ?? client).post<DismissCaseResponses, DismissCaseErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/dismiss',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Release Hold
+ *
+ * Stop checking: your hold ends and the possible incident is back in everyone's Needs
+ * you. 404 when you are not checking it.
+ */
+export const releaseHold = <ThrowOnError extends boolean = false>(options: Options<ReleaseHoldData, ThrowOnError>): RequestResult<ReleaseHoldResponses, ReleaseHoldErrors, ThrowOnError> => (options.client ?? client).delete<ReleaseHoldResponses, ReleaseHoldErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/hold',
+    ...options
+});
+
+/**
+ * Hold Case
+ *
+ * I'm checking: you are finding out about a possible incident (what you wait on, and
+ * when it comes back, at most 14 days ahead). It leaves everyone else's Needs you and is in
+ * your Mine until then, until you stop, until it is decided, or until ARGUS sees a material
+ * change or it reaches P1. Holding it again replaces your hold; 409 while someone else
+ * holds it. It changes nothing about the case (its version stays).
+ */
+export const holdCase = <ThrowOnError extends boolean = false>(options: Options<HoldCaseData, ThrowOnError>): RequestResult<HoldCaseResponses, HoldCaseErrors, ThrowOnError> => (options.client ?? client).post<HoldCaseResponses, HoldCaseErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/hold',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Review Members
+ *
+ * Mark several of this incident's alert groups at once (up to 100): each a review
+ * exactly as ``createReview`` records it, at the version and latest review you saw. "Real:
+ * act on it" only on a confirmed incident: this never opens one. All or nothing: a group
+ * that moved is 409 and none is saved.
+ */
+export const reviewCaseMembers = <ThrowOnError extends boolean = false>(options: Options<ReviewCaseMembersData, ThrowOnError>): RequestResult<ReviewCaseMembersResponses, ReviewCaseMembersErrors, ThrowOnError> => (options.client ?? client).post<ReviewCaseMembersResponses, ReviewCaseMembersErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/members/reviews',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -495,6 +648,49 @@ export const rejectCaseReport = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
+ * Mark Seen
+ *
+ * Mark as seen: what changed up to the engine's ``engine_version`` is not new to you
+ * any more (your "New since you last looked" empties; other people's stays). A look never
+ * goes back: an older version than the one you saw keeps the newer.
+ */
+export const markCaseSeen = <ThrowOnError extends boolean = false>(options: Options<MarkCaseSeenData, ThrowOnError>): RequestResult<MarkCaseSeenResponses, MarkCaseSeenErrors, ThrowOnError> => (options.client ?? client).post<MarkCaseSeenResponses, MarkCaseSeenErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/seen',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mark Sent
+ *
+ * Mark as sent: you sent this version of the incident report to the CISO's office (by
+ * e-mail, outside ARGUS). ARGUS sends nothing; it keeps who sent which version, when. Only
+ * a confirmed incident's report (one confirmed at some point, as the incident reports list
+ * has it), and a version ARGUS wrote.
+ */
+export const markReportSent = <ThrowOnError extends boolean = false>(options: Options<MarkReportSentData, ThrowOnError>): RequestResult<MarkReportSentResponses, MarkReportSentErrors, ThrowOnError> => (options.client ?? client).post<MarkReportSentResponses, MarkReportSentErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/sent',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Dismiss Suggestion
  *
  * Dismiss an investigation ARGUS suggested for the case: it is not shown for this case
@@ -563,6 +759,28 @@ export const approveCaseTeam = <ThrowOnError extends boolean = false>(options: O
             type: 'apiKey'
         }],
     url: '/api/v1/cases/{case_id}/team/approve',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Undo Dismissal
+ *
+ * Undo your own "Not an incident", right after it: within 15 minutes, while nothing
+ * else happened to the case. It is reopened as a possible incident (the dismissal's
+ * two-week memory ends with it), as ``reopenCase`` would, without the reopen capability.
+ * Anyone else's dismissal, or an older one, needs ``reopenCase``.
+ */
+export const undoDismissal = <ThrowOnError extends boolean = false>(options: Options<UndoDismissalData, ThrowOnError>): RequestResult<UndoDismissalResponses, UndoDismissalErrors, ThrowOnError> => (options.client ?? client).post<UndoDismissalResponses, UndoDismissalErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/cases/{case_id}/undo-dismissal',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -647,6 +865,26 @@ export const listEntities = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
+ * Get Entity
+ *
+ * What ARGUS knows of a device, an account, a campus site or an outside address: the
+ * asset map's entry, its incidents and alert groups, a timeline, its days (and for an
+ * address, each day's host names and sign-ins: whether the host names show a different
+ * device on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),
+ * what outside sources said, and people's notes. An account's page needs ``see_logs``. A
+ * value ARGUS has no record of answers with empty lists, never 404.
+ */
+export const getEntity = <ThrowOnError extends boolean = false>(options: Options<GetEntityData, ThrowOnError>): RequestResult<GetEntityResponses, GetEntityErrors, ThrowOnError> => (options.client ?? client).get<GetEntityResponses, GetEntityErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/entities/{kind}/{value}',
+    ...options
+});
+
+/**
  * List Entity Notes
  *
  * The notes people wrote about one host, address, domain or user, newest first.
@@ -715,7 +953,8 @@ export const getGoldSet = <ThrowOnError extends boolean = false>(options?: Optio
 /**
  * Get Health
  *
- * Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps.
+ * Is data arriving: the SIEM's state, the collector's cursors, open coverage gaps, and
+ * whether confirmed incidents reach Kibana (``case_team``).
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, GetHealthErrors, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({
     security: [{
@@ -724,6 +963,23 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
             type: 'apiKey'
         }],
     url: '/api/v1/health',
+    ...options
+});
+
+/**
+ * List Incident Reports
+ *
+ * The incident reports of confirmed incidents, newest first: each incident's IR number,
+ * its newest report version and when ARGUS wrote it, its files, whether it is in Kibana,
+ * and the newest "sent to the CISO".
+ */
+export const listIncidentReports = <ThrowOnError extends boolean = false>(options?: Options<ListIncidentReportsData, ThrowOnError>): RequestResult<ListIncidentReportsResponses, ListIncidentReportsErrors, ThrowOnError> => (options?.client ?? client).get<ListIncidentReportsResponses, ListIncidentReportsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/incident-reports',
     ...options
 });
 
@@ -1041,7 +1297,9 @@ export const listProposals = <ThrowOnError extends boolean = false>(options?: Op
  * Confirm Proposals
  *
  * Accept a group's proposals: only those listed, and only while each is still
- * current and of that group (the others are skipped and counted).
+ * current and of that group (the others are skipped and counted). A list holding a true
+ * positive is refused (409, nothing accepted): what the proposal says, not the request,
+ * stands in the way; each one starts an incident and is decided on its own.
  */
 export const confirmProposals = <ThrowOnError extends boolean = false>(options: Options<ConfirmProposalsData, ThrowOnError>): RequestResult<ConfirmProposalsResponses, ConfirmProposalsErrors, ThrowOnError> => (options.client ?? client).post<ConfirmProposalsResponses, ConfirmProposalsErrors, ThrowOnError>({
     security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
@@ -1062,9 +1320,10 @@ export const confirmProposals = <ThrowOnError extends boolean = false>(options: 
  *
  * What needs a person, in order (AR4): ARGUS's open cases that need one (suggested
  * cases and cases with a change since the owner was told first), each with its verdict or
- * reading, its devices and why it is here; then the single investigations in Needs
- * attention that belong to no case; and the order the app's "Next" walks through them. The
- * patterns to close are ``/patterns``; the numbers of new and known work are ``/counts``.
+ * reading, its campus devices and its outside addresses (apart) and why it is here; then
+ * the single investigations in Needs attention that belong to no case; and the order the
+ * app's "Next" walks through them. The patterns to close are ``/patterns``; the numbers of
+ * new and known work are ``/counts``.
  */
 export const getQueue = <ThrowOnError extends boolean = false>(options?: Options<GetQueueData, ThrowOnError>): RequestResult<GetQueueResponses, GetQueueErrors, ThrowOnError> => (options?.client ?? client).get<GetQueueResponses, GetQueueErrors, ThrowOnError>({
     security: [{
@@ -1122,6 +1381,25 @@ export const listRules = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
+ * Search
+ *
+ * One box: an incident number (``31``, ``#31``), an IR number, an address, a host, an
+ * account (with ``see_logs``, as an account's page), a domain, or words of an incident
+ * title or a rule name. What the text looks like (``guess``), the entity it names, and at
+ * most five incidents, alert groups and incident reports, with how many there are in
+ * all.
+ */
+export const search = <ThrowOnError extends boolean = false>(options: Options<SearchData, ThrowOnError>): RequestResult<SearchResponses, SearchErrors, ThrowOnError> => (options.client ?? client).get<SearchResponses, SearchErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/search',
+    ...options
+});
+
+/**
  * End Session
  *
  * Sign out: the session ends at once and its cookie is cleared.
@@ -1165,6 +1443,67 @@ export const getSince = <ThrowOnError extends boolean = false>(options?: Options
             type: 'apiKey'
         }],
     url: '/api/v1/since',
+    ...options
+});
+
+/**
+ * Get Today
+ *
+ * Today: what needs a person (the queue's cases: possible incidents to confirm or
+ * dismiss, confirmed ones nobody has taken; by band then priority; at most ten new cards a
+ * day, P1 and P2 always), how many more of the queue wait for room, confirmed incidents
+ * with new activity (and closed ones told of new strong evidence), the gray band (just
+ * under a lane) and what ARGUS handled since the person's last visit, with one item to
+ * spot-check. In shadow (``risk.present`` off) the cards are the engine's own incidents
+ * (kind ``shadow``) and carry no case.
+ */
+export const getToday = <ThrowOnError extends boolean = false>(options?: Options<GetTodayData, ThrowOnError>): RequestResult<GetTodayResponses, GetTodayErrors, ThrowOnError> => (options?.client ?? client).get<GetTodayResponses, GetTodayErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/today',
+    ...options
+});
+
+/**
+ * Answer Spot Check
+ *
+ * Your answer to a spot-check of something ARGUS closed on its own: it looks right, it
+ * is wrong (it should have been raised), or you cannot tell. Only what ARGUS decided
+ * without a person is accepted (409 otherwise): an alert group it joined to an incident
+ * that already existed or closed on its own proposal, an incident it closed itself. One
+ * answer per person and item: answering again replaces yours. "Wrong" reopens nothing by
+ * itself: reopen it with ``reopenCase``. The answer comes back with the team's score.
+ */
+export const answerSpotCheck = <ThrowOnError extends boolean = false>(options: Options<AnswerSpotCheckData, ThrowOnError>): RequestResult<AnswerSpotCheckResponses, AnswerSpotCheckErrors, ThrowOnError> => (options.client ?? client).post<AnswerSpotCheckResponses, AnswerSpotCheckErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/today/audit/{target_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Caught Up
+ *
+ * I'm caught up: your "since" is now. Today counts what ARGUS handled from here, and
+ * "While you were away" starts again.
+ */
+export const markCaughtUp = <ThrowOnError extends boolean = false>(options?: Options<MarkCaughtUpData, ThrowOnError>): RequestResult<MarkCaughtUpResponses, MarkCaughtUpErrors, ThrowOnError> => (options?.client ?? client).post<MarkCaughtUpResponses, MarkCaughtUpErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/today/caught-up',
     ...options
 });
 

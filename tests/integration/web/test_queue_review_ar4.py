@@ -4,7 +4,8 @@
   follow-up, severity, newest), not by the rule's severity alone, and the Inbox's ``queue`` sort
   holds the same order;
 * a case someone owns, or that is contained, with an unreviewed investigation in Needs attention is
-  work (``kind`` "new", with how many), and the case list's ``queue`` view holds the queue's cases;
+  work (``kind`` "new", with how many), and the case list's ``work`` view holds the queue's cases
+  (``queue`` is UI v2's Needs you since P4-F);
 * every investigation in Needs attention is a single or a member of a case card, counted in the
   totals, on randomized data; the lists are compared, not only the numbers;
 * the totals say what the capped lists leave out (``order_total``).
@@ -175,7 +176,7 @@ async def test_a_case_someone_owns_with_an_unreviewed_investigation_is_work(worl
         taken = await post(http, csrf, f"/cases/{case}/take", {"expected_version": 1})
         assert taken.status_code == 200, taken.text
         seen = await queue(http)
-        listed = (await http.get(f"{V1}/cases", params={"view": "queue"})).json()
+        listed = (await http.get(f"{V1}/cases", params={"view": "work"})).json()
     (card,) = [c for c in seen["cases"] if c["id"] == str(case)]
     assert card["kind"] == "new"
     assert card["state"] == "assigned"
@@ -190,7 +191,7 @@ async def test_a_case_someone_owns_with_an_unreviewed_investigation_is_work(worl
     assert str(inv) not in [s["investigation"]["id"] for s in seen["singles"]]
     # the list behind Home's link holds the queue's cases, and says how many
     assert [c["id"] for c in listed["items"]] == [str(case)]
-    assert listed["counts"]["queue"] == 1
+    assert listed["counts"]["work"] == 1
 
 
 async def test_a_contained_case_with_new_work_is_work_and_a_reviewed_one_is_not(
@@ -320,9 +321,9 @@ async def test_every_investigation_in_needs_attention_is_a_single_or_a_member_of
     # the list behind Home's link holds exactly the cards
     async with world.app() as http:
         await sign_in(http, "mina")
-        listed = (await http.get(f"{V1}/cases", params={"view": "queue", "limit": 100})).json()
+        listed = (await http.get(f"{V1}/cases", params={"view": "work", "limit": 100})).json()
     assert {c["id"] for c in listed["items"]} == cards
-    assert listed["counts"]["queue"] == len(cards)
+    assert listed["counts"]["work"] == len(cards)
 
 
 async def test_the_random_worlds_are_not_empty(world: World) -> None:

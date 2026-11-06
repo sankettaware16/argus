@@ -21,7 +21,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from argus.caseteam import guard
+from argus.caseteam import guard, visual
 from argus.caseteam.render import bold, row, say, val
 from argus.incident import build
 from argus.incident import model as m
@@ -140,6 +140,29 @@ def test_every_comment_of_a_fixture_is_plain_in_kibana(name: str) -> None:
     for (key, text), got in zip(every.items(), reader.read(texts), strict=True):
         check(f"{name}/{key}", text, got)
         assert got.count("table") == len(re.findall(r"(?m)^\|---", unfenced(text))), key
+
+
+@pytest.mark.parametrize("name", ["amadey", "git", "scanners"])
+def test_the_living_glance_is_plain_in_kibana_in_every_form(name: str) -> None:
+    """P4-F V3/V4: the glance with its charts, its lists, the line that says what is new, and the
+    note for a field the alerts lack reads as two tables, its lists and nothing that acts."""
+    report = fixtures()[name]
+    before = visual.Seen(1, 3, 9, 0, 2, 0, "quiet")
+    thin = report.model_copy(
+        update={"meta": report.meta.model_copy(update={"carried": ("source.ip",)})}
+    )
+    texts = [
+        visual.comment(report, "acme-soc", tagged=20)[0],
+        visual.comment(report, "acme-soc", tagged=20, since=before)[0],
+        visual.comment(report, "acme-soc", tagged=0, since=before)[0],
+        visual.comment(thin, "acme-soc", tagged=5, since=before)[0],
+    ]
+    for n, (text, got) in enumerate(zip(texts, reader.read(texts), strict=True)):
+        check(f"{name}/glance/{n}", text, got)
+        assert got.count("table") == 2
+        assert got.tables[0] == [4, 4]  # the head and the one row
+        assert got.tables[1] == [7, 7]
+        assert got.count("heading") == 1
 
 
 @pytest.mark.parametrize("name", ["amadey", "git", "scanners"])

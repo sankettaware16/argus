@@ -70,13 +70,25 @@ def test_json_inside_a_json_string_keeps_its_escaped_quotes(text: str, masked: s
         ("SCRAM-SHA-256$4096:" + "c2FsdA==$c3RvcmVk:c2VydmVy", "SCRAM-SHA-256$***"),
         ("gsk_" + "Ab1" * 8, "gsk_***"),
         ("sk-or-v1-" + "0f" * 16, "sk-or-v1-***"),
+        ("sk-ant-" + "made-up-" * 4, "sk-ant-***"),
         ("sk-proj-" + "Zz9_" * 8, "sk-***"),
         ("AIza" + "Sy" * 18, "AIza***"),
         ("AQ." + "Qw" * 12, "AQ.***"),
         ("ghp_" + "a1" * 18, "gh_***"),
         ("xoxb-" + "1234567890-abcdef", "xox-***"),
     ],
-    ids=["pem", "scram", "groq", "openrouter", "openai", "google", "ai-studio", "github", "slack"],
+    ids=[
+        "pem",
+        "scram",
+        "groq",
+        "openrouter",
+        "anthropic",
+        "openai",
+        "google",
+        "ai-studio",
+        "github",
+        "slack",
+    ],
 )
 def test_each_shape_leaves_a_marker_of_what_it_was(secret: str, marker: str) -> None:
     assert redact_text(f"before {secret} after") == f"before {marker} after"

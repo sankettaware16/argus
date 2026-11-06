@@ -8,7 +8,7 @@ import { outcomeLabel } from "../../lib/labels";
 import { endWords, useNext } from "../../lib/queueNext";
 import { reportsOptions } from "../../lib/queries";
 import { useShortcuts } from "../../lib/useShortcuts";
-import { keyFacts, knownSentence, needsReview, patternSize, stanceHeadline, stanceSource } from "../../lib/verdict";
+import { keyFacts, knownSentence, needsReview, patternSize, stanceHeadline, stanceSource, stanceWhy } from "../../lib/verdict";
 import { dialogOpen, verdictAct } from "../../lib/verdictKeys";
 import { KeysHelp } from "../KeysHelp";
 import { Time } from "../Time";
@@ -29,11 +29,12 @@ function Key({ children }: { children: string }) {
 }
 
 /**
- * The verdict-first top card (AR4, D-182): what ARGUS recommends, or its reading and why it is not
- * a proposal; the few facts behind it, each linking to its raw rows; the size of its pattern; and
- * Confirm, Change and Next in one place. Under it the review form (outcome, note) is the same
- * control Confirm uses. `queue` is the investigation's own page: Next and the keys (C confirms, 1 to
- * 5 choose an outcome, N goes on) belong to it; in the Inbox's pane the list is the way on.
+ * The decision bar of an alert group (AR4, D-182; P4-F U6): ARGUS's call, or what it leans to and
+ * (behind Details) why it did not propose it; the few facts behind it, each linking to its raw
+ * rows; then one decision: accept ARGUS's call in one click, or choose one of the five outcomes in
+ * the form under it, which is the same control. `queue` is the investigation's own page: Next and
+ * the keys (C accepts, 1 to 5 choose a decision, N goes on) belong to it; in the Inbox's pane the
+ * list is the way on.
  */
 export function VerdictCard({ detail, queue = false }: { detail: InvestigationDetail; queue?: boolean }) {
   const inv = detail.investigation;
@@ -64,14 +65,13 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
       announce(next.loading ? "The queue is still loading." : next.failed ? "The queue could not be read, so Next has nowhere to go." : end.text, "info");
       return;
     }
-    void navigate({ to: "/investigations/$id", params: { id: next.next.id } });
+    void navigate({ to: "/alert-groups/$id", params: { id: next.next.id } });
   };
   const choose = (outcome: string) => {
     review.setOutcome(outcome);
-    announce(`Chosen: ${outcomeLabel(outcome)}. Press Mark reviewed to save it.`, "info");
-    document.querySelector<HTMLElement>('form[aria-label="Review this investigation"] button[type="submit"]')?.focus();
+    announce(`Chosen: ${outcomeLabel(outcome)}. Press Save decision to save it.`, "info");
+    document.querySelector<HTMLElement>('form[aria-label="Your decision"] button[type="submit"]')?.focus();
   };
-  const change = () => document.querySelector<HTMLElement>('form[aria-label="Review this investigation"] select')?.focus();
   // Confirm saved: the button is gone with the recommendation, so the focus goes to Next (the way
   // on), or to the headline when there is no Next (AR4 review, D-186)
   const confirm = async () => {
@@ -101,9 +101,9 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
       if (act.kind === "help") setHelp(true);
       else if (act.kind === "next") latest.current.goNext();
       else if (act.kind === "outcome") latest.current.choose(act.outcome);
-      else if (latest.current.goldOnly) announce("C confirms a review. A gold-set answer is saved with its own button, so that it is never saved by a slip.", "info");
+      else if (latest.current.goldOnly) announce("C accepts ARGUS's call as your decision. A gold-set answer is saved with its own button, so that it is never saved by a slip.", "info");
       else if (latest.current.confirmable) void latest.current.confirm();
-      else announce("There is no recommendation to confirm here: choose an outcome with the keys 1 to 5.", "info");
+      else announce("ARGUS made no call to accept here: choose your decision with the keys 1 to 5.", "info");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -116,10 +116,16 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
           {stanceHeadline(stance)}
         </h2>
         {source && <p className="m-0 text-sm text-muted">{source}</p>}
+        {stanceWhy(stance) && (
+          <details className="text-sm text-muted" data-testid="stance-why">
+            <summary className="cursor-pointer">Details</summary>
+            <UntrustedText value={stanceWhy(stance) ?? ""} limits={{ maxChars: 400, maxLines: 4 }} />
+          </details>
+        )}
         {stance.from_investigation_id && (
           <p className="m-0 text-sm" data-testid="same-pattern-source">
             Same pattern as{" "}
-            <Link to="/investigations/$id" params={{ id: stance.from_investigation_id }} className="font-mono">
+            <Link to="/alert-groups/$id" params={{ id: stance.from_investigation_id }} className="font-mono">
               {stance.from_investigation_id}
             </Link>
             .
@@ -156,12 +162,12 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
                   <UntrustedText value={f.text} limits={{ maxChars: 400, maxLines: 4 }} />
                 </span>
                 {f.eid === null ? (
-                  <Link to="/investigations/$id" params={{ id: inv.id }} search={{ tab: "alerts" }} className="text-xs">
+                  <Link to="/alert-groups/$id" params={{ id: inv.id }} search={{ tab: "alerts" }} className="text-xs">
                     See the alerts
                   </Link>
                 ) : (
-                  <Link to="/investigations/$id" params={{ id: inv.id }} search={{ tab: "report" }} hash={`eid-${f.eid}`} className="text-xs">
-                    See the rows ({f.eid})
+                  <Link to="/alert-groups/$id" params={{ id: inv.id }} search={{ tab: "report" }} hash={`eid-${f.eid}`} className="text-xs" title={`Evidence ${f.eid} in the report`}>
+                    See the rows
                   </Link>
                 )}
               </li>
@@ -180,13 +186,8 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
               aria-describedby={review.hold !== null ? holdId : undefined}
               onClick={() => void confirm()}
             >
-              {review.goldOnly ? `Save as my gold-set answer: ${outcomeLabel(stance.outcome)}` : `Confirm: ${outcomeLabel(stance.outcome)}`}
+              {review.goldOnly ? `Save as my gold-set answer: ${outcomeLabel(stance.outcome)}` : `Accept ARGUS's call: ${outcomeLabel(stance.outcome)}`}
               {queue && shortcuts && !review.goldOnly && <Key>C</Key>}
-            </Button>
-          )}
-          {review.canReview && (
-            <Button aria-keyshortcuts={queue && shortcuts ? "1 2 3 4 5" : undefined} onClick={change}>
-              Change{queue && shortcuts && <Key>1–5</Key>}
             </Button>
           )}
           {queue && (
@@ -212,12 +213,12 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
         )}
         {!open && inv.last_outcome && (
           <p className="m-0 text-sm text-muted">
-            Already reviewed{inv.last_reviewer ? <> by <UntrustedText value={inv.last_reviewer} limits={{ maxChars: 60, maxLines: 1 }} /></> : null}: {outcomeLabel(inv.last_outcome)}. A new review below replaces it.
+            Already decided{inv.last_reviewer ? <> by <UntrustedText value={inv.last_reviewer} limits={{ maxChars: 60, maxLines: 1 }} /></> : null}: {outcomeLabel(inv.last_outcome)}. A new decision below replaces it.
           </p>
         )}
         {open && stance.kind !== "recommends" && review.canReview && (
           <p className="m-0 text-sm text-muted">
-            {stance.kind === "reading" ? "ARGUS did not propose an outcome, so there is nothing to confirm." : "ARGUS has no recommendation for this one."} Choose an outcome with the keys 1 to 5 or in the form below.
+            {stance.kind === "reading" ? "ARGUS did not propose its call, so there is nothing to accept." : "ARGUS made no call on this one."} Choose your decision below (the keys 1 to 5).
           </p>
         )}
         {queue && (
@@ -245,7 +246,7 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
           </p>
         )}
         {stance.kind === "recommends" && stance.from_investigation_id && review.confirmable && (
-          <p className="m-0 text-xs text-muted">Confirming records your own review of this investigation; the pattern&apos;s proposal is not accepted for it.</p>
+          <p className="m-0 text-xs text-muted">Accepting records your own decision on this alert group; the pattern&apos;s proposal is not accepted for it.</p>
         )}
       </div>
 

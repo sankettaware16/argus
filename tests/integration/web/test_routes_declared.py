@@ -89,9 +89,26 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("GET", "/api/v1/investigations/{investigation_id}/reports"): C.VIEW,  # Q-B2 (report@2)
     # Q-B3: cases, their commands, the approvals queue, notes and "Check more"
     ("GET", "/api/v1/cases"): C.VIEW,
+    # P4-F UI v2 (spec §2.3): a person's work on the queue, and the finding pages
+    ("POST", "/api/v1/cases/{case_id}/hold"): C.MANAGE_CASES,
+    ("DELETE", "/api/v1/cases/{case_id}/hold"): C.MANAGE_CASES,
+    ("POST", "/api/v1/cases/{case_id}/seen"): C.VIEW,
+    ("POST", "/api/v1/today/audit/{target_id}"): C.REVIEW,
+    ("POST", "/api/v1/today/caught-up"): C.VIEW,
+    ("POST", "/api/v1/cases/bulk-dismiss"): C.MANAGE_CASES,
+    ("POST", "/api/v1/cases/{case_id}/members/reviews"): C.REVIEW,
+    ("POST", "/api/v1/cases/{case_id}/sent"): C.MANAGE_CASES,
+    ("POST", "/api/v1/cases/{case_id}/actions/{action_id}/done"): C.MANAGE_CASES,
+    ("POST", "/api/v1/cases/{case_id}/undo-dismissal"): C.MANAGE_CASES,
+    ("GET", "/api/v1/entities/{kind}/{value}"): C.VIEW,
+    ("GET", "/api/v1/search"): C.VIEW,
+    ("GET", "/api/v1/incident-reports"): C.VIEW,
+    ("GET", "/api/v1/today"): C.VIEW,  # the incident engine's Today (P4-F E5)
     ("GET", "/api/v1/cases/{case_id}"): C.VIEW,
     ("GET", "/api/v1/cases/{case_id}/closure-preview"): C.VIEW,
     ("GET", "/api/v1/cases/{case_id}/merge-preview"): C.VIEW,
+    ("POST", "/api/v1/cases/{case_id}/confirm"): C.MANAGE_CASES,  # P4-F: a possible incident
+    ("POST", "/api/v1/cases/{case_id}/dismiss"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/take"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/assign"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/release"): C.MANAGE_CASES,
@@ -371,7 +388,7 @@ async def test_every_change_refuses_without_session_token_or_capability(
     async with client(web_engine) as vera:  # view only
         token = await signed(vera, "vera")
         for (method, path), need in changes.items():
-            if need == SESSION:
+            if need in (SESSION, C.VIEW):  # a person's own mark (UI v2): view is enough
                 continue
             data = {"csrf_token": token} if surface(path) is Surface.FORM else None
             got = await vera.request(method, concrete(path, ids), headers={"X-CSRF-Token": token},
@@ -396,7 +413,7 @@ async def test_every_change_refuses_without_session_token_or_capability(
         written = (await conn.execute(text(
             "SELECT count(*) FROM review_events r JOIN users u ON u.id = r.user_id"
             " WHERE u.username = 'vera'"))).scalar_one()  # fmt: skip
-    assert refused == sum(1 for v in changes.values() if v != SESSION)  # each one audited
+    assert refused == sum(1 for v in changes.values() if v not in (SESSION, C.VIEW))  # audited
     assert written == 0
 
 

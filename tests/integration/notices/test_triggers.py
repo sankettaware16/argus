@@ -501,7 +501,7 @@ async def test_compute_reads_every_trigger_and_names_the_ones_it_could_not_read(
     assert got.failed == set()
 
     async def broken(conn: Any, now: datetime) -> list[Condition]:
-        raise RuntimeError("secret detail: host 10.8.235.157")
+        raise RuntimeError("secret detail: host 10.201.7.13")
 
     monkeypatch.setattr(triggers, "closure_waiting", broken)
     broken_got = await triggers.compute(world.runtime, real_now(), classifier=CLASSIFIER)

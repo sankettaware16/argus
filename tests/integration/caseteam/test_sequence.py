@@ -81,7 +81,9 @@ async def test_the_amadey_case_is_posted_by_seven_users_in_the_fixed_order(
     assert heads[6] == "## Files"
     glance = dict(comments)["argus-visualiser"]
     assert kibana_case["tags"][0] in glance
-    assert glance.count("!{lens{") == 4
+    assert glance.count("!{lens{") == 3  # over time, the servers, the rules (P4-F V4)
+    assert "**Top campus devices**\n\n- " in glance  # one device: a list, not a one-bar chart
+    assert "The charts count the " in glance
     last = comments[-1][1]
     assert last.startswith("**ARGUS's verdict: true positive (0.8).**")
     assert last.endswith("Confirm or reject in a comment.")

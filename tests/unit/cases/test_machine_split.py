@@ -45,7 +45,7 @@ INV = [uuid.UUID(int=100 + n) for n in range(6)]
 MINA = Actor.person(7, LOCAL_CAPABILITIES, via="test")
 VIEWER = Actor.person(8, frozenset({Capability.VIEW.value, Capability.REVIEW.value}), via="test")
 ARGUS = Actor.argus("watch")
-A = Indicator("ip", "10.198.36.230", "actor")
+A = Indicator("ip", "10.201.7.11", "actor")
 B = Indicator("ip", "10.152.49.26", "actor")
 C2 = Indicator("ip", "158.94.208.81", "indicator")
 VERIFIED = QuietWindow(True, "quiet for 72 hours")

@@ -1,11 +1,12 @@
 """The SOC dashboard: alerts, cases and incidents over time, by state, severity, rule and entity,
 under one set of filters. It reads ARGUS's own database only, never the SIEM.
 
-Words: an *investigation* is one rule, one key and one local day (``cases`` and ``Case`` here
-still mean investigations: their old name); an *incident* is one a person decided is a true
-positive; a *suspected incident* is one the AI investigator or the engine proposes as a true
-positive that nobody has confirmed yet. A *case* (one real problem across days, hosts and rules)
-is another record."""
+Words: an *investigation* (an alert group on the pages) is one rule, one key and one local day
+(``cases`` and ``Case`` here still mean investigations: their old name). An *incident* is a case
+(one real problem across days, hosts and rules) a person confirmed, and a *possible incident* a
+suspected case: ``incident_cases`` and ``possible_incidents`` count them. ``incidents`` and
+``suspected`` still count investigations: those a person called a true positive, and those
+ARGUS proposes as one that nobody has decided yet."""
 
 from __future__ import annotations
 
@@ -243,6 +244,13 @@ SELECT count(*) AS cases,
   count(*) FILTER (WHERE ai <> 'none') AS assessed,
   count(*) FILTER (WHERE severity = 'critical' AND state <> 'reviewed') AS open_critical
 FROM f"""
+# incidents are cases (one meaning of the word): confirmed and not closed, whoever was told (the
+# case list's "incidents" view, which the number opens), and the possible ones (suspected) a
+# person still decides; counted now, whatever the span and the filters
+_CASES = """
+SELECT count(*) FILTER (WHERE state IN ('open', 'assigned', 'contained')) AS incidents,
+  count(*) FILTER (WHERE state = 'suspected') AS possible
+FROM cases"""
 _FIRST_REVIEW = """
 SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM r.first - f.first_event_at))
 FROM f JOIN (SELECT investigation_id, min(created_at) AS first FROM review_events
@@ -299,6 +307,9 @@ async def build(conn: AsyncConnection, f: Filters, now: datetime) -> Dashboard:
     kpis["alerts_before"] = int(await conn.scalar(text(before_cte + _ALERTS), before))
     median = (await rows(_FIRST_REVIEW))[0][0]
     kpis["median_review_s"] = float(median) if median is not None else None
+    cases = (await conn.execute(text(_CASES))).one()
+    kpis["incident_cases"] = int(cases.incidents)
+    kpis["possible_incidents"] = int(cases.possible)
 
     by_bucket: dict[datetime, dict[str, int]] = {}
     zone = site.zone()

@@ -1534,8 +1534,13 @@ def create_app(
         group: Annotated[str, Form(max_length=600)],
         ids: Annotated[str, Form(max_length=8000, pattern=r"^[0-9,]*$")],
     ) -> Response:
-        """Accept a group's proposals, only those the page listed."""
+        """Accept a group's proposals, only those the page listed. A list holding a true positive
+        is refused (409), as in the API: each one starts an incident and is decided on its own."""
         wanted = [int(i) for i in ids.split(",") if i][: assessed.GROUP_LIMIT]
+        if await assessed.true_positives(conn, wanted):
+            return page(request, "error.html", reviewer, status=409,
+                        message="A real attack starts an incident, so it is never confirmed with"
+                        " its group: open each one and decide it on its own page.")  # fmt: skip
         accepted, skipped = await assessed.confirm(
             conn,
             group,

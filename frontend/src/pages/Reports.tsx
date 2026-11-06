@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import type { ReportMetricOut, ReportOut, ReportRowOut, ReportSectionOut } from "../client/types.gen";
+import { IncidentReports } from "../components/IncidentReports";
 import { Loading, Problem } from "../components/Problem";
 import { Time } from "../components/Time";
 import { UntrustedText } from "../components/UntrustedText";
@@ -28,13 +29,14 @@ type Choice = (typeof KINDS)[number][0];
 export function Reports() {
   const [kind, setKind] = useState<Choice>("all");
   const list = useQuery(reportListOptions(kind));
-  if (list.isPending) return <Loading what="the reports" />;
-  if (list.isError) return <Problem error={list.error} what="The reports" onRetry={() => void list.refetch()} />;
-  const rows = list.data;
   const utcDay = `${utcDayStart()} ${zoneLabel()}`; // where a UTC day begins on the site's clock
   return (
     <>
       <h1 className="m-0 text-2xl font-semibold">Reports</h1>
+      <IncidentReports />
+      <h2 className="m-0 mt-2 text-lg font-semibold">Summaries</h2>
+      {list.isPending && <Loading what="the summaries" />}
+      {list.isError && <Problem error={list.error} what="The summaries" onRetry={() => void list.refetch()} />}
       <p className="m-0 max-w-prose text-sm text-muted">
         A daily and a weekly report of how ARGUS and its cases are doing: what waits for a person, what happened, what went wrong. Every figure is counted from ARGUS&apos;s own records and says
         how. A day is a UTC day ({utcDay} to {utcDay}); times are shown in {zoneLabel()}.
@@ -48,11 +50,11 @@ export function Reports() {
       </nav>
       <DataTable<ReportRowOut>
         caption="Reports"
-        rows={rows}
+        rows={list.data ?? []}
         rowKey={(r) => String(r.id)}
         empty={
           kind === "all"
-            ? "No report has been made yet. The first one appears after the daily report is switched on, or when an admin runs “argus report daily”."
+            ? "The first daily summary appears after ARGUS's first full day."
             : "No report of this kind yet."
         }
         columns={[

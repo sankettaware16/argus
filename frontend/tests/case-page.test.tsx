@@ -29,25 +29,26 @@ async function openAction(user: ReturnType<typeof userEvent.setup>, name: string
 }
 
 describe("the page", () => {
-  it("is in the analyst's order, with a way to each part", async () => {
+  it("is in the analyst's order: the tabs, and everything on one page in the old order", async () => {
     serve();
-    renderApp(`/cases/${CASE_ID}`);
-    await screen.findByRole("heading", { level: 1, name: /Case 12: Regular beaconing/ });
-    const headings = within(document.querySelector("main") as HTMLElement).getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    renderApp(`/incidents/${CASE_ID}`);
+    await screen.findByRole("heading", { level: 1, name: /Regular beaconing/ });
+    expect(within(screen.getByRole("tablist")).getAllByRole("tab").map((t) => t.textContent?.replace(/\d+$/, ""))).toEqual(["Overview", "Story", "Evidence", "Entities", "Alert groups", "Report", "Activity"]);
+    expect(document.title).toBe("Incident · ARGUS");
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
+    await screen.findByTestId("everything");
+    const headings = within(screen.getByTestId("everything")).getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(["Summary", "Report", "Kibana case preview", "What's new", "Timeline", "Evidence", "Hypotheses", "Unknowns", "What you can do", "Members", "Approvals", "Kibana", "Notes", "History"]);
-    const contents = screen.getByRole("navigation", { name: "On this page" });
-    expect(within(contents).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["#summary", "#report", "#kibana-case", "#whats-new", "#timeline", "#evidence", "#hypotheses", "#unknowns", "#actions", "#members", "#approvals", "#kibana", "#notes", "#history"]);
-    expect(document.title).toBe("Case · ARGUS");
   });
 
   it("summarises in words, numbers first", async () => {
     serve(caseDetail({ children: [{ id: CASE2_ID, number: 15, title: "t", state: "open" }], parent: { id: CASE2_ID, number: 9, title: "t", state: "closed" } }, { attention: "New activity after containment", owner: { id: 2, username: "ravi", display_name: "Ravi Rao" }, state: "assigned", waiting_for_approval: 1, in_kibana: true }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const summary = await screen.findByRole("region", { name: "Summary" });
     const text = summary.textContent?.replace(/\s+/g, " ") ?? "";
-    expect(text).toContain("Assigned: A person owns it. Owner: Ravi Rao. Opened by a person.");
-    expect(text).toContain("3 investigations, 41 alerts, from 18 Oct 2026");
-    expect(text).toContain("A person has reviewed 1 of them; 2 have not been reviewed (or changed since).");
+    expect(text).toContain("Assigned: An incident a person owns. Taken by: Ravi Rao. Opened by a person.");
+    expect(text).toContain("3 alert groups, 41 alerts, from 18 Oct 2026");
+    expect(text).toContain("A person has decided 1 of them; 2 have not been decided (or changed since).");
     expect(text).toContain("Rules: Proxy: tunnel to a remote-admin port (3 investigations, 41 alerts).");
     expect(text).toContain("Needs a person. New activity after containment");
     expect(text).toContain("1 request waiting for an approver");
@@ -55,30 +56,26 @@ describe("the page", () => {
     expect(within(summary).getByRole("link", { name: "case 15" })).toBeTruthy();
   });
 
-  it("tells how a suspected case is confirmed", async () => {
-    serve(caseDetail({ cause_words: "Suspected from ARGUS's own proposal." }, { state: "suspected", opened_at: null }));
-    renderApp(`/cases/${CASE_ID}`);
-    const summary = await screen.findByRole("region", { name: "Summary" });
-    expect(summary.textContent).toContain("Suspected: ARGUS suspects it; nobody has confirmed it, and Kibana has nothing.");
-    expect(summary.textContent).toContain("To confirm it, review one of its investigations as a true positive");
-  });
-
-  it("says a suggested case is confirmed by a person, not by a verdict on a member", async () => {
-    serve(caseDetail({ cause_words: "Suggested by ARGUS from evidence across investigations." }, { state: "suspected", opened_at: null, cause: "raised" }));
-    renderApp(`/cases/${CASE_ID}`);
-    const summary = await screen.findByRole("region", { name: "Summary" });
-    expect(summary.textContent).toContain("ARGUS suggested it from evidence across investigations.");
-    expect(summary.textContent).toContain("does not confirm it");
-    expect(summary.textContent).not.toContain("review one of its investigations as a true positive");
+  it("says what a possible incident is, and never sends a person to the command line", async () => {
+    for (const cause of ["proposal", "raised"] as const) {
+      serve(caseDetail({ cause_words: "Suspected from ARGUS's own proposal." }, { state: "suspected", opened_at: null, cause }));
+      const view = renderApp(`/incidents/${CASE_ID}?tab=all`);
+      const summary = await screen.findByRole("region", { name: "Summary" });
+      expect(summary.textContent).toContain("Possible incident: ARGUS thinks it may be an incident; nobody has confirmed it yet.");
+      expect(summary.textContent).not.toContain("Kibana has nothing"); // the case team may have posted it
+      expect(summary.textContent).not.toContain("argus case");
+      expect(summary.textContent).not.toContain("review one of its investigations as a true positive");
+      view.unmount();
+    }
   });
 
   it("shows evidence, hypotheses and unknowns from the lead investigation's report, and says whose", async () => {
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const evidence = await screen.findByRole("region", { name: "Evidence" });
     expect(await within(evidence).findByText("Contacts at a fixed interval.")).toBeTruthy();
     expect(evidence.textContent).toContain("From the lead investigation: Proxy: tunnel to a remote-admin port");
-    expect(within(evidence).getByRole("link", { name: "its whole report" }).getAttribute("href")).toBe(`/app/investigations/${LEAD_ID}?tab=report`);
+    expect(within(evidence).getByRole("link", { name: "its whole report" }).getAttribute("href")).toBe(`/app/alert-groups/${LEAD_ID}?tab=report`);
     expect(evidence.textContent).toContain("The other 2 investigations have their own reports.");
     expect(await within(screen.getByRole("region", { name: "Hypotheses" })).findByText("C2 beaconing")).toBeTruthy();
     expect(await within(screen.getByRole("region", { name: "Unknowns" })).findByText(/Who looks after H1/)).toBeTruthy();
@@ -86,28 +83,28 @@ describe("the page", () => {
 
   it("says when logs are hidden and when a case has no investigation or no report", async () => {
     serve(caseDetail({ logs_hidden: true }), [http.get(`${BASE}/api/v1/investigations/${LEAD_ID}/reports`, () => HttpResponse.json({ items: [], logs_hidden: true }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     expect(await screen.findAllByText(/No report yet: ARGUS has not built the lead investigation's dossier\./)).toHaveLength(3);
     expect(screen.getByText(/Your account cannot read the logs in ELK, so what the logs said is hidden\./)).toBeTruthy();
   });
 
   it("has a lead report only when there is a lead", async () => {
     serve(caseDetail({ lead_investigation_id: null, investigations: [], investigations_total: 0 }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     expect(await screen.findAllByText("The case has no investigation yet.")).toHaveLength(3);
     expect(sent("GET", `/api/v1/investigations/${LEAD_ID}`)).toHaveLength(0);
   });
 
   it("says plainly when a case is not there", async () => {
     server.use(http.get(URL_OF, () => HttpResponse.json({ detail: "no such case", code: "not_found" }, { status: 404 })));
-    renderApp(`/cases/${CASE_ID}`);
-    expect(await screen.findByText(/The case could not be shown\./)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Back to the cases" })).toBeTruthy();
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
+    expect(await screen.findByText(/This incident does not exist, or you cannot see it\./)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to Incidents" })).toBeTruthy();
   });
 
   it("lists what is new, the timeline, the members and the history", async () => {
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const news = await screen.findByRole("region", { name: "What's new" });
     expect(news.textContent).toContain("Ravi Rao Ravi Rao took the case");
     const timeline = screen.getByRole("region", { name: "Timeline" });
@@ -128,7 +125,7 @@ describe("the actions", () => {
   it("say why they cannot be taken, and do nothing then", async () => {
     const user = userEvent.setup();
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     const release = await screen.findByRole("button", { name: "Release" });
     expect(release.getAttribute("aria-disabled")).toBe("true");
     const region = screen.getByRole("region", { name: "Actions" });
@@ -146,7 +143,7 @@ describe("the actions", () => {
     server.use(...shellHandlers(sessionWith(["view"])));
     const no = (a: (typeof ACTIONS)[number]) => ({ ...a, enabled: false, why_not: `Your account may not do this: it needs a capability (${a.label}).` });
     serve(caseDetail({ actions: ACTIONS.map(no) }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await screen.findByRole("heading", { name: "What you can do" });
     const region = screen.getByRole("region", { name: "Actions" });
     for (const b of within(region).getAllByRole("button")) expect(b.getAttribute("aria-disabled")).toBe("true");
@@ -157,12 +154,13 @@ describe("the actions", () => {
   it("take: shows the exact request, sends exactly that, and says what happened", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.post(`${URL_OF}/take`, () => HttpResponse.json({ case: caseRow({ state: "assigned", version: 5 }), result: "done", request_id: null }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Take");
     const dialog = await screen.findByRole("alertdialog");
     expect(shownBody(dialog)).toEqual({ expected_version: 4 });
     expect(dialog.textContent).toContain(`POST/api/v1/cases/${CASE_ID}/take`);
-    expect(dialog.textContent).toContain("at version 4; if anyone changed it since, nothing is saved");
+    // plain words first (P4-F U9); the version is in the request one click away
+    expect(dialog.textContent).toContain("You will own case 12; others see you as its owner. If anyone changed it since you read it, nothing is saved.");
     const shown = within(dialog).getByTestId("payload").textContent;
     await user.click(within(dialog).getByRole("button", { name: "Take" }));
     await screen.findByText("You took case 12.", { selector: "p" });
@@ -176,7 +174,7 @@ describe("the actions", () => {
       await new Promise((r) => setTimeout(r, 150));
       return HttpResponse.json({ case: caseRow(), result: "done", request_id: null });
     })]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Take");
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
@@ -192,7 +190,7 @@ describe("the actions", () => {
   it("a case that moved: said in the dialog, nothing resent, and the case read again", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.post(`${URL_OF}/take`, () => HttpResponse.json({ detail: "The case changed meanwhile: it is at version 5, you saw 4.", code: "conflict" }, { status: 409 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Take");
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Take" }));
@@ -206,7 +204,7 @@ describe("the actions", () => {
   it("assign: chooses an active person other than the owner, and names them by id", async () => {
     const user = userEvent.setup();
     serve(caseDetail({}, { owner: { id: 1, username: "asha", display_name: "Asha Rao" }, state: "assigned" }), [http.post(`${URL_OF}/assign`, () => HttpResponse.json({ case: caseRow({ state: "assigned", version: 5 }), result: "done", request_id: null }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Assign");
     const choose = await screen.findByRole("combobox", { name: /Give the case to/ });
     expect(within(choose).getAllByRole("option").map((o) => o.textContent)).toEqual(["Choose a person…", "Ravi Rao (ravi)"]);
@@ -224,7 +222,7 @@ describe("the actions", () => {
     const user = userEvent.setup();
     const contained = caseDetail({ actions: ACTIONS.map((a) => (a.action === "contain" ? { ...a, enabled: true, why_not: null } : a)) });
     serve(contained, [http.post(`${URL_OF}/contain`, () => HttpResponse.json({ detail: "ARGUS has not shown the case quiet for 72 hours, so it cannot be confirmed contained yet: the still-active watch is not running here.", code: "not_ready" }, { status: 409 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Confirm contained");
     await user.click(actions().getByRole("button", { name: "Review the request" }));
     expect(screen.queryByRole("alertdialog")).toBeNull(); // no words, no request
@@ -254,7 +252,7 @@ describe("asking for a closure", () => {
   it("offers each reason with its meaning and why not, then shows the writes before anything is asked", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json(preview()))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     const radios = screen.getAllByRole("radio");
     expect(radios.map((r) => (r as HTMLInputElement).disabled)).toEqual([true, false, false, false, false]);
@@ -278,7 +276,7 @@ describe("asking for a closure", () => {
       http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json(preview())),
       http.post(`${URL_OF}/closure-requests`, () => HttpResponse.json({ case: caseRow({ version: 5 }), result: "requested", request_id: 31 }, { status: 201 })),
     ]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     await user.click(screen.getByRole("radio", { name: /Benign: expected activity/ }));
     await user.type(screen.getByRole("textbox", { name: /Your words/ }), " it is a printer ");
@@ -297,7 +295,7 @@ describe("asking for a closure", () => {
   it("needs the words a reason asks for before it shows anything", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json({ ...preview("b".repeat(64)), reason: "risk_accepted", approvers: 2 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     await user.click(screen.getByRole("radio", { name: /Left as it is, by decision/ }));
     expect(screen.getByText("Your words (required)")).toBeTruthy();
@@ -312,7 +310,7 @@ describe("asking for a closure", () => {
   it("changing the reason or the words hides a preview that no longer matches", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json(preview()))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     await user.click(screen.getByRole("radio", { name: /Benign: expected activity/ }));
     await user.click(screen.getByRole("button", { name: "Show what it would write" }));
@@ -324,7 +322,7 @@ describe("asking for a closure", () => {
   it("says why a preview cannot be made", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json({ detail: "The case changed meanwhile: it is at version 6, you saw 4.", code: "conflict" }, { status: 409 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     await user.click(screen.getByRole("radio", { name: /Benign: expected activity/ }));
     await user.click(screen.getByRole("button", { name: "Show what it would write" }));
@@ -337,7 +335,7 @@ describe("asking for a closure", () => {
     const hostile = `<img src=x onerror="window.__pwned=1"> ${RLO}`;
     const payload = { writes: [{ class: "W3", op: "close", payload: { status: "closed", argus_tags: [hostile] } }] };
     serve(caseDetail(), [http.get(`${URL_OF}/closure-preview`, () => HttpResponse.json({ ...preview(), payload }))]);
-    const { container } = renderApp(`/cases/${CASE_ID}`);
+    const { container } = renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Request closure");
     await user.click(screen.getByRole("radio", { name: /Benign: expected activity/ }));
     await user.click(screen.getByRole("button", { name: "Show what it would write" }));
@@ -358,7 +356,7 @@ describe("merging", () => {
       http.get(`${URL_OF}/merge-preview`, () => HttpResponse.json({ case_id: CASE_ID, case_version: 4, bound_version: 5, reason: "duplicate", target: { id: CASE2_ID, number: 13, title: "Second case", state: "open" }, payload: { writes: [] }, payload_hash: HASH, in_kibana: false, words: "Asking for this merge writes nothing to Kibana (the case is not there).", approvers: 1 })),
       http.post(`${URL_OF}/merge`, () => HttpResponse.json({ case: caseRow({ version: 5 }), result: "requested", request_id: 40 }, { status: 201 })),
     ]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Merge into another case");
     await user.type(screen.getByRole("textbox", { name: /Merge into case number/ }), "13");
     expect(await screen.findByText(/Second case/)).toBeTruthy();
@@ -374,7 +372,7 @@ describe("merging", () => {
   it("a case that is closed, the same case or a suspected one for a confirmed case is refused with the reason", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.get(`${BASE}/api/v1/cases`, ({ request }) => HttpResponse.json(new URL(request.url).searchParams.get("number") === "12" ? casePage([caseRow()]) : new URL(request.url).searchParams.get("number") === "14" ? target("closed") : target("suspected")))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Merge into another case");
     const box = screen.getByRole("textbox", { name: /Merge into case number/ });
     await user.type(box, "12");
@@ -384,7 +382,7 @@ describe("merging", () => {
     expect(await screen.findByText(/Not possible: That case is closed/)).toBeTruthy();
     await user.clear(box);
     await user.type(box, "15");
-    expect(await screen.findByText(/Not possible: A confirmed case is merged into a confirmed one/)).toBeTruthy();
+    expect(await screen.findByText(/Not possible: An incident is merged into another incident, not into a possible one/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Ask for this merge" }).getAttribute("aria-disabled")).toBe("true");
   });
 
@@ -394,11 +392,11 @@ describe("merging", () => {
       http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json(target())),
       http.post(`${URL_OF}/merge`, () => HttpResponse.json({ case: caseRow({ state: "closed", version: 5 }), result: "merged", request_id: null }, { status: 201 })),
     ]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=activity`);
     await openAction(user, "Merge into another case");
     await user.type(screen.getByRole("textbox", { name: /Merge into case number/ }), "13");
     await screen.findByText(/Second case/);
-    expect(screen.getByText(/A suspected case is merged at once; there is no approval to ask for\./)).toBeTruthy();
+    expect(screen.getByText(/A possible incident is merged at once; there is no approval to ask for\./)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Review the merge" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(shownBody(dialog)).toEqual({ expected_version: 4, target_case_id: CASE2_ID });
@@ -427,7 +425,7 @@ describe("Kibana's side", () => {
         mirror: { ...MIRROR, state: "mirrored", words: "The case is in Kibana and ARGUS reads it back.", kibana_case_id: "k-1", kibana_status: "in-progress", tags: ["argus", "argus:state:assigned"], created_by: "argus", read_at: "2026-10-24T10:05:00Z", writes: [{ id: 1, op: "close", write_class: "W3", state: "planned", state_reason: null, case_version: 5, planned_at: "2026-10-24T09:00:00Z", sent_at: null, verified_at: null }], findings: [finding({ details: { by: "kim", comment: hostile } }), finding({ id: 2, kind: "closed_in_kibana", words: "A person closed the case in Kibana", severity: "attention", details: { by: "kim" } })] },
       }),
     );
-    const { container } = renderApp(`/cases/${CASE_ID}`);
+    const { container } = renderApp(`/incidents/${CASE_ID}?tab=report`);
     const kibana = await screen.findByRole("region", { name: "Kibana" });
     expect(kibana.textContent).toContain("The case is in Kibana and ARGUS reads it back.");
     expect(kibana.textContent).toContain("argus, argus:state:assigned");
@@ -447,7 +445,7 @@ describe("Kibana's side", () => {
 
   it("says in words when the case is not in Kibana", async () => {
     serve();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=report`);
     const kibana = await screen.findByRole("region", { name: "Kibana" });
     expect(kibana.textContent).toContain("Waiting for someone who may open cases in Kibana");
     expect(kibana.textContent).toContain("Nothing yet.");
@@ -461,7 +459,7 @@ describe("notes", () => {
       await new Promise((r) => setTimeout(r, 100));
       return HttpResponse.json({ note: { id: 9, author: "Asha Rao", body: "x", created_at: "2026-10-26T04:00:00Z" }, duplicate: false }, { status: 201 });
     })]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const box = await screen.findByRole("textbox", { name: /Add a note to this case/ });
     const notes = within(screen.getByRole("region", { name: "Notes" }));
     expect(notes.getByText(/Only people read it; ARGUS's models never do\./)).toBeTruthy();
@@ -479,7 +477,7 @@ describe("notes", () => {
   it("say when the same note was there a moment ago", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.post(`${URL_OF}/notes`, () => HttpResponse.json({ note: { id: 9, author: "Asha Rao", body: "x", created_at: "2026-10-26T04:00:00Z" }, duplicate: true }, { status: 201 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.type(await screen.findByRole("textbox", { name: /Add a note to this case/ }), "again");
     await user.click(within(screen.getByRole("region", { name: "Notes" })).getByRole("button", { name: "Add the note" }));
     await screen.findByText("That note was added a moment ago; it was not added twice.", { selector: "p" });
@@ -488,7 +486,7 @@ describe("notes", () => {
   it("keep what was typed when saving fails, and say so once next to the form", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.post(`${URL_OF}/notes`, () => HttpResponse.json({ detail: "boom", code: "internal" }, { status: 500 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const box = await screen.findByRole("textbox", { name: /Add a note to this case/ });
     await user.type(box, "keep me");
     await user.click(within(screen.getByRole("region", { name: "Notes" })).getByRole("button", { name: "Add the note" }));
@@ -500,7 +498,7 @@ describe("notes", () => {
   it("show a person's words as text, in a frame that is theirs", async () => {
     const body = `<script>window.__pwned=1</script> ${RLO}hello`;
     serve(caseDetail({ notes: [{ id: 5, author: `<b>Eve</b>`, body, created_at: "2026-10-22T04:00:00Z" }] }));
-    const { container } = renderApp(`/cases/${CASE_ID}`);
+    const { container } = renderApp(`/incidents/${CASE_ID}?tab=all`);
     const notes = await screen.findByRole("list", { name: "Notes" });
     expect(notes.querySelector("script")).toBeNull();
     expect(notes.querySelector("b")).toBeNull();
@@ -512,7 +510,7 @@ describe("notes", () => {
   it("about an address, sent from its own form with the kind and value", async () => {
     const user = userEvent.setup();
     serve(caseDetail(), [http.post(`${BASE}/api/v1/entity-notes`, () => HttpResponse.json({ note: { id: 2, author: "Asha Rao", body: "x", created_at: "2026-10-26T04:00:00Z" }, duplicate: false }, { status: 201 }))]);
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const [indicator] = await screen.findAllByTestId("indicator");
     await user.click(within(must(indicator)).getByText("Add a note about this ip"));
     await user.type(within(must(indicator)).getByRole("textbox"), "the lab printer");
@@ -531,7 +529,7 @@ describe("Check more on a case", () => {
   it("is about the lead investigation at the version the case page read, and suggests the case's addresses", async () => {
     const user = userEvent.setup();
     serve(caseDetail());
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const members = await screen.findByRole("region", { name: "Members" });
     const check = within(await within(members).findByRole("region", { name: "Check more" }));
     expect(members.textContent).toContain("This check is about the lead investigation, Proxy: tunnel to a remote-admin port.");
@@ -550,7 +548,7 @@ describe("the name of a form about an address", () => {
   it("is made of the address with its hidden characters marked, never the characters themselves", async () => {
     const hostile = `10.0.0.1${RLO}evil`;
     serve(caseDetail({ indicators: [{ kind: "host", value: hostile, role: "actor", source: "investigation", notes: [], note_count: 0 }] }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const [indicator] = await screen.findAllByTestId("indicator");
     const form = within(must(indicator)).getByRole("form", { hidden: true });
     expect(form.getAttribute("aria-label")).toBe("A note about host 10.0.0.1‹RLO›evil");
@@ -561,7 +559,7 @@ describe("the name of a form about an address", () => {
 describe("approvals of the case", () => {
   it("are listed with their standing and a way to decide them", async () => {
     serve(caseDetail({ approvals: [approval({ status: "pending" }), approval({ id: 30, status: "approved", status_words: "Approved" })] }));
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     const region = await screen.findByRole("region", { name: "Approvals" });
     expect(within(region).getAllByRole("listitem")).toHaveLength(2);
     expect(region.textContent).toContain("Waiting");

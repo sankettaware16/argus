@@ -12,7 +12,7 @@ mockApi();
 const DASH: DashboardOut = {
   ...EMPTY_DASHBOARD,
   bucket: "day",
-  kpis: { investigations: 50, open: 40, attention: 7, known: 5, follow_up: 2, incidents: 3, suspected: 4, reviewed: 8, assessed: 15, open_critical: 1, alerts: 1234, alerts_before: 1000, median_review_s: 12000 },
+  kpis: { investigations: 50, open: 40, attention: 7, known: 5, follow_up: 2, incidents: 3, suspected: 4, incident_cases: 2, possible_incidents: 6, reviewed: 8, assessed: 15, open_critical: 1, alerts: 1234, alerts_before: 1000, median_review_s: 12000 },
   series: [
     { at: "2026-10-24T00:00:00+05:30", counts: { critical: 1, high: 2, low: 4 } },
     { at: "2026-10-25T00:00:00+05:30", counts: { medium: 3 } },
@@ -53,8 +53,11 @@ describe("the numbers", () => {
     expect(tile("Notified, still active")).toContain("5");
     expect(tile("Notified, still active")).toContain("known, counted and not raised (1 case)");
     expect(tile("Open critical")).toContain("1");
-    expect(tile("Incidents")).toContain("3");
-    expect(tile("Suspected incidents")).toContain("4");
+    // incidents are cases (P4-F U3); the investigation figures keep their own names
+    expect(tile("Incidents")).toContain("2confirmed cases not closed, now");
+    expect(tile("Possible incidents")).toContain("6");
+    expect(tile("Called real by a person")).toContain("3");
+    expect(tile("Called real by ARGUS")).toContain("4");
     expect(tile("Reviewed")).toContain("8");
     expect(tile("Reviewed")).toContain("16.0% of the investigations");
     expect(tile("Time to first review")).toContain("3 h 20 min");
@@ -70,8 +73,10 @@ describe("the numbers", () => {
     const href = (label: string) => kpis.getByText(label).closest("a")?.getAttribute("href");
     expect(href("Open investigations")).toBe("/app/dashboard?range=30d&state=unreviewed&state=follow_up&state=changed_since_review");
     expect(href("Open critical")).toBe("/app/dashboard?range=30d&severity=critical&state=unreviewed&state=follow_up&state=changed_since_review");
-    expect(href("Incidents")).toBe("/app/dashboard?range=30d&verdict=true_positive");
-    expect(href("Suspected incidents")).toBe("/app/dashboard?range=30d&state=unreviewed&state=follow_up&state=changed_since_review&ai=proposed_tp");
+    expect(href("Incidents")).toBe("/app/cases?view=incidents"); // the view its number counts: notified ones too
+    expect(href("Possible incidents")).toBe("/app/cases?view=suspected");
+    expect(href("Called real by a person")).toBe("/app/dashboard?range=30d&verdict=true_positive");
+    expect(href("Called real by ARGUS")).toBe("/app/dashboard?range=30d&state=unreviewed&state=follow_up&state=changed_since_review&ai=proposed_tp");
     expect(href("Needs attention")).toBe("/app/inbox?view=attention");
     expect(href("Notified, still active")).toBe("/app/inbox?view=known");
   });
@@ -111,8 +116,8 @@ describe("the numbers", () => {
     for (const [name, cells] of [
       ["Investigations by state", [["Not reviewed", "10"], ["Reviewed", "8"], ["Follow-up", "2"]]],
       ["Investigations by severity", [["low", "11"], ["high", "9"]]],
-      ["Person's verdict", [["No verdict yet", "12"], ["Benign: expected activity", "5"], ["True positive", "3"]]],
-      ["ARGUS's assessment", [["No proposal", "11"], ["Not assessed", "5"], ["Proposes true positive", "4"]]],
+      ["Person's verdict", [["No decision yet", "12"], ["Real but harmless", "5"], ["Real: act on it", "3"]]],
+      ["ARGUS's assessment", [["No proposal", "11"], ["Not assessed", "5"], ["Calls it real", "4"]]],
     ] as const) {
       const table = screen.getByRole("table", { name });
       const body = within(table).getAllByRole("row").slice(1).map((r) => [r.querySelector("td")?.textContent, r.querySelectorAll("td")[1]?.textContent]);
@@ -124,7 +129,7 @@ describe("the numbers", () => {
     expect(within(screen.getByRole("table", { name: "Top IP addresses" })).getByText("10.0.0.1")).toBeTruthy();
     expect(screen.getAllByText("None in this span.", { selector: "p" })).toHaveLength(3); // hosts, domains, users
     for (const chart of screen.getAllByRole("img")) expect(chart.getAttribute("aria-label")).toBeTruthy();
-    expect(within(screen.getByRole("table", { name: "Incidents" })).getByText("confirmed")).toBeTruthy();
+    expect(within(screen.getByRole("table", { name: "Investigations called real" })).getByText("by a person")).toBeTruthy();
     expect(within(screen.getByRole("table", { name: "Open investigations" })).getByText("Follow-up")).toBeTruthy();
   });
 
@@ -215,7 +220,7 @@ describe("the threat-list tile", () => {
     expect(card.textContent).toContain("5 checked, nothing found");
     expect(card.textContent).toContain("3 could not be told (a list was out of date, or a lookup did not finish): not the same as clear");
     expect(card.textContent).toContain("2 not checked yet");
-    expect(within(card).getByRole("link", { name: /Proxy: tunnel/ }).getAttribute("href")).toBe(`/app/investigations/${ID}`);
+    expect(within(card).getByRole("link", { name: /Proxy: tunnel/ }).getAttribute("href")).toBe(`/app/alert-groups/${ID}`);
   });
 
   it("says when nothing is open, and reads under the same filters as the dashboard", async () => {

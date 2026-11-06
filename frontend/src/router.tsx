@@ -1,14 +1,18 @@
-import { createRootRoute, createRoute, createRouter, type RouterHistory } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, redirect, type RouterHistory } from "@tanstack/react-router";
 import { lazy, Suspense, type ComponentType } from "react";
 import { Loading } from "./components/Problem";
 import { isStale, reloadOnce } from "./lib/build";
 import { parseCases } from "./lib/cases";
 import { parseFilters, toSearch } from "./lib/dashboardFilters";
-import { parseInbox, TABS, type Tab } from "./lib/inboxQuery";
+import { parseInbox, TABS, type InboxSearch, type Tab } from "./lib/inboxQuery";
+import { parseSearchPage, type SearchSearch } from "./lib/searchPage";
+import { QualityPage } from "./pages/Quality";
+import { parseIncidents, viewForOldCases } from "./lib/incidents";
+import { isIncidentTab, tabForAnchor, type IncidentTab } from "./lib/incidentTabs";
 import { first, parseSearch, stringifySearch } from "./lib/search";
 import { titleFor } from "./lib/titles";
 import { Failed } from "./pages/Failed";
-import { Home } from "./pages/Home";
+import { TodayOrHome } from "./pages/Today";
 import { NotFound } from "./pages/NotFound";
 import { AppShell } from "./shell/AppShell";
 
@@ -20,13 +24,13 @@ const DesignPage = lazy(() => import("./pages/Design").then((m) => ({ default: m
 const DashboardPage = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.Inbox })));
 const ProposalsPage = lazy(() => import("./pages/Proposals").then((m) => ({ default: m.Proposals })));
-const CasesPage = lazy(() => import("./pages/Cases").then((m) => ({ default: m.Cases })));
-const CaseDetailPage = lazy(() => import("./pages/CasePage").then((m) => ({ default: m.CasePage })));
+const IncidentsPage = lazy(() => import("./pages/Incidents").then((m) => ({ default: m.Incidents })));
+const IncidentRoutePage = lazy(() => import("./pages/IncidentPage").then((m) => ({ default: m.IncidentRoute })));
 const ApprovalsPage = lazy(() => import("./pages/Approvals").then((m) => ({ default: m.Approvals })));
 const ReportsPage = lazy(() => import("./pages/Reports").then((m) => ({ default: m.Reports })));
 const ReportDetailPage = lazy(() => import("./pages/Reports").then((m) => ({ default: m.ReportPage })));
-const RulesPage = lazy(() => import("./pages/Browse").then((m) => ({ default: m.Rules })));
-const HostsPage = lazy(() => import("./pages/Browse").then((m) => ({ default: m.Hosts })));
+const EntityPageLazy = lazy(() => import("./pages/Entity").then((m) => ({ default: m.EntityPage })));
+const SearchPageLazy = lazy(() => import("./pages/Search").then((m) => ({ default: m.SearchPage })));
 const PatternsPage = lazy(() => import("./pages/Patterns").then((m) => ({ default: m.Patterns })));
 const HealthPage = lazy(() => import("./pages/System").then((m) => ({ default: m.Health })));
 const GlossaryPage = lazy(() => import("./pages/System").then((m) => ({ default: m.Glossary })));
@@ -36,7 +40,7 @@ const GoldPage = lazy(() => import("./pages/Gold").then((m) => ({ default: m.Gol
 const InvestigationPageLazy = lazy(() => import("./pages/InvestigationPage").then((m) => ({ default: m.InvestigationPage })));
 
 const root = createRootRoute({ component: AppShell, notFoundComponent: NotFound, errorComponent: Failed });
-const home = createRoute({ getParentRoute: () => root, path: "/", component: Home });
+const home = createRoute({ getParentRoute: () => root, path: "/", component: TodayOrHome });
 const design = createRoute({
   getParentRoute: () => root,
   path: "/design",
@@ -47,12 +51,21 @@ const design = createRoute({
   ),
   errorComponent: Failed,
 });
+// the old addresses (docs/p4f-ui-spec.md §4.3): redirected, so saved links keep working
 const dashboard = createRoute({
   getParentRoute: () => root,
   path: "/dashboard",
   validateSearch: (raw: Record<string, unknown>) => toSearch(parseFilters(raw)),
-  component: function DashboardRoute() {
-    const search = dashboard.useSearch();
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/overview", search, replace: true });
+  },
+});
+const overview = createRoute({
+  getParentRoute: () => root,
+  path: "/overview",
+  validateSearch: (raw: Record<string, unknown>) => toSearch(parseFilters(raw)),
+  component: function OverviewRoute() {
+    const search = overview.useSearch();
     return (
       <Suspense fallback={<Loading what="the dashboard" />}>
         <DashboardPage search={search} />
@@ -65,11 +78,19 @@ const inbox = createRoute({
   getParentRoute: () => root,
   path: "/inbox",
   validateSearch: parseInbox,
-  component: function InboxRoute() {
-    const search = inbox.useSearch();
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/search", search: { advanced: "1", ...search }, replace: true });
+  },
+});
+const search = createRoute({
+  getParentRoute: () => root,
+  path: "/search",
+  validateSearch: (raw: Record<string, unknown>): SearchSearch => (first(raw.advanced) === "1" ? { ...parseInbox(raw), advanced: "1" } : parseSearchPage(raw)),
+  component: function SearchRoute() {
+    const s = search.useSearch();
     return (
-      <Suspense fallback={<Loading what="the Inbox" />}>
-        <InboxPage search={search} />
+      <Suspense fallback={<Loading what="the search" />}>
+        {s.advanced === "1" ? <InboxPage search={s as InboxSearch} /> : <SearchPageLazy search={s} />}
       </Suspense>
     );
   },
@@ -82,11 +103,22 @@ const investigation = createRoute({
     const tab = first(raw.tab);
     return tab !== undefined && (TABS as readonly string[]).includes(tab) ? { tab: tab as Tab } : {};
   },
-  component: function InvestigationRoute() {
-    const { id } = investigation.useParams();
-    const { tab } = investigation.useSearch();
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/alert-groups/$id", params: { id: params.id }, search, replace: true });
+  },
+});
+const alertGroup = createRoute({
+  getParentRoute: () => root,
+  path: "/alert-groups/$id",
+  validateSearch: (raw: Record<string, unknown>): { tab?: Tab } => {
+    const tab = first(raw.tab);
+    return tab !== undefined && (TABS as readonly string[]).includes(tab) ? { tab: tab as Tab } : {};
+  },
+  component: function AlertGroupRoute() {
+    const { id } = alertGroup.useParams();
+    const { tab } = alertGroup.useSearch();
     return (
-      <Suspense fallback={<Loading what="the investigation" />}>
+      <Suspense fallback={<Loading what="the alert group" />}>
         <InvestigationPageLazy id={id} tab={tab ?? "overview"} />
       </Suspense>
     );
@@ -97,24 +129,46 @@ const cases = createRoute({
   getParentRoute: () => root,
   path: "/cases",
   validateSearch: parseCases,
-  component: function CasesRoute() {
-    const search = cases.useSearch();
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/incidents", search: { view: viewForOldCases(search.view), ...(search.q ? { q: search.q } : {}) }, replace: true });
+  },
+});
+// the old case page's address: the incident page, its #section anchor mapped to a tab (§4.3)
+const caseDetail = createRoute({
+  getParentRoute: () => root,
+  path: "/cases/$id",
+  beforeLoad: ({ params, location }) => {
+    const tab = tabForAnchor(location.hash);
+    throw redirect({ to: "/incidents/$id", params: { id: params.id }, search: tab === "overview" ? {} : { tab }, replace: true });
+  },
+});
+const incidentDetail = createRoute({
+  getParentRoute: () => root,
+  path: "/incidents/$id",
+  validateSearch: (raw: Record<string, unknown>): { tab?: IncidentTab } => {
+    const tab = first(raw.tab);
+    return isIncidentTab(tab) && tab !== "overview" ? { tab } : {};
+  },
+  component: function IncidentDetailRoute() {
+    const { id } = incidentDetail.useParams();
+    const { tab } = incidentDetail.useSearch();
     return (
-      <Suspense fallback={<Loading what="the cases" />}>
-        <CasesPage search={search} />
+      <Suspense fallback={<Loading what="the incident" />}>
+        <IncidentRoutePage id={id} tab={tab} />
       </Suspense>
     );
   },
   errorComponent: Failed,
 });
-const caseDetail = createRoute({
+const incidents = createRoute({
   getParentRoute: () => root,
-  path: "/cases/$id",
-  component: function CaseRoute() {
-    const { id } = caseDetail.useParams();
+  path: "/incidents",
+  validateSearch: parseIncidents,
+  component: function IncidentsRoute() {
+    const search = incidents.useSearch();
     return (
-      <Suspense fallback={<Loading what="the case" />}>
-        <CaseDetailPage id={id} />
+      <Suspense fallback={<Loading what="the incidents" />}>
+        <IncidentsPage search={search} />
       </Suspense>
     );
   },
@@ -177,19 +231,70 @@ function plain<P extends string>(path: P, what: string, Page: ComponentType) {
     errorComponent: Failed,
   });
 }
-const rules = plain("/rules", "the rules", RulesPage);
-const hosts = plain("/hosts", "the hosts and addresses", HostsPage);
+function toAdvanced<P extends string>(path: P) {
+  return createRoute({
+    getParentRoute: () => root,
+    path,
+    beforeLoad: () => {
+      throw redirect({ to: "/search", search: { advanced: "1", view: "attention" }, replace: true });
+    },
+  });
+}
+const rules = toAdvanced("/rules");
+const hosts = toAdvanced("/hosts");
 const patterns = plain("/patterns", "the patterns", PatternsPage);
 const health = plain("/health", "the health", HealthPage);
 const glossary = plain("/glossary", "the glossary", GlossaryPage);
-const metrics = plain("/metrics", "the metrics", MetricsPage);
+const metrics = createRoute({
+  getParentRoute: () => root,
+  path: "/metrics",
+  beforeLoad: () => {
+    throw redirect({ to: "/quality", search: { tab: "metrics" }, replace: true });
+  },
+});
 const tuning = plain("/tuning", "the tuning reports", TuningPage);
-const gold = plain("/gold", "the gold set", GoldPage);
+const gold = createRoute({
+  getParentRoute: () => root,
+  path: "/gold",
+  beforeLoad: () => {
+    throw redirect({ to: "/quality", search: { tab: "gold" }, replace: true });
+  },
+});
+const ENTITY_KINDS = ["device", "account", "site", "outside"] as const;
+const entity = createRoute({
+  getParentRoute: () => root,
+  path: "/entities/$kind/$value",
+  component: function EntityRoute() {
+    const { kind, value } = entity.useParams();
+    const known = ENTITY_KINDS.find((k) => k === kind);
+    if (known === undefined) return <NotFound />;
+    return (
+      <Suspense fallback={<Loading what="the page" />}>
+        <EntityPageLazy kind={known} value={value} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
+const quality = createRoute({
+  getParentRoute: () => root,
+  path: "/quality",
+  validateSearch: (raw: Record<string, unknown>): { tab: "metrics" | "gold" } => ({ tab: first(raw.tab) === "gold" ? "gold" : "metrics" }),
+  component: function QualityRoute() {
+    const { tab } = quality.useSearch();
+    return (
+      <Suspense fallback={<Loading what="ARGUS quality" />}>
+        <QualityPage tab={tab} Metrics={MetricsPage} Gold={GoldPage} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
 
 /** The app's router; tests give it a memory history. */
 export function createAppRouter(history?: RouterHistory) {
   const made = createRouter({
-    routeTree: root.addChildren([home, design, dashboard, inbox, investigation, proposals, cases, caseDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold]),
+    routeTree: root.addChildren([home, design, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
     basepath: BASE,
     defaultPreload: false,
     scrollRestoration: false,

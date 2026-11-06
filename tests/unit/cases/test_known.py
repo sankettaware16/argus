@@ -29,7 +29,7 @@ from argus.cases.known import (
 
 NOW = datetime(2026, 10, 29, 6, 0, tzinfo=UTC)
 RULES = Rules()
-HOST = ("ip", "10.198.36.230")
+HOST = ("ip", "10.201.7.11")
 OTHER = ("ip", "10.55.1.1")
 SERVER = ("ip", "77.221.155.150")
 SERVER_2 = ("ip", "185.1.1.1")

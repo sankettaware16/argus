@@ -70,7 +70,7 @@ export function PatternCard({ g, extra }: { g: PatternOut; extra?: ReactNode }) 
       {rec && (
         <p className="m-0 mb-1 text-sm" data-testid="pattern-recommendation">
           <strong>
-            ARGUS recommends: {outcomeLabel(rec.outcome)}
+            ARGUS&apos;s call: {outcomeLabel(rec.outcome)}
             {surePart(rec.confidence)}
           </strong>{" "}
           for {count(rec.covered)} of {count(rec.total)} {plural(rec.total, "investigation")} (from {rec.source}).{" "}
@@ -103,7 +103,7 @@ export function PatternCard({ g, extra }: { g: PatternOut; extra?: ReactNode }) 
         {g.members.slice(0, 3).map((m, i) => (
           <span key={m.investigation_id}>
             {i > 0 && ", "}
-            <Link to="/investigations/$id" params={{ id: m.investigation_id }}>
+            <Link to="/alert-groups/$id" params={{ id: m.investigation_id }}>
               investigation {i + 1}
             </Link>
           </span>

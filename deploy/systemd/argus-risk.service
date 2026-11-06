@@ -1,0 +1,10 @@
+[Unit]
+Description=ARGUS incident engine pass (P4-F): observes, scores, links and, when risk.present is on, presents
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus risk run --once
+TimeoutStartSec=15min
+MemoryMax=1G
+Nice=10

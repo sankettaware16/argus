@@ -319,6 +319,7 @@ def _facts(
         outsiders=tuple(v for k, v in sorted(actors - campus) if k == "ip"),
         servers=tuple(v for k, v in sorted(keys) if k in ("ip", "domain")),
         domains=tuple(v for k, v in sorted(targets) if k == "domain"),
+        paths=tuple(v for k, v in sorted(targets) if k == "url"),
     )
 
 

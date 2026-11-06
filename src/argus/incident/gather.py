@@ -59,6 +59,7 @@ class CaseRow:
     notified_at: datetime | None
     blocked_at: datetime | None
     cause_assessment_id: int | None
+    title_by_person: bool = False  # a person wrote or set the title (ARGUS's has a certainty word)
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,9 @@ class DayRule:
     alerts: int
     first: datetime
     last: datetime
+    # when the first and the newest of these alerts were made (``@timestamp``, not the event)
+    detected_first: datetime | None = None
+    detected_last: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -196,7 +200,9 @@ class CaseFacts:
 
 _CASE = text(
     "SELECT id, number, title, state, severity, version, cause, created_at, opened_at,"
-    " notified_at, blocked_at, cause_assessment_id FROM cases WHERE id = :c"
+    " notified_at, blocked_at, cause_assessment_id, coalesce((SELECT e.actor_user_id IS NOT NULL"
+    " FROM case_events e WHERE e.case_id = c.id AND e.kind IN ('suspected', 'opened', 'retitled')"
+    " ORDER BY e.case_version DESC LIMIT 1), false) AS title_by_person FROM cases c WHERE id = :c"
 )
 _ORDER = (
     "SELECT count(*) FROM cases WHERE number <= :n"  # noqa: S608 - constant fragments
@@ -221,7 +227,8 @@ _DAYS = (
     "SELECT coalesce(i.rule_name, i.rule_id) AS rule,"  # noqa: S608 - constant fragments
     f" (COALESCE(a.event_time, a.detected_at) AT TIME ZONE {ZONE_MARK})::date AS day,"
     " count(*) AS n, min(COALESCE(a.event_time, a.detected_at)) AS first,"
-    " max(COALESCE(a.event_time, a.detected_at)) AS last"
+    " max(COALESCE(a.event_time, a.detected_at)) AS last,"
+    " min(a.detected_at) AS detected_first, max(a.detected_at) AS detected_last"
     " FROM case_members m JOIN investigations i ON i.id = m.investigation_id"
     " JOIN investigation_alerts l ON l.investigation_id = m.investigation_id"
     " AND l.duplicate_of IS NULL JOIN alert_records a ON a.alert_id = l.alert_id"
@@ -316,6 +323,7 @@ async def gather(conn: AsyncConnection, case_id: uuid.UUID, now: datetime) -> Ca
     case = CaseRow(
         c.id, int(c.number), c.title, c.state, c.severity, int(c.version), c.cause,
         c.created_at, c.opened_at, c.notified_at, c.blocked_at, c.cause_assessment_id,
+        bool(c.title_by_person),
     )  # fmt: skip
     limits: list[str] = []
     order = int(
@@ -334,7 +342,8 @@ async def gather(conn: AsyncConnection, case_id: uuid.UUID, now: datetime) -> Ca
     if total > len(members):
         limits.append(f"only {len(members)} of the case's {total} investigations were read")
     days = tuple(
-        DayRule(r.day.isoformat(), r.rule or "an unnamed rule", int(r.n), r.first, r.last)
+        DayRule(r.day.isoformat(), r.rule or "an unnamed rule", int(r.n), r.first, r.last,
+                r.detected_first, r.detected_last)
         for r in await conn.execute(zoned(_DAYS), {"c": case_id})
     )  # fmt: skip
     alerts_total = sum(d.alerts for d in days)

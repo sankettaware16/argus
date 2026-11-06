@@ -5,6 +5,7 @@ tuning reports, the metrics; hostile text stays text."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -18,7 +19,8 @@ from argus.tuning import advise
 from argus.tuning import store as tuning_store
 from argus.tuning.report import RuleReport
 from argus.web import assessed, queries
-from tests.integration.web.conftest import NOW, PASSWORD
+from argus.web.app import create_app
+from tests.integration.web.conftest import BASE, NOW, PASSWORD, SAME_ORIGIN
 from tests.integration.web.test_gold import with_dossiers
 
 pytestmark = pytest.mark.integration
@@ -114,9 +116,11 @@ async def test_no_assessment_and_no_decision(
 async def test_proposals_grouped_with_an_audit_sample_and_confirmed_by_group(
     client: httpx.AsyncClient, seeded: AsyncEngine, migrated_engine: AsyncEngine
 ) -> None:
-    await with_dossiers(seeded, migrated_engine, 7)
+    await with_dossiers(seeded, migrated_engine, 8)
     big = await propose(seeded, 5, "engine@1#abc: field / rule / host.name / web1")
     small = await propose(seeded, 2, "agent@1#openai/m", "true_positive", start=5)
+    other = await propose(seeded, 1, "engine@1#def: field / rule / host.name / web2",
+                          "benign_policy", start=7)  # fmt: skip
     await signed_in(client)
     listing = (await client.get("/proposals")).text
     assert listing.index("Benign: expected activity: 5 investigations") < listing.index(
@@ -129,14 +133,14 @@ async def test_proposals_grouped_with_an_audit_sample_and_confirmed_by_group(
     async with seeded.connect() as conn:
         groups = await assessed.proposals(conn, date(2026, 10, 9))
         other_day = await assessed.proposals(conn, date(2026, 10, 10))
-    assert [len(g.items) for g in groups] == [5, 2]
+    assert [len(g.items) for g in groups] == [5, 2, 1]
     assert len(groups[0].sample) == assessed.SAMPLE
     assert sorted(p.assessment_id for p in groups[0].items) == sorted(big)
     assert sorted(p.assessment_id for p in other_day[0].items) == sorted(big)
     token = csrf(listing)
     shown = ",".join(str(i) for i in big[:4])  # the page listed four of them
     form = {"csrf_token": token, "group": groups[0].group,
-            "ids": shown + f",{small[0]}"}  # fmt: skip
+            "ids": shown + f",{other[0]}"}  # fmt: skip
     sent = await client.post("/proposals/confirm", data=form)
     assert sent.status_code == 303
     assert sent.headers["location"] == "/proposals?confirmed=4-1"  # another group's: skipped
@@ -146,6 +150,18 @@ async def test_proposals_grouped_with_an_audit_sample_and_confirmed_by_group(
     bad = await client.post("/proposals/confirm", data={
         "csrf_token": "x", "group": "d", "ids": "1"})  # fmt: skip
     assert bad.status_code == 403
+    # a true positive starts an incident (P4-F): its group offers no "Confirm all", says why, and
+    # a crafted post of it is refused with that sentence, nothing accepted (never "they changed")
+    tp = next(g for g in groups if g.outcome == "true_positive")
+    section = listing.split("True positive: 2 investigations")[1].split("</section>")[0]
+    assert "Confirm all" not in section
+    assert "decide it on its own page" in section
+    assert "Confirm all 5 as" in listing  # the other groups keep theirs
+    refused = await client.post("/proposals/confirm", data={
+        "csrf_token": token, "group": tp.group, "ids": ",".join(map(str, small))})  # fmt: skip
+    assert refused.status_code == 409
+    assert "decide it on its own page" in refused.text
+    assert "skipped because they changed" not in refused.text
     async with seeded.connect() as conn:
         query = "SELECT count(*) FROM review_events WHERE assessment_id IS NOT NULL"
         accepted = (await conn.execute(text(query))).scalar_one()
@@ -256,7 +272,8 @@ async def test_the_investigators_proposals_are_grouped_by_rule_and_outcome(
         users = (await conn.execute(text("SELECT id FROM users ORDER BY id"))).scalars().all()
         ids = [p.assessment_id for p in mixed[0].items] + [other.items[0].assessment_id]
         got = await assessed.confirm(conn, mixed[0].group, ids, users[0], "n")
-    assert got == (len(mixed[0].items), 1)
+    # a true positive starts an incident: never accepted with its group (P4-F U4), every one skipped
+    assert got == (0, len(ids))
 
 
 def test_group_of() -> None:
@@ -267,7 +284,28 @@ def test_group_of() -> None:
     )
 
 
-async def test_the_cost_bar_and_its_api(client: httpx.AsyncClient, seeded: AsyncEngine) -> None:
+@pytest.fixture
+async def shipped_client(
+    seeded: AsyncEngine, web_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> AsyncIterator[httpx.AsyncClient]:
+    """The app with the shipped model gateway's caps: an installation's ``llm.local.yaml`` (a site's
+    sets its own budget) is its own, so the shipped ``llm.yaml`` is read alone."""
+    import argus.llm.providers as providers
+
+    shipped = tmp_path / "llm.yaml"
+    shipped.write_text(providers.DEFAULT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    load = providers.load_config
+    monkeypatch.setattr(providers, "load_config", lambda *_, **__: load(shipped))
+    app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url=BASE, headers=SAME_ORIGIN) as http:
+        yield http
+
+
+async def test_the_cost_bar_and_its_api(
+    shipped_client: httpx.AsyncClient, seeded: AsyncEngine
+) -> None:
+    client = shipped_client
     assert (await client.get("/api/cost")).status_code == 401
     now = NOW + timedelta(hours=1)  # the app's clock in these tests
     rows = [(now, "openai", 0.25, 1), (now, "groq", 0.0, 1), (now, "openai", 0.0, 0),

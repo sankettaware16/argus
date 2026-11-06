@@ -12,8 +12,9 @@ from __future__ import annotations
 import re
 
 from argus import site
+from argus.cases import naming
+from argus.incident import glance, parts, story, targets, verdict
 from argus.incident import model as m
-from argus.incident import parts, story, targets, verdict
 from argus.incident.book import Book, cut
 from argus.incident.gather import CaseFacts
 from argus.incident.scene import Context, Scene, top
@@ -130,6 +131,8 @@ def build(facts: CaseFacts, ctx: Context) -> m.IncidentReport:
         opened += f"a person reviewed the report ({said.words})"
     else:
         opened += "no person has confirmed it yet"
+    made_first = [d.detected_first for d in facts.days if d.detected_first is not None]
+    made_last = [d.detected_last for d in facts.days if d.detected_last is not None]
     header = m.ReportHeader(
         incident_id=ident,
         title=cut(f"{ident} · {case.title}", 300),
@@ -142,6 +145,9 @@ def build(facts: CaseFacts, ctx: Context) -> m.IncidentReport:
         first_alert_at=scene.first,
         last_alert_at=scene.last,
         tags=tags(scene, ident, said.outcome),
+        first_detected_at=min(made_first, default=None),
+        last_detected_at=max(made_last, default=None),
+        certainty=None if case.title_by_person else naming.split_certainty(case.title)[0],
     )
     meta = m.ReportMeta(
         as_at=ctx.as_at,
@@ -149,6 +155,7 @@ def build(facts: CaseFacts, ctx: Context) -> m.IncidentReport:
         alerts_read=len(facts.docs),
         alerts_total=scene.alerts,
         limits=tuple(dict.fromkeys(scene.limits)),
+        carried=glance.carried_of(d.fields for d in facts.docs),
     )
     return m.IncidentReport(
         header=header,

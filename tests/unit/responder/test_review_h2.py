@@ -12,7 +12,7 @@ from argus.responder.machine import Verdict
 
 D = date(2026, 10, 14)
 DONE = datetime(2026, 10, 14, 6, 0, tzinfo=UTC)
-HOST, C2 = "10.8.235.157", "77.221.155.150"
+HOST, C2 = "10.201.7.13", "77.221.155.150"
 WANTED = [Subject(C2, 0, (HOST,))]
 
 

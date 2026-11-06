@@ -1,13 +1,27 @@
-/** The words the pages use for ARGUS's states and outcomes: the classic pages' words (DQ23). */
+/**
+ * The words the pages use for ARGUS's states and outcomes. The outcomes are a person's decision in
+ * plain words (P4-F U7), "Real" first, over the review model's own values (unchanged): a true
+ * positive is "Real: act on it", an expected benign "Real but harmless", a rule false positive
+ * "Wrong alert", an inconclusive "Can't tell yet". The keys 1 to 5 follow this order.
+ */
 
 export const OUTCOMES: Readonly<Record<string, string>> = {
-  benign_expected: "Benign: expected activity",
-  benign_policy: "Benign: allowed by policy",
-  rule_false_positive: "Rule false positive",
-  true_positive: "True positive",
-  inconclusive: "Inconclusive",
+  true_positive: "Real: act on it",
+  benign_expected: "Real but harmless",
+  benign_policy: "Allowed by policy",
+  rule_false_positive: "Wrong alert",
+  inconclusive: "Can't tell yet",
 };
 export const OUTCOME_KEYS = Object.keys(OUTCOMES);
+
+/** What each outcome means, in a line (the decision bar's hints). */
+export const OUTCOME_HINTS: Readonly<Record<string, string>> = {
+  true_positive: "An attack or a compromise that needs action. It may open an incident or join one.",
+  benign_expected: "It happened, and it is harmless: an attempt that failed, or activity that is expected.",
+  benign_policy: "It happened, and the policy allows it.",
+  rule_false_positive: "The rule fired on something it should not have.",
+  inconclusive: "There is not enough to decide yet. Keep it for a follow-up, or close it as undecided.",
+};
 
 export const STATE_TITLES: Readonly<Record<string, string>> = {
   unreviewed: "Not reviewed",
@@ -17,14 +31,14 @@ export const STATE_TITLES: Readonly<Record<string, string>> = {
 };
 
 export const AI_TITLES: Readonly<Record<string, string>> = {
-  proposed_tp: "Proposes true positive",
-  proposed_other: "Proposes benign",
+  proposed_tp: "Calls it real",
+  proposed_other: "Calls it not an attack",
   no_proposal: "No proposal",
   working: "Working on it",
   none: "Not assessed",
 };
 
-export const VERDICT_TITLES: Readonly<Record<string, string>> = { ...OUTCOMES, none: "No verdict yet" };
+export const VERDICT_TITLES: Readonly<Record<string, string>> = { ...OUTCOMES, none: "No decision yet" };
 
 export const VIEW_TITLES: Readonly<Record<string, string>> = {
   attention: "Needs attention",

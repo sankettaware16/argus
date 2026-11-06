@@ -201,6 +201,8 @@ UNITS: dict[str, tuple[str | None, Role]] = {
     "argus-assess.service": ("svc", Role.RUN),
     "argus-soak-sample.service": ("svc", Role.TRIGGERED),
     "argus-soak-sample.timer": (None, Role.RUN),
+    "argus-risk.service": ("svc", Role.TRIGGERED),
+    "argus-risk.timer": (None, Role.RUN),
     "argus-kibana-sync.service": ("svc", Role.RUN),
     "argus-case-team.service": ("writer", Role.TRIGGERED),
     "argus-case-team.timer": (None, Role.RUN),

@@ -136,7 +136,7 @@ async def test_a_downgrade_that_would_lose_a_withdrawal_is_refused(
         )  # fmt: skip
     with pytest.raises(DBAPIError, match="append-only"):
         await migrate.downgrade(migrated_engine, "0050")
-    assert await migrate.current_revision(migrated_engine) == "0065"
+    assert await migrate.current_revision(migrated_engine) == migrate.head_revision()
 
 
 async def test_a_clean_downgrade_drops_the_version_and_the_counts_and_upgrade_fills_it_again(

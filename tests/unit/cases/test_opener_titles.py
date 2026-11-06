@@ -34,42 +34,53 @@ def ip(value: str) -> Indicator:
     return Indicator("ip", value, "actor")
 
 
+HOST = "10.0.4.7"
+SERVER = "198.51.100.20"
+
+
 def test_a_campus_host_beaconing_to_a_listed_server() -> None:
-    c = cand(ip("10.8.235.157"), listed=("77.221.155.150",))
-    assert opener.title(c, [BEACON, LISTED]) == "Beaconing to 77.221.155.150 from 10.8.235.157"
+    c = cand(ip(HOST), listed=(SERVER,))
+    assert opener.title(c, [BEACON, LISTED]) == (
+        f"Suspected beaconing from {HOST} to {SERVER} (on a threat list)"
+    )
 
 
 def test_a_beacon_with_no_listed_server_names_the_host_only() -> None:
-    assert opener.title(cand(ip("10.8.235.157")), [BEACON]) == "Beaconing from 10.8.235.157"
+    assert opener.title(cand(ip(HOST)), [BEACON]) == f"Suspected beaconing from {HOST}"
 
 
 def test_contact_with_a_listed_server_without_a_beacon() -> None:
-    c = cand(ip("10.8.235.157"), listed=("77.221.155.150",))
+    c = cand(ip(HOST), listed=(SERVER,))
     assert opener.title(c, [LISTED]) == (
-        "Contact with flagged server 77.221.155.150 from 10.8.235.157"
+        f"Suspected contact with {SERVER} (on a threat list) from {HOST}"
     )
 
 
 def test_the_campus_keys_tell_a_device_from_an_outside_address() -> None:
-    c = cand(ip("10.8.235.157"), ip("203.0.113.9"), keys=frozenset({("ip", "10.8.235.157")}),
-             listed=("77.221.155.150",))  # fmt: skip
-    assert opener.title(c, [BEACON]) == "Beaconing to 77.221.155.150 from 10.8.235.157"
+    c = cand(ip(HOST), ip("203.0.113.9"), keys=frozenset({("ip", HOST)}), listed=(SERVER,))
+    assert opener.title(c, [BEACON]) == (
+        f"Suspected beaconing from {HOST} to {SERVER} (on a threat list)"
+    )
 
 
 def test_an_outside_address_whose_attack_got_answers() -> None:
-    c = cand(ip("185.220.101.4"), campus=False)
-    assert opener.title(c, [SUCCESS]) == "Web attack by 185.220.101.4 got successful answers"
+    c = cand(ip("203.0.113.44"), campus=False)
+    assert opener.title(c, [SUCCESS]) == (
+        "Suspected web scan by 203.0.113.44 — got HTTP 200, not verified"
+    )
 
 
-def test_the_rule_names_what_has_no_shape() -> None:
+def test_the_rule_names_what_has_no_shape_quoted_and_attributed() -> None:
     c = cand(Indicator("user", "someone@example.org", "actor"), campus=False, rule="Odd login")
-    assert opener.title(c, ["severity high"]) == "Odd login: a user account"
+    assert opener.title(c, ["severity high"]) == (
+        "Suspected: alerts of rule 'Odd login' for a user account"
+    )
     assert opener.title(cand(rule=None, campus=False), []) == "Alert"
 
 
 def test_a_value_that_is_not_an_address_never_reaches_the_title() -> None:
     c = cand(ip("10.0.0.1"), listed=("<script>alert(1)</script>",))
-    assert opener.title(c, [BEACON]) == "Beaconing to a flagged server from 10.0.0.1"
+    assert opener.title(c, [BEACON]) == "Suspected beaconing from 10.0.0.1 to a flagged server"
 
 
 def test_the_attempt_reason_hyphenates_the_sites_word() -> None:

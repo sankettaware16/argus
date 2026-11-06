@@ -8,14 +8,33 @@ import { ReportView } from "../src/components/investigation/ReportView";
 import { must, REPORT } from "./helpers";
 
 describe("What ARGUS found with extra SIEM queries", () => {
+  it("says each finding once, leaves out those shown above as key facts, and says when it reused an earlier check (P4-F U18)", () => {
+    const found = { ...REPORT.found, checks: 0, server_ms: 0, items: [...REPORT.found.items, REPORT.found.items[0] as (typeof REPORT.found.items)[number]] };
+    render(<FoundBox report={{ ...REPORT, found }} shown={["Two more campus hosts reached the same C2 today."]} />);
+    const box = screen.getByRole("region", { name: "What ARGUS found with extra SIEM queries" });
+    expect(within(box).getByTestId("found-heading").textContent).toBe("Reused from an earlier check: this version made no new SIEM query. Compared with what the alerts alone say.");
+    expect(within(box).getByTestId("found-above").textContent).toBe("One finding is under Key facts above.");
+    const texts = [...(box.querySelector("ul")?.children ?? [])].map((li) => li.textContent ?? "");
+    expect(texts.filter((t) => t.includes("Host H1 reached the C2 every 300 s"))).toHaveLength(1);
+    expect(texts.some((t) => t.includes("Two more campus hosts"))).toBe(false);
+  });
+
+  it("never says reused when no earlier answer was reused: checks skipped for load or deferred are not checked", () => {
+    const skipped = { kind: "not_checked" as const, sentence: "Whether H1 reached other C2s: skipped, the SIEM is under load.", eids: ["E3"], from_logs: false };
+    render(<FoundBox report={{ ...REPORT, found: { ...REPORT.found, checks: 0, server_ms: 0, items: [skipped] }, cost: { ...REPORT.cost, siem_requests: 0, siem_server_ms: 0, reused: 0 } }} />);
+    const heading = screen.getByTestId("found-heading").textContent ?? "";
+    expect(heading).not.toContain("Reused");
+    expect(heading).toBe("0 checks, 0 ms of SIEM server time. Compared with what the alerts alone say.");
+  });
+
   it("heads the box with its checks and server time, and starts every line with its words and E-numbers", () => {
     render(<FoundBox report={REPORT} />);
     const box = screen.getByRole("region", { name: "What ARGUS found with extra SIEM queries" });
     expect(within(box).getByText("3 checks, 2.1 s of SIEM server time. Compared with what the alerts alone say.")).toBeTruthy();
     const lines = [...(box.querySelector("ul")?.children ?? [])];
     expect(lines.map((li) => li.textContent?.replace(/\s+/g, " ").trim())).toEqual([
-      "NewHost H1 reached the C2 every 300 s, 59 times. E3destination: 203.0.113.9 (59)E3 · proxy.pair@1 · complete",
-      "NewTwo more campus hosts reached the same C2 today. E4",
+      "FoundHost H1 reached the C2 every 300 s, 59 times. E3destination: 203.0.113.9 (59)E3 · proxy.pair@1 · complete",
+      "FoundTwo more campus hosts reached the same C2 today. E4",
       "Nothing foundNo other destination of H1 is on a threat list. E5",
       "Could not tellWhether H1 looked the C2 up by name; DNS logs were 40 minutes behind. E6",
       "Still openWho looks after H1.",
@@ -38,7 +57,7 @@ describe("the report", () => {
   it("has the verdict with its confidence and the evidence strength apart from it", () => {
     render(<ReportView reports={[REPORT]} />);
     const verdict = screen.getByRole("region", { name: "Verdict" });
-    expect(verdict.textContent).toContain("The AI investigator proposes True positive (the model's confidence 75%)");
+    expect(verdict.textContent).toContain("The AI investigator proposes Real: act on it (the model's confidence 75%)");
     expect(verdict.textContent).toContain("It beacons.");
     expect(verdict.textContent).toContain("Evidence strength: Moderate.");
     expect(verdict.textContent).toContain("separate from any confidence");
@@ -80,7 +99,7 @@ describe("the report", () => {
     const group = screen.getByRole("group", { name: "Reports of this investigation" });
     const [ai, decision] = within(group).getAllByRole("button");
     expect(ai?.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("region", { name: "Verdict" }).textContent).toContain("The AI investigator proposes True positive");
+    expect(screen.getByRole("region", { name: "Verdict" }).textContent).toContain("The AI investigator proposes Real: act on it");
     fireEvent.click(must(decision));
     expect(decision?.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("region", { name: "Verdict" }).textContent).toContain("The decision engine made no proposal");

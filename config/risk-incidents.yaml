@@ -1,0 +1,69 @@
+# The incident engine v2's linker, incident lifecycle and identity (P4-F E2 and E4): how campus
+# objects in a lane become one incident, how an incident grows and ages, and which address is
+# which device. Every value is generic: an entity kind, a window, a cap, an asset-map field.
+# No rule is named. Thresholds are changed by a person only; unknown keys are errors.
+version: 1
+
+# Links between two campus objects, each with its window (the most time between the two
+# objects' observations that carry the shared thing) and its reach limit (how many campus
+# objects may share it in the window before it says nothing). Priorities: identity first, then
+# a flagged outside thing, then a rare domain, then a bare outside address.
+links:
+  host: {hours: 168, max_addresses: 4}        # the same host name (an identity alias)
+  account: {hours: 24, max_devices_a_day: 3}  # a likely SSO sign-in in the same hour
+  flagged: {hours: 168, max_reach: 500}       # a flagged domain or address
+  rare: {hours: 48, max_reach: 6}             # a domain few campus objects reached
+  bare_ip: {hours: 8, max_reach: 3}           # an outside address, not flagged
+# A source whose label-free prevalence factor is below this is noisy: it never bridges two
+# objects (its observations add score, never links).
+noisy_prevalence: 0.5
+# A group's strong evidence names its outside thing only when it holds at most this many.
+flag_threats: 1
+# An object outside every lane joins an incident only through a link of these kinds, and only
+# this many steps from an object in a lane.
+pull_in: [host, account, flagged]
+depth: 2
+
+# Caps per incident: risk objects (devices, accounts and campus sites; a flagged campaign may hold
+# more), alert groups (then a linked overflow incident takes the rest). Past the object cap a link
+# is kept as a recommendation only.
+caps: {objects: 50, campaign_objects: 500, groups: 200}
+
+# The campaign lane (L4): a flagged outside thing, or an operator's campaign, reached by at least
+# this many campus devices in the window.
+campaign: {min_devices: 2, hours: 168, every_hours: 1}
+
+# Hubs never link: an asset-map role below, a resolver of `campaigns.resolvers`, or measured
+# fan-in (an object reaching this many distinct outside things in the window). A hub of an
+# asset-map role also gets no observations (the digest counts it).
+hubs:
+  roles: [nat, proxy, resolver, mail_relay, gateway]
+  fan_in: 150
+  fan_in_hours: 168
+
+# Lifecycle: quiet after `quiet_hours` with no observation (shown, ranked lower); a "stopped"
+# proposal after `stop_days` quiet; sealed `seal_days` after it began (later activity opens a
+# linked new incident).
+lifecycle: {quiet_hours: 72, stop_days: 14, seal_days: 30}
+
+# Retro-hunt: an outside thing flagged later re-reads every alert group that touched it in this
+# many days.
+retro_days: 30
+# Sealed and merged incidents, flags and aliases are kept this long after they were last seen.
+keep_days: 90
+
+# Identity. Optional asset-map fields, read when present: the role (first field that has one),
+# the addressing (static or dynamic) and the criticality. An address of a /32 (or /128) entry is
+# a device; a dynamic address without a host name is keyed per day, so a reused address never
+# accumulates for another person. An address whose addressing nobody states is keyed as
+# `unknown_addressing`; it is never taken for one device, though: a host alias on it holds only
+# while no other host had it in the host window (a reused address links no host), and a host seen
+# on more than `links.host.max_addresses` addresses links through none of them.
+identity:
+  role_fields: [site.role, site.type]
+  addressing_field: site.addressing
+  criticality_field: site.criticality
+  unknown_addressing: static
+  dynamic_roles: [wifi, vpn]
+  shared_roles: [lab, computer-room, wifi, vpn, nat, gateway]
+  criticality: {low: 0.75, normal: 1.0, high: 1.5, critical: 2.0}

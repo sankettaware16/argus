@@ -1,6 +1,10 @@
 /** The page title for an app path (without the /app base): "Dashboard · ARGUS" and the rest. Pure. */
 const TITLES: Record<string, string> = {
-  "/": "Home",
+  "/": "Today",
+  "/incidents": "Incidents",
+  "/search": "Search",
+  "/overview": "Overview",
+  "/quality": "ARGUS quality",
   "/design": "Design system",
   "/dashboard": "Dashboard",
   "/inbox": "Inbox",
@@ -20,7 +24,10 @@ const TITLES: Record<string, string> = {
 
 export function titleFor(path: string): string {
   const clean = path.replace(/\/+$/, "") || "/";
-  if (/^\/investigations\/[^/]+$/.test(clean)) return "Investigation";
+  if (/^\/investigations\/[^/]+$/.test(clean)) return "Alert group";
+  if (/^\/alert-groups\/[^/]+$/.test(clean)) return "Alert group";
+  if (/^\/incidents\/(n\/)?[^/]+$/.test(clean)) return "Incident";
+  if (/^\/entities\/[^/]+\/[^/]+$/.test(clean)) return "Entity";
   if (/^\/cases\/[^/]+$/.test(clean)) return "Case";
   if (/^\/reports\/[^/]+$/.test(clean)) return "Report";
   return TITLES[clean] ?? "Not found";

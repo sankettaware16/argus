@@ -23,7 +23,7 @@ from tests.integration.caseteam.kit import Rig, a_case, rig, save_version
 from tests.integration.writer.fake import patches
 
 pytestmark = pytest.mark.integration
-NEW_TITLE = "ACME-IR-2026-1026-01 · Amadey beaconing from 10.198.36.230"
+NEW_TITLE = "ACME-IR-2026-1026-01 · Amadey beaconing from 10.201.7.11"
 
 
 def retitled(title: str) -> Any:
@@ -97,6 +97,38 @@ async def test_a_retitle_in_argus_is_the_leads_patch_of_the_title_and_waits_for_
     later = await r.run(case)
     assert later.decision.action == "update", later.lines()
     assert [w.method for w in r.kibana.writes[before + 1 :]].count("PATCH") == 0
+
+
+async def test_a_small_count_change_reaches_kibana_once_the_posted_title_is_six_hours_old(
+    app_engine: AsyncEngine,
+    migrated_engine: AsyncEngine,
+    writer_engine: AsyncEngine,
+    people: dict[str, Person],
+) -> None:
+    """Naming v2: a count that only grew a little waits, as ARGUS's own title does, and is not
+    dropped; a new address is new words and goes at once."""
+    from argus import site
+
+    r, case, kid = await posted(app_engine, migrated_engine, writer_engine, people["asha"])
+    devices = site.own("devices")
+    counted = f"ACME-IR-2026-1026-01 · Beaconing to 198.51.100.20 from 12 of 22 {devices}"
+    await save_version(app_engine, case, retitled(counted))
+    r.advance(180)
+    assert (await r.run(case)).stopped is None
+    assert r.kibana.cases[kid]["title"] == counted
+    bumped = counted.replace("12 of 22", "13 of 23")
+    await save_version(app_engine, case, retitled(bumped))
+    r.advance(3 * 3600)
+    assert (await r.run(case)).stopped is None
+    assert r.kibana.cases[kid]["title"] == counted  # three hours: the bump waits
+    r.advance(3 * 3600 + 60)
+    assert (await r.run(case)).stopped is None
+    assert r.kibana.cases[kid]["title"] == bumped  # six hours: it arrives
+    moved = bumped.replace("198.51.100.20", "198.51.100.21")
+    await save_version(app_engine, case, retitled(moved))
+    r.advance(180)
+    assert (await r.run(case)).stopped is None
+    assert r.kibana.cases[kid]["title"] == moved  # another server: at once
 
 
 async def test_a_title_a_person_changed_in_kibana_is_never_overwritten(
@@ -251,7 +283,10 @@ async def test_a_refresh_plans_the_edits_and_the_next_run_sends_each_by_its_own_
     assert report.stopped is None, report.lines()
     sent = [(w.as_user, w.path.rsplit("/api", 1)[1]) for w in r.kibana.writes[before:]]
     assert sent[0] == ("argus-lead", "/cases")
-    assert sent[1:] == [("argus-evidence", f"/cases/{kid}/comments")]  # the evidence comment
+    assert sent[1:] == [  # the evidence comment, then the glance it is followed by (P4-F V3)
+        ("argus-evidence", f"/cases/{kid}/comments"),
+        ("argus-visualiser", f"/cases/{kid}/comments"),
+    ]
     assert {w.method for w in r.kibana.writes[before:]} == {"PATCH"}  # edits only: no new comment
     case_now = r.kibana.cases[kid]
     assert "A newer check" in next(

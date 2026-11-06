@@ -6,7 +6,7 @@ import { Time } from "../Time";
 import { UntrustedText } from "../UntrustedText";
 import { Badge } from "../ui/badge";
 import { DataTable } from "../ui/table";
-import { AcceptAction, AskAction, NeedsCapability, useCan } from "./actions";
+import { AskAction, NeedsCapability, useCan } from "./actions";
 import { Reading } from "./Reading";
 
 function capital(text: string): string {
@@ -143,16 +143,9 @@ function AssessmentCard({ a, detail }: { a: AssessmentOut; detail: Investigation
         )}
       </p>
       {acceptable && a.status === "proposed" && (
-        <div className="flex flex-col items-start gap-1">
-          {canReview ? (
-            <>
-              <AcceptAction investigationId={detail.investigation.id} assessment={a} />
-              <p className="m-0 text-xs text-muted">To override, choose another outcome in the review form: your verdict is a label ARGUS learns from.</p>
-            </>
-          ) : (
-            <NeedsCapability what="accepting a proposal" capability="review" />
-          )}
-        </div>
+        <p className="m-0 text-xs text-muted" data-testid="decide-above">
+          {canReview ? "This is the call the decision at the top of the page accepts. To decide otherwise, choose another outcome there: your decision is a label ARGUS learns from." : "This is ARGUS's call; deciding needs the “review” capability."}
+        </p>
       )}
     </article>
   );
@@ -169,7 +162,7 @@ function SamePattern({ pattern }: { pattern: SamePatternOut }) {
       ) : (
         <>
           Same pattern as{" "}
-          <Link to="/investigations/$id" params={{ id: pattern.investigation_id }} className="font-mono">
+          <Link to="/alert-groups/$id" params={{ id: pattern.investigation_id }} className="font-mono">
             {pattern.investigation_id}
           </Link>
           :{" "}
@@ -218,11 +211,9 @@ export function Assessments({ detail }: { detail: InvestigationDetail }) {
 }
 
 export function AiBrief({ detail }: { detail: InvestigationDetail }) {
-  const canReview = useCan("review");
   const top = detail.assessments[0];
   if (!top) return null;
   const answer = top.run?.answer ?? null;
-  const acceptable = detail.acceptable_assessment_id === top.id && top.status === "proposed";
   return (
     <section aria-label="What ARGUS proposes" className="flex flex-col gap-1.5 rounded-card border border-border bg-surface-2 p-3">
       <h3 className="m-0 flex flex-wrap items-center gap-2 text-base font-semibold">
@@ -243,11 +234,6 @@ export function AiBrief({ detail }: { detail: InvestigationDetail }) {
           <UntrustedText value={top.reasons[0]} limits={{ maxChars: 400, maxLines: 6 }} />
         </p>
       ) : null}
-      {acceptable && canReview && (
-        <div className="self-start">
-          <AcceptAction investigationId={detail.investigation.id} assessment={top} />
-        </div>
-      )}
     </section>
   );
 }

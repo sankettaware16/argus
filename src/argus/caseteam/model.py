@@ -32,6 +32,9 @@ OPEN_STATES: Final = frozenset({"planned", "sending", "sent", "ambiguous", "rese
 # be done again after a doubt; the lead's two are the case's title and description.
 EDIT_KINDS: Final = frozenset({"retitle", "redescribe", "edit_comment"})
 DONE_STATES: Final = frozenset({"verified", "skipped", "superseded"})
+# a payload flag: this edit is an update round's (the Visualiser's living glance), not a person's
+# refresh
+ROUND: Final = "round"
 
 
 class Author(StrEnum):
@@ -72,6 +75,16 @@ PART_AUTHOR: Final[dict[str, Author]] = {
 VERDICT_ENDING: Final = "Confirm or reject in a comment."
 # why an edit was left alone: a person changed it in Kibana; kept as the step's reason
 PERSON_EDIT: Final = "a person changed it in Kibana, so ARGUS leaves it"
+# and the other two: the comment is gone from the case, or another user wrote it
+COMMENT_GONE: Final = "the comment is not on the Kibana case"
+NOT_THEIRS: Final = "the comment was not written by"
+
+
+def left_by_person(reason: str | None) -> bool:
+    """Whether an edit was left because of what someone did in Kibana (changed the comment,
+    removed it, or it is not the author's): such a comment is never edited again by a round."""
+    why = reason or ""
+    return why.endswith(PERSON_EDIT) or why == COMMENT_GONE or why.startswith(NOT_THEIRS)
 
 
 def text_hash(text: str) -> str:
@@ -115,7 +128,9 @@ class Step:
             "file": f"uploads {self.payload.get('filename', 'a file')}",
             "retitle": "corrects the case's title",
             "redescribe": "corrects the case's description",
-            "edit_comment": f"corrects its comment ({self.part})",
+            "edit_comment": f"updates its comment in place ({self.part})"
+            if self.payload.get(ROUND) is True
+            else f"corrects its comment ({self.part})",
         }[self.kind]
         return f"{self.author.value} {what}"
 

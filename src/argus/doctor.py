@@ -28,6 +28,8 @@ from argus.db.engine import create_engine
 from argus.db.errors import DB_ERRORS, is_connection_failure, short_db_error
 from argus.gateway.transport import ca_summary
 from argus.observability.redaction import redact_text, register_secret
+from argus.ops import case_team_login
+from argus.ops.case_team_login import TeamLogin
 from argus.site import Role
 
 
@@ -153,7 +155,7 @@ async def database_checks(settings: Settings) -> list[CheckResult]:
                 CheckResult("runtime role", not problems, f"{settings.database.user}: {detail}")
             )
             results.append(await web_login_check(as_the_web_runs(settings)))
-            results.append(await writer_login_check(settings))
+            results.append(await writer_login_check(settings, as_the_case_team_runs(settings)))
             results.append(await shadow_check(engine, settings))
             results.append(await signin_check(engine, settings))
         return results
@@ -320,19 +322,77 @@ async def web_login_check(settings: Settings) -> CheckResult:
     return CheckResult(name, True, f"{database.api_user}: exactly the web's grants, in use")
 
 
-async def writer_login_check(settings: Settings) -> CheckResult:
+def as_the_case_team_runs(settings: Settings) -> TeamLogin | None:
+    """The case team's login as ``argus-case-team.service`` uses it in this installation's
+    checkout (``units.root``): its credential, the login its switches name, and whether the
+    installation runs it (an enabled timer counts only when the installed units are this
+    checkout's). None under custody, whose system unit gets root's credential."""
+    from argus.ops import custody, units
+
+    if case_team_login.SERVICE in custody.moved_units():
+        return None
+    root = settings.units.root or units.REPO
+    folder = units.user_unit_dir()
+    try:
+        installed = units.installed_root(folder)
+        mine = installed is not None and installed.resolve() == root.resolve()
+        enabled = units.enabled_units(folder) if mine else set()
+    except OSError:  # the units check says why the folder cannot be read
+        enabled = set()
+    return case_team_login.team_login(
+        root, run=settings.units.run, enabled=enabled, post=settings.case_team.post
+    )
+
+
+async def writer_login_check(settings: Settings, team: TeamLogin | None = None) -> CheckResult:
     """The case writer's own login, from its own point of view: exactly the grants of
     migrations 0037 and 0038 (the outbox moves, its tables, the lane's state, the audit trail and
-    what it reads), a member of ``argus_writer`` alone, nothing else. Not set up is fine: the
-    writer is off until its canary."""
-    database, name = settings.database, "writer login"
-    if not roles.writer_login_configured(database):
+    what it reads), a member of ``argus_writer`` alone, nothing else. With ``team`` (the case
+    team's login as its unit uses it) the password is its credential's, and a login that does
+    not work fails only while the installation runs the case team: off is a choice, and then it
+    is a warning (``argus init`` repairs the login). Not set up is fine while it is off."""
+    database, name, shown = settings.database, "writer login", case_team_login.SHOWN
+    if team is not None:
+        if team.password is not None:
+            register_secret(team.password)
+        database = database.model_copy(update=team.database_update())
+    user = database.writer_user
+    own = team is not None and team.password is not None  # the unit's own credential
+    runs = "; ".join(team.runs) if team is not None else ""
+    if team is not None and team.problem is not None and runs:
         return CheckResult(
             name,
-            True,
-            f"{database.writer_user} is not set up (the writer is off until its canary: set"
-            " ARGUS_DATABASE__WRITER_PASSWORD in its credentials and run `argus db bootstrap`)",
+            False,
+            f"{user}: {shown} {team.problem}, and the case team is set to run"
+            f" ({runs}): it cannot start until that file holds the login's password",
         )
+    if not roles.writer_login_configured(database):
+        if runs:
+            return CheckResult(
+                name,
+                False,
+                f"{user}: the case team is set to run ({runs}), but its login has no password:"
+                f" put one in {shown} (mode 600) and run `argus init`, which makes the"
+                f" login (docs/case-team.md), or stop the case team: {case_team_login.STOPS}",
+            )
+        if team is None:
+            hint = (
+                "set ARGUS_DATABASE__WRITER_PASSWORD in its credentials and run"
+                " `argus db bootstrap`"
+            )
+        else:
+            hint = f"put its password in {shown} and run `argus init`"
+        detail = f"{user} is not set up (the writer is off until its canary: {hint})"
+        if team is not None and team.problem is not None:
+            detail += f"; {shown} {team.problem}"
+        return CheckResult(name, True, detail)
+    judged = not own or bool(runs)
+    fix = f"run `argus init` (it sets the login's password from {shown})"
+    if own:
+        try:
+            roles.check_writer_settings(database)
+        except ConfigError as exc:  # a login name in its switches that cannot be its own
+            return CheckResult(name, not judged, f"{user}: {exc}", warn=not judged)
     try:
         engine = create_engine(database, role="writer")
     except ConfigError as exc:
@@ -341,16 +401,37 @@ async def writer_login_check(settings: Settings) -> CheckResult:
         try:
             problems = await roles.writer_role_problems(engine)
         except (SQLAlchemyError, OSError) as exc:
-            hint = " — run `argus db bootstrap` to create or repair it" if _refused(exc) else ""
-            return CheckResult(name, False, f"{database.writer_user}: {short_db_error(exc)}{hint}")
+            if _refused(exc) and not judged:
+                return CheckResult(
+                    name,
+                    True,
+                    f"{user}: the case team is off, and its login does not log in with"
+                    f" {shown} ({short_db_error(exc)}): `argus init` repairs it",
+                    warn=True,
+                )
+            if not _refused(exc):
+                hint = ""
+            elif own:
+                hint = f" — {fix}"
+            else:
+                hint = " — run `argus db bootstrap` to create or repair it"
+            return CheckResult(name, False, f"{user}: {short_db_error(exc)}{hint}")
     finally:
         await engine.dispose()
     if problems:
         detail = "; ".join(problems)
         if any(roles.repaired_by_bootstrap(problem) for problem in problems):
-            detail += " — run `argus db bootstrap` to repair the role"
-        return CheckResult(name, False, f"{database.writer_user}: {detail}")
-    return CheckResult(name, True, f"{database.writer_user}: exactly the writer's grants")
+            detail += " — run `argus init` to repair the role" if own else (
+                " — run `argus db bootstrap` to repair the role")  # fmt: skip
+        if not judged:
+            return CheckResult(name, True, f"{user}: the case team is off; {detail}", warn=True)
+        return CheckResult(name, False, f"{user}: {detail}")
+    if not own:
+        return CheckResult(name, True, f"{user}: exactly the writer's grants")
+    off = "" if runs else " (the case team is off)"
+    return CheckResult(
+        name, True, f"{user}: exactly the writer's grants, logs in with {shown}{off}"
+    )
 
 
 @register_check

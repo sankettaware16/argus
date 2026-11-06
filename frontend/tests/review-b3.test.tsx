@@ -4,24 +4,12 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { approval, CASE_ID, caseDetail, casePage, LEAD_ID, queue, RLO } from "./caseFixtures";
+import { CASE_ID, caseDetail, LEAD_ID, RLO } from "./caseFixtures";
 import { BASE, detail as investigationDetail, mockApi, REPORT, renderApp, server } from "./helpers";
 
 mockApi();
 
 describe("review of Q-B3", () => {
-  it("R3-5: the Home tile counts what waits, not what the queue happened to list (300 at most)", async () => {
-    const listed = [approval(), approval({ id: 32 }), approval({ id: 33 })];
-    server.use(
-      http.get(`${BASE}/api/v1/cases`, () => HttpResponse.json(casePage([]))),
-      http.get(`${BASE}/api/v1/approvals`, () => HttpResponse.json(queue({ pending: listed, pending_total: 310 }))),
-    );
-    renderApp("/");
-    const region = await screen.findByRole("region", { name: "Cases" });
-    const tile = await within(region).findByRole("link", { name: /Waiting for an approval/ });
-    expect(tile.textContent).toBe("310Waiting for an approval");
-  });
-
   it("R3-6: a person's display name in the Assign list is shown as untrusted text (markers, not the raw override character)", async () => {
     server.use(
       http.get(`${BASE}/api/v1/cases/${CASE_ID}`, () =>
@@ -31,7 +19,7 @@ describe("review of Q-B3", () => {
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}`, () => HttpResponse.json(investigationDetail({}, { id: LEAD_ID }))),
     );
     const user = userEvent.setup();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Assign" }));
     const select = await screen.findByLabelText("Give the case to");
     const labels = within(select).getAllByRole("option").map((o) => o.textContent ?? "");
@@ -45,7 +33,7 @@ describe("review of Q-B3", () => {
       http.get(`${BASE}/api/v1/investigations/${LEAD_ID}`, () => HttpResponse.json(investigationDetail({}, { id: LEAD_ID }))),
     );
     const user = userEvent.setup();
-    renderApp(`/cases/${CASE_ID}`);
+    renderApp(`/incidents/${CASE_ID}?tab=all`);
     await user.click(await screen.findByRole("button", { name: "Assign" }));
     const region = within(await screen.findByRole("region", { name: "Actions" }));
     const go = await region.findByRole("button", { name: "Review the request" }); // Check more has one too

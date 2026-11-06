@@ -1,13 +1,15 @@
 """The LLM gateway's budgets: per-minute and per-day requests and tokens per provider and model,
-the monthly cost cap, cool-downs from ``Retry-After``, breakers, the kill switch, leases,
-latencies and alarms. Admission reserves an upper-bound estimate (a body byte is at most a token,
-plus the answer's cap) that settling replaces with the provider's count; a priority may use only
-its share of each limit; windows are fixed UTC and ARGUS uses ``margin`` of each limit. Pure:
-(state, request, now) in, (admission, state) out; the store keeps the state in Postgres."""
+the monthly and daily cost caps (overall and per paid provider), cool-downs from ``Retry-After``,
+breakers, the kill switch, leases, latencies and alarms. Admission reserves an estimate of the
+call's tokens in the rate-limit windows and an upper bound of its cost (a body byte is at most a
+token, plus the answer's cap); settling replaces both with the provider's count. A priority may
+use only its share of each limit; windows are fixed UTC and ARGUS uses ``margin`` of each limit.
+Pure: (state, request, now) in, (admission, state) out; the store keeps the state in Postgres."""
 
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
@@ -60,6 +62,7 @@ class Alarm:
     kind: str  # "tls_failed", "unauthorized", "model_mismatch"
     at: datetime
     detail: str
+    model: str | None = None  # the one model it is about (a 404); None: the provider
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,9 @@ class State:
     probed: dict[str, datetime] = field(default_factory=dict)  # provider: its last "up" probe
     latency: dict[str, tuple[int, ...]] = field(default_factory=dict)  # "provider/model": ms
     alarms: dict[str, Alarm] = field(default_factory=dict)  # provider: the latest alarm
+    # each paid provider's share of spent_usd (this month) and of day_spent_usd (that day)
+    provider_spent_usd: dict[str, float] = field(default_factory=dict)
+    provider_day_spent_usd: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -90,7 +96,7 @@ class Ask:
     provider: str
     model: str
     buckets: tuple[Bucket, ...]
-    tokens: int  # the upper bound
+    tokens: int  # the estimate, in the rate-limit windows
     cost_usd: float  # the upper bound
     priority: Priority
 
@@ -103,6 +109,14 @@ class Admission:
 
 
 @dataclass(frozen=True)
+class Caps:
+    """A paid provider's own cost caps, under the overall ones; None: only the overall cap."""
+
+    monthly_usd: float | None = None
+    daily_usd: float | None = None
+
+
+@dataclass(frozen=True)
 class Config:
     monthly_cap_usd: float = 10.0
     margin: float = 0.8
@@ -110,6 +124,7 @@ class Config:
         default_factory=lambda: {Priority.HIGH: 1.0, Priority.NORMAL: 0.8, Priority.LOW: 0.5}
     )
     daily_cap_usd: float | None = None  # None: no daily cap
+    caps: Mapping[str, Caps] = field(default_factory=dict)  # provider: its own caps
 
 
 def month_of(now: datetime) -> str:
@@ -133,13 +148,29 @@ def _cap(limit: int | None, share: float) -> int | None:
     return None if limit is None else math.floor(limit * share)
 
 
+def spend(state: State, now: datetime, provider: str | None = None) -> tuple[float, float]:
+    """This month's and today's paid spend at ``now``: overall, or one provider's."""
+    month, day = state.month == month_of(now), state.day == now.date().isoformat()
+    if provider is None:
+        return state.spent_usd if month else 0.0, state.day_spent_usd if day else 0.0
+    return (state.provider_spent_usd.get(provider, 0.0) if month else 0.0,
+            state.provider_day_spent_usd.get(provider, 0.0) if day else 0.0)  # fmt: skip
+
+
+def _plus(spent: dict[str, float], provider: str, reserved: float, used: float) -> dict[str, float]:
+    if not reserved and not used:  # a free call
+        return spent
+    return {**spent, provider: max(0.0, spent.get(provider, 0.0) - reserved + used)}
+
+
 def admit(state: State, ask: Ask, now: datetime, config: Config) -> tuple[Admission, State]:
     """May this call go now? If so its estimate is reserved in every bucket it counts in."""
     if state.stopped:
         return Admission(False, None, "stopped"), state
-    spent = state.spent_usd if state.month == month_of(now) else 0.0
+    spent, day_spent = spend(state, now)
     today = now.date().isoformat()
-    day_spent = state.day_spent_usd if state.day == today else 0.0
+    own = state.provider_spent_usd if state.month == month_of(now) else {}
+    own_day = state.provider_day_spent_usd if state.day == today else {}
     share = config.shares[ask.priority]
     waits: list[datetime] = []
     reasons: list[str] = []
@@ -169,19 +200,21 @@ def admit(state: State, ask: Ask, now: datetime, config: Config) -> tuple[Admiss
             waits.append(until)
             reasons.append(f"{name}: cooling down")
     if ask.cost_usd > 0:
-        cap = config.monthly_cap_usd * share
-        if ask.cost_usd > cap:
-            return Admission(False, None, "costs more than the monthly cap"), state
-        if spent + ask.cost_usd > cap:
-            waits.append(_next_month(now))
-            reasons.append("monthly cost cap")
-        if config.daily_cap_usd is not None:
-            day_cap = config.daily_cap_usd * share
-            if ask.cost_usd > day_cap:
-                return Admission(False, None, "costs more than the daily cap"), state
-            if day_spent + ask.cost_usd > day_cap:
-                waits.append(_next_day(now))
-                reasons.append("daily cost cap")
+        p, caps = ask.provider, config.caps.get(ask.provider, Caps())
+        for who, limit, used, period, until in (
+            ("", config.monthly_cap_usd, spent, "monthly", _next_month(now)),
+            ("", config.daily_cap_usd, day_spent, "daily", _next_day(now)),
+            (f"{p}: ", caps.monthly_usd, own.get(p, 0.0), "monthly", _next_month(now)),
+            (f"{p}: ", caps.daily_usd, own_day.get(p, 0.0), "daily", _next_day(now)),
+        ):
+            if limit is None:
+                continue
+            cap = limit * share
+            if ask.cost_usd > cap:
+                return Admission(False, None, f"{who}costs more than the {period} cap"), state
+            if used + ask.cost_usd > cap:
+                waits.append(until)
+                reasons.append(f"{who}{period} cost cap")
     names = (ask.provider, f"{ask.provider}/{ask.model}")  # transport, then the model's answers
     for name in names:
         breaker = state.breakers.get(name, breaker_core.BreakerState())
@@ -210,6 +243,8 @@ def admit(state: State, ask: Ask, now: datetime, config: Config) -> tuple[Admiss
         spent_usd=spent + ask.cost_usd,
         day=today,
         day_spent_usd=day_spent + ask.cost_usd,
+        provider_spent_usd=_plus(own, ask.provider, 0.0, ask.cost_usd),
+        provider_day_spent_usd=_plus(own_day, ask.provider, 0.0, ask.cost_usd),
     )
 
 
@@ -233,13 +268,16 @@ def settle(
         if w.day == admitted_at.date():
             w = replace(w, day_tokens=max(0, w.day_tokens - ask.tokens + tokens))
         windows[bucket.name] = w
-    spent = state.spent_usd
+    spent, own = state.spent_usd, state.provider_spent_usd
     if state.month == month_of(admitted_at):
         spent = max(0.0, spent - ask.cost_usd + cost_usd)
-    day_spent = state.day_spent_usd
+        own = _plus(own, ask.provider, ask.cost_usd, cost_usd)
+    day_spent, own_day = state.day_spent_usd, state.provider_day_spent_usd
     if state.day == admitted_at.date().isoformat():
         day_spent = max(0.0, day_spent - ask.cost_usd + cost_usd)
-    return replace(state, windows=windows, spent_usd=spent, day_spent_usd=day_spent)
+        own_day = _plus(own_day, ask.provider, ask.cost_usd, cost_usd)
+    return replace(state, windows=windows, spent_usd=spent, day_spent_usd=day_spent,
+                   provider_spent_usd=own, provider_day_spent_usd=own_day)  # fmt: skip
 
 
 def cool_down(state: State, name: str, until: datetime, now: datetime) -> State:
@@ -305,12 +343,18 @@ def observe(state: State, name: str, latency_ms: int, slow_ms: int, now: datetim
     return replace(state, latency={**state.latency, name: recent})
 
 
-def raise_alarm(state: State, provider: str, kind: str, detail: str, now: datetime) -> State:
-    return replace(state, alarms={**state.alarms, provider: Alarm(kind, now, detail[:300])})
+def raise_alarm(
+    state: State, provider: str, kind: str, detail: str, now: datetime, model: str | None = None
+) -> State:
+    alarm = Alarm(kind, now, detail[:300], model)
+    return replace(state, alarms={**state.alarms, provider: alarm})
 
 
-def clear_alarm(state: State, provider: str) -> State:
-    if provider not in state.alarms:
+def clear_alarm(state: State, provider: str, answered: str | None = None) -> State:
+    """The provider is up (``answered`` None: a probe) or one of its models answered: its
+    alarm ends, except one about another model, which that answer does not disprove."""
+    alarm = state.alarms.get(provider)
+    if alarm is None or (answered is not None and alarm.model not in (None, answered)):
         return state
     return replace(state, alarms={k: v for k, v in state.alarms.items() if k != provider})
 
@@ -321,10 +365,12 @@ def probed_up(state: State, provider: str, now: datetime) -> State:
 
 def probe_up(state: State, provider: str, now: datetime) -> tuple[Alarm | None, State]:
     """A probe a person ran (``argus llm probe``) found the provider up: its alarm and its own
-    cool-down end (a model's, such as a slow one's, stays) and it is believed up from ``now``.
+    cool-down end, and the cool-down of the model the alarm was about (the probe found it
+    listed); another model's, such as a slow one's, stays. It is believed up from ``now``.
     Returns the alarm it cleared, if any."""
     alarm = state.alarms.get(provider)
-    cooldowns = {k: v for k, v in state.cooldowns.items() if k != provider}
+    ended = {provider} | ({f"{provider}/{alarm.model}"} if alarm and alarm.model else set())
+    cooldowns = {k: v for k, v in state.cooldowns.items() if k not in ended}
     cleared = replace(clear_alarm(state, provider), cooldowns=cooldowns)
     return alarm, probed_up(cleared, provider, now)
 
@@ -374,9 +420,11 @@ def to_json(state: State) -> dict[str, Any]:
         "probed": {k: v.isoformat() for k, v in state.probed.items()},
         "latency": {k: list(v) for k, v in state.latency.items()},
         "alarms": {
-            k: {"kind": a.kind, "at": a.at.isoformat(), "detail": a.detail}
+            k: {"kind": a.kind, "at": a.at.isoformat(), "detail": a.detail, "model": a.model}
             for k, a in state.alarms.items()
         },
+        "provider_spent_usd": dict(state.provider_spent_usd),
+        "provider_day_spent_usd": dict(state.provider_day_spent_usd),
     }
 
 
@@ -415,7 +463,11 @@ def from_json(data: dict[str, Any]) -> State:
         probed={k: datetime.fromisoformat(v) for k, v in (data.get("probed") or {}).items()},
         latency={k: tuple(int(x) for x in v) for k, v in (data.get("latency") or {}).items()},
         alarms={
-            k: Alarm(a["kind"], datetime.fromisoformat(a["at"]), a["detail"])
+            k: Alarm(a["kind"], datetime.fromisoformat(a["at"]), a["detail"], a.get("model"))
             for k, a in (data.get("alarms") or {}).items()
+        },
+        provider_spent_usd={k: float(v) for k, v in (data.get("provider_spent_usd") or {}).items()},
+        provider_day_spent_usd={
+            k: float(v) for k, v in (data.get("provider_day_spent_usd") or {}).items()
         },
     )
