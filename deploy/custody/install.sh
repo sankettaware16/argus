@@ -178,7 +178,7 @@ if [[ -n $tag ]]; then
         || die "$uv must be root's and writable by root only (it runs as root): install it from uv's official release (docs/runbooks/custody.md §2)"
     fi
     [[ -x $uv ]] || die "no uv at $uv (--uv)"
-    [[ -x /usr/bin/python3.12 ]] || die "the deploy copy needs /usr/bin/python3.12 (apt install python3.12-venv)"
+    [[ -x $(R /usr/bin/python3.12) ]] || die "the deploy copy needs /usr/bin/python3.12 (apt install python3.12-venv)"
     if [[ -e $rel ]]; then chmod -R u+w "$rel"; rm -rf "$rel"; fi  # an earlier build that did not finish
     mkdir -p "$rel"
     clean --git-dir="$work/approved.git" archive --format=tar "$commit" | tar -x -C "$rel" --no-same-owner

@@ -110,6 +110,10 @@ def fake(tmp_path: Path) -> Iterator[Fake]:
     (root / "etc").mkdir(parents=True)
     (root / "etc" / "passwd").write_text("root:x:0:0:root:/root:/bin/bash\n")
     (root / "etc" / "group").write_text("root:x:0:\ndocker:x:983:op\n")
+    python = root / "usr" / "bin" / "python3.12"  # the host's (the uv stand-in never runs it)
+    python.parent.mkdir(parents=True)
+    python.write_text("#!/bin/sh\n")
+    python.chmod(0o755)
     bin_dir.mkdir()
     for name, text in STANDIN.items():
         script = bin_dir / name
