@@ -24,7 +24,7 @@ from argus.caseteam import guard
 from argus.caseteam.model import VERDICT_ENDING, Author, unit_hash
 from argus.gateway.kibana.models import MAX_TEXT, MAX_TITLE, utf16_len
 from argus.incident import model as m
-from argus.incident.words import day_label, ist_day, ist_moment, plural, size
+from argus.incident.words import day_label, ist_day, ist_moment, plural, size, times
 from argus.writer.render import clean, escape, fence, join, link, log_value, pieces
 
 SPLIT_AT = 28_000  # UTF-16 units a comment may hold (Kibana's limit is 30,000)
@@ -278,6 +278,23 @@ def _asked(values: Sequence[str], shown: int = 3) -> str:
     return ", ".join(val(v) for v in values[:shown]) + tail
 
 
+def details_lines(line: m.ReportEvidenceLine) -> str:
+    """An evidence line's deciding values as a list under ARGUS's label: each value fenced (a
+    URL is never a link), its count in words of code."""
+    if not line.details:
+        return ""
+    items = [
+        f"- {val(d.text)}" + ("" if d.count is None else f" · {times(d.count)}")
+        for d in line.details
+    ]
+    return (
+        "\n"
+        + escape(f"{line.shows or 'What the stored answer showed'}:", 200)
+        + "\n"
+        + ("\n".join(items))
+    )
+
+
 def evidence_part(report: m.IncidentReport) -> Part:
     facts = {f.id: f for f in report.facts}
     units: list[str] = []
@@ -291,7 +308,7 @@ def evidence_part(report: m.IncidentReport) -> Part:
                 f"{heading}{about}\n"
                 f"{say(text)}\n"
                 f"Source: {fence(line.source)} · check {fence(line.query.template)}"
-                f" · status {fence(line.status)}{ran}"
+                f" · status {fence(line.status)}{ran}" + details_lines(line)
             )
         )
     if not units:

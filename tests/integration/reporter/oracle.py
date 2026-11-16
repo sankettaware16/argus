@@ -42,12 +42,14 @@ REASONS = [
 ]
 LANES = [
     "collector",
+    "enrichment",
     "investigation",
     "freshness",
     "kibana_read",
     "kibana_write",
     "identity",
     "measurement",
+    "checking",
     "unassigned",
 ]
 GAP_KINDS = [
@@ -59,6 +61,33 @@ GAP_KINDS = [
     "argus_collector_lag",
     "breaker_open",
 ]
+
+
+def caught_up(gap: Any, runs: list[Any], now: datetime) -> bool:
+    """A collector gap that was only lateness, as at ``now`` (D-321), by its definition: closed
+    by ``now`` within an hour; the first finished reconciliation begun after the close (by
+    ``now``) whose whole hours cover the gap's exists; neither it nor any run begun between the
+    close and it whose hours touch the gap's found a differing hour or recovered anything."""
+    if gap.kind != "argus_collector_lag" or gap.end_at is None or gap.end_at > now:
+        return False
+    if gap.end_at - gap.start_at >= timedelta(hours=1):
+        return False
+    first_hour = gap.start_at.replace(minute=0, second=0, microsecond=0)
+    after = [r for r in runs if gap.end_at <= r.started_at <= now]
+    covering = [
+        r for r in after
+        if r.outcome == "ok" and r.window_start <= first_hour and r.window_end >= gap.end_at
+    ]  # fmt: skip
+    if not covering:
+        return False
+    first = min(r.started_at for r in covering)
+    return not any(
+        r.started_at <= first
+        and r.window_start < gap.end_at
+        and r.window_end > first_hour
+        and (r.hours_mismatched > 0 or r.recovered > 0)
+        for r in after
+    )
 
 
 async def rows(engine: AsyncEngine, sql: str) -> list[Any]:
@@ -397,12 +426,24 @@ async def expected(engine: AsyncEngine, w: Window) -> dict[str, Any]:
     out["writes.runs.ambiguous"] = sum(r.ambiguous for r in wr)
     out["writes.read_back_rate"] = tenths(out["writes.runs.verified"], out["writes.runs.sent"])
     # ---- gaps and outages
-    gaps = await rows(engine, "SELECT kind, start_at, end_at FROM coverage_gaps")
+    every_gap = await rows(engine, "SELECT kind, start_at, end_at FROM coverage_gaps")
+    runs = await rows(
+        engine,
+        "SELECT started_at, window_start, window_end, hours_mismatched, recovered, outcome"
+        " FROM reconciliation_runs",
+    )
+    late = [g for g in every_gap if caught_up(g, runs, now)]
+    gaps = [g for g in every_gap if g not in late]
     touching = [g for g in gaps if g.start_at < w.end and (g.end_at or now) > w.start]
+    late_touching = [g for g in late if g.start_at < w.end and g.end_at > w.start]
+    out["gaps.late"] = len(late_touching)
+    out["gaps.late_minutes"] = sum(
+        (min(g.end_at, w.end) - max(g.start_at, w.start) for g in late_touching), timedelta(0)
+    ) // timedelta(minutes=1)
     out["gaps.overlapping"] = len(touching)
     out["gaps.opened"] = sum(1 for g in gaps if within(g.start_at, w))
     out["gaps.closed"] = sum(1 for g in gaps if within(g.end_at, w))
-    out["gaps.open_now"] = sum(1 for g in gaps if g.end_at is None)
+    out["gaps.open_now"] = sum(1 for g in every_gap if g.end_at is None)
     inside = sum(
         (min(g.end_at or now, w.end) - max(g.start_at, w.start) for g in touching), timedelta(0)
     )

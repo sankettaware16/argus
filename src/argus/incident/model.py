@@ -20,7 +20,7 @@ from typing import Any, Final, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA: Final = "incident-report@1"
-WRITER: Final = "incident-writer@3"  # the writer's version: a new one is a new report
+WRITER: Final = "incident-writer@4"  # the writer's version: a new one is a new report
 HIDDEN: Final = "Hidden: needs log access in ELK."
 
 # The web's Outcome order: typing caches equal Literals as one, so a second order flips the spec.
@@ -89,6 +89,15 @@ class ReportQuery(_M):
     template: str = Field(max_length=100)
 
 
+class ReportDetail(_M):
+    """A deciding value of an evidence line's stored answer (a URL without its query string, a
+    kind of log event, the requests' rhythm): untrusted text from the logs, capped, and how many
+    requests or rows of the answer it counts (None: not a count)."""
+
+    text: str = Field(min_length=1, max_length=UNTRUSTED)
+    count: int | None = Field(default=None, ge=0)
+
+
 class ReportEvidenceLine(_M):
     id: str = Field(pattern=r"^E[0-9]{1,5}$")
     fact: str = Field(pattern=r"^F[0-9]{1,5}$")  # the fact that says what it showed
@@ -102,6 +111,10 @@ class ReportEvidenceLine(_M):
     # the values the check asked about (an address, a host, a destination, the values of a
     # threat-list look-up): they name the line, so two lines of one check are told apart
     asked: tuple[str, ...] = Field(default=(), max_length=12)
+    # what the stored answer showed that decides the case (``details``, at most six), under
+    # ARGUS's own label for them; read from the logs, so hidden with the line's count
+    shows: str | None = Field(default=None, max_length=200)
+    details: tuple[ReportDetail, ...] = Field(default=(), max_length=6)
 
 
 class ReportHeader(_M):
@@ -449,6 +462,10 @@ def _hash(report: IncidentReport, *, users: bool, title: bool = True) -> str:
     body["meta"] = meta
     if not users:
         body.pop("users", None)
+    for line in body.get("evidence") or []:  # a line without details hashes as one made before
+        if not line.get("details") and line.get("shows") is None:
+            line.pop("details", None)
+            line.pop("shows", None)
     summary = dict(body["summary"])
     summary["prose"] = []
     summary["prose_note"] = None

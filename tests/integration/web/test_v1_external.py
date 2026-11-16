@@ -57,7 +57,7 @@ include-name = "POST /api/v1/approvals/group"
 [operations.checks.not_a_server_error]
 expected-statuses = ["2xx", "3xx", "4xx", "503"]
 
-# Eight changes have a refusal their schema cannot state, and say so with a 422 and the reason
+# Twelve changes have a refusal their schema cannot state, and say so with a 422 and the reason
 # (documented in the contract): "Check more" (which addresses and domains a template may be asked
 # about is the server's to judge: the campus's own, the kinds a template takes), a closure request
 # (a reason that rests on a statement needs words), a merge (a confirmed case needs the hash of
@@ -109,6 +109,43 @@ expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5x
 
 [[operations]]
 include-name = "POST /api/v1/cases/{case_id}/blocks"
+
+[operations.checks.positive_data_acceptance]
+expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
+
+# The stateful phase fills an entity page's kind from another response's field of that name (an
+# alert's entity kind, "ip"), a word outside the page's four kinds: the 422 is the schema's own.
+[[operations]]
+include-name = "GET /api/v1/entities/{kind}/{value}"
+
+[operations.checks.positive_data_acceptance]
+expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
+
+# UI v2's four (P4-F): a bulk dismissal (a duplicate names the case it duplicates: a merge, one
+# at a time), a done action (the action is one of the catalogue's, a list the schema does not
+# hold), a hold (the time to come back is within two weeks of now) and a member review (the
+# groups are this incident's).
+
+[[operations]]
+include-name = "POST /api/v1/cases/bulk-dismiss"
+
+[operations.checks.positive_data_acceptance]
+expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
+
+[[operations]]
+include-name = "POST /api/v1/cases/{case_id}/actions/{action_id}/done"
+
+[operations.checks.positive_data_acceptance]
+expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
+
+[[operations]]
+include-name = "POST /api/v1/cases/{case_id}/hold"
+
+[operations.checks.positive_data_acceptance]
+expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
+
+[[operations]]
+include-name = "POST /api/v1/cases/{case_id}/members/reviews"
 
 [operations.checks.positive_data_acceptance]
 expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]

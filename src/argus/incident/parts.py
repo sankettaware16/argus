@@ -454,6 +454,7 @@ def evidence_lines(
     kept.sort(key=lambda t: (t[1].template, t[1].collected_at, t[2].text))
     for said, row, q in kept:
         logs = row.template != "ti.lookup"
+        found = evidence.shown(row.template, row.params, row.snapshot) if not said.empty else None
         fact = book.add(
             "evidence" if logs else "intel",
             said.text,
@@ -473,6 +474,10 @@ def evidence_lines(
                 query=q,
                 from_logs=logs,
                 asked=targets.asked(row.template, row.params),
+                shows=found.label if found else None,
+                details=tuple(m.ReportDetail(text=d.text, count=d.count) for d in found.details)
+                if found
+                else (),
             )
         )
         queries.append(q)

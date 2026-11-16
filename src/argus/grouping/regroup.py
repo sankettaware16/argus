@@ -53,8 +53,8 @@ async def regroup(engine: AsyncEngine, now: datetime) -> tuple[int, int]:
                 " case_team_approvals, case_team_steps, case_team_posts, risk_crossings,"
                 " risk_object_scores, risk_observations, risk_entities, risk_groups,"
                 " risk_objects, risk_sources, risk_links, risk_incident_groups,"
-                " risk_incident_objects, risk_incidents, risk_threats, risk_aliases,"
-                " risk_gray_items, case_holds, case_seen, report_sends"
+                " risk_incident_objects, risk_incidents, risk_evidence, risk_threats, risk_aliases,"
+                " risk_gray_items, risk_readings, case_holds, case_seen, report_sends"
                 # Append-only tables (review events, the gold set, the cases) are empty here:
                 # their guards refuse a TRUNCATE that would lose a row. Everything else listed is
                 # derived from the investigations or names cases/investigations by foreign key,

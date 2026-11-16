@@ -116,6 +116,11 @@ person changed is never edited again.
   dashboard and the CSVs still go in the usual update round. A refresh that has to add a comment (a part
   that now needs one more) is still no update round: it does not move the report version or the round's
   time, so the files, the verdict and new alerts follow as usual (D-247).
+- **`incident-writer@4` (D-325)** rewrites every report once more: each evidence line now lists the
+  deciding values its stored answer holds (URLs without query strings, kinds of log event, a pair's
+  rhythm). Every case in Kibana then has a new report version and an update round is due; to put the
+  values into the existing Evidence comment instead of an "Update" comment, run the refresh as above
+  (dry run, then `--apply`) before the timer's next run. The new PDF follows in the update round.
 - Not verified against a live Kibana: the PATCH shapes are the lead's reading of Kibana 8.19's OpenAPI.
   The first refresh is checked in Kibana's own UI (title, description, the comments' "edited" marks).
 

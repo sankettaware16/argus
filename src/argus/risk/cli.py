@@ -23,7 +23,16 @@ from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.llm.privacy import Privacy, load_policy
 from argus.outside.eligible import Eligibility
-from argus.risk import checking, identity, incident_config, incidents, present, run, titles
+from argus.risk import (
+    checking,
+    identity,
+    incident_config,
+    incidents,
+    outbound,
+    present,
+    run,
+    titles,
+)
 from argus.risk import config as risk_config
 from argus.signins import model as signin_model
 
@@ -182,17 +191,23 @@ def risk_check(
     config: ConfigOption = None,
 ) -> None:
     """The checking lane (P4-F E3): find the campus site of thin inbound alerts and check only
-    the exposure candidates (soft-404, served paths, bulk takes), on the gateway's checking lane
+    the exposure candidates (soft-404, served paths, bulk takes), then gather the deciding
+    evidence of the engine's presented outbound incidents (D-323: a device's timing to its
+    destination, how many campus devices reach it, its lookups), on the gateway's checking lane
     (NORMAL only, never in the quiet hours, at most ``exposure.day_ms`` a day). Only the checks
-    ``exposure.templates`` switches on are sent."""
+    ``exposure.templates`` and ``enrichment.templates`` switch on are sent."""
+    from argus.context import batch1
     from argus.gateway.service import build_gateway, health_config
 
     settings = load(config)
     try:
-        exposure = risk_config.load().exposure
+        engine_config = risk_config.load()
     except ConfigError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(2) from None
+    exposure = engine_config.exposure
+    classifier = IpClassifier(load_asset_map(settings.assets.map_path), settings.site.own_networks)
+    is_campus = batch1.private_or(lambda v: classifier.classify(v).ip_class)
 
     async def main() -> int:
         engine = engine_for(settings)
@@ -212,19 +227,35 @@ def risk_check(
                 for line in lines:
                     typer.echo(line)
                 return 0 if lines[-1] == "FIRST RUN PASSED" else 1
+
+            async def exposure_pass() -> Any:
+                return await checking.run_pass(
+                    engine, gateway, store.health, now=datetime.now(UTC), config=exposure,
+                    clock=gateway.clock, health_config=cfg,
+                )  # fmt: skip
+
+            async def evidence_pass() -> Any:
+                return await outbound.run_pass(
+                    engine, gateway, store.health, now=datetime.now(UTC),
+                    config=engine_config.outbound, lane_day_ms=exposure.day_ms,
+                    enabled=settings.enrichment.templates, clock=gateway.clock,
+                    is_campus=is_campus, history=settings.history.window, health_config=cfg,
+                    check=batch1.send_check(store, cfg),
+                )  # fmt: skip
+
             while True:
-                try:
-                    report = await checking.run_pass(
-                        engine, gateway, store.health, now=datetime.now(UTC), config=exposure,
-                        clock=gateway.clock, health_config=cfg,
-                    )  # fmt: skip
-                    typer.echo(report.line())
-                except Exception as exc:
-                    if once:
-                        raise
-                    typer.echo(f"warning: the checking pass failed ({type(exc).__name__});"
-                               " retrying", err=True)  # fmt: skip
+                failed: Exception | None = None
+                for what, step in (("checking", exposure_pass), ("incident evidence",
+                                                                  evidence_pass)):  # fmt: skip
+                    try:  # one failing pass never keeps the other from running
+                        typer.echo((await step()).line())
+                    except Exception as exc:
+                        failed = failed or exc
+                        typer.echo(f"warning: the {what} pass failed ({type(exc).__name__})",
+                                   err=True)  # fmt: skip
                 if once:
+                    if failed is not None:
+                        raise failed
                     return 0
                 await asyncio.sleep(every)
         finally:
@@ -248,6 +279,7 @@ _STATUS = (
         "SELECT count(*) FROM risk_objects WHERE kind = 'site' AND 'exposure' = ANY(lanes)",
     ),
     ("checks stored (exposure, 180 days)", "SELECT count(*) FROM exposure_checks"),
+    ("incident evidence stored (180 days)", "SELECT count(*) FROM risk_evidence"),
     ("incidents active or quiet",
      "SELECT count(*) FROM risk_incidents WHERE state IN ('active', 'quiet')"
      " AND parent_id IS NULL"),

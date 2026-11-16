@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from argus.cases import titling
 from argus.cases.machine import Confirm, Dismiss, Open, Reopen
 from argus.cases.model import LOCAL_CAPABILITIES, Actor, Member
 from argus.cases.service import CaseService
@@ -390,6 +391,12 @@ async def test_a_persons_confirm_raises_no_severity_when_groups_fold_in(
     assert {confirmed[k].band for k in p2} == {"P2"}  # type: ignore[attr-defined]
     assert {confirmed[k].version for k in p2} == {1}  # type: ignore[attr-defined]
     assert {confirmed[k].certainty for k in p2} == {"Confirmed"}  # type: ignore[attr-defined]
+    async with app_engine.connect() as conn:  # the evidence's word stays; the title says Confirmed
+        for key in p2:
+            case_id = confirmed[key].case_id  # type: ignore[attr-defined]
+            made = await titling.titled_for_case(conn, case_id, titling.Context())
+            assert made is not None
+            assert made.text.startswith("Confirmed")
     again = {
         "ip:10.1.1.1": {"rule_id": "r-beacon", "signals": {"proxy.regularity": 0.1}},
         "ip:10.1.1.2": {"rule_id": "r-ioc", "severity": "critical"},

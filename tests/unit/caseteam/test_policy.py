@@ -381,6 +381,20 @@ def test_a_closed_case_gets_no_more_comments() -> None:
     assert policy.decide(update_facts(case_state="contained")).acts
 
 
+def test_a_case_the_read_back_paused_gets_nothing_more_until_resumed() -> None:
+    paused = "a person changed the case's settings in Kibana"
+    for d in (
+        policy.decide(update_facts(kibana_paused=paused)),
+        policy.decide(update_facts(kibana_paused=paused, edits_only=True)),  # a correction too
+        policy.decide(update_facts(kibana_paused=paused, in_progress=True)),
+    ):
+        assert not d.acts
+        assert d.why.startswith(f"paused in Kibana: {paused}")
+        assert "resume-case" in d.why
+    assert policy.decide(update_facts(kibana_paused=None)).acts
+    assert policy.decide(facts(kibana_paused=paused)).action == "open"  # nothing to pause yet
+
+
 def test_a_notified_case_not_yet_in_kibana_is_opened_by_the_same_rules() -> None:
     d = policy.decide(facts(report=notified(0)))
     assert d.action == "open"  # unchanged-since-notice only stops a re-post

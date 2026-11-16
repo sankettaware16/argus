@@ -9,6 +9,7 @@ import { Loading, Problem } from "../Problem";
 import { UntrustedText } from "../UntrustedText";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { AiReadingSection } from "./AiReading";
 import { AlternativesList, CheckList } from "./CheckList";
 import { cisoSent, CisoDraftDialog } from "./Ciso";
 import { ChangedStrip, ChipRow } from "./Parts";
@@ -172,6 +173,7 @@ export function Overview({ detail, engine, report }: { detail: CaseDetail; engin
           )}
         </p>
       )}
+      <AiReadingSection engine={engine} />
       {engine && (
         <Region name="why" title="Why ARGUS raised it" aside={<span className="text-sm font-medium tabular-nums" data-testid="priority-heading">Priority {engine.priority} of 100 · {bandWords(engine.band)}</span>}>
           {engine.raised_by_ai && (

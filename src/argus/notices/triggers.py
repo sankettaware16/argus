@@ -31,6 +31,7 @@ from argus.assets.classify import IpClassifier
 from argus.cases import opener, watch, watchrun
 from argus.cases.approvals import NOT_REVOKED
 from argus.cases.model import SEVERITIES, Severity, max_severity
+from argus.collector.lateness import LATE_KIND, LATE_WITHIN
 from argus.gateway.health import HealthConfig, HealthMemory, HealthState, effective
 from argus.gateway.kibana import writes as kibana_writes
 from argus.gateway.pgstore import health_from_json
@@ -49,7 +50,9 @@ IOC_SCAN_LIMIT = 20_000  # more than this in a day: the kind is unreadable (held
 WAITING = timedelta(hours=WAITING_HOURS)
 URGENT_LEFT = timedelta(hours=12)  # a waiting closure is high when this little time is left
 # Gaps that are ARGUS's or the gateway's own (coverage_gaps.kind) and a stalled log source: an
-# hour of them is an outage. Rules not running and truncated executions are the SIEM's own.
+# hour of them is an outage (a collector gap closed sooner, its hours reconciled with nothing
+# differing, was lateness: argus.collector.lateness). Rules not running and truncated executions
+# are the SIEM's own.
 OUTAGE_GAPS: Mapping[str, Severity] = {
     "argus_collector_lag": "high",
     "breaker_open": "medium",
@@ -401,9 +404,13 @@ async def _outages(
         {"kinds": sorted(OUTAGE_GAPS)},
     )
     for gap in gaps:
+        # a collector gap shorter than LATE_WITHIN may yet read as lateness, caught up with
+        # nothing missed (D-321): it is noticed only once it has lasted that long
+        after = LATE_WITHIN if gap.kind == LATE_KIND else None
         out.append(
-            Condition("outage", f"gap:{gap.kind}", OUTAGE_GAPS[gap.kind], 0, HEALTH, gap.since)
-        )
+            Condition("outage", f"gap:{gap.kind}", OUTAGE_GAPS[gap.kind], 0, HEALTH, gap.since,
+                      after)
+        )  # fmt: skip
     return out
 
 

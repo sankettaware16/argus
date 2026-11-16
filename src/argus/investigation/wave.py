@@ -168,7 +168,7 @@ async def admit(
 
 async def spent_in_lane(conn: AsyncConnection, name: str, now: datetime) -> int:
     """The server time the investigation lane spent on ``name`` today (UTC), from the gateway's
-    ledger: the packs' own searches on the collector's lane do not count against it."""
+    ledger: the packs' own searches on the enrichment lane do not count against it."""
     day = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     spent = await conn.scalar(
         text(
@@ -251,13 +251,17 @@ async def plan_wave(
     before = spent or {}
     caps = replace(env.caps, requests=max(env.caps.requests - int(before.get("requests", 0)), 0),
                    heavy=max(env.caps.heavy - int(before.get("heavy", 0)), 0))  # fmt: skip
-    return choose(prep.gaps, cands, admission, seen, caps, now)
+    plan = choose(prep.gaps, cands, admission, seen, caps, now)
+    held = sorted({r.code for r in admission.values() if r is not None} & RUN_LEVEL_RULES)
+    return replace(plan, waits=held[0]) if held else plan
 
 
 async def plan_check(
     env: Env, conn: AsyncConnection, prep: Prepared, template: str, entity: str, now: datetime
 ) -> Plan:
-    """What "Check more" would do: the one request, or why it is refused."""
+    """What "Check more" would do: the one request, or why it is refused. A refusal of the
+    moment (the quiet hours, the SIEM not NORMAL) sets ``waits``: the request waits, it is not
+    refused."""
     words = catalogue.CHECKS[template].said if template in catalogue.CHECKS else template
     reason = f"{words} — a person asked"
     task = checks.build(template, entity, prep.material, env.switches, env.is_campus)
@@ -280,7 +284,8 @@ async def plan_check(
         return Plan(prep.gaps, (mode,), ())
     refused = await admit(env, conn, task, now)
     if refused is not None:
-        return skip(refused.sentence, task)
+        held = skip(refused.sentence, task)
+        return replace(held, waits=refused.code) if refused.code in RUN_LEVEL_RULES else held
     return Plan(prep.gaps, (Planned(template, "send", task, key, (), 0, reason, None, heavy),), ())
 
 
@@ -582,7 +587,8 @@ def _until(exc: SourceUnavailable) -> str | None:
 
 async def run_request(env: Env, request: store.Request) -> tuple[str, dict[str, Any]]:
     """Run one claimed request: its status (``done``, ``refused`` or ``later``: the SIEM was
-    not available, put it back) and its record."""
+    not available, or the quiet hours began, put it back) and its record. Only a request that
+    cannot be asked at all is refused."""
     now = env.clock()
     async with env.engine.connect() as conn:
         prep = await prepare(env, conn, request.investigation_id, now)
@@ -597,6 +603,9 @@ async def run_request(env: Env, request: store.Request) -> tuple[str, dict[str, 
             plan = await plan_wave(env, conn, prep, now, request.progress)
         else:
             plan = await plan_check(env, conn, prep, request.template, request.entity, now)
+    if plan.waits is not None:  # the SIEM left NORMAL, or the quiet hours began, since the claim
+        kept = {k: (request.progress or {}).get(k, 0) for k in ("requests", "heavy", "server_ms")}
+        return "later", {**kept, "later": {"reason": plan.waits, "until": None}, "checks": []}
     if request.kind != WAVE and plan.checks[0].mode == "skip":
         return "refused", {"error": plan.checks[0].why_not, "checks": []}
     origin = "wave" if request.source == "engine" else "person"

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Request
@@ -28,7 +30,7 @@ from argus.caseteam import approvals, store
 from argus.caseteam.model import PART_AUTHOR, Author
 from argus.caseteam.sender import PostConfig, Prepared, Preparer
 from argus.incident.model import HIDDEN
-from argus.web import auth
+from argus.web import auth, decisions
 from argus.web.capabilities import Capability
 from argus.web.deps import Conn, Refusal, Surface, need
 from argus.web.v1 import team_models as m
@@ -40,6 +42,14 @@ Viewer = Annotated[auth.Reviewer, Depends(VIEW)]
 Approver = Annotated[auth.Reviewer, Depends(APPROVE)]
 STEP_UP_VALID = timedelta(minutes=5)  # an approval needs a step-up this recent
 AUTHORS: list[m.Author] = [a.value for a in Author]
+
+
+def effective(config: PostConfig, root: Path | None = None) -> PostConfig:
+    """The case team's settings as its unit runs with them: the web's own, overlaid by the
+    switches file the unit reads (posting on or off, the day's cap), so the preview never calls
+    a live post a dry run, nor the other way round."""
+    post, per_day = decisions.team_switches(config, root)
+    return replace(config, post=post, per_day=per_day)
 
 
 def _refuse(status: int, code: str, detail: str) -> Refusal:
@@ -188,7 +198,10 @@ def install(
     change = errors(400, 401, 403, 404, 409, 422)
 
     def preparer_of(request: Request) -> tuple[Preparer, bool]:
-        config: PostConfig = getattr(request.app.state, "team", None) or PostConfig()
+        config = effective(
+            getattr(request.app.state, "team", None) or PostConfig(),
+            getattr(request.app.state, "switches_root", None),
+        )
         signer = request.app.state.signer
         return Preparer(config, None if signer is None else signer.verifier(), clock), (
             signer is not None

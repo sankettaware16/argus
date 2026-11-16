@@ -29,6 +29,16 @@ evaluation:
   window_utc: ["17:30", "00:00"]  # "00:00" as the end: midnight
   calls_per_day: 150
 
+# One task's own settings (D-324): calls_per_day caps its attempts a UTC day over every provider
+# (each provider tried counts one); providers, the only ones that serve it, in the order tried;
+# tier, the model size it asks for. ARGUS AI's reading of a presented incident: "story" (what
+# happened, the case against it, one incident or two, next steps) and "opinion" (a second
+# opinion on P1 incidents). Text only: neither changes the queue. Put anthropic first in a
+# list to have Sonnet 5.5 / Opus 5.5 write them instead of gpt-5.4-mini / gpt-5.5.
+purposes:
+  story: {calls_per_day: 15, tier: medium, providers: [openai, anthropic]}
+  opinion: {calls_per_day: 3, tier: large, providers: [openai, anthropic]}
+
 providers:
   - name: groq  # one organisation: both keys share one quota
     base_url: https://api.groq.com/openai/v1

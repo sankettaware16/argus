@@ -148,6 +148,50 @@ async def test_an_anonymous_request_and_a_server_without_a_config_are_handled(
     assert found["decision"]["dry_run"] is True
 
 
+def switches(root: Path, text_: str) -> Path:
+    (root / "local").mkdir(parents=True)
+    (root / "local" / "argus-writer.env").write_text(text_, encoding="utf-8")
+    return root
+
+
+async def test_the_preview_follows_the_case_teams_own_switches_file(
+    world: World, tmp_path: Path
+) -> None:
+    """D-325: the case team's unit reads posting on or off from its switches file, which the web
+    does not load as its environment; the preview reads it too, so a server that posts never
+    shows a dry run and offers the canary's approval."""
+    case = await a_case(world)
+    on = switches(tmp_path / "on", "ARGUS_CASE_TEAM__POST=true\nARGUS_KIBANA__WRITE_CLASSES=WC\n")
+    async with world.app(team=CONFIG, switches_root=on) as http:
+        await sign_in(http, "omar")
+        posting = (await team(http, case)).json()
+    assert posting["post_enabled"] is True
+    assert posting["decision"]["dry_run"] is False
+    assert posting["decision"]["needs_approval"] is True
+    assert "switched off" not in (posting["note"] or "")
+    assert posting["approval"]["required"] is True
+    assert posting["approval"]["can_approve"] is False  # until the approver steps up
+    assert posting["approval"]["needs_step_up"] is True
+    async with stepped(world, "omar", team=CONFIG, switches_root=on) as (http, _):
+        assert (await team(http, case)).json()["approval"]["can_approve"] is True
+
+    off = switches(tmp_path / "off", "ARGUS_CASE_TEAM__POST=false\n")
+    async with world.app(team=replace(CONFIG, post=True), switches_root=off) as http:
+        await sign_in(http, "mina")
+        stopped = (await team(http, case)).json()
+    assert stopped["post_enabled"] is False
+    assert stopped["decision"]["dry_run"] is True
+    assert "switched off" in stopped["note"]
+
+    absent = tmp_path / "absent"
+    absent.mkdir()
+    async with world.app(team=replace(CONFIG, post=True), switches_root=absent) as http:
+        await sign_in(http, "mina")
+        own = (await team(http, case)).json()
+    assert own["post_enabled"] is True  # no file: the web's own settings say
+    assert own["decision"]["dry_run"] is False
+
+
 # --------------------------------------------------------------------------- the approval
 
 

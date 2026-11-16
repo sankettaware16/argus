@@ -227,6 +227,7 @@ def install(
             watch_context=request.app.state.watch_context, watch_mode=request.app.state.watch_mode,
             signins=getattr(request.app.state, "signins", None),
             team=getattr(request.app.state, "team", None),
+            switches_root=getattr(request.app.state, "switches_root", None),
         )  # fmt: skip
         if found is None:
             raise refuse(404, "not_found", "no such case")

@@ -149,9 +149,9 @@ async def plan_for(settings: Settings, engine: AsyncEngine, now: datetime) -> Pl
 
 
 def _store(settings: Settings, engine: AsyncEngine) -> PgStore:
-    """The store with the allowances every ARGUS process uses (the collector's lane,
-    which the measuring session spends, and the lane plan), so the shared budget row is never
-    refilled past the collector's share by this process."""
+    """The store with the allowances every ARGUS process uses (the collector's lane and the
+    lane plan, whose enrichment lane the measuring session spends, D-321), so the shared budget
+    row is never refilled past the collector's share by this process."""
     return PgStore(engine, collector_config(settings.siem), lane_plan(settings.siem))
 
 

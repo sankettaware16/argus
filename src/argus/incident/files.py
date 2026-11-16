@@ -30,7 +30,7 @@ from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Space
 from argus import site
 from argus.cases.blocklist import BOM, safe_cell
 from argus.incident import model as m
-from argus.incident.words import day_label, ist_day, ist_moment
+from argus.incident.words import day_label, ist_day, ist_moment, times
 
 INDICATOR_COLUMNS = ("indicator", "type", "role", "evidence")
 AFFECTED_COLUMNS = ("device_ip", "domain", "days_with_alert", "first_day_ist", "last_day_ist")
@@ -351,6 +351,17 @@ def _indicators(report: m.IncidentReport, st: Styles, width: float) -> list[Any]
     return out
 
 
+def _details(line: m.ReportEvidenceLine, st: Styles) -> list[Any]:
+    """An evidence line's deciding values under ARGUS's label, one per line."""
+    if not line.details:
+        return []
+    out = [_p(f"{line.shows or 'What the stored answer showed'}:", st["P"])]
+    for d in line.details:
+        tail = "" if d.count is None else f" ({times(d.count)})"
+        out.append(_p(f"\u2022 {d.text}{tail}", st["CELL"]))
+    return out
+
+
 def _evidence(report: m.IncidentReport, st: Styles) -> list[Any]:
     out: list[Any] = [_p("5. Evidence", st["H2"])]
     facts = {f.id: f for f in report.facts}
@@ -362,6 +373,7 @@ def _evidence(report: m.IncidentReport, st: Styles) -> list[Any]:
                 [
                     _p(f"{line.id} · {line.title}", st["B"]),
                     _p(facts[line.fact].text, st["P"]),
+                    *_details(line, st),
                     _p(
                         f"Source: {line.source}. Check: {q.template}{ran}. Status: {line.status}.",
                         st["SM"],

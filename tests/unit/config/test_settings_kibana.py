@@ -79,11 +79,15 @@ def test_caps_and_keys_from_the_settings() -> None:
 
 def test_lanes_default_to_their_share_of_the_ceiling() -> None:
     plan = lane_plan(SiemSettings())
-    assert plan.spec(Lane.COLLECTOR).per_minute_ms == 1_400  # 400 of 1,800 to checking (E3)
-    assert collector_config(SiemSettings()).took_per_day_ms == 1_800_000
+    # 400 of 1,800 to checking (E3), then 800 of the 1,400 left to enrichment (D-321)
+    assert plan.spec(Lane.COLLECTOR).per_minute_ms == 600
+    assert plan.spec(Lane.ENRICHMENT).per_minute_ms == 800
+    assert collector_config(SiemSettings()).took_per_day_ms == 720_000
+    assert collector_config(SiemSettings()).burst_ms == 10_000  # NORMAL: an hour's reconciling
     assert plan.spec(Lane.CHECKING).per_day_ms == 600_000
     small = SiemSettings(budget={"took_per_minute_ms": 1_000, "burst_ms": 1_000})  # type: ignore[arg-type]
-    assert lane_plan(small).spec(Lane.COLLECTOR).per_minute_ms == 466
+    assert lane_plan(small).spec(Lane.COLLECTOR).per_minute_ms == 200
+    assert lane_plan(small).spec(Lane.ENRICHMENT).per_minute_ms == 266
 
 
 def test_an_explicit_lane_counts_against_the_ceiling() -> None:

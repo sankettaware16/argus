@@ -52,10 +52,9 @@ _COLUMNS = (
 _FROM = " FROM risk_incidents r LEFT JOIN cases c ON c.id = r.case_id"
 # a card's case as the spec's Card has it: who took it, the owner told, Kibana's state
 _CARD = (
-    f"{_COLUMNS}, c.notified_at, c.kibana_wait, ow.username AS owner_username,"  # noqa: S608
+    f"{_COLUMNS}, c.notified_at, c.kibana_wait, ow.username AS owner_username,"
     " coalesce(ow.display_name, ow.username) AS owner_name,"
-    " coalesce(EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'"
-    " AND NOT (x.state = 'skipped' AND x.sent_count = 0)), false) AS in_kibana,"
+    f" coalesce({needsyou.IN_KIBANA}, false) AS in_kibana,"
     " coalesce(r.queued_at, c.opened_at, c.created_at) AS waiting_since"
 )
 _CARD_FROM = f"{_FROM} LEFT JOIN users ow ON ow.id = c.owner_user_id"
@@ -205,10 +204,75 @@ def gray_card(row: Any) -> em.TodayCardOut:
     )  # fmt: skip
 
 
+# the newest written reading of each kind per incident (D-324)
+_READINGS = text(
+    "SELECT DISTINCT ON (x.incident_id, x.kind) x.incident_id, x.kind, x.version, x.body,"
+    " x.model, x.created_at FROM risk_readings x"
+    " WHERE x.incident_id = ANY(CAST(:ids AS bigint[])) AND x.state = 'written'"
+    " ORDER BY x.incident_id, x.kind, x.version DESC, x.id DESC"
+)
+READING_KINDS = {"story": "story", "opinion": "second_opinion"}
+
+
+def reading_view(row: Any, version: int) -> em.AiReadingOut | None:
+    """A stored reading as the API's block (None when its body is not the shape written)."""
+    body: Mapping[str, Any] = row.body or {}
+    facts: Mapping[str, Any] = body.get("facts") or {}
+    try:
+        sections = [
+            em.AiSectionOut(
+                key=str(s["key"]), title=str(s["title"]),
+                claims=[em.AiClaimOut(text=str(c["text"]),
+                                      based_on=[str(facts[f]) for f in c["cites"] if f in facts])
+                        for c in s["claims"]],
+            )
+            for s in body.get("sections", [])
+        ]  # fmt: skip
+        return em.AiReadingOut(
+            kind=cast(Any, READING_KINDS[row.kind]), model=str(row.model or "a model"),
+            written_at=row.created_at, current=int(row.version) == version,
+            agrees=body.get("agrees") is not False, incidents=body.get("incidents"),
+            sections=sections,
+        )  # fmt: skip
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+async def with_readings(
+    conn: AsyncConnection, blocks: Mapping[uuid.UUID, em.EngineOut]
+) -> dict[uuid.UUID, em.EngineOut]:
+    """``blocks`` with ARGUS AI's reading of their incidents (D-324), and the disagreement line
+    of a current one that disagrees with the engine (the story's, else the second opinion's)."""
+    from argus.risk.reading import disagreement
+
+    ids = sorted({b.incident_id for b in blocks.values()})
+    if not ids:
+        return dict(blocks)
+    found: dict[int, dict[str, Any]] = {}
+    for r in await conn.execute(_READINGS, {"ids": ids}):
+        found.setdefault(int(r.incident_id), {})[r.kind] = r
+    out = {}
+    for key, block in blocks.items():
+        rows = found.get(block.incident_id, {})
+        story = rows.get("story")
+        opinion = rows.get("opinion")
+        line = None
+        for got in (story, opinion):
+            if line is None and got is not None and int(got.version) == block.version:
+                line = disagreement(got.body or {}, block.band, block.certainty)
+        out[key] = block.model_copy(update={
+            "ai_story": None if story is None else reading_view(story, block.version),
+            "ai_second_opinion": None if opinion is None else reading_view(opinion, block.version),
+            "disagreement": line,
+        })  # fmt: skip
+    return out
+
+
 async def views_for(
     conn: AsyncConnection, case_ids: Iterable[uuid.UUID]
 ) -> dict[uuid.UUID, em.EngineOut]:
-    """The engine block of each of these cases the engine made (others are left out)."""
+    """The engine block of each of these cases the engine made (others are left out), with
+    ARGUS AI's reading."""
     ids = sorted(set(case_ids), key=str)
     if not ids:
         return {}
@@ -216,7 +280,7 @@ async def views_for(
         text(f"SELECT {_COLUMNS}{_FROM} WHERE r.case_id = ANY(CAST(:ids AS uuid[]))"),
         {"ids": ids},
     )
-    return {r.case_id: engine_view(r) for r in rows}
+    return await with_readings(conn, {r.case_id: engine_view(r) for r in rows})
 
 
 async def today(

@@ -93,15 +93,19 @@ cases:
 # risk: the incident engine v2 (`argus risk run`; its weights and lanes are config/risk.yaml).
 #   present: its possible incidents become suspected cases (Today's "Needs you"), and the old
 #     suggester, the raise into Needs attention and the AI's per-pattern runs stop feeding the
-#     queue while `argus risk run` presents (a pass in the last 10 minutes; without one they stay
+#     queue while `argus risk run` presents (a pass in the last 25 minutes; without one they stay
 #     on and the assessment service says so). false (the default) is shadow: the engine writes its
 #     own tables only. Switching back is this one setting.
 #   shown_per_day: the capacity governor's daily room for new cards on Today; P1 and P2 are
 #     never held back, the rest wait for room ("N more are waiting") in Incidents' Needs you
 #     (every possible incident has its case: Today and the queue are one set).
+#   reading: while it presents, the assessment service writes ARGUS AI's reading of each
+#     presented incident (what happened, the case against it, next steps; a second opinion on
+#     P1), within config/llm.yaml's `purposes` caps. Text only: it never changes the queue.
 risk:
   present: false
   shown_per_day: 10
+  reading: false
 
 # campaigns: devices that reach the same rare domains.
 #   resolvers: the recursive DNS resolvers, addresses or networks. A resolver asks for every name

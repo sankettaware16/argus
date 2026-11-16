@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.web import queries
+from argus.web.v1 import views
 from tests.integration.context.test_generic import alert
 from tests.integration.grouping.test_grouping import ingest
 from tests.integration.web.conftest import NOW
@@ -28,11 +29,12 @@ def test_every_gap_reason_reads_plainly(code: str, words: str) -> None:
     gap = {"kind": "argus_collector_lag", "start_at": T, "end_at": None, "detail": code}
     (got,) = queries.banners([gap])
     assert got == {"kind": "argus_collector_lag", "start_at": T, "end_at": None,
-                   "text": f"ARGUS was not collecting ({words})"}  # fmt: skip
+                   "text": f"ARGUS was not collecting ({words})", "late": False}  # fmt: skip
 
 
 def test_the_words_of_each_reason() -> None:
     assert queries.LAG_WORDS == {
+        "lane_busy": "its own SIEM budget was busy with other work",
         "deadline_passed": "a request ran out of time",
         "deferred": "the SIEM was busy, so ARGUS waited",
         "breaker_open": "the SIEM was overloaded, so ARGUS waited",
@@ -50,6 +52,33 @@ def test_the_words_of_each_reason() -> None:
     assert breaker["text"] == "the SIEM was overloaded"
     (bare,) = queries.banners([{"kind": "argus_collector_lag", "start_at": T, "end_at": T}])
     assert bare["text"] == "ARGUS was not collecting"
+
+
+def test_a_late_stretch_reads_as_lateness_not_an_outage() -> None:
+    """D-321: a collector gap whose reading is ``late`` is a note; one not checked yet says so
+    and stays a warning; an outage (or no reading at all) keeps its reason."""
+    gap = {"kind": "argus_collector_lag", "start_at": T, "end_at": T + timedelta(minutes=20),
+           "detail": "lane_busy"}  # fmt: skip
+    late, unchecked, outage, unread = queries.banners([
+        {**gap, "reading": "late"}, {**gap, "reading": "late_unchecked"},
+        {**gap, "reading": "outage"}, gap,
+    ])  # fmt: skip
+    assert (late["text"], late["late"]) == (
+        "ARGUS collected late (caught up; nothing missed)", True,
+    )  # fmt: skip
+    assert (unchecked["text"], unchecked["late"]) == (
+        "ARGUS collected late (caught up; the check that nothing was missed has not run yet)",
+        False,
+    )  # fmt: skip
+    # the API's coverage lists where alerts may be missing: the caught-up stretch is not one
+    assert [c.text for c in views.coverage([late, unchecked, outage])] == [
+        unchecked["text"], outage["text"],
+    ]  # fmt: skip
+    for warning in (outage, unread):
+        assert warning["text"] == (
+            "ARGUS was not collecting (its own SIEM budget was busy with other work)"
+        )
+        assert warning["late"] is False
 
 
 def test_runs_at_the_limit_keep_order_and_an_open_last_run() -> None:

@@ -54,6 +54,7 @@ class Facts:
     person_core: str | None = None  # the same for the report version that decision was made on
     auto: bool = True  # ARGUS's own verdict may open a case (``case_team.auto``)
     edits_only: bool = False  # the update plan only corrects the title: no new round
+    kibana_paused: str | None = None  # why the read-back paused its Kibana case (a person's change)
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,9 @@ def decide(f: Facts) -> Decision:
     """What to do with a case now (point 1 is applied last, so a dry run shows the rest)."""
     if f.report is None or f.version is None:
         return Decision("none", "ARGUS has not written this case's report yet")
+    if f.kibana_paused is not None and (f.open_done or f.in_progress):  # a person's change wins
+        return Decision("none", f"paused in Kibana: {f.kibana_paused} (lifted by `argus kibana"
+                        " sync resume-case`)")  # fmt: skip
     if f.in_progress:
         return _gate(f, Decision("resume", "a sequence was started and is finished first"))
     if f.open_done:

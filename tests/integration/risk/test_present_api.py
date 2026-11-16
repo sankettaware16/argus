@@ -36,7 +36,7 @@ LATER = NOW + timedelta(minutes=5)
 ENGINE_KEYS = {
     "incident_id", "priority", "band", "lane", "certainty", "why", "why_line", "checks",
     "alternatives", "objects", "raised_by_ai", "active", "first_seen", "last_seen", "version",
-    "changed", "alert_groups", "alerts",
+    "changed", "alert_groups", "alerts", "ai_story", "ai_second_opinion", "disagreement",
 }  # fmt: skip
 CARD_KEYS = {
     "kind", "id", "number", "title", "state", "version", "engine", "taken_by", "notified_at",
@@ -51,8 +51,8 @@ def presenting(on: bool, per_day: int = 10) -> risk_run.Setup:
     return replace(linked(), presenter=present.Options(on, per_day))
 
 
-def client(web: AsyncEngine) -> httpx.AsyncClient:
-    app = create_app(web, WebSettings(failure_delay_s=0, signin_delay_s=0), clock=lambda: LATER)
+def client(engine: AsyncEngine) -> httpx.AsyncClient:
+    app = create_app(engine, WebSettings(failure_delay_s=0, signin_delay_s=0), clock=lambda: LATER)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE,
                              headers=SAME_ORIGIN)  # fmt: skip
 

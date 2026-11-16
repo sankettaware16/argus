@@ -14,17 +14,17 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, BeforeValidator, Field
 
 from argus.incident.model import IncidentReport
 from argus.web.v1.case_models import CaseState
-from argus.web.v1.models import SAFE_MAX, In, Out, Outcome, RequiredText
+from argus.web.v1.models import SAFE_MAX, In, Out, Outcome, RequiredText, _json_integer
 from argus.web.v1.work_models import SentOut
 
 Decision = Literal["confirmed", "rejected"]
 FileKind = Literal["pdf", "indicators_csv", "affected_csv", "accounts_csv"]
 FileName = Literal["report.pdf", "indicators.csv", "affected-devices.csv", "affected-accounts.csv"]
-ReportVersion = Annotated[int, Field(ge=1, le=2**31 - 1)]
+ReportVersion = Annotated[int, Field(ge=1, le=2**31 - 1), BeforeValidator(_json_integer)]
 ReportReason = Annotated[RequiredText, Field(min_length=3, max_length=4000)]
 
 

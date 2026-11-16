@@ -401,6 +401,7 @@ def create_app(
     outside_view: Any = None,  # how the outside cache is read (``outside.*``); else defaults
     team: Any = None,  # the case team's ``PostConfig`` (the Kibana case preview); else off
     signins: Any = None,  # ``signins.view.Reading`` (who used a device); else the card is off
+    switches_root: FilePath | None = None,  # the case team's switches file's root; else ROOT
 ) -> FastAPI:
     web = settings or WebSettings()
     tls = web.tls_cert is not None
@@ -447,6 +448,7 @@ def create_app(
     app.state.watch_mode = watch_mode
     app.state.outside_view = outside_view
     app.state.team = team
+    app.state.switches_root = switches_root or web.switches_root  # the case team's switches
     app.state.signins = signins
     app.state.quiet_windows_for = (
         (lambda conn: no_quiet_window) if watch is None else _finder_for(watch, clock)
@@ -477,7 +479,7 @@ def create_app(
         return JSONResponse({"detail": detail, "code": code}, status_code=status, **kw)
 
     @app.exception_handler(RequestValidationError)
-    async def invalid(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def invalid(request: Request, exc: RequestValidationError) -> Response:
         """422 with where and why only: never the input back (a password, or text that cannot
         even be encoded)."""
         errors = [
@@ -489,6 +491,11 @@ def create_app(
             for e in exc.errors()
         ]
         if v1_path(request):
+            # a literal resource asked with another method (GET of bulk-dismiss): a 405, not an id
+            routes = [r for r in app.state.v1_router.routes if isinstance(r, APIRoute)]
+            exact = {m for r in routes if r.path == request.url.path for m in r.methods or ()}
+            if exact and request.method not in exact:
+                return await http_error(request, StarletteHTTPException(405))
             where = "; ".join(f"{'.'.join(e['loc'])}: {e['msg']}" for e in errors[:5])
             return error_out(422, "invalid", (where or "the request is not valid")[:600])
         return JSONResponse({"detail": errors}, status_code=422)
@@ -546,9 +553,10 @@ def create_app(
         headers = dict(exc.headers or {})
         if exc.status_code == 405:  # every method of the path, not only its first route's
             path = request.url.path
-            allowed = {m for r in app.state.v1_router.routes
-                       if isinstance(r, APIRoute) and r.path_regex.match(path)
-                       for m in r.methods or ()}  # fmt: skip
+            routes = [r for r in app.state.v1_router.routes
+                      if isinstance(r, APIRoute) and r.path_regex.match(path)]  # fmt: skip
+            exact = [r for r in routes if r.path == path]  # a literal path is its own resource
+            allowed = {m for r in exact or routes for m in r.methods or ()}
             headers["Allow"] = ", ".join(sorted(allowed))
         return error_out(exc.status_code, code, detail, headers=headers or None)
 

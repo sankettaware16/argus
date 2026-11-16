@@ -45,14 +45,17 @@ class Trust(StrEnum):
 # The helper tasks are what an on-premises model may earn, task by task, through an
 # evaluation: specialists' notes, indicator extraction, triage hints and checked summaries.
 HELPER_TASKS = frozenset({"notes", "extract", "triage", "summary"})
-TASKS = frozenset({"assess", "evaluate", "ping", "tune"}) | HELPER_TASKS
+# ARGUS AI's reading of a presented incident (D-324): "story" (tier 2) and "opinion" (tier 3).
+# Text only: they never change the queue.
+READING_TASKS = frozenset({"story", "opinion"})
+TASKS = frozenset({"assess", "evaluate", "ping", "tune"}) | HELPER_TASKS | READING_TASKS
 EVALUATE = "evaluate"
 PING = "ping"  # the connection test: a fixed text, no site data
 # What a campus provider serves without a promotion: evaluation runs and the connection test.
 UNPROMOTED = frozenset({EVALUATE, PING})
 # Never on a campus provider: verdicts (floor signals, conflicts, true-positive advice) and
 # rule tuning.
-NEVER_ON_CAMPUS = frozenset({"assess", "tune"})
+NEVER_ON_CAMPUS = frozenset({"assess", "tune"}) | READING_TASKS
 _DECISION = r"^D-\d{3,}$"
 
 
@@ -149,6 +152,18 @@ def prompt_tokens(body_bytes: int) -> int:
 
 
 MIDNIGHT = time(0, 0)
+
+
+class PurposeConfig(_Model):
+    """One task's own settings (``purposes`` in config/llm.yaml): ``calls_per_day``, its cap of
+    attempts a UTC day over every provider (each provider tried counts one: it errs low);
+    ``providers``, the only providers that serve it, in the order they are tried (None: every
+    provider that serves it, in the configured order); ``tier``, the model size its caller asks
+    for (None: the caller's own)."""
+
+    calls_per_day: int | None = Field(default=None, ge=0)
+    providers: tuple[str, ...] | None = Field(default=None, min_length=1)
+    tier: Tier | None = None
 
 
 class EvaluationConfig(_Model):
@@ -363,12 +378,23 @@ class LlmConfig(_Model):
     }
     providers: tuple[ProviderConfig, ...] = Field(min_length=1)
     evaluation: EvaluationConfig = EvaluationConfig()
+    purposes: dict[str, PurposeConfig] = {}
 
     @model_validator(mode="after")
     def _check(self) -> LlmConfig:
         names = [p.name for p in self.providers]
         if len(set(names)) != len(names):
             raise ValueError("provider names must be unique")
+        for task, purpose in self.purposes.items():
+            if task not in TASKS:
+                raise ValueError(f"purposes: {task!r} is not a task ({', '.join(sorted(TASKS))})")
+            unknown = sorted(set(purpose.providers or ()) - set(names))
+            if unknown:
+                raise ValueError(f"purposes.{task}: no provider {', '.join(unknown)}")
+            if purpose.providers is not None and len(set(purpose.providers)) != len(
+                purpose.providers
+            ):
+                raise ValueError(f"purposes.{task}: a provider is named twice")
         if set(self.shares) != set(budget.Priority):
             raise ValueError(f"shares needs exactly {', '.join(budget.Priority)}")
         for p in self.providers:  # the overall caps are the ceiling over every paid provider
@@ -385,6 +411,16 @@ class LlmConfig(_Model):
         caps = {p.name: p.caps() for p in self.providers if p.caps() != budget.Caps()}
         return budget.Config(self.monthly_cap_usd, self.margin, dict(self.shares),
                              self.daily_cap_usd, caps)  # fmt: skip
+
+
+def order_for(config: LlmConfig, task: str) -> tuple[ProviderConfig, ...]:
+    """The providers ``task`` may go to, in the order they are tried: its ``purposes`` entry's
+    list when it has one, else every provider in the configured order."""
+    purpose = config.purposes.get(task)
+    if purpose is None or purpose.providers is None:
+        return config.providers
+    by_name = {p.name: p for p in config.providers}
+    return tuple(by_name[n] for n in purpose.providers if n in by_name)
 
 
 def pinned(config: LlmConfig, name: str, *, allow_disabled: bool = False) -> LlmConfig:

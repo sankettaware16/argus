@@ -77,6 +77,9 @@ class Plan:
     gaps: tuple[Gap, ...]
     checks: tuple[Planned, ...]  # reuse and send in the order to go, then the skipped
     left: tuple[tuple[str, str], ...]  # (gap key, why no check was planned for it)
+    # a rule of the moment held its checks back (the quiet hours, the SIEM not NORMAL): the
+    # request waits and runs later, it is not refused
+    waits: str | None = None
 
     @property
     def sends(self) -> tuple[Planned, ...]:

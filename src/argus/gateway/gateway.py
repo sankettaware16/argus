@@ -45,7 +45,7 @@ from argus.gateway.errors import (
 )
 from argus.gateway.health import HealthConfig, HealthState
 from argus.gateway.indices import daily_indices, exact_indices, pad_only_after, resolve
-from argus.gateway.lanes import Lane, lane_of
+from argus.gateway.lanes import Lane, kept_for_poll, lane_of
 from argus.gateway.responses import check_complete, check_status, parse_json, took_ms
 from argus.gateway.state import GatewayState, LedgerEntry
 from argus.gateway.templates import (
@@ -132,11 +132,13 @@ async def admitted_by_state(
 
 async def lane_admit(
     state: GatewayState, lane: Lane | None, cost: CostClass, now: datetime, scale: float,
-    lease_id: str,
+    lease_id: str, *, kept_ms: int = 0,
 ) -> budget_core.Admission:  # fmt: skip
-    """Admission on ``lane``'s bucket: the collector's lane and probes use the original budget."""
+    """Admission on ``lane``'s bucket: the collector's lane and probes use the original budget
+    (``kept_ms``: what the request leaves there for the poll, ``lanes.kept_for_poll``)."""
     if lane is None or lane is Lane.COLLECTOR or cost is CostClass.PROBE:
-        return await state.budget_admit(cost, now, scale, lease_id)
+        kept = kept_ms if cost is not CostClass.PROBE else 0
+        return await state.budget_admit(cost, now, scale, lease_id, kept_ms=kept)
     return await state.lane_admit(lane, cost, now, scale, lease_id)
 
 
@@ -292,7 +294,9 @@ class Gateway:
             # a subset of indices the validator accepted: every index rule still holds
             final = replace(final, indices=resolved)
         lane = lane_of(purpose)
-        lease, seen = await self._admit(purpose, spec.cost, seen, deadline, check)
+        lease, seen = await self._admit(
+            purpose, spec.cost, seen, deadline, check, kept_ms=kept_for_poll(purpose, component)
+        )
         try:
             if check is not None:  # the resolve and the budget may have waited
                 await check(self.clock())
@@ -470,15 +474,20 @@ class Gateway:
         seen: Seen,
         deadline: datetime,
         check: SendCheck | None = None,
+        *,
+        kept_ms: int = 0,
     ) -> tuple[Lease, Seen]:
-        """A budget lease on the purpose's lane, waiting within the deadline. After every wait
-        the kill switches, the health state and the breaker are asked again: a wait never
-        outlives a refusal."""
+        """A budget lease on the purpose's lane, waiting within the deadline (``kept_ms``: what
+        it leaves in the collector's bucket for the poll). After every wait the kill switches,
+        the health state and the breaker are asked again: a wait never outlives a refusal."""
         lease_id = uuid.uuid4().hex
         lane = lane_of(purpose)
+        kept = kept_ms
         while True:
             now = self.clock()
-            admission = await lane_admit(self.state, lane, cost, now, seen.scale, lease_id)
+            admission = await lane_admit(
+                self.state, lane, cost, now, seen.scale, lease_id, kept_ms=kept
+            )
             if admission.verdict is Verdict.ADMITTED:
                 assert admission.lease is not None
                 return admission.lease, seen

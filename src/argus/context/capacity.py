@@ -57,7 +57,9 @@ class Scenario:
     latency: Latency
     budget: BudgetConfig = field(default_factory=BudgetConfig)
     runs_at_once: int = 2  # runs in flight (the worker's concurrency, bounded by the gateway)
-    collector_ms: tuple[int, int] = (10, 110)  # its poll each minute: ids, then mget
+    # the collector's poll each minute (ids, then mget) in the same bucket; () for none: since
+    # D-321 enrichment has its own lane and the poll takes nothing from it
+    collector_ms: tuple[int, ...] = (10, 110)
     outage: tuple[datetime, datetime] | None = None
     seed: int = 0
 

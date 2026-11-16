@@ -15,6 +15,7 @@ from argus.gateway.errors import TransportFailedError
 from argus.gateway.gateway import Gateway, Targets
 from argus.gateway.health import HealthConfig, HealthMemory, HealthState
 from argus.gateway.indices import PAD
+from argus.gateway.lanes import Lane, LaneStates
 from argus.gateway.state import MemoryStore, ProbeRow, RecentRequest
 from argus.gateway.templates import CostClass
 from argus.gateway.transport import WireRequest, WireResponse
@@ -463,7 +464,9 @@ async def test_a_busy_shared_budget_is_waited_for_a_few_times_then_ends_the_sess
     clock = FakeClock(T0)
     store = MemoryStore(memory=HealthMemory(probed_at=T0))
     r = rig(store=store, clock=clock)
-    store.budget = BudgetState(tokens_ms=-1e9, refilled_at=T0, day=T0.date())
+    store.lanes = LaneStates(
+        {Lane.ENRICHMENT: BudgetState(tokens_ms=-1e9, refilled_at=T0, day=T0.date())}
+    )
     report = await r.session.run()
     assert report.stopped is not None
     assert "the budget stayed busy" in report.stopped
@@ -586,7 +589,10 @@ async def test_a_minute_that_fills_up_during_a_budget_wait_is_paced_again() -> N
         await clock.sleep(seconds)
 
     r.gateway.sleep = gateway_sleep
-    store.budget = BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())
+    # a heavy request waits for 300 ms of the enrichment lane's 800 a minute: 22.5 s
+    store.lanes = LaneStates(
+        {Lane.ENRICHMENT: BudgetState(tokens_ms=700.0, refilled_at=T0, day=T0.date())}
+    )
     report = await r.session.run()
     assert report.stopped is None, report.stopped
     first = next(e for e in store.ledger if e.purpose == "measure")
@@ -614,7 +620,7 @@ async def test_an_interrupted_session_sends_no_closing_probe_and_keeps_its_repor
     assert report.ended is not None
     aborted = [e for e in r.store.ledger if e.template == "alerts.counts"]
     assert [e.outcome for e in aborted] == ["aborted"]  # the gateway settled it
-    assert r.store.budget.leases == ()
+    assert r.store.lanes.bucket(Lane.ENRICHMENT).leases == ()
 
 
 async def test_a_light_request_the_gateway_would_retry_is_not_retried() -> None:

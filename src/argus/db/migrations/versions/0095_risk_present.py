@@ -36,6 +36,7 @@ PRESENT_COLUMNS = (
 GRAY_COLUMNS = "priority, band, lane, certainty, title, view, first_seen, last_seen, updated_at"
 WEB_READS = ("risk_incidents", "risk_incident_groups", "risk_gray_items", "risk_mode",
              "risk_groups")  # fmt: skip
+WEB_GRANTS = tuple(f"GRANT SELECT ON {t} TO argus_web" for t in WEB_READS)
 
 
 def _in(column: str, values: Sequence[str]) -> str:
@@ -143,8 +144,8 @@ def upgrade() -> None:
     op.execute(
         "GRANT SELECT, INSERT (id, present, at), UPDATE (present, at) ON risk_mode TO argus_runtime"
     )
-    for table in WEB_READS:
-        op.execute(f"GRANT SELECT ON {table} TO argus_web")
+    for grant in WEB_GRANTS:
+        op.execute(grant)
 
 
 def downgrade() -> None:

@@ -213,6 +213,7 @@ export function dedupeEvidence(lines: readonly ReportEvidenceLine[]): { line: Re
 export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: ReportRead }) {
   const body = (report.data?.report ?? null) as IncidentReport | null;
   const items = dedupeEvidence(body?.evidence ?? []);
+  const factText = new Map((body?.facts ?? []).map((f) => [f.id, f.text]));
   const lead = useQuery({ ...investigationOptions(detail.lead_investigation_id ?? ""), enabled: detail.lead_investigation_id !== null });
   const hosts = detail.indicators.filter((i) => i.kind === "ip" || i.kind === "domain").map((i) => i.value);
   return (
@@ -232,8 +233,25 @@ export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: Re
                 <UntrustedText value={line.title} limits={{ maxChars: 200, maxLines: 2 }} />
               </p>
               <p className="m-0">
-                <UntrustedText value={line.fact} limits={{ maxChars: 600, maxLines: 6 }} />
+                <UntrustedText value={factText.get(line.fact) ?? ""} limits={{ maxChars: 600, maxLines: 6 }} />
               </p>
+              {line.details.length > 0 && (
+                <div className="flex flex-col gap-0.5" data-testid="evidence-details">
+                  <p className="m-0 text-muted">
+                    <UntrustedText value={`${line.shows ?? "What the stored answer showed"}:`} limits={{ maxChars: 200, maxLines: 2 }} />
+                  </p>
+                  <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5">
+                    {line.details.map((d, i) => (
+                      <li key={i}>
+                        <code className="break-all text-xs">
+                          <UntrustedText value={d.text} limits={{ maxChars: 300, maxLines: 2 }} />
+                        </code>
+                        {d.count !== null && <span className="text-muted"> · {count(d.count)} {plural(d.count, "time")}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="m-0 text-muted">
                 <UntrustedText value={line.source} limits={{ maxChars: 120, maxLines: 1 }} />
                 {line.at && (

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,7 @@ from argus.cases.machine import (
     RequestMerge,
     Step,
     Take,
+    TeamOpened,
     Unlink,
     event_details,
     replay,
@@ -48,6 +50,7 @@ from argus.cases.model import (
     NO_QUIET_WINDOW,
     REASONS,
     STATES,
+    WAITING_FOR_KIBANA,
     Actor,
     ApprovalFacts,
     Capability,
@@ -401,7 +404,7 @@ def _approvals(draw: st.DrawFn, case: Case, kind: str) -> ApprovalFacts:
 
 @st.composite
 def _command(draw: st.DrawFn, case: Case) -> Any:
-    choice = draw(st.integers(0, 17))
+    choice = draw(st.integers(0, 18))
     if choice == 0:
         return Confirm(draw(st.none() | st.text(max_size=5)))
     if choice == 1:
@@ -444,6 +447,8 @@ def _command(draw: st.DrawFn, case: Case) -> Any:
         leaving = draw(st.lists(st.sampled_from(actors), max_size=len(actors))) if actors else []
         return Unlink(tuple(moving), draw(st.sampled_from(["", "two devices"])), TARGET,
                       tuple(leaving))  # fmt: skip
+    if choice == 18:
+        return TeamOpened(draw(st.sampled_from(["IR-2026-1107-01", " "])), "k-team")
     if choice == 15:
         return ConfirmByVerdict(draw(st.integers(0, 3)), draw(st.integers(0, 3)), draw(_MEMBERS),
                                 draw(_INDICATORS))  # fmt: skip
@@ -503,7 +508,10 @@ def test_random_histories_keep_every_rule(
                 assert not kibana.closes_case(write)
         if not actor.is_person:
             assert isinstance(command, NewActivity | AfterClosure | Link | ConfirmByVerdict
-                              | MergeInto | MergedIn)  # fmt: skip
+                              | MergeInto | MergedIn | TeamOpened)  # fmt: skip
+        if isinstance(command, TeamOpened):  # the wait ends; nothing else changes
+            assert after == replace(before, kibana_wait=None, version=before.version + 1)
+            assert before.kibana_wait is not None
         case = after
         events.append(_record(step))
         assert replay(events) == case
@@ -540,6 +548,27 @@ def test_an_outbox_row_is_sent_again_only_after_an_approved_resend(
         row = nxt
     for state in outbox.FINAL:
         assert outbox.MOVES[state] == frozenset()
+
+
+def test_the_case_teams_kibana_case_ends_the_wait_and_plans_no_write() -> None:
+    waiting = opened(actor=person(kibana_ok=False)).after
+    assert waiting.kibana_wait == WAITING_FOR_KIBANA
+    step = machine.decide(waiting, TeamOpened("IR-2026-1107-01", "k-team"), ARGUS, NOW)
+    assert (step.kind, step.writes, step.after.kibana_wait, step.after.mirrored) == (
+        "published", (), None, False,
+    )  # fmt: skip
+    assert step.details == {"by": "case_team", "incident_id": "IR-2026-1107-01",
+                            "kibana_case_id": "k-team"}  # fmt: skip
+    assert replay([_record(opened(actor=person(kibana_ok=False))), _record(step)]) == step.after
+    with pytest.raises(CaseRefused) as by_person:
+        machine.decide(waiting, TeamOpened("IR-2026-1107-01", "k-team"), person(), NOW)
+    assert by_person.value.code == "forbidden"
+    with pytest.raises(CaseRefused) as not_waiting:
+        machine.decide(step.after, TeamOpened("IR-2026-1107-01", "k-team"), ARGUS, NOW)
+    assert not_waiting.value.code == "conflict"
+    with pytest.raises(CaseRefused) as unnamed:
+        machine.decide(waiting, TeamOpened(" ", "k-team"), ARGUS, NOW)
+    assert unnamed.value.code == "invalid"
 
 
 def test_replay_refuses_a_broken_history() -> None:

@@ -339,8 +339,8 @@ async def test_a_wait_without_a_retry_time_waits_a_second() -> None:
     real = store.budget_admit
     answers = [Admission(Verdict.WAIT, "x")]
 
-    async def admit(*args: Any) -> Any:
-        return answers.pop() if answers else await real(*args)
+    async def admit(*args: Any, **kw: Any) -> Any:
+        return answers.pop() if answers else await real(*args, **kw)
 
     store.budget_admit = admit  # type: ignore[method-assign]
     await collect(gateway)
@@ -362,10 +362,10 @@ async def test_after_a_wait_an_open_breaker_refuses_before_asking_the_budget() -
     calls = 0
     real = store.budget_admit
 
-    async def admit(*args: Any) -> Any:
+    async def admit(*args: Any, **kw: Any) -> Any:
         nonlocal calls
         calls += 1
-        return await real(*args)
+        return await real(*args, **kw)
 
     store.budget_admit = admit  # type: ignore[method-assign]
     clock = gateway.clock

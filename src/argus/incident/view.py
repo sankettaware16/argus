@@ -1,10 +1,10 @@
 """The report for a person whose ELK account cannot read the logs.
 
 A fact derived from log content reads ``Hidden: needs log access in ELK.`` in the fact, in every
-sentence that cites it, in the evidence line's count and in the actor's request count; the query
-itself stays. Accounts named in the alerts are left out of the assets and the accounts that signed
-in from the case's devices are dropped, leaving each device's state and count. Hiding twice changes
-nothing more."""
+sentence that cites it, in the evidence line's count and details and in the actor's request count;
+the query itself stays. Accounts named in the alerts are left out of the assets and the accounts
+that signed in from the case's devices are dropped, leaving each device's state and count. Hiding
+twice changes nothing more."""
 
 from __future__ import annotations
 
@@ -65,7 +65,8 @@ def hide_logs(report: m.IncidentReport) -> m.IncidentReport:
         h.model_copy(update={"why": tuple(sentence(s) for s in h.why)}) for h in report.hypotheses
     )
     evidence = tuple(
-        e.model_copy(update={"count": None}) if e.from_logs else e for e in report.evidence
+        e.model_copy(update={"count": None, "shows": None, "details": ()}) if e.from_logs else e
+        for e in report.evidence
     )
     assets = tuple(a for a in report.assets if a.kind != "account")
     users = report.users.model_copy(

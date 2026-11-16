@@ -18,6 +18,7 @@ from argus.caseteam.service import post_config
 from argus.config.settings import Settings, operator_of
 from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.cli import ConfigOption, engine_for, load
+from argus.ops.stopping import quiet_after_uvicorn
 from argus.web import auth
 from argus.web.capabilities import LOCAL_DEFAULT, NEEDS, Capability, effective, ordered, parse
 
@@ -106,6 +107,7 @@ def web(config: ConfigOption = None) -> None:
         tls = {"ssl_certfile": str(web.tls_cert), "ssl_keyfile": str(web.tls_key)}
     shown = web.allowed_hosts[0] if web.allowed_hosts else web.host
     typer.echo(f"ARGUS Inbox on {web.scheme}://{shown}:{web.port}/")
+    quiet_after_uvicorn()  # a stop ends in exit 0, not by the signal uvicorn raises (D-322)
     uvicorn.run(app, host=web.host, port=web.port, proxy_headers=False, server_header=False,
                 log_level="warning", **tls)  # fmt: skip
 

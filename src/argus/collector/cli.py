@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import signal
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -21,6 +20,7 @@ from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.gateway.errors import GatewayError
 from argus.gateway.service import build_gateway, probe
+from argus.ops.stopping import until_stopped
 
 log = logging.getLogger("argus.collector")
 
@@ -86,17 +86,14 @@ def collect_run(config: ConfigOption = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     async def use(collector: Collector, fresh_probe: Any) -> None:
-        stop = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, stop.set)
         from argus.freshness.reader import jobs as freshness_jobs
         from argus.reference.jobs import jobs
 
+        stop = asyncio.Event()  # a signal ends the loop after the step that runs (D-322)
         settings = load(config)
         extra = jobs(collector.engine, collector.gateway, ti_sync=settings.reference.ti_sync)
         extra += freshness_jobs(settings, collector.engine, collector.gateway)
-        await Runner(collector, fresh_probe, extra=extra).run(stop)
+        await until_stopped(Runner(collector, fresh_probe, extra=extra).run(stop), stop=stop)
 
     _go(config, use)
 

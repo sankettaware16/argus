@@ -157,7 +157,7 @@ class CaseRowOut(Out):
     first_alert_at: datetime | None
     last_alert_at: datetime | None
     updated_at: datetime
-    in_kibana: bool  # a Kibana create was planned: later changes are mirrored too
+    in_kibana: bool  # ARGUS planned its Kibana create, or the case team opened it there
     hold: HoldOut | None = None  # someone is checking it (UI v2 A1)
     waiting_since: datetime | None = None  # it waits for a person since (Needs you only)
     seen: SeenOut | None = None  # what the viewer last looked at of it (A2)

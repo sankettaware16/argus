@@ -170,14 +170,15 @@ def server_calls(lane: Any) -> int:
     return len(lane.transport.calls)
 
 
-async def test_the_discovery_requests_are_ledgered_on_the_collectors_lane() -> None:
+async def test_the_discovery_requests_are_ledgered_on_the_enrichment_lane() -> None:
     es, lane, _, real, clock = discovery_gateways(
         elastic(daily_listing(), DAILY_MAPPINGS), kibana()
     )
     await run.collect(es, lane, clock=clock)
     discovery = [e for e in real.ledger if e.purpose == "discover"]
     assert discovery
-    assert {e.lane for e in discovery} == {"collector"}  # D9: the lane is the collector's
+    # D9 put them on the collector's lane; D-321 moved all but the collector's own work off it
+    assert {e.lane for e in discovery} == {"enrichment"}
     assert {e.component for e in discovery} == {"discover"}
 
 

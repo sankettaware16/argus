@@ -785,6 +785,8 @@ async def _platform(conn: AsyncConnection, made: Seed) -> None:
         ("identity", "ok", 25, t(-3)),
         ("collector", "ok", 6000, t(-4, 5)),
         ("measurement", "ok", 11, t(-2)),
+        ("enrichment", "ok", 876, t(0, 20)),
+        ("checking", "ok", 300, t(0, 21)),
     ]:
         await ins(
             conn,
@@ -814,8 +816,28 @@ async def _platform(conn: AsyncConnection, made: Seed) -> None:
         (t(1), "rule_not_running", t(1, 2), "rule-a"),  # begins at the end: out
         (t(-2), "rule_gap_reported", t(-1, 23, 59), "rule-b"),  # ends before the period
         (t(-5), "truncated_execution", t(-5, 1), "rule-c"),  # weekly only
+        # the collector's late stretches (D-321): caught up and checked (only gaps.late); two
+        # whose first covering reconciliation found a difference (in its window); one longer
+        # than an hour; one no reconciliation has covered yet
+        (t(0, 8, 10), "argus_collector_lag", t(0, 8, 30), "alerts"),
+        (t(0, 10, 10), "argus_collector_lag", t(0, 10, 30), "alerts"),
+        (t(0, 12, 10), "argus_collector_lag", t(0, 12, 30), "alerts"),
+        (t(0, 14, 10), "argus_collector_lag", t(0, 15, 10), "alerts"),
+        (t(0, 16, 10), "argus_collector_lag", t(0, 16, 30), "alerts"),
     ):
         await ins(conn, "coverage_gaps", kind=kind, subject=subject, start_at=when, end_at=end)
+    for started, first, last, differed, recovered in (
+        (t(0, 8, 31), t(-1, 8), t(0, 8), 0, 0),  # after the close, the last hour not covered
+        (t(0, 9, 31), t(-1, 9), t(0, 9), 0, 0),  # covers 08:10-08:30: late
+        (t(0, 10, 31), t(-1, 10), t(0, 10), 0, 0),  # does not touch 10:10-10:30
+        (t(0, 13, 5), t(-1, 13), t(0, 13), 1, 2),  # covers 10:10 and 12:10, found a difference
+        (t(0, 16, 5), t(-1, 16), t(0, 16), 0, 0),  # covers 14:10-15:10, but over an hour
+    ):
+        await ins(
+            conn, "reconciliation_runs", started_at=started, finished_at=started,
+            window_start=first, window_end=last, hours=24, hours_mismatched=differed,
+            recovered=recovered, missing_in_es=0, outcome="ok",
+        )  # fmt: skip
     for state, when in [
         ("normal", t(0, 1)),
         ("normal", t(0, 2)),

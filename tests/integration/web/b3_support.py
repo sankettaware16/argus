@@ -50,11 +50,19 @@ class World:
     owner: AsyncEngine  # the schema's owner: for rows ARGUS's own login may not write
 
     def app(
-        self, *, signing: bool = True, team: Any = None, signins: Any = None, **settings: Any
+        self,
+        *,
+        signing: bool = True,
+        team: Any = None,
+        signins: Any = None,
+        switches_root: Path | None = None,
+        **settings: Any,
     ) -> httpx.AsyncClient:
         key = self.key_file if signing else None
         web = WebSettings(approval_key_file=key, failure_delay_s=0, signin_delay_s=0, **settings)
-        app = create_app(self.web, web, team=team, signins=signins)
+        # the case team's switches file is read from the test's own folder, never the checkout's
+        root = switches_root or self.key_file.parent
+        app = create_app(self.web, web, team=team, signins=signins, switches_root=root)
         transport = httpx.ASGITransport(app=app)
         return httpx.AsyncClient(transport=transport, base_url=BASE, headers=SAME_ORIGIN)
 
@@ -229,6 +237,7 @@ async def start_server(
         ARGUS_DATABASE__API_PASSWORD=login.api_password.get_secret_value(),
         ARGUS_WEB__APPROVAL_KEY_FILE=str(world.key_file),
         ARGUS_CASE_TEAM__AUTO="true",  # AR8's pages read an ARGUS-verdict case (here off, D-214)
+        ARGUS_WEB__SWITCHES_ROOT=str(tmp_path),  # never this checkout's case team switches
     )
     from tests.conftest import suite_config
 

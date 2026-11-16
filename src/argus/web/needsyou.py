@@ -45,6 +45,14 @@ HELD_BY_ME = (
     "EXISTS (SELECT 1 FROM case_holds h WHERE h.case_id = c.id AND h.user_id = :me"  # noqa: S608
     f" AND {ACTIVE_HOLD})"
 )
+# Kibana has the case ``c``, or will: ARGUS planned its create (a create skipped unsent does not
+# count), or the case team's post read back the Kibana case it opened (D-322)
+IN_KIBANA = (
+    "(EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'"
+    " AND NOT (x.state = 'skipped' AND x.sent_count = 0))"
+    " OR EXISTS (SELECT 1 FROM case_team_posts p WHERE p.case_id = c.id"
+    " AND p.kibana_case_id IS NOT NULL))"
+)
 # a confirmed incident nobody took (a notified one is watched quietly: it asks for no owner)
 NOT_TAKEN = "(c.state = 'open' AND c.owner_user_id IS NULL AND c.notified_at IS NULL)"
 NEEDS_YOU = f"((c.state = 'suspected' AND NOT {HELD_BY_OTHER}) OR {NOT_TAKEN})"

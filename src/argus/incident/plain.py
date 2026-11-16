@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from argus import site
 from argus.incident import model as m
-from argus.incident.words import day_label, ist_moment
+from argus.incident.words import day_label, ist_moment, times
 
 
 def printable(value: object) -> str:
@@ -73,6 +73,11 @@ def lines(report: m.IncidentReport) -> list[str]:
     for e in report.evidence:
         out += [
             f"  {e.id} {e.title}: {facts[e.fact].text}",
+            *([f"      {e.shows or 'What the stored answer showed'}:"] if e.details else []),
+            *[
+                f"        {d.text}" + ("" if d.count is None else f" ({times(d.count)})")
+                for d in e.details
+            ],
             f"      query ({e.query.language}, {e.query.index}, {ist_moment(e.query.time_from)}"
             f" to {ist_moment(e.query.time_to)}): {e.query.text}",
             f"      link: {e.query.url}",

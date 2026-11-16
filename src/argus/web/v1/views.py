@@ -157,8 +157,12 @@ def investigation(s: queries.Summary, ai: Mapping[str, Any] | None = None) -> m.
 
 
 def coverage(banners: Sequence[Mapping[str, Any]]) -> list[m.CoverageOut]:
+    """The spans where alerts may be missing. A collector delay that was caught up with nothing
+    missed (``late``, D-321) is no such span: it is left out."""
     out = []
     for b in banners:
+        if b.get("late"):
+            continue
         runs = [m.CoverageRunOut(start_at=r["start_at"], detail=_opt_text(r.get("detail")))
                 for r in b.get("runs", []) if isinstance(r.get("start_at"), datetime)]  # fmt: skip
         out.append(

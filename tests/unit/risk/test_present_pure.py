@@ -39,14 +39,22 @@ def states(found: list[alt.Alternative]) -> dict[str, str]:
 
 def test_a_rare_destination_rules_out_an_update_service_and_a_common_one_fits() -> None:
     rare = states(alt.alternatives(ev(kinds=frozenset({"beacon"}), reach={"ip:a": 1})))
-    assert rare["A software update or telemetry service"] == "ruled_out"
+    assert rare["A common service"] == "ruled_out"
     assert rare["A research crawler or a student project"] == "ruled_out"
     assert rare["A rule's usual noise"] == "ruled_out"
     common = states(alt.alternatives(ev(reach={"domain:cdn.test": 40, "ip:b": 25})))
-    assert common["A software update or telemetry service"] == "fits"
+    assert common["A common service"] == "fits"
     assert common["A rule's usual noise"] == "fits"
     nothing = states(alt.alternatives(ev()))
-    assert nothing["A software update or telemetry service"] == "unknown"
+    assert nothing["A common service"] == "unknown"
+
+
+def test_one_rare_destination_among_common_ones_does_not_rule_out_a_common_service() -> None:
+    found = alt.alternatives(ev(reach={"ip:a": 1, "ip:b": 173, "ip:c": 2}))
+    common = next(a for a in found if a.name.startswith("A common service"))
+    assert common.state == "unknown"
+    assert "173" in common.test
+    assert "1 of its 3 destinations" in common.test
 
 
 def test_a_shared_gateway_fits_only_when_the_asset_map_says_so() -> None:

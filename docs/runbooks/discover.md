@@ -46,7 +46,7 @@ says how many.
 ## What it reads, and what it costs
 
 All are `GET` except one `_has_privileges` `POST`; each is a light template through the Elastic
-Gateway (the kill switches, the NORMAL-only health rule, the collector's lane and budget, the
+Gateway (the kill switches, the NORMAL-only health rule, the enrichment lane and budget (D-321), the
 ledger with component `discover`) or the Kibana lane (reader key). About 8 requests plus one per
 examined family, a few hundred milliseconds of server time in all.
 

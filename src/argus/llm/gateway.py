@@ -24,7 +24,15 @@ from argus.gateway import breaker as breaker_core
 from argus.llm import anthropic_api, budget
 from argus.llm.privacy import Request
 from argus.llm.probe import ALARMS, ProbeState, probe, tls_detail
-from argus.llm.providers import EVALUATE, PING, LlmConfig, ProviderConfig, Tier, Trust
+from argus.llm.providers import (
+    EVALUATE,
+    PING,
+    LlmConfig,
+    ProviderConfig,
+    Tier,
+    Trust,
+    order_for,
+)
 from argus.llm.wire import LlmReply, LlmTransport, LlmWire, TransportError
 
 T = TypeVar("T")
@@ -322,7 +330,7 @@ class LlmGateway:
         waits: list[datetime] = []
         why: list[str] = []
         attempt = failed = 0
-        for provider in self.config.providers:
+        for provider in order_for(self.config, call.purpose):
             key = self._key(provider)
             if not provider.enabled or call.tier not in provider.models or key is None:
                 continue
@@ -363,6 +371,11 @@ class LlmGateway:
         if call.purpose == EVALUATE and per_day is not None:
             own = budget.Bucket(f"evaluate:{provider.name}", budget.Limits(rpd=per_day), True)
             buckets = (*buckets, own)
+        purpose = self.config.purposes.get(call.purpose)
+        if purpose is not None and purpose.calls_per_day is not None:
+            # one window for the task over every provider: its daily cap, as written
+            cap = budget.Limits(rpd=purpose.calls_per_day)
+            buckets = (*buckets, budget.Bucket(f"purpose:{call.purpose}", cap, True))
         return buckets
 
     async def _probe(

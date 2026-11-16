@@ -2,10 +2,13 @@
 
 Every request to the SIEM spends one lane's share: its own server-time bucket, daily cap, heavy
 queries a day and concurrency, so a debt (a slow search, a timeout charged whole) slows only that
-lane. Lanes: collector (collect, backfill, reconcile, enrich, measure), investigation, freshness,
-kibana_read, kibana_write, identity, measurement (closed until adopted) and checking (the
-incident engine's few targeted checks, P4-F E3: 10 minutes a day, taken from the collector's
-share). ``LanePlan`` refuses lanes that add up to more than the ceiling. Across lanes the
+lane. Lanes: collector (collect, backfill, reconcile: the collector's own work), enrichment
+(enrich, the reference jobs, the measuring session, discovery: carved out of the collector's
+share, D-321), investigation, freshness, kibana_read, kibana_write, identity, measurement (closed
+until adopted) and checking (the incident engine's few targeted checks, P4-F E3: 10 minutes a day,
+taken from the collector's share). ``LanePlan`` refuses lanes that add up to more than the
+ceiling. Backfill and reconciliation leave the poll ``POLL_RESERVE_MS`` of the collector's bucket
+(``kept_for_poll``). Across lanes the
 concurrency is one pool (``shared_wait``), heavy queries run one at a time, and health probes
 spend their own allowance. ``lane_of`` maps a purpose to its lane; ``admit`` / ``settle`` are
 pure, like the one-bucket ones.
@@ -27,7 +30,8 @@ MINUTE = timedelta(minutes=1)
 
 
 class Lane(StrEnum):
-    COLLECTOR = "collector"  # the collector and enrichment (the original budget)
+    COLLECTOR = "collector"  # the collector's own work (the original budget)
+    ENRICHMENT = "enrichment"  # evidence, the reference jobs, measuring, discovery (D-321)
     INVESTIGATION = "investigation"
     FRESHNESS = "freshness"
     KIBANA_READ = "kibana_read"
@@ -44,15 +48,15 @@ LANE_OF: Mapping[Purpose, Lane | None] = MappingProxyType(
         Purpose.COLLECT: Lane.COLLECTOR,
         Purpose.BACKFILL: Lane.COLLECTOR,
         Purpose.RECONCILE: Lane.COLLECTOR,
-        Purpose.ENRICH: Lane.COLLECTOR,
+        Purpose.ENRICH: Lane.ENRICHMENT,
         Purpose.WRITEBACK: Lane.KIBANA_WRITE,
         Purpose.INVESTIGATE: Lane.INVESTIGATION,
         Purpose.FRESHNESS: Lane.FRESHNESS,
-        Purpose.MEASURE: Lane.COLLECTOR,  # the measuring session, until the lanes are adopted
+        Purpose.MEASURE: Lane.ENRICHMENT,  # the measuring session: never on the poll's lane
         Purpose.IDENTITY: Lane.IDENTITY,
         Purpose.KIBANA_READ: Lane.KIBANA_READ,
         Purpose.KIBANA_WRITE: Lane.KIBANA_WRITE,
-        Purpose.DISCOVER: Lane.COLLECTOR,  # a person's few metadata reads, in NORMAL only
+        Purpose.DISCOVER: Lane.ENRICHMENT,  # a person's few metadata reads, in NORMAL only
         Purpose.CHECK: Lane.CHECKING,
     }
 )
@@ -61,6 +65,24 @@ LANE_OF: Mapping[Purpose, Lane | None] = MappingProxyType(
 def lane_of(purpose: Purpose) -> Lane | None:
     """The lane ``purpose`` spends; None for health probes (their own allowance)."""
     return LANE_OF[purpose]
+
+
+# What the collector's backfill and reconciliation leave in its bucket for the poll (D-321).
+# They are admitted only while the bucket holds their estimate and this much more, so the debt
+# their real cost leaves is one the poll can wait out within its 30 s (300 ms of refill): a
+# count of reconciliation costs ~1.8 s on production, far above its light estimate, so 3 s
+# covers a request of up to ~3.3 s. From the full 10 s burst an hour's four counts still go
+# without a wait.
+POLL_RESERVE_MS = 3_000
+KEEPS_FOR_POLL = frozenset({Purpose.BACKFILL, Purpose.RECONCILE})
+POLL_COMPONENT = "collector"  # the write-back's last look also reads as reconcile: no reserve
+
+
+def kept_for_poll(purpose: Purpose, component: str = POLL_COMPONENT) -> int:
+    """The server time a request of ``purpose`` sent by ``component`` must leave in the
+    collector's bucket: only the collector's own backfill and reconciliation keep a reserve
+    (another component borrowing the purpose, the write-back's light last look, keeps none)."""
+    return POLL_RESERVE_MS if purpose in KEEPS_FOR_POLL and component == POLL_COMPONENT else 0
 
 
 @dataclass(frozen=True)
@@ -93,7 +115,11 @@ class LaneSpec:
 # another ceiling (a test's, or a measured one) every lane keeps its proportion.
 SHARES: Mapping[Lane, tuple[int, int, int, int]] = MappingProxyType(
     {
-        Lane.COLLECTOR: (1_400, 30, 1_500, 2),
+        # the collector's former 1,400 ms, 30 min and 1,500 heavy, split (D-321). Measured over
+        # 9 days: the poll ~12 s and reconciliation ~170 s of server time a day, no heavy query;
+        # enrichment ~300 s a day (up to 100+ s an hour in the evening), ~940 heavy a day
+        Lane.COLLECTOR: (600, 12, 100, 2),
+        Lane.ENRICHMENT: (800, 18, 1_400, 1),
         Lane.INVESTIGATION: (400, 6, 300, 1),
         Lane.FRESHNESS: (100, 3, 0, 1),
         Lane.KIBANA_READ: (200, 4, 0, 1),
@@ -108,8 +134,17 @@ SHARES: Mapping[Lane, tuple[int, int, int, int]] = MappingProxyType(
 SHARE_TOTALS = (3_000, 60, 2_000)
 # Lanes whose bucket may hold more than a minute's share at NORMAL: the Kibana
 # write lane may spend 60 s of server time at once, so a case of ~45 s posts in one or two runs;
-# the checking lane 30 s, a pass's few heavy checks.
-BURSTS: Mapping[Lane, int] = MappingProxyType({Lane.KIBANA_WRITE: 60_000, Lane.CHECKING: 30_000})
+# the checking lane 30 s, a pass's few heavy checks; the collector 10 s, an hour's
+# reconciliation (~7 s) with the poll's reserve left over; enrichment 10 s, an investigation's
+# evidence (about ten heavy queries at their p95) without waiting a minute between them (D-321).
+BURSTS: Mapping[Lane, int] = MappingProxyType(
+    {
+        Lane.COLLECTOR: 10_000,
+        Lane.ENRICHMENT: 10_000,
+        Lane.KIBANA_WRITE: 60_000,
+        Lane.CHECKING: 30_000,
+    }
+)
 IDENTITY_CHECKS_PER_MINUTE = 6
 
 

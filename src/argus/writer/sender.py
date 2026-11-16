@@ -77,6 +77,9 @@ class RunStopped(Exception):  # noqa: N818 - a stop, not a failure
     """The run ends here: the lane refused, Kibana is stopped or unreachable."""
 
 
+STOPPED_BY_SERVICE = "the writer service was stopped"  # a run cut short counts for no ramp step
+
+
 class Replan(Exception):  # noqa: N818 - a signal, not a failure
     """The send waited (a gap between writes): what it was planned from is stale, so the case
     is read and planned again before anything is sent."""
@@ -222,6 +225,9 @@ class Writer:
                     await self._run(report, write_class, limit, kind)
                 except RunStopped as stop:
                     report.stopped = report.stopped or str(stop)
+                except asyncio.CancelledError:  # the service was stopped (D-322): not a clean run
+                    report.stopped = report.stopped or STOPPED_BY_SERVICE
+                    raise
                 finally:
                     if report.units or report.sent or kind != "scheduled":
                         async with self.engine.begin() as conn:  # an idle scheduled run leaves none

@@ -103,6 +103,79 @@ export type AddressOut = {
 };
 
 /**
+ * AiClaimOut
+ *
+ * One claim of ARGUS AI's reading that passed the checks, and the incident's facts it cites
+ * (in ARGUS's words, as the model was shown them with the real names put back).
+ */
+export type AiClaimOut = {
+    /**
+     * Based On
+     */
+    based_on: Array<string>;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * AiReadingOut
+ *
+ * ARGUS AI's reading of the incident (D-324): text only, it never changes the queue. ``story``:
+ * what happened, the strongest case against it, one incident or two, what to check next;
+ * ``second_opinion``: a P1's second opinion from a larger model.
+ */
+export type AiReadingOut = {
+    /**
+     * Agrees
+     */
+    agrees: boolean;
+    /**
+     * Current
+     */
+    current: boolean;
+    /**
+     * Incidents
+     */
+    incidents: 'one' | 'two' | 'unsure' | null;
+    /**
+     * Kind
+     */
+    kind: 'story' | 'second_opinion';
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Sections
+     */
+    sections: Array<AiSectionOut>;
+    /**
+     * Written At
+     */
+    written_at: string;
+};
+
+/**
+ * AiSectionOut
+ */
+export type AiSectionOut = {
+    /**
+     * Claims
+     */
+    claims: Array<AiClaimOut>;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
  * AiVerdictOut
  *
  * The assessment a reviewer most wants to see first: a proposal first, the AI
@@ -2501,6 +2574,8 @@ export type EngineOut = {
      * Active
      */
     active: boolean;
+    ai_second_opinion?: AiReadingOut | null;
+    ai_story?: AiReadingOut | null;
     /**
      * Alert Groups
      */
@@ -2529,6 +2604,10 @@ export type EngineOut = {
      * Checks
      */
     checks: Array<EngineCheckOut>;
+    /**
+     * Disagreement
+     */
+    disagreement?: string | null;
     /**
      * First Seen
      */
@@ -6121,6 +6200,24 @@ export type ReportDecisionOut = {
 };
 
 /**
+ * ReportDetail
+ *
+ * A deciding value of an evidence line's stored answer (a URL without its query string, a
+ * kind of log event, the requests' rhythm): untrusted text from the logs, capped, and how many
+ * requests or rows of the answer it counts (None: not a count).
+ */
+export type ReportDetail = {
+    /**
+     * Count
+     */
+    count: number | null;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * ReportDeviceUsers
  *
  * Who used one of the case's devices: the state, in a sentence that cites a fact read from the
@@ -6167,6 +6264,10 @@ export type ReportEvidenceLine = {
      */
     count: number | null;
     /**
+     * Details
+     */
+    details: Array<ReportDetail>;
+    /**
      * Fact
      */
     fact: string;
@@ -6179,6 +6280,10 @@ export type ReportEvidenceLine = {
      */
     id: string;
     query: ReportQuery;
+    /**
+     * Shows
+     */
+    shows: string | null;
     /**
      * Source
      */

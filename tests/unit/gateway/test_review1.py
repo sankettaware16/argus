@@ -338,8 +338,8 @@ async def test_12_a_trial_taken_meanwhile_settles_the_lease() -> None:
     store.breaker = br.on_overload(br.BreakerState(), T0 - 5 * MIN)
     real_admit = store.budget_admit
 
-    async def admit_then_lose_trial(*args: Any) -> Any:
-        admission = await real_admit(*args)
+    async def admit_then_lose_trial(*args: Any, **kw: Any) -> Any:
+        admission = await real_admit(*args, **kw)
         _ok, store.breaker = br.admit(store.breaker, T0)  # another process's trial
         return admission
 

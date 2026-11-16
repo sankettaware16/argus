@@ -40,7 +40,9 @@ def test_kill_switches_and_status(
     assert code == 0
     assert out.splitlines()[:2] == ["stopped: collector", "health: degraded (never_probed)"]
     assert "budget share now: 10%" in out  # never probed: the collector's tenth only
-    assert "server time today: 0.0 s of 3600 s" in out
+    assert "  collector: 0.0 s of 720 s (0 requests; polls, backfill, reconciliation)" in out
+    assert "  enrichment: 0.0 s of 1080 s (0 requests;" in out
+    assert "  all lanes: 0.0 s of 3600 s" in out
     assert (
         _invoke("siem", "resume", "--component", "collector", *config)[1] == "collector: resumed\n"
     )

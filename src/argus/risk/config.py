@@ -204,6 +204,29 @@ class Exposure(_Model):
     shared: Shared = Shared(sources=2, paths=2, rare_sources=6)
 
 
+class Outbound(_Model):
+    """The engine's own evidence for its outbound incidents (D-323): on the checking lane, for
+    each presented incident of ``bands`` (top band first, newest material version first), once a
+    material version, the checks that decide it: the device's timing to its destination
+    (``proxy.pair``), how many campus devices reach that destination (``proxy.contact``) and,
+    with no outside address to time, the device's lookups (``dns.host_domains``). Only the
+    templates the evidence switch (``enrichment.templates``) holds are asked. At most
+    ``pass_requests`` a pass and ``day_requests`` a day (each one heavy: the lane's heavy count
+    holds them too), inside ``day_ms`` of the lane's server time a day; an answer about the same
+    subject and day at most ``reuse_hours`` old is reused, not asked again; a check that could
+    not answer is asked again after ``recheck_hours``."""
+
+    bands: tuple[Literal["P1", "P2", "P3", "P4"], ...] = ("P1", "P2", "P3")
+    pairs: int = Field(default=1, ge=1, le=3)
+    pass_requests: int = Field(default=6, ge=0, le=30)
+    day_requests: int = Field(default=48, ge=0, le=100)
+    day_ms: int = Field(default=240_000, ge=0, le=600_000)
+    pair_hours: int = Field(default=6, ge=1, le=12)
+    reuse_hours: int = Field(default=6, ge=0, le=48)
+    recheck_hours: int = Field(default=6, ge=1, le=7 * 24)
+    keep_days: int = Field(default=180, ge=30, le=400)
+
+
 class RiskConfig(_Model):
     version: Literal[1]
     severity_base: dict[Literal["low", "medium", "high", "critical"], Positive]
@@ -226,6 +249,7 @@ class RiskConfig(_Model):
     max_threats: int = Field(ge=1, le=50)
     digest_samples: int = Field(ge=0, le=20)
     exposure: Exposure = Exposure()
+    outbound: Outbound = Outbound()
 
     @model_validator(mode="after")
     def _complete(self) -> RiskConfig:

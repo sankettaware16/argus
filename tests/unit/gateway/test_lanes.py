@@ -54,7 +54,8 @@ class FreshnessRead(Freshness):
 
 def test_the_default_lanes_are_plan_7_8s_table() -> None:
     table = {
-        Lane.COLLECTOR: (1_400, 1_800_000, 1_500, 2),
+        Lane.COLLECTOR: (600, 720_000, 100, 2),
+        Lane.ENRICHMENT: (800, 1_080_000, 1_400, 1),
         Lane.INVESTIGATION: (400, 360_000, 300, 1),
         Lane.FRESHNESS: (100, 180_000, 0, 1),
         Lane.KIBANA_READ: (200, 240_000, 0, 1),
@@ -79,25 +80,28 @@ def test_every_purpose_has_its_lane() -> None:
     assert set(LANE_OF) == set(Purpose)
     assert lane_of(Purpose.PROBE) is None
     assert lane_of(Purpose.SELFTEST) is None
-    assert {lane_of(p) for p in (Purpose.COLLECT, Purpose.BACKFILL, Purpose.RECONCILE,
-                                 Purpose.ENRICH)} == {Lane.COLLECTOR}  # fmt: skip
+    assert {lane_of(p) for p in (Purpose.COLLECT, Purpose.BACKFILL,
+                                 Purpose.RECONCILE)} == {Lane.COLLECTOR}  # fmt: skip
+    # D-321: whatever is not the collector's own work leaves the poll's lane
+    assert {lane_of(p) for p in (Purpose.ENRICH, Purpose.MEASURE,
+                                 Purpose.DISCOVER)} == {Lane.ENRICHMENT}  # fmt: skip
     assert lane_of(Purpose.KIBANA_WRITE) is lane_of(Purpose.WRITEBACK) is Lane.KIBANA_WRITE
     assert lane_of(Purpose.FRESHNESS) is Lane.FRESHNESS
     assert lane_of(Purpose.IDENTITY) is Lane.IDENTITY
-    assert lane_of(Purpose.MEASURE) is Lane.COLLECTOR  # Q-A3's session, until a decision
     assert Lane.MEASUREMENT not in set(LANE_OF.values())  # closed: no purpose spends it yet
 
 
-async def test_the_measuring_session_is_sent_on_the_collectors_lane() -> None:
-    """Merging Q-A3: its session's ``measure`` requests go out in NORMAL on the original budget
-    (the measurement lane has no minute share), and wait in CAUTION."""
+async def test_the_measuring_session_is_sent_on_the_enrichment_lane() -> None:
+    """Q-A3's session's ``measure`` requests go out in NORMAL on the enrichment lane (D-321:
+    never on the poll's; the measurement lane has no minute share), and wait in CAUTION."""
     gateway, transport, store, clock = make()
     transport.default = search_answer()
     params = AlertIdsParams(start=clock.now - timedelta(minutes=5), end=clock.now)
     await gateway.run(AlertIds(), params, purpose=Purpose.MEASURE, component="measure",
                       deadline=clock.now + timedelta(seconds=30))  # fmt: skip
-    assert (store.ledger[-1].lane, store.ledger[-1].outcome) == ("collector", "ok")
-    assert store.budget.day_used_ms > 0
+    assert (store.ledger[-1].lane, store.ledger[-1].outcome) == ("enrichment", "ok")
+    assert store.lanes.bucket(Lane.ENRICHMENT).day_used_ms > 0
+    assert store.budget.day_used_ms == 0  # the collector's bucket is untouched
     store.memory = HealthMemory(state=HealthState.CAUTION, probed_at=clock.now)
     with pytest.raises(DeferredError):
         await gateway.run(AlertIds(), params, purpose=Purpose.MEASURE, component="measure",

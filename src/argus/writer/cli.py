@@ -27,6 +27,7 @@ from argus.config.errors import ConfigError
 from argus.config.settings import Settings, operator_of
 from argus.db.engine import create_engine
 from argus.gateway.cli import ConfigOption, _human_at_a_terminal, _run, load
+from argus.ops.stopping import until_stopped
 from argus.writer import compensation, ramp, store
 from argus.writer.sender import Writer
 from argus.writer.service import build_writer, gate_problems
@@ -337,7 +338,7 @@ def writer_run(config: ConfigOption = None) -> None:
             " does not run (a canary and a ramp are the terminal's: `argus kibana run`)"
         )
         raise typer.Exit(0)
-    _run(serve(settings))
+    _run(until_stopped(serve(settings)))  # a stop cancels the run: exit 0 (D-322)
 
 
 async def serve(settings: Settings, *, once: bool = False) -> None:

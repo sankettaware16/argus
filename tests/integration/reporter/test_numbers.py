@@ -75,6 +75,11 @@ async def test_the_seed_exercises_the_edges(
     ):
         assert any(k.startswith(prefix) for k in differs), prefix
     assert daily["kibana.lag.p95"].value == 228  # 24 lags, 10 s apart
+    # the collector's late stretches (D-321): one caught up and checked, 20 minutes; the others
+    # (a difference found, over an hour, not checked yet) stay gaps
+    assert (daily["gaps.late"].value, daily["gaps.late_minutes"].value) == (1, 20)
+    assert daily["gaps.kind.argus_collector_lag"].value == 5
+    assert daily["siem.lane.enrichment.requests"].value == 1
     assert daily["results.p95"].value == 1371  # 24 results, 60 s apart: 60 x (1 + 0.95 x 23)
     assert (await made(app_engine, "daily", LAST.replace(day=17))).metrics()[
         "kibana.lag.p95"

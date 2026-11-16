@@ -68,6 +68,9 @@ def _lanes(values: Sequence[str]) -> None:
     )
 
 
+WEB_GRANTS = ("GRANT SELECT ON exposure_checks TO argus_web",)  # argus_web reads it
+
+
 def upgrade() -> None:
     op.drop_constraint(op.f("ck_siem_switches_component_valid"), "siem_switches", type_="check")
     op.create_check_constraint(
@@ -123,7 +126,8 @@ def upgrade() -> None:
     op.create_index(op.f("ix_exposure_checks_checked_at"), "exposure_checks", ["checked_at"])
     # The role names are written out, not imported (see 0003).
     op.execute(f"GRANT SELECT, DELETE, INSERT ({CHECK_INSERT}) ON exposure_checks TO argus_runtime")
-    op.execute("GRANT SELECT ON exposure_checks TO argus_web")
+    for grant in WEB_GRANTS:
+        op.execute(grant)
 
 
 def downgrade() -> None:

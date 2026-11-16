@@ -50,6 +50,34 @@ class EngineObjectOut(Out):
     role: Literal["affected", "actor"]
 
 
+class AiClaimOut(Out):
+    """One claim of ARGUS AI's reading that passed the checks, and the incident's facts it cites
+    (in ARGUS's words, as the model was shown them with the real names put back)."""
+
+    text: str
+    based_on: list[str]
+
+
+class AiSectionOut(Out):
+    key: str  # happened, against, split, next_steps, differ; reading, doubts, decide
+    title: str  # in plain words
+    claims: list[AiClaimOut]
+
+
+class AiReadingOut(Out):
+    """ARGUS AI's reading of the incident (D-324): text only, it never changes the queue. ``story``:
+    what happened, the strongest case against it, one incident or two, what to check next;
+    ``second_opinion``: a P1's second opinion from a larger model."""
+
+    kind: Literal["story", "second_opinion"]
+    model: str  # the provider and model that wrote it
+    written_at: datetime
+    current: bool  # it read the incident as it is now (false: an earlier version)
+    agrees: bool  # it agrees with the engine's priority and certainty
+    incidents: Literal["one", "two", "unsure"] | None  # the story's "one incident or two?"
+    sections: list[AiSectionOut]
+
+
 class EngineOut(Out):
     incident_id: int
     priority: int  # 0-100
@@ -69,6 +97,11 @@ class EngineOut(Out):
     changed: list[str]  # the material changes since the viewer last looked, in words
     alert_groups: int
     alerts: int
+    # ARGUS AI's reading (D-324): the newest of each kind, None before one is written; the line
+    # shown when its current reading disagrees with the engine
+    ai_story: AiReadingOut | None = None
+    ai_second_opinion: AiReadingOut | None = None
+    disagreement: str | None = None
 
 
 class TakenByOut(Out):
@@ -90,7 +123,7 @@ class TodayCardOut(Out):
     engine: EngineOut | None  # None for a case in Needs you that the engine did not make
     taken_by: TakenByOut | None  # who took its case
     notified_at: datetime | None  # the owner was told
-    in_kibana: bool  # a Kibana create was planned for its case
+    in_kibana: bool  # ARGUS planned its Kibana create, or the case team opened it there
     kibana_wait: str | None  # why Kibana does not have its case yet
     waiting_since: datetime | None  # since when it waits for a person
 

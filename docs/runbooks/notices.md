@@ -23,7 +23,7 @@ flag, plus at most one pass).
 | Activity after a case was closed | a case closed as fixed has an `activity_after_closure` event in the last 3 days (the link leads to the follower case when there is one) | the case's, at least *high* | times noted |
 | A closure is waiting | a closure request nobody has decided for more than 12 hours that has not expired | *medium*; *high* in its last 12 hours | hours waiting |
 | A campus host reached a known-bad address | an unreviewed investigation with alerts in the last day whose newest dossier lists an indicator a feed marks high-confidence ("high", or a score of 75 to 100), and whose actor is a campus host | *high*; *critical* for a critical alert | high-confidence indicators |
-| ARGUS cannot watch everything | the SIEM's health memory DEGRADED or STOP (also a probe silent for 15 minutes), the Kibana lane stopped or a write class paused, the daily watch on and not run for 36 hours, or ARGUS's own collector lag, an open breaker or a stalled log source | STOP and collector lag *high*, the rest *medium* | hours so far |
+| ARGUS cannot watch everything | the SIEM's health memory DEGRADED or STOP (also a probe silent for 15 minutes), the Kibana lane stopped or a write class paused, the daily watch on and not run for 36 hours, or ARGUS's own collector lag (once it has lasted an hour: one closed sooner whose hours reconciliation found complete was only lateness, "collected late", D-321), an open breaker or a stalled log source | STOP and collector lag *high*, the rest *medium* | hours so far |
 
 A request for a closure lives to the end of the next Kibana write window (15 to 39 hours, plan
 §7.1), so it is noticed after 12 hours (`WAITING` in `argus.notices.triggers`; the plan's "over 24

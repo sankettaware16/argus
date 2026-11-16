@@ -305,11 +305,14 @@ def coverage_reason(
     end: datetime,
     live: datetime | None,
     gaps: Sequence[tuple[str, datetime, datetime | None]],
+    pending: Sequence[tuple[datetime, datetime]] = (),
 ) -> tuple[bool, str] | None:
     """Why ARGUS may not have seen every alert of [start, end), or None when it did. The first
     part says whether that is final: a coverage gap (kind, from, to-or-open) touching the window
     is, a collector that has not yet read past the end of the day (by :data:`ALERT_MARGIN`) is
-    not: the next run looks again."""
+    not: the next run looks again. ``pending``: the collector's short delays not yet checked by
+    a reconciliation (``late_unchecked``, D-321), not final either; the ones it found complete
+    are no gap at all and are not passed."""
     if live is None:
         return (False, "the collector has not read any alerts yet")
     if live < end + ALERT_MARGIN:
@@ -317,6 +320,12 @@ def coverage_reason(
     for kind, begin, until in gaps:
         if begin < end and (until is None or until > start):
             return (True, f"ARGUS may have missed alerts that day ({kind.replace('_', ' ')})")
+    for begin, until in pending:
+        if begin < end and until > start:
+            return (
+                False,
+                "ARGUS collected late that day and has not yet checked it missed nothing",
+            )
     return None
 
 

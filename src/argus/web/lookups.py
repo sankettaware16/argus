@@ -384,8 +384,7 @@ _REPORTS = (
     "SELECT c.id AS case_id, c.number, c.title, c.state, r.version, r.generated_at,"  # noqa: S608
     f" {_IR_OF} AS ir,"
     " jsonb_path_exists(r.body, '$.users.devices[*].accounts[*]') AS accounts,"
-    " EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'"
-    "  AND NOT (x.state = 'skipped' AND x.sent_count = 0)) AS in_kibana"
+    f" {needsyou.IN_KIBANA} AS in_kibana"
     " FROM cases c JOIN LATERAL (SELECT version, generated_at, body FROM incident_reports"
     "  WHERE case_id = c.id ORDER BY version DESC LIMIT 1) r ON true"
     " WHERE c.opened_at IS NOT NULL"
@@ -561,12 +560,12 @@ async def case_team_health(conn: AsyncConnection) -> CaseTeamHealthOut:
     row = (
         await conn.execute(
             text(
-                "SELECT (SELECT min(coalesce(s.sent_at, s.created_at)) FROM case_team_steps s"
+                "SELECT (SELECT min(coalesce(s.sent_at, s.created_at)) FROM case_team_steps s"  # noqa: S608 - a constant fragment
                 "   WHERE s.state = 'failed') AS failing_since,"
                 " greatest((SELECT max(last_round_at) FROM case_team_posts),"
                 "   (SELECT max(sent_at) FROM case_team_steps)) AS last_run_at,"
                 " (SELECT count(*) FROM cases c WHERE c.state IN ('open', 'assigned', 'contained')"
-                "   AND c.kibana_wait IS NOT NULL) AS held"
+                f"   AND c.kibana_wait IS NOT NULL AND NOT {needsyou.IN_KIBANA}) AS held"
             )
         )
     ).one()

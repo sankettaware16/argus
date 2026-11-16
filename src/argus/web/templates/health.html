@@ -13,6 +13,6 @@
 </dl>
 <h2>Coverage gaps</h2>
 {% if h.open_gaps %}
-<ul>{% for g in h.open_gaps %}<li><strong>{{ g.kind | replace("_", " ") }}</strong> since <time title="{{ g.start_at | utc }}">{{ g.start_at | ist }}</time>{% if g.detail %} ({{ g.detail | u(80) }}){% endif %}: alerts from this time may be missing until it closes.</li>{% endfor %}</ul>
+<ul>{% for g in h.open_gaps %}<li><strong>{{ g.kind | replace("_", " ") }}</strong> since <time title="{{ g.start_at | utc }}">{{ g.start_at | ist }}</time>{% if g.detail %} ({{ (g.words or g.detail) | u(80) }}){% endif %}: alerts from this time may be missing until it closes.</li>{% endfor %}</ul>
 {% else %}<p class="empty">None open.</p>{% endif %}
 {% endblock %}

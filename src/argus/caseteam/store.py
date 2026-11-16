@@ -656,6 +656,17 @@ async def kibana_deleted_at(conn: AsyncConnection, case_id: uuid.UUID) -> dateti
     return None if found is None else cast(datetime | None, found.deleted_at)
 
 
+async def kibana_paused(conn: AsyncConnection, case_id: uuid.UUID) -> str | None:
+    """Why the read-back paused the case's Kibana case (a person changed its Sync alerts or
+    ARGUS's tags there), or None: the poster writes nothing to it until the owner lifts it."""
+    return cast(
+        str | None,
+        await conn.scalar(
+            text("SELECT paused_reason FROM kibana_mirror WHERE case_id = :c"), {"c": case_id}
+        ),
+    )
+
+
 async def touch_examined(conn: AsyncConnection, case_id: uuid.UUID, now: datetime) -> None:
     """The poster looked at this case now (its place in the rotation)."""
     await conn.execute(

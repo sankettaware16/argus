@@ -348,6 +348,15 @@ when the item has a danger sign (a threat-list hit, success after an attack, bea
 destination, ...) or untrusted text had to be cut. The specialists, tuning and helpers use small.
 The large tier is configured but the investigator never uses it.
 
+**A task's own settings (`purposes`).** A task may name its only providers, in the order they
+are tried, its model tier and a daily cap of attempts over every provider. ARGUS AI's reading of
+a presented incident (D-324; `risk.reading` in `config/argus.yaml`) uses two: `story` (what
+happened, the strongest case against it, one incident or two, what to check next; the medium
+tier, 15 a day) and `opinion` (a second opinion on P1 incidents; the large tier, 3 a day), both
+OpenAI first, then Anthropic. Put `anthropic` first in a list to have Sonnet 5.5 / Opus 5.5 write
+them. Each provider tried counts one attempt against the cap. Their text never changes the
+queue: every claim must cite the incident's own facts, and code drops a claim that does not.
+
 Every attempt is recorded in the ledger (`llm_calls`): provider, model, tier, purpose, tokens,
 cost, latency, outcome and the request's hash, never its content.
 

@@ -152,6 +152,121 @@
         "title": "AddressOut",
         "type": "object"
       },
+      "AiClaimOut": {
+        "additionalProperties": false,
+        "description": "One claim of ARGUS AI's reading that passed the checks, and the incident's facts it cites\n(in ARGUS's words, as the model was shown them with the real names put back).",
+        "properties": {
+          "based_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Based On",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "based_on"
+        ],
+        "title": "AiClaimOut",
+        "type": "object"
+      },
+      "AiReadingOut": {
+        "additionalProperties": false,
+        "description": "ARGUS AI's reading of the incident (D-324): text only, it never changes the queue. ``story``:\nwhat happened, the strongest case against it, one incident or two, what to check next;\n``second_opinion``: a P1's second opinion from a larger model.",
+        "properties": {
+          "agrees": {
+            "title": "Agrees",
+            "type": "boolean"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "incidents": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one",
+                  "two",
+                  "unsure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incidents"
+          },
+          "kind": {
+            "enum": [
+              "story",
+              "second_opinion"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/AiSectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "written_at": {
+            "format": "date-time",
+            "title": "Written At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "model",
+          "written_at",
+          "current",
+          "agrees",
+          "incidents",
+          "sections"
+        ],
+        "title": "AiReadingOut",
+        "type": "object"
+      },
+      "AiSectionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/AiClaimOut"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "claims"
+        ],
+        "title": "AiSectionOut",
+        "type": "object"
+      },
       "AiVerdictOut": {
         "additionalProperties": false,
         "description": "The assessment a reviewer most wants to see first: a proposal first, the AI\ninvestigator's before the decision engine's.",
@@ -4833,6 +4948,26 @@
             "title": "Active",
             "type": "boolean"
           },
+          "ai_second_opinion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiReadingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ai_story": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiReadingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "alert_groups": {
             "title": "Alert Groups",
             "type": "integer"
@@ -4881,6 +5016,17 @@
             },
             "title": "Checks",
             "type": "array"
+          },
+          "disagreement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disagreement"
           },
           "first_seen": {
             "format": "date-time",
@@ -11568,6 +11714,36 @@
         "title": "ReportDecisionOut",
         "type": "object"
       },
+      "ReportDetail": {
+        "additionalProperties": false,
+        "description": "A deciding value of an evidence line's stored answer (a URL without its query string, a\nkind of log event, the requests' rhythm): untrusted text from the logs, capped, and how many\nrequests or rows of the answer it counts (None: not a count).",
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "count"
+        ],
+        "title": "ReportDetail",
+        "type": "object"
+      },
       "ReportDeviceUsers": {
         "additionalProperties": false,
         "description": "Who used one of the case's devices: the state, in a sentence that cites a fact read from the\nlogs, and the accounts it names (likely: one; possible: several; unknown: those seen so far).",
@@ -11656,6 +11832,15 @@
             ],
             "title": "Count"
           },
+          "details": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReportDetail"
+            },
+            "maxItems": 6,
+            "title": "Details",
+            "type": "array"
+          },
           "fact": {
             "pattern": "^F[0-9]{1,5}$",
             "title": "Fact",
@@ -11673,6 +11858,18 @@
           },
           "query": {
             "$ref": "#/components/schemas/ReportQuery"
+          },
+          "shows": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shows"
           },
           "source": {
             "maxLength": 200,
@@ -11700,7 +11897,9 @@
           "at",
           "query",
           "from_logs",
-          "asked"
+          "asked",
+          "shows",
+          "details"
         ],
         "title": "ReportEvidenceLine",
         "type": "object"
@@ -12087,7 +12286,7 @@
             "type": "string"
           },
           "writer": {
-            "default": "incident-writer@3",
+            "default": "incident-writer@4",
             "maxLength": 40,
             "title": "Writer",
             "type": "string"

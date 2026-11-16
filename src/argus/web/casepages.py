@@ -13,6 +13,7 @@ import re
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any, Literal, cast
 
 from sqlalchemy import text
@@ -257,8 +258,7 @@ SELECT c.id, c.number, c.title, c.state, c.severity, c.version, c.cause, c.opene
        c.parent_case_id, c.owner_user_id, c.notified_at, c.blocked_at,
        ow.id AS owner_id, ow.username AS owner_username, ow.display_name AS owner_display_name,
        mem.n AS investigations, mem.alerts, mem.first_at, mem.last_at,
-       EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'
-               AND NOT (x.state = 'skipped' AND x.sent_count = 0)) AS in_kibana,
+       {needsyou.IN_KIBANA} AS in_kibana,
        (SELECT count(*) FROM approval_requests r WHERE r.case_id = c.id AND {_PENDING})
            AS waiting, {_ATTENTION} AS needs_attention,
        mc.number AS merged_number, mc.title AS merged_title, mc.state AS merged_state
@@ -358,9 +358,9 @@ async def counts(conn: AsyncConnection, me_id: int) -> m.CaseCounts:
 # the list's filters and sorts (UI v2 A10); the engine's (band, certainty, lane, side, active,
 # raised by the AI, priority) come with its block
 _KIBANA = {
-    "in": "EXISTS (SELECT 1 FROM kibana_outbox x WHERE x.case_id = c.id AND x.op = 'create'"
-    " AND NOT (x.state = 'skipped' AND x.sent_count = 0))",
-    "waiting": "(c.state IN ('open', 'assigned', 'contained') AND c.kibana_wait IS NOT NULL)",
+    "in": needsyou.IN_KIBANA,
+    "waiting": "(c.state IN ('open', 'assigned', 'contained') AND c.kibana_wait IS NOT NULL"
+    f" AND NOT {needsyou.IN_KIBANA})",
     "failing": "EXISTS (SELECT 1 FROM case_team_steps s WHERE s.case_id = c.id"
     " AND s.state = 'failed')",
 }
@@ -763,6 +763,11 @@ def event_words(
         was = f"Was: {old}" if isinstance(old, str) else None
         return f"{by} renamed the case", _joined(detail, was)
     if kind == "published":
+        if details.get("by") == "case_team":
+            ir = details.get("incident_id")
+            return "The case team opened the case in Kibana" + (
+                f" as {ir}" if isinstance(ir, str) else ""
+            ), None
         return f"{by} had the case opened in Kibana", None
     if kind == "closure_requested":
         if details.get("proposed"):
@@ -1079,6 +1084,17 @@ async def _mirror(conn: AsyncConnection, case_id: uuid.UUID, row: m.CaseRowOut) 
             {"c": case_id, "lim": DETAIL_FINDINGS},
         )
     ).all()
+    team = None
+    if mirror is None:
+        team = (
+            await conn.execute(
+                text(
+                    "SELECT incident_id, kibana_case_id FROM case_team_posts"
+                    " WHERE case_id = :c AND kibana_case_id IS NOT NULL"
+                ),
+                {"c": case_id},
+            )
+        ).first()
     state: m.MirrorState
     if mirror is not None:
         if mirror.deleted_at is not None:
@@ -1087,6 +1103,10 @@ async def _mirror(conn: AsyncConnection, case_id: uuid.UUID, row: m.CaseRowOut) 
             state, words = "paused", "ARGUS has paused its writes to this Kibana case."
         else:
             state, words = "mirrored", "The case is in Kibana and ARGUS reads it back."
+    elif team is not None:  # the case team opened it; the read-back has not adopted it yet
+        state = "mirrored"
+        words = (f"The case team opened the case in Kibana as {team.incident_id}; ARGUS reads"
+                 " it back at the next Kibana sync.")  # fmt: skip
     elif row.in_kibana:
         state, words = "planned", "ARGUS has planned the Kibana case; it is not there yet."
     elif row.kibana_wait:
@@ -1097,7 +1117,7 @@ async def _mirror(conn: AsyncConnection, case_id: uuid.UUID, row: m.CaseRowOut) 
         state, words = "not_in_kibana", "This case is not in Kibana."
     return m.MirrorOut(
         state=state, words=words,
-        kibana_case_id=getattr(mirror, "kibana_case_id", None),
+        kibana_case_id=getattr(mirror, "kibana_case_id", getattr(team, "kibana_case_id", None)),
         kibana_status=getattr(mirror, "status", None),
         kibana_severity=getattr(mirror, "severity", None),
         kibana_version=getattr(mirror, "kibana_version", None),
@@ -1985,6 +2005,7 @@ async def detail(
     watch_mode: str | None = None,
     signins: Any | None = None,
     team: Any | None = None,
+    switches_root: Path | None = None,
 ) -> m.CaseDetail | None:
     """A case in the analyst's order: what it is, what is new, what happened, what it holds,
     what can be done, Kibana's side, the notes and the record of changes."""
@@ -2001,7 +2022,9 @@ async def detail(
     )  # fmt: skip
     if bar is not None:  # the server's own sentences (UI v2 A6, A7)
         bar.dismiss_effect = decisions.dismiss_effect()
-        bar.kibana_after_confirm = await decisions.kibana_after_confirm(conn, team, now)
+        bar.kibana_after_confirm = await decisions.kibana_after_confirm(
+            conn, team, now, switches_root
+        )
     users = await case_user_names(conn, case_id)
     members, total = await _investigations(conn, case_id)
     can_manage = me.can(Capability.MANAGE_CASES)

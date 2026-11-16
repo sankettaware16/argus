@@ -20,7 +20,7 @@ from argus.config.settings import Settings
 from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.errors import GatewayError
 from argus.gateway.health import HealthConfig, HealthState, effective, scale
-from argus.gateway.lanes import Lane
+from argus.gateway.lanes import Lane, LanePlan
 from argus.gateway.pgstore import SWITCHES, PgStore
 from argus.gateway.service import (
     build_gateway,
@@ -66,17 +66,25 @@ RESUME_NEEDS_OWNER = (
     " (ARGUS_DATABASE__OWNER_PASSWORD), or in the custody layout as"
     " `sudo argus-owner {command}`"
 )
+EXPLAIN_NEEDS_OWNER = (
+    "explaining a finding needs the database owner (Q-A5, D-322): the runtime may only add"
+    " findings, only the owner resolves one. Run it where the owner's password is configured"
+    " (ARGUS_DATABASE__OWNER_PASSWORD), or in the custody layout as"
+    " `sudo argus-owner {command}`"
+)
 
 
-def owner_engine_for(settings: Settings, command: str) -> AsyncEngine:
+def owner_engine_for(
+    settings: Settings, command: str, *, needs: str = RESUME_NEEDS_OWNER
+) -> AsyncEngine:
     """The owner's engine, for a resume (the database refuses one from any other role); exit
-    code 2 with how to run it when the owner's password is not configured here."""
+    code 2 with how to run it (``needs``) when the owner's password is not configured here."""
     from argus.db.engine import create_engine
 
     try:
         return create_engine(settings.database, role="owner")
     except ConfigError:
-        typer.echo("error: " + RESUME_NEEDS_OWNER.format(command=command), err=True)
+        typer.echo("error: " + needs.format(command=command), err=True)
         raise typer.Exit(2) from None
 
 
@@ -136,6 +144,30 @@ def siem_resume(
     _switch(component, False, reason, config)
 
 
+LANE_NOTES = {
+    Lane.COLLECTOR: "polls, backfill, reconciliation",
+    Lane.ENRICHMENT: "evidence, threat-intel lookups, measuring, discovery",
+    Lane.CHECKING: "NORMAL only, never in the quiet hours",
+    Lane.MEASUREMENT: "closed",
+}
+
+
+def lane_lines(plan: LanePlan, spent: dict[str, tuple[int, int]], day_ms: int) -> list[str]:
+    """Each lane's server time today (the request ledger's, UTC day) against its day's share,
+    and the total against the ceiling."""
+    lines = ["server time today, by lane (the ledger's):"]
+    for lane in Lane:
+        took, sent = spent.get(lane.value, (0, 0))
+        note = LANE_NOTES.get(lane)
+        lines.append(
+            f"  {lane.value}: {took / 1000:.1f} s of {plan.spec(lane).per_day_ms / 1000:.0f} s"
+            f" ({sent} requests{'; ' + note if note else ''})"
+        )
+    total = sum(took for took, _ in spent.values())
+    lines.append(f"  all lanes: {total / 1000:.1f} s of {day_ms / 1000:.0f} s")
+    return lines
+
+
 @siem_app.command("status")
 def siem_status(config: ConfigOption = None) -> None:
     """Kill switches, health state, breaker, today's budget and the last requests (no SIEM
@@ -159,28 +191,24 @@ def siem_status(config: ConfigOption = None) -> None:
             "breaker: "
             + (f"open until {breaker.open_until:%H:%M} UTC" if breaker.is_open(now) else "closed")
             + (f", level {breaker.level}" if breaker.level else ""),
-            f"server time today: {budget.day_used_ms / 1000:.1f} s of "
-            f"{settings.siem.budget.took_per_day_ms / 1000:.0f} s"
-            + (f" ({budget.day})" if budget.day else ""),
-            f"heavy queries today: {budget.heavy_day}; requests in flight: {len(budget.leases)}",
+            f"collector lane's bucket today: {budget.day_used_ms / 1000:.1f} s"
+            + (f" ({budget.day})" if budget.day else "")
+            + f"; heavy queries {budget.heavy_day}; requests in flight: {len(budget.leases)}",
         ]
         day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        checking = lane_plan(settings.siem).spec(Lane.CHECKING)
+        plan = lane_plan(settings.siem)
         async with store.engine.connect() as conn:
-            took, sent = (
-                await conn.execute(
+            spent = {
+                lane: (int(took), int(sent))
+                for lane, took, sent in await conn.execute(
                     text(
-                        "SELECT coalesce(sum(took_ms), 0), count(*) FROM siem_requests"
-                        " WHERE lane = 'checking' AND at >= :day"
+                        "SELECT lane, coalesce(sum(took_ms), 0), count(*) FROM siem_requests"
+                        " WHERE lane IS NOT NULL AND at >= :day GROUP BY lane"
                     ),
                     {"day": day},
                 )
-            ).one()
-            lines.append(
-                f"checking lane today: {int(took) / 1000:.1f} s of"
-                f" {checking.per_day_ms / 1000:.0f} s ({int(sent)} requests; NORMAL only,"
-                " never in the quiet hours)"
-            )
+            }
+            lines += lane_lines(plan, spent, settings.siem.budget.took_per_day_ms)
             rows = await conn.execute(
                 text(
                     "SELECT at, template, outcome, took_ms FROM siem_requests"

@@ -610,12 +610,13 @@ def _servers_named(found: Found, ctx: Context) -> list[str]:
 async def _engine_title(
     conn: AsyncConnection, case_id: uuid.UUID, ctx: Context
 ) -> naming.Titled | None:
-    """The engine incident's title for its case, or None (no such incident, or no facts)."""
+    """The engine incident's title for its case, or None (no such incident, or no facts). A case a
+    person confirmed leads with Confirmed (the engine's own word then); else the evidence's word."""
     from argus.risk import titles  # the engine names its own cases; imported here: no cycle
 
     row = (
         await conn.execute(
-            text("SELECT id, view ->> 'certainty' AS word FROM risk_incidents"
+            text("SELECT id, certainty, view ->> 'certainty' AS word FROM risk_incidents"
                  " WHERE case_id = :c AND parent_id IS NULL ORDER BY id DESC LIMIT 1"),
             {"c": case_id},
         )
@@ -624,6 +625,8 @@ async def _engine_title(
         return None
     facts = await titles.read_facts(conn, int(row.id), titles.Context(ctx.classifier))
     word = row.word if row.word in naming.CERTAINTIES else naming.SUSPECTED
+    if row.certainty == naming.CONFIRMED:
+        word = naming.CONFIRMED
     if facts is None:
         return None
     made = titles.titled_for_incident(facts, word)

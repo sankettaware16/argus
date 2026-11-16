@@ -45,3 +45,20 @@ def test_the_case_teams_file_overrides(
     tmp_path: Path, text: str, expected: tuple[bool, int]
 ) -> None:
     assert decisions.team_switches(Team(), _switches(tmp_path, text)) == expected
+
+
+def test_the_team_preview_runs_with_the_switches_the_case_team_runs_with(tmp_path: Path) -> None:
+    """D-325: the Kibana case preview's settings follow the switches file too."""
+    from argus.caseteam.sender import PostConfig
+    from argus.web.v1.team_routes import effective
+
+    web = PostConfig(post=False, per_day=5, canary=1)
+    assert effective(web, tmp_path) == web  # no file: the web's own settings
+    on = _switches(tmp_path, "ARGUS_CASE_TEAM__POST=true\nARGUS_KIBANA__WRITE_CLASSES=WC\n")
+    found = effective(web, on)
+    assert found.post is True
+    assert found.per_day == 5
+    assert found.canary == 1
+    (tmp_path / "off").mkdir()
+    off = _switches(tmp_path / "off", "ARGUS_CASE_TEAM__POST=false\nARGUS_CASE_TEAM__PER_DAY=2\n")
+    assert effective(PostConfig(post=True), off) == PostConfig(post=False, per_day=2)

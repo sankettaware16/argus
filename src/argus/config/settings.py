@@ -356,6 +356,7 @@ class SiemLanesSettings(_Section):
     out keeps its default share of the ceiling; the lanes together never exceed it (checked)."""
 
     collector: LaneSettings | None = None
+    enrichment: LaneSettings | None = None
     investigation: LaneSettings | None = None
     freshness: LaneSettings | None = None
     kibana_read: LaneSettings | None = None
@@ -516,6 +517,9 @@ class WebSettings(_Section):
     spa_dir: Path | None = None
     """The folder the app at ``/app`` is served from: by default the build committed in
     the package (``argus/web/spa``); another folder only for a test or a deploy copy."""
+    switches_root: Path | None = None
+    """The folder whose ``local/argus-writer.env`` holds the case team's switches (posting, the
+    day's cap), which the pages read: by default the checkout; another folder only for a test."""
     tls_pin_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     """The SHA-256 of the certificate the web serves (DER, lowercase hex). ``argus doctor``
     fails when the certificate no longer matches it: browsers would warn, and a person must never
@@ -1159,10 +1163,14 @@ class RiskSettings(_Section):
     shadow, in its own tables only. Switching back is this one setting. ``shown_per_day``: the
     capacity governor's daily room for new cards on Today (P1 and P2 are never held back; the
     rest wait for room, counted as "more waiting" and listed in Incidents' Needs you: every
-    possible incident has its case, so Today and the queue are one set)."""
+    possible incident has its case, so Today and the queue are one set). ``reading``: while it
+    presents, the assessment service writes ARGUS AI's reading of the presented incidents (a
+    story per version, a second opinion for P1; text only, within config/llm.yaml's
+    ``purposes`` caps; D-324)."""
 
     present: bool = False
     shown_per_day: int = Field(default=10, ge=1, le=100)
+    reading: bool = False
 
 
 class CampaignsSettings(_Section):

@@ -96,8 +96,8 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     targets_total: 0,
     users: { lead: "", devices: [], devices_total: 0, signins: [] },
     evidence: [
-      { id: "E1", fact: "F4", title: "The alerts of the case", source: "ARGUS's stored alerts", status: "ok", count: 35, at: null, query: query({ kind: "alerts", index: ".alerts-security.alerts-acme-soc", template: "alerts", text: 'FROM .alerts-security.alerts-acme-soc | WHERE kibana.alert.rule.name IN ("Rule beacon") | LIMIT 200' }), from_logs: false, asked: [] },
-      { id: "E2", fact: "F5", title: "How a host reached a destination", source: "the campus proxy logs (squid)", status: "ok", count: 42, at: "2026-10-25T11:00:00Z", query: query(), from_logs: true, asked: [] },
+      { id: "E1", fact: "F4", title: "The alerts of the case", source: "ARGUS's stored alerts", status: "ok", count: 35, at: null, query: query({ kind: "alerts", index: ".alerts-security.alerts-acme-soc", template: "alerts", text: 'FROM .alerts-security.alerts-acme-soc | WHERE kibana.alert.rule.name IN ("Rule beacon") | LIMIT 200' }), from_logs: false, asked: [], shows: null, details: [] },
+      { id: "E2", fact: "F5", title: "How a host reached a destination", source: "the campus proxy logs (squid)", status: "ok", count: 42, at: "2026-10-25T11:00:00Z", query: query(), from_logs: true, asked: [], shows: null, details: [] },
     ],
     hypotheses: [
       { name: "A real threat: malicious activity or a compromise (a true positive)", status: "kept", by: "argus", why: [sentence("It rests on:", "F3"), sentence(facts[2]?.text ?? "", "F3")] },

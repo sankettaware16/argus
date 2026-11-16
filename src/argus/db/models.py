@@ -100,7 +100,7 @@ GATEWAY_COMPONENTS = (
 GATEWAY_STATES = ("health", "budget", "breaker", "lanes", "kibana", "kibana_breaker")
 LANES = (
     "collector", "investigation", "freshness", "kibana_read", "kibana_write", "identity",
-    "measurement", "checking",
+    "measurement", "checking", "enrichment",
 )  # fmt: skip
 
 
@@ -195,7 +195,7 @@ class SiemRequest(Base):
         ),
         CheckConstraint(
             "lane IS NULL OR lane IN ('collector', 'investigation', 'freshness', 'kibana_read',"
-            " 'kibana_write', 'identity', 'measurement', 'checking')",
+            " 'kibana_write', 'identity', 'measurement', 'checking', 'enrichment')",
             name="lane_valid",
         ),
         Index(None, "at"),
@@ -4090,6 +4090,64 @@ class ExposureCheck(Base):
     )
 
 
+RISK_EVIDENCE_KINDS = ("pair", "contact", "dns")
+# written flat (no BETWEEN): a restore reads it back the same (0096)
+RISK_EVIDENCE_SUBJECT = (
+    "char_length(subject) >= 2 AND char_length(subject) <= 100"
+    " AND (device IS NULL OR char_length(device) <= 45)"
+    " AND (destination IS NULL OR char_length(destination) <= 45)"
+    " AND (kind = 'contact' OR device IS NOT NULL)"
+    " AND (kind = 'dns' OR destination IS NOT NULL)"
+)
+RISK_EVIDENCE_VERDICTS = (
+    "regular", "irregular", "few", "none", "common", "some", "rare", "tunnel", "plain", "unknown",
+)  # fmt: skip
+
+
+class RiskEvidence(Base):
+    """What the checking lane found for an engine incident's material version (D-323), kept
+    180 days: a device's timing to an outside address (``pair``), how many campus devices
+    reached it that day (``contact``), a device's lookups (``dns``). ``took_ms`` empty: no
+    request (an answer reused, or ARGUS's own alerts')."""
+
+    __tablename__ = "risk_evidence"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE"), nullable=False
+    )
+    incident_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    device: Mapped[str | None] = mapped_column(Text)
+    destination: Mapped[str | None] = mapped_column(Text)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    template: Mapped[str] = mapped_column(Text, nullable=False)
+    template_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    task_key: Mapped[str | None] = mapped_column(Text)
+    verdict: Mapped[str] = mapped_column(Text, nullable=False)
+    facts: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    took_ms: Mapped[int | None] = mapped_column(Integer)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("incident_id", "incident_version", "kind", "subject"),
+        CheckConstraint(_one_of("kind", RISK_EVIDENCE_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("verdict", RISK_EVIDENCE_VERDICTS), name="verdict_valid"),
+        CheckConstraint(RISK_EVIDENCE_SUBJECT, name="subject_valid"),
+        CheckConstraint("incident_version >= 1", name="version_valid"),
+        CheckConstraint("task_key IS NULL OR task_key ~ '^[0-9a-f]{64}$'", name="task_key_valid"),
+        CheckConstraint(
+            "jsonb_typeof(facts) = 'object' AND octet_length(facts::text) <= 65536",
+            name="facts_valid",
+        ),
+        CheckConstraint("took_ms IS NULL OR took_ms >= 0", name="took_valid"),
+        Index(None, "checked_at"),
+        Index(None, "device", "day"),
+        Index(None, "destination", "day"),
+    )
+
+
 class RiskCrossing(Base):
     """An object entering a lane: a possible incident of the shadow engine. ``new_item``: no lane
     held the object in the quiet period before (what a person would be asked to look at)."""
@@ -4365,6 +4423,45 @@ class RiskGrayItem(Base):
     )
 
 
+RISK_READING_KINDS = ("story", "opinion")
+RISK_READING_STATES = ("written", "refused", "failed")
+
+
+class RiskReading(Base):
+    """ARGUS AI's reading of an engine incident (D-324), one per incident version and kind:
+    ``story`` (what happened, the case against it, one incident or two, next steps) or
+    ``opinion`` (a P1's second opinion). ``written``: the claims that passed the checks, in
+    ``body``; ``refused`` or ``failed``: nothing is shown (``why`` says why). Text only: it never
+    changes the queue."""
+
+    __tablename__ = "risk_readings"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("risk_incidents.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    model: Mapped[str | None] = mapped_column(Text)
+    why: Mapped[str | None] = mapped_column(Text)
+    facts_sha: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("incident_id", "version", "kind"),
+        CheckConstraint(_one_of("kind", RISK_READING_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("state", RISK_READING_STATES), name="state_valid"),
+        CheckConstraint("jsonb_typeof(body) = 'object'", name="body_is_object"),
+        CheckConstraint("version >= 1", name="version_valid"),
+        CheckConstraint("why IS NULL OR char_length(why) <= 300", name="why_length"),
+        CheckConstraint("model IS NULL OR char_length(model) <= 200", name="model_length"),
+        CheckConstraint("facts_sha ~ '^[0-9a-f]{64}$'", name="facts_sha_valid"),
+        Index(None, "kind", "created_at"),
+    )
+
+
 class RiskMode(Base):
     """One row: whether the engine presents its incidents as cases (``risk.present``), as the
     last pass saw the setting. The queue's pages read it: with it on, the old raise no longer
@@ -4372,7 +4469,7 @@ class RiskMode(Base):
 
     __tablename__ = "risk_mode"
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
     present: Mapped[bool] = mapped_column(Boolean, nullable=False)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

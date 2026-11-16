@@ -250,6 +250,12 @@ async def _live(settings: Any, inv: uuid.UUID, kind: str, template: str, entity:
         await engine.dispose()
 
 
+WAITS = (
+    "it stays queued, and ARGUS's service runs it once the SIEM is back to normal and outside"
+    " its busy hours"
+)
+
+
 @investigation_app.command("check-more")
 def check_more_cmd(
     investigation_id: Id,
@@ -287,15 +293,19 @@ def check_more_cmd(
                 if prep is None:
                     return ["no dossier for this investigation yet"]
                 plan = await wave.plan_check(env, conn, prep, template, entity, when)
+            waits = plan.waits is not None  # the SIEM not NORMAL, the quiet hours: not refused
             if dry_run:
-                return ["dry run: nothing is queued or sent", *_plan_lines(plan)]
-            if plan.checks[0].mode == "skip":
+                lines = ["dry run: nothing is queued or sent", *_plan_lines(plan)]
+                return [*lines, WAITS] if waits else lines
+            if plan.checks[0].mode == "skip" and not waits:
                 return [f"refused: {plan.checks[0].why_not}"]
             async with engine.begin() as conn:
                 state, detail = await checks.request(
                     conn, inv, prep.current.version, template, entity,
                     f"cli:{getpass.getuser()}", when,
                 )  # fmt: skip
+            if state == "queued" and waits:
+                return [f"queued: {plan.checks[0].why_not}; {WAITS}"]
             if state == "queued":
                 return ["queued: ARGUS's service runs it when the SIEM is normal"]
             return [f"the same request is open already: {detail}"]

@@ -3,8 +3,9 @@
 
 A class starts at step 1 (its canary: one case, change or closure, with a person present). It
 moves to 5 and then to at most 10 only after at least 3 runs on 3 different days at its step (or
-5 working days), every write read back as sent, no reconciliation alarm since the step began, and
-a person's check in Kibana. Only a run that sent something and stopped for no reason counts.
+5 working days), every write read back as sent, no reconciliation alarm since the step began (one
+a person explained, ``argus kibana sync explain``, does not count), and a person's check in
+Kibana. Only a run that sent something and stopped for no reason counts.
 Nothing is raised while a writer finding waits for a person, the class is paused in the lane, or
 a write is in doubt, in conflict or paused. The classes go in order (W2 after W1's canary and one
 more run, W3 after W2's) and the service runs a class only after a clean canary at a terminal and
@@ -111,6 +112,7 @@ async def evidence(conn: AsyncConnection, write_class: str, now: datetime) -> Ev
         await conn.execute(
             text(
                 "SELECT count(*) FROM kibana_findings WHERE severity = 'alarm'"
+                " AND resolved_at IS NULL"  # an alarm a person explained holds no step back
                 " AND (CAST(:t AS timestamptz) IS NULL OR found_at >= :t)"
             ),
             {"t": began},

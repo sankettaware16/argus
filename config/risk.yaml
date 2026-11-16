@@ -30,9 +30,16 @@ evidence:
   - {kind: success, signals: {web.successes_after: positive, web.paths_success: positive},
      base: 25, stage: access}
   - {kind: tunnel, signals: {dns.tunnel_suspected: "true"}, base: 25, stage: foothold}
-  - {kind: beacon, signals: {proxy.regularity: {below: 0.3}}, base: 15, stage: foothold}
+  # a beacon: the host's traffic is even (the dossier's proxy.host), or the checking lane timed
+  # the device's requests to one destination as regular (proxy.pair: a period is measured only
+  # for a regular rhythm)
+  - {kind: beacon, signals: {proxy.regularity: {below: 0.3}, pair.period_s: positive}, base: 15,
+     stage: foothold}
   - {kind: ports, signals: {ports.risky: positive}, base: 10, stage: foothold}
-  - {kind: rare_dest, signals: {proxy.hosts_to_destination: {at_most: 1}}, base: 10}
+  # a destination no other campus device reaches (the dossier's count, or the checking lane's
+  # proxy.contact count of the day)
+  - {kind: rare_dest, signals: {proxy.hosts_to_destination: {at_most: 1},
+     contact.hosts: {at_most: 1}}, base: 10}
   # Inbound exposure (E3): what the checking lane verified for an outside address on a campus
   # site: a sensitive file really served (not the site's soft-404 page), many files taken under
   # one sensitive prefix, or rare paths that got through for it and for another address.
@@ -116,3 +123,23 @@ exposure:
             credentials, id_rsa, htpasswd, dockerfile, phpinfo.php]
   bulk: {paths: 20, sizes: 3, share: 0.8}
   shared: {sources: 2, paths: 2, rare_sources: 6}
+
+# The engine's own evidence for its outbound incidents (D-323): on the checking lane, for each
+# presented incident of `bands` (top band first, newest material version first), once a material
+# version: the device's timing to its destination (proxy.pair over `pair_hours`), how many
+# campus devices reached that destination that day (proxy.contact) and, with no outside address
+# to time, the device's lookups (dns.host_domains). Only the templates enrichment.templates
+# switches on are asked. Sized on the measured costs (a proxy aggregation: p95 about 0.9 s,
+# 3.9 s at most): 10-20 incidents a day at two or three checks each fit `day_requests`, and even
+# all of them at the slowest stay inside `day_ms`, under half the lane's 10 minutes a day (the
+# rest stays the exposure checks'). Answers are kept `keep_days`.
+outbound:
+  bands: [P1, P2, P3]
+  pairs: 1
+  pass_requests: 6
+  day_requests: 48
+  day_ms: 240000
+  pair_hours: 6
+  reuse_hours: 6
+  recheck_hours: 6
+  keep_days: 180

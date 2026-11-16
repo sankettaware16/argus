@@ -60,8 +60,8 @@ describe("Evidence", () => {
   it("I-15: lists no query twice; a repeated one says what else it was for", async () => {
     const q = query({ text: "FROM logs | WHERE source.ip == \"10.0.0.1\"" });
     const lines = [
-      { id: "E1", title: "Proxy pairs", fact: "59 requests", from_logs: true, source: "proxy", at: null, status: "complete", count: 59, asked: ["timing"], query: q },
-      { id: "E2", title: "Proxy pairs again", fact: "59 requests", from_logs: true, source: "proxy", at: null, status: "complete", count: 59, asked: ["destinations"], query: q },
+      { id: "E1", title: "Proxy pairs", fact: "59 requests", from_logs: true, source: "proxy", at: null, status: "complete", count: 59, asked: ["timing"], shows: null, details: [], query: q },
+      { id: "E2", title: "Proxy pairs again", fact: "59 requests", from_logs: true, source: "proxy", at: null, status: "complete", count: 59, asked: ["destinations"], shows: null, details: [], query: q },
     ];
     expect(dedupeEvidence(lines)).toHaveLength(1);
     expect(dedupeEvidence(lines)[0]?.also).toEqual(["destinations"]);
@@ -71,6 +71,30 @@ describe("Evidence", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.textContent).toContain("also for destinations");
     expect(items[0]?.textContent).not.toContain("E1"); // the id lives only in a tooltip
+  });
+
+  it("shows the line's sentence and the deciding values the stored answer held", async () => {
+    const q = query({ text: "FROM logs | WHERE destination.ip == \"198.51.100.9\"" });
+    const line = {
+      id: "E2", title: "Which campus hosts reached a destination", fact: "F2", from_logs: true, source: "proxy", at: null, status: "ok", count: 1, asked: ["198.51.100.9"],
+      shows: "The most requested addresses there, without their query strings",
+      details: [
+        { text: "http://198.51.100.9:8080/api/v1/ext/cookies", count: 4120 },
+        { text: "http://198.51.100.9:8080/api/v1/ext/ping", count: 1 },
+      ],
+      query: q,
+    };
+    const facts = [{ id: "F2", kind: "evidence" as const, text: "1 campus host reached 198.51.100.9.", source: "proxy", numbers: [1], from_logs: true, safe: null }];
+    serve(p1Detail(), reportOut({ case_id: P1_ID }, { evidence: [line], facts }));
+    renderApp(`/incidents/${P1_ID}?tab=evidence`);
+    const item = (await screen.findAllByTestId("evidence-item"))[0];
+    expect(item?.textContent).toContain("1 campus host reached 198.51.100.9.");
+    expect(item?.textContent).not.toContain("F2");
+    const details = within(item as HTMLElement).getByTestId("evidence-details");
+    expect(details.textContent).toContain("without their query strings");
+    expect(details.textContent).toContain("http://198.51.100.9:8080/api/v1/ext/cookies · 4,120 times");
+    expect(details.textContent).toContain("ext/ping · 1 time");
+    expect(within(details).queryAllByRole("link")).toHaveLength(0);
   });
 });
 

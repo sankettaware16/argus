@@ -102,13 +102,19 @@ def lanes_to_json(states: LaneStates) -> dict[str, Any]:
 
 
 def lanes_from_json(data: dict[str, Any]) -> LaneStates:
+    """The stored buckets. A lane missing from the row (one added since, D-321) starts full; a
+    name no lane has any more is dropped, so a row from another version never stops the lanes."""
     if not data:
         return LaneStates()
+    known = {lane.value for lane in Lane}
     return LaneStates(
-        buckets={Lane(k): budget_from_json(v) for k, v in data.get("buckets", {}).items()},
+        buckets={
+            Lane(k): budget_from_json(v) for k, v in data.get("buckets", {}).items() if k in known
+        },
         starts={
             Lane(k): tuple(datetime.fromisoformat(t) for t in v)
             for k, v in data.get("starts", {}).items()
+            if k in known
         },
     )
 
@@ -277,7 +283,7 @@ class PgStore:
         await self._change("health", health_from_json, health_to_json, lambda _old: (None, memory))
 
     async def budget_admit(
-        self, cost: CostClass, now: datetime, scale: float, lease_id: str
+        self, cost: CostClass, now: datetime, scale: float, lease_id: str, *, kept_ms: int = 0
     ) -> budget_core.Admission:
         """The collector's lane (and probes): both budget rows, for the rules across lanes
         (heavy queries one at a time, the concurrency limit shared by every lane)."""
@@ -291,8 +297,9 @@ class PgStore:
             if waiting is not None:
                 return waiting, budget, lanes
             admission, budget = budget_core.admit(
-                budget, self.budget_config, cost, now, scale=scale, lease_id=lease_id
-            )
+                budget, self.budget_config, cost, now, scale=scale, lease_id=lease_id,
+                kept_ms=kept_ms,
+            )  # fmt: skip
             return admission, budget, lanes
 
         return await self._budget_and_lanes(change)

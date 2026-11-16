@@ -32,14 +32,16 @@ WRITE = Lane.KIBANA_WRITE
 
 
 def test_the_kibana_write_lane_bursts_sixty_seconds_and_the_checking_lane_thirty() -> None:
-    assert dict(BURSTS) == {WRITE: 60_000, Lane.CHECKING: 30_000}
+    assert dict(BURSTS) == {
+        Lane.COLLECTOR: 10_000, Lane.ENRICHMENT: 10_000, WRITE: 60_000, Lane.CHECKING: 30_000,
+    }  # fmt: skip
     spec = DEFAULT_LANES[WRITE]
     assert (spec.per_minute_ms, spec.per_day_ms, spec.burst_ms) == (200, 180_000, 60_000)
     checking = DEFAULT_LANES[Lane.CHECKING]
     assert (checking.per_minute_ms, checking.per_day_ms, checking.burst_ms) == (400, 600_000,
                                                                                 30_000)  # fmt: skip
     assert [lane for lane, s in DEFAULT_LANES.items() if s.burst_ms is not None] == [
-        WRITE, Lane.CHECKING,
+        Lane.COLLECTOR, Lane.ENRICHMENT, WRITE, Lane.CHECKING,
     ]  # fmt: skip
 
 

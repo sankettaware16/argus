@@ -1044,6 +1044,40 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
             "checked_at",
         ),
     ),
+    # what the checking lane found for the engine's outbound incidents (D-323), kept 180 days
+    # and pruned by it; an unknown answer is replaced once the check answers
+    "risk_evidence": TableGrant(
+        select=True,
+        delete=True,
+        insert=(
+            "incident_id",
+            "incident_version",
+            "kind",
+            "subject",
+            "device",
+            "destination",
+            "day",
+            "template",
+            "template_version",
+            "task_key",
+            "verdict",
+            "facts",
+            "took_ms",
+            "checked_at",
+        ),
+        update=(
+            "device",
+            "destination",
+            "day",
+            "template",
+            "template_version",
+            "task_key",
+            "verdict",
+            "facts",
+            "took_ms",
+            "checked_at",
+        ),
+    ),
     # the engine v2's incidents, links and identity (P4-F E2 and E4), in shadow
     "risk_incidents": TableGrant(
         select=True,
@@ -1124,6 +1158,21 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         update=_RISK_GRAY_COLUMNS,
     ),
     "risk_mode": TableGrant(select=True, insert=("id", "present", "at"), update=("present", "at")),
+    # ARGUS AI's reading of a presented incident (D-324): written once per version, never changed
+    "risk_readings": TableGrant(
+        select=True,
+        insert=(
+            "incident_id",
+            "version",
+            "kind",
+            "state",
+            "body",
+            "model",
+            "why",
+            "facts_sha",
+            "created_at",
+        ),
+    ),
     # the investigations an investigator run stands for (insert only), and
     # what the evidence flagged on an investigation's newest dossier (replaced by a newer one)
     "assessment_shares": TableGrant(
@@ -1539,6 +1588,7 @@ API_GRANTS: dict[str, TableGrant] = {
     "risk_gray_items": TableGrant(select=True),
     "risk_mode": TableGrant(select=True),
     "risk_groups": TableGrant(select=True),
+    "risk_readings": TableGrant(select=True),  # ARGUS AI's reading in the engine block (D-324)
     "gold_items": TableGrant(select=True),
     "gold_labels": TableGrant(
         select=True, insert=("set_name", "investigation_id", "user_id", "outcome", "note")

@@ -412,15 +412,23 @@ answer), not a count of requests:
 The ceiling is split into **lanes**, each with its own allowance, so a slow Kibana call never
 delays the collector:
 
-| Lane | What | a minute | a day |
-|---|---|---|---|
-| collector | collect, backfill, reconcile, evidence | 1,800 ms | 40 min |
-| investigation | the wave, Check more | 400 ms | 6 min |
-| freshness | freshness readings | 100 ms | 3 min |
-| kibana_read | the read-back, Kibana self-tests | 200 ms | 4 min |
-| kibana_write | Kibana writes (off) | 200 ms | 3 min |
-| identity | ELK sign-in checks | 300 ms | 2 min |
-| measurement | reserved | 0 | 2 min |
+| Lane | What | a minute | at once (NORMAL) | a day | heavy a day |
+|---|---|---|---|---|---|
+| collector | polls, backfill, reconciliation | 600 ms | 10 s | 12 min | 100 |
+| enrichment | evidence, threat-intel lookups and mirror, measuring, discovery | 800 ms | 10 s | 18 min | 1,400 |
+| investigation | the wave, Check more | 400 ms | | 6 min | 300 |
+| freshness | freshness readings | 100 ms | | 3 min | |
+| kibana_read | the read-back, Kibana self-tests | 200 ms | | 4 min | |
+| kibana_write | Kibana writes | 200 ms | 60 s | 3 min | |
+| identity | ELK sign-in checks | 300 ms | | 2 min | |
+| measurement | reserved | 0 | | 2 min | 100 |
+| checking | the incident engine's targeted checks | 400 ms | 30 s | 10 min | 100 |
+
+The collector's poll never waits behind other work: enrichment has its own lane (D-321), and
+the collector's backfill and reconciliation leave the poll 3 s of the collector's bucket (so
+they wait out a slow start after CAUTION, when the bucket is smaller than that). "At once" is what a
+lane's bucket may hold while the SIEM is NORMAL; it changes neither the refill nor the day.
+`argus siem status` shows each lane's server time today.
 
 A smaller ceiling scales the lanes with it. To halve ARGUS's daily load:
 

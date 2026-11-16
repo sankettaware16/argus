@@ -121,7 +121,16 @@ def admit(
     *,
     scale: float,
     lease_id: str,
+    kept_ms: int = 0,
 ) -> tuple[Admission, BudgetState]:
+    """Admit one request. ``kept_ms``: server time the request must leave in the bucket for
+    others (the collector's poll, ``lanes.kept_for_poll``), counted against the bucket at full
+    scale: a request keeping a reserve is admitted once the full-scale bucket is full, and
+    while the scale is below 1 (a slow start, CAUTION) it waits whenever that bucket is too
+    small to hold its estimate and the reserve. A request keeping nothing is always admitted
+    once the bucket is full."""
+    if kept_ms < 0:
+        raise ValueError("a request keeps no less than nothing for others")
     if cost is not CostClass.PROBE and not 0 < scale <= 1:
         raise ValueError("work other than probes needs a budget scale in (0, 1]")
     state = roll(state, config, now, max(scale, 0.0))
@@ -152,7 +161,10 @@ def admit(
     if state.day_used_ms + reserved + estimate > config.took_per_day_ms:
         return Admission(Verdict.EXHAUSTED, "daily"), state
     tokens = state.tokens_ms or 0.0
-    needed = min(estimate, capacity(config, scale))
+    if kept_ms:
+        needed = min(estimate + kept_ms, capacity(config, 1.0))
+    else:
+        needed = min(estimate, capacity(config, scale))
     if tokens < needed:
         rate = config.took_per_minute_ms * scale / 60_000  # per millisecond
         return wait("server_time", now + timedelta(milliseconds=(needed - tokens) / rate))

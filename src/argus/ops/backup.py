@@ -517,7 +517,7 @@ async def dump(settings: Settings, kind: Kind, *, now: datetime | None = None) -
             path=target.with_suffix(MANIFEST_SUFFIX),
         )
         _write_json(manifest.path, manifest.as_json())
-        prune(base, settings.backup, apply=True)
+        prune(base, settings.backup, apply=True, now=now)
     return manifest
 
 

@@ -1,0 +1,10 @@
+[Unit]
+Description=ARGUS checking lane pass (P4-F E3, D-323): exposure checks and the evidence of the engine's outbound incidents
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus risk check --once
+TimeoutStartSec=20min
+MemoryMax=512M
+Nice=10

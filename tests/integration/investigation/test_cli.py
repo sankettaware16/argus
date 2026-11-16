@@ -185,6 +185,34 @@ async def test_check_more_queues_when_the_check_may_be_asked(
     assert await count(app_engine, "investigation_checks") == 1
 
 
+@pytest.mark.usefixtures("cli_env")
+async def test_check_more_queues_a_persons_check_while_the_siem_is_not_normal(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-325: a person's request waits for the SIEM, it is not refused because of it."""
+    monkeypatch.setenv("ARGUS_ENRICHMENT__PROXY_AGGREGATIONS", "true")
+    inv = await seed(migrated_engine, body(), decided=True)
+    store = PgStore(app_engine, BudgetConfig(), LanePlan())
+    await store.save_health(HealthMemory(state=HealthState.CAUTION, probed_at=NOW))
+    code, out = await cli("investigation", "check-more", str(inv), "proxy.host", HOST,
+                          "--dry-run")  # fmt: skip
+    assert code == 0, out
+    assert "it stays queued" in out
+    assert await count(app_engine, "investigation_checks") == 0
+    code, out = await cli("investigation", "check-more", str(inv), "proxy.host", HOST)
+    assert code == 0, out
+    assert "refused" not in out
+    assert out.startswith("queued: the SIEM is not in its normal state")
+    assert "once the SIEM is back to normal" in out
+    async with app_engine.connect() as conn:
+        status = (await conn.execute(text("SELECT status FROM investigation_checks"))).scalar()
+    assert status == "queued"
+    # a check that cannot be asked at all is still refused, whatever the SIEM's state
+    code, out = await cli("investigation", "check-more", str(inv), "proxy.host", C2)
+    assert "refused:" in out
+    assert await count(app_engine, "investigation_checks") == 1
+
+
 async def gold(owner: AsyncEngine, answers: dict[uuid.UUID, str]) -> None:
     async with owner.begin() as conn:
         user = (

@@ -77,3 +77,64 @@ async def test_the_switch_stops_the_old_suggester_and_one_setting_brings_it_back
     assert code == 0, out
     assert asked == [True, True, False, True]
     assert await mode() is False
+
+
+@pytest.mark.usefixtures("cli_env", "service")
+async def test_ai_readings_run_only_while_the_engine_presents_and_the_setting_is_on(
+    app_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``risk.reading`` (D-324): a step of the assessment service while the engine presents, with
+    the LLM gateway built once; off, or with no recent presenter pass, it is never asked."""
+    from argus.risk import reading_run
+
+    passes: list[datetime] = []
+    built: list[int] = []
+
+    class Transport:
+        async def aclose(self) -> None:
+            return None
+
+    def reader(_db: Any) -> tuple[Any, Any, Any]:
+        built.append(1)
+        return (None, Transport(), None)
+
+    async def run_pass(*args: Any, **kwargs: Any) -> reading_run.Report:
+        passes.append(args[3])
+        return reading_run.Report(written={"story": 1})
+
+    monkeypatch.setattr("argus.assess.cli._reader", reader)
+    monkeypatch.setattr("argus.assess.cli._no_model", lambda: None)
+    monkeypatch.setattr("argus.risk.reading_run.run_pass", run_pass)
+    monkeypatch.setenv("ARGUS_RISK__PRESENT", "true")
+    code, out = await run_once()  # nothing presents: no reading
+    assert code == 0, out
+    assert passes == []
+    async with app_engine.begin() as conn:
+        await present.record_mode(conn, True, datetime.now(UTC))
+    monkeypatch.setenv("ARGUS_RISK__READING", "false")
+    code, out = await run_once()  # presenting, the setting off: no reading
+    assert code == 0, out
+    assert passes == []
+    monkeypatch.setenv("ARGUS_RISK__READING", "true")
+    code, out = await run_once()
+    assert code == 0, out
+    assert len(passes) == 1
+    assert built == [1]
+    assert "ARGUS AI's reading: 1 story" in out
+
+
+@pytest.mark.usefixtures("cli_env", "service")
+async def test_a_presenter_pass_a_cycle_ago_still_holds_the_switch(
+    app_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The presenter runs every 10 minutes and stamps the time it started: a pass 12 minutes ago
+    (a late timer, a long pass) still holds the old feeds off, so they do not come back for a
+    minute or two every cycle (D-324)."""
+    monkeypatch.setenv("ARGUS_RISK__PRESENT", "true")
+    async with app_engine.begin() as conn:
+        await present.record_mode(conn, True, datetime.now(UTC) - timedelta(minutes=12))
+    code, out = await run_once()
+    assert code == 0, out
+    assert "no presenter pass" not in out
+    async with app_engine.connect() as conn:
+        assert (await conn.execute(text("SELECT present FROM risk_mode"))).scalar_one() is True

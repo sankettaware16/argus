@@ -57,7 +57,7 @@ from argus.cases.machine import RAISED_REASON, AfterClosure, CaseRefused, Link, 
 from argus.cases.model import CONFIRMED, Actor, Indicator, Member, Severity
 from argus.cases.service import CaseService
 from argus.risk import alternatives as alt
-from argus.risk import lifecycle, score, titles
+from argus.risk import lifecycle, outbound_db, score, titles
 from argus.risk import priority as prio
 from argus.risk.config import RiskConfig
 from argus.risk.lifecycle import Incident, Material
@@ -66,7 +66,11 @@ from argus.risk.observe import ObjectRef, Observation
 log = logging.getLogger("argus.risk")
 PART = "engine"  # ARGUS acts as ``argus:engine``
 MEMORY = timedelta(days=30)  # a closed case keeps its incident quiet (D-309 (4))
-ALIVE = timedelta(minutes=10)  # a presenting pass this recent: the old feeds may stop
+# A presenting pass this recent: the old feeds may stop. The pass runs every 10 minutes (a oneshot
+# timer, up to a minute late) and records the time it started only when it commits, so a window
+# of 10 minutes lapsed for a minute or two each cycle and the old feeds (the per-pattern AI runs
+# among them) came back each time (D-324). Two missed passes still bring them back.
+ALIVE = timedelta(minutes=25)
 GRAY_KEPT = 20  # gray-band items kept (Today shows five)
 MEMBERS_MAX = 200  # alert groups one case takes
 THREATS_KEPT = 20  # rare outside values a new case holds as indicators
@@ -265,9 +269,12 @@ def value(
     objects: Sequence[Obj], now: datetime, ctx: Context, *, confirmed: bool,
     reach: Mapping[str, int], signals: Iterable[str], rule_names: Mapping[str, str],
     lanes: Collection[str], last_seen: datetime | None,
+    measured: Sequence[alt.Measured] = (),
 ) -> Value:  # fmt: skip
     """An incident's priority, band, certainty, why line, checks and alternatives from its
-    objects (pure)."""
+    objects (pure). ``measured``: what the checking lane found for it (D-323); it changes the
+    checks, the alternatives and so the certainty word, never the priority (its facts reach the
+    score only as the engine's observations)."""
     config, w = ctx.config, ctx.weights
     words = words_for(config, rule_names)
     facts = facts_of(objects, last_seen)
@@ -284,7 +291,7 @@ def value(
         object_kinds=frozenset(o.kind for o in objects), hubs=sum(o.hub for o in objects),
         named_hosts=sum(o.key.startswith("host:") for o in objects), objects=len(objects),
         reach=dict(reach), signals=frozenset(signals),
-        acting=any(o.kind != "site" for o in objects),
+        acting=any(o.kind != "site" for o in objects), measured=tuple(measured),
     )  # fmt: skip
     found = alt.alternatives(tests)
     word = alt.certainty(confirmed=confirmed, lanes=lanes, strong=strong, found=found)
@@ -483,6 +490,7 @@ class World:
     rule_names: dict[str, str]
     shown_today: int
     gray_stored: set[int]
+    measured: dict[int, list[alt.Measured]] = field(default_factory=dict)  # incident -> (D-323)
 
 
 async def read(
@@ -550,8 +558,9 @@ async def read(
         {"d": site_day(now), "mode": mode_of(ctx)},
     )).scalar_one())  # fmt: skip
     gray_stored = {int(i) for i in (await conn.execute(_GRAY_HELD)).scalars()}
+    measured = await outbound_db.measured_for(conn, sorted(by_id))
     return World(stored, verdicts, ids, frozenset(hubs), criticality, threats, reach, signals,
-                 rule_names, shown_today, gray_stored)  # fmt: skip
+                 rule_names, shown_today, gray_stored, dict(measured))  # fmt: skip
 
 
 # --------------------------------------------------------------------------- planning (pure)
@@ -665,7 +674,7 @@ def plan(world: World, now: datetime, ctx: Context) -> Plan:
         signals = {n for g in s.groups for n in world.signals.get(g.id, ())}
         v = value(objs, now, ctx, confirmed=s.case_state in CONFIRMED, reach=reach,
                   signals=signals, rule_names=world.rule_names, lanes=s.lanes,
-                  last_seen=s.last_seen)  # fmt: skip
+                  last_seen=s.last_seen, measured=world.measured.get(s.id, ()))  # fmt: skip
         requeued = s.material_at == now and s.version > 1
         new = s.created_at == now
         view = {**s.view, **v.view(), "groups": len(s.groups),
@@ -788,6 +797,26 @@ async def _title(conn: AsyncConnection, p: Planned, world: World, ctx: Context) 
     except DBAPIError:
         return fallback
     return (made or fallback)[:200]
+
+
+async def _certainty_title(conn: AsyncConnection, p: Planned, ctx: Context) -> str:
+    """The stored title with its certainty word following the engine's, once the incident has
+    the checking lane's evidence (D-323), which can move it; the other words stay until a
+    material change retitles them (``titles.retitle``)."""
+    current = p.title
+    word, _ = titles.split_certainty(current)
+    if word is None or word == p.value.certainty or p.value.certainty not in naming.CERTAINTIES:
+        return current
+    try:
+        async with conn.begin_nested():
+            facts = await titles.read_facts(conn, p.id, titles.Context(ctx.classifier))
+    except (DBAPIError, ValueError):
+        return current
+    if facts is None:
+        return current
+    made = titles.retitle(current, facts, p.value.certainty, material=False,
+                          confirmed=p.confirmed)  # fmt: skip
+    return current if made is None else made.text[:200]
 
 
 _UPDATE = text(
@@ -919,6 +948,8 @@ async def run(
         for p in planned.incidents:
             if p.retitle:
                 p.title = await _title(conn, p, world, ctx)
+            elif world.measured.get(p.id) and p.stored.title:
+                p.title = await _certainty_title(conn, p, ctx)
         await _write(conn, planned, world, now)
     report.gray = len(planned.gray)
     for p in planned.incidents:

@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from argus.assess import raised
+from argus.collector.lateness import reading_sql
 
 HumanState = Literal["unreviewed", "reviewed", "follow_up", "changed_since_review"]
 View = Literal["attention", "open", "reviewed", "all", "known"]
@@ -547,7 +548,14 @@ GAP_WORDS = {
     "argus_collector_lag": "ARGUS was not collecting",
     "breaker_open": "the SIEM was overloaded",
 }
+# A collector gap that was only lateness (argus.collector.lateness, D-321)
+LATE_WORDS = {
+    "late": "ARGUS collected late (caught up; nothing missed)",
+    "late_unchecked": "ARGUS collected late (caught up; the check that nothing was missed has"
+    " not run yet)",
+}
 LAG_WORDS = {  # the gateway's refusal reasons (gateway.errors), in plain words
+    "lane_busy": "its own SIEM budget was busy with other work",
     "deadline_passed": "a request ran out of time",
     "deferred": "the SIEM was busy, so ARGUS waited",
     "breaker_open": "the SIEM was overloaded, so ARGUS waited",
@@ -565,17 +573,26 @@ LAG_WORDS = {  # the gateway's refusal reasons (gateway.errors), in plain words
 
 def banners(gaps: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """The coverage gaps as a few plain warnings: the runs at the alert limit together (one
-    line, their times listed), each outage on its own line, the newest last."""
+    line, their times listed), each outage on its own line, the newest last. A collector gap
+    that was only lateness (``reading`` late) is a note, not a warning: ``late`` is set."""
     out: list[dict[str, Any]] = []
     limited = [g for g in gaps if g["kind"] == "truncated_execution"]
     for g in gaps:
         if g["kind"] == "truncated_execution":
+            continue
+        reading = g.get("reading") or "outage"
+        if reading in LATE_WORDS:
+            out.append({
+                "kind": g["kind"], "start_at": g["start_at"], "end_at": g["end_at"],
+                "text": LATE_WORDS[reading], "late": reading == "late",
+            })  # fmt: skip
             continue
         detail = str(g.get("detail") or "")
         out.append({
             "kind": g["kind"], "start_at": g["start_at"], "end_at": g["end_at"],
             "text": GAP_WORDS.get(g["kind"], g["kind"].replace("_", " "))
             + (f" ({LAG_WORDS.get(detail, detail.replace('_', ' '))})" if detail else ""),
+            "late": False,
         })  # fmt: skip
     if limited:
         out.append({
@@ -643,7 +660,8 @@ async def coverage(conn: AsyncConnection, inv: Summary) -> list[dict[str, Any]]:
         return []
     rows = await conn.execute(
         text(
-            "SELECT kind, start_at, end_at, detail FROM coverage_gaps"
+            f"SELECT kind, start_at, end_at, detail, {reading_sql('g')} AS reading"  # noqa: S608 - a constant fragment; values are bound
+            " FROM coverage_gaps g"
             " WHERE start_at <= :last AND coalesce(end_at, 'infinity') >= :first"
             " AND (subject = 'alerts' OR subject LIKE 'rule:' || :rule || ':%')"
             " ORDER BY start_at LIMIT 500"
@@ -805,6 +823,8 @@ async def health(conn: AsyncConnection, now: datetime) -> dict[str, Any]:
             )
         )
     ]
+    for gap in gaps:  # the reason in plain words where it is the gateway's
+        gap["words"] = LAG_WORDS.get(str(gap["detail"] or ""))
     run = (
         await conn.execute(
             text(

@@ -15,11 +15,12 @@ from sqlalchemy import text
 from argus import raising
 from argus.agent.registry import Trigger
 from argus.assess import engine as decision
-from argus.assess import patterns, queue, runner
+from argus.assess import patterns, presented, queue, runner
 from argus.assets.store import NoAssetMapError
 from argus.db.errors import DB_ERRORS, short_db_error
 from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.llm.privacy import Privacy, PrivacyConfigError, load_policy, privacy_map
+from argus.ops.stopping import until_stopped
 
 assess_app = typer.Typer(no_args_is_help=True, help="Assessments: proposed outcomes (Phase 2).")
 
@@ -56,6 +57,14 @@ def assess_run(
         int, typer.Option(min=0, help="At most this many agent runs (patterns) a day.")
     ] = 100,
     agent_batch: Annotated[int, typer.Option(min=1, help="Agent runs per pass.")] = 3,
+    agent_presented_per_day: Annotated[
+        int,
+        typer.Option(
+            min=0,
+            help="While the incident engine presents: at most this many agent runs a day, on"
+            " the alert groups of presented P1-P3 incidents only.",
+        ),
+    ] = 40,
     tuning: Annotated[
         bool, typer.Option(help="Also write the weekly rule-tuning reports.")
     ] = False,
@@ -70,7 +79,9 @@ def assess_run(
     suggested or open case whose evidence changed (``incident.*``). With --agent, what the engine
     cannot decide goes to the investigation agent once per pattern, within a daily quota; the
     agent's files are checked every pass, and while they are refused the agent is off and the
-    engine keeps running."""
+    engine keeps running. While the incident engine presents (``risk.present``), the agent reads
+    only the alert groups of presented P1-P3 incidents (``--agent-presented-per-day``), and with
+    ``risk.reading`` the presented incidents get ARGUS AI's reading (``argus.risk.reading``)."""
     settings = load(config)
     privacy = _privacy(settings)
     owner = f"{socket.gethostname()}:{os.getpid()}"
@@ -82,6 +93,8 @@ def assess_run(
         incident_prose: Any = None  # the summary's prose for the incident reports, when on
         close_prose: Any = None
         prose_off = False  # the gateway could not be built: not tried again this run
+        reader: Any = None  # ARGUS AI's reading (risk.reading): the gateway and its config
+        reading_off = False
         off: str | None = None  # why the agent is off, as last said
         suggested_at: datetime | None = None  # when cases were last suggested
         titled_at: datetime | None = None  # when the case titles were last refreshed
@@ -156,6 +169,12 @@ def assess_run(
                         typer.echo(line)
                     for line in wrote.warned:
                         typer.echo(line, err=True)
+                if settings.risk.reading and engine_on and not reading_off:
+                    if reader is None and _no_model() is None:
+                        reader = _reader(db)
+                        reading_off = reader is None
+                    if reader is not None:
+                        await _readings(db, privacy, reader, now)
                 if settings.signins.enabled:  # who was behind an address; never stops the pass
                     await _signins(settings, db, deep, classifier)
                 else:  # the retention of what was kept holds with the switch off
@@ -191,20 +210,30 @@ def assess_run(
                     if investigator is None:
                         investigator, close = _agent(settings, privacy, db, agents, outside)
                     handed = patterns.Scheduled(0, 0)
-                    # with risk.present the per-pattern runs stop: v2's incidents are the queue
-                    if not engine_on and investigator.takes(
-                        Trigger.ENGINE_NO_DECISION
-                    ):  # its file may say not
+                    # with risk.present the per-pattern runs stop: v2's incidents are the queue,
+                    # and the agent reads only what a person reads (D-324)
+                    if investigator.takes(Trigger.ENGINE_NO_DECISION):  # its file may say not
                         async with db.begin() as conn:
-                            handed = await patterns.schedule(
-                                conn, privacy, investigator.name, now, limit=agent_batch,
-                                after=decision.NAME, per_day=agent_per_day, skip=owed,
-                            )  # fmt: skip
+                            if engine_on:
+                                handed = await presented.schedule(
+                                    conn, privacy, investigator.name, now, limit=agent_batch,
+                                    per_day=min(agent_per_day, agent_presented_per_day),
+                                    after=decision.NAME, skip=owed,
+                                )  # fmt: skip
+                            else:
+                                handed = await patterns.schedule(
+                                    conn, privacy, investigator.name, now, limit=agent_batch,
+                                    after=decision.NAME, per_day=agent_per_day, skip=owed,
+                                )  # fmt: skip
                     done = await runner.run_once(
                         db, investigator, owner, lambda: datetime.now(UTC), agent_batch
                     )
                     shown = " ".join(f"{k} {v}" for k, v in done.items() if v)
-                    said = f"queued {handed.queued} patterns, shared {handed.shared}"
+                    said = (
+                        f"queued {handed.queued} for presented incidents"
+                        if engine_on
+                        else f"queued {handed.queued} patterns, shared {handed.shared}"
+                    )
                     typer.echo(f"agent: {said} {shown}".rstrip())
                 if tuning and await _tuning_due(db, now):
                     from argus.tuning.cli import run as tune
@@ -220,11 +249,13 @@ def assess_run(
                 await close()
             if close_prose is not None:
                 await close_prose()
+            if reader is not None:
+                await reader[1].aclose()
             if deep is not None:
                 await deep[1]()
             await db.dispose()
 
-    _run(loop())
+    _run(until_stopped(loop()))  # a stop cancels the pass: exit 0 (D-322)
 
 
 async def _signins(settings: Any, db: Any, deep: Any, classifier: Any) -> None:
@@ -303,6 +334,38 @@ async def _incident_prose(settings: Any, privacy: Privacy, db: Any) -> tuple[Any
         return await prose.improve(report, gateway.complete, privacy.campus)
 
     return words, transport.aclose, False
+
+
+def _reader(db: Any) -> tuple[Any, Any, Any] | None:
+    """The LLM gateway for ARGUS AI's reading (its complete function, its transport and the LLM
+    configuration), or None when it cannot be built (said once; the queue is unchanged)."""
+    from argus.llm.providers import load_config
+    from argus.llm.service import build_gateway
+    from argus.llm.wire import HttpxLlmTransport
+
+    try:
+        llm = load_config()
+        transport = HttpxLlmTransport(llm)
+        gateway = build_gateway(db, llm, transport)
+    except Exception as exc:  # no keys, no providers file: no reading, nothing else changes
+        typer.echo(f"ARGUS AI's reading: no model ({type(exc).__name__}): off this run", err=True)
+        return None
+    return gateway.complete, transport, llm
+
+
+async def _readings(db: Any, privacy: Privacy, reader: tuple[Any, Any, Any], now: datetime) -> None:
+    """One pass of ARGUS AI's reading (``argus.risk.reading_run``); a failure is said and the
+    loop goes on."""
+    from argus.risk import reading_run
+
+    try:
+        report = await reading_run.run_pass(db, privacy, reader[0], now, reader[2])
+    except Exception as exc:  # the readings are text only: their failure never stops a pass
+        typer.echo(f"ARGUS AI's reading: failed ({type(exc).__name__})", err=True)
+        return
+    line = report.line()
+    if line is not None:
+        typer.echo(line)
 
 
 async def _investigation(settings: Any, privacy: Privacy, db: Any) -> Any:

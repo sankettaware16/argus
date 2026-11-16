@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.assess import runner
 from argus.gateway.errors import TimedOutError
-from argus.gateway.health import HealthState
+from argus.gateway.health import HealthMemory, HealthState
+from argus.gateway.state import MemoryStore
 from argus.gateway.templates import Purpose
 from argus.investigation import checks, store, wave
 from tests.integration.investigation.kit import (
@@ -246,6 +247,79 @@ async def test_requests_wait_while_siem_is_not_normal(
     assert await wave.run_pass(env(app_engine, gateway), "w", wave=True) == ZERO
     assert (await rows(app_engine, "SELECT status FROM investigation_checks"))[0].status == "queued"
     assert gateway.calls == []
+
+
+class Turning(MemoryStore):
+    """The SIEM's health as it turns: NORMAL for the first ``normal`` readings, then CAUTION (the
+    pass found it NORMAL; the check, read a moment later, does not)."""
+
+    def __init__(self, normal: int) -> None:
+        super().__init__(memory=HealthMemory(state=HealthState.NORMAL, probed_at=NOW))
+        self.left = normal
+
+    async def health(self) -> HealthMemory:
+        if self.left <= 0:
+            return HealthMemory(state=HealthState.CAUTION, probed_at=NOW)
+        self.left -= 1
+        return self.memory
+
+
+@pytest.mark.parametrize(
+    ("template", "normal"),
+    [
+        ("proxy.contact", 1),  # turned before the check was planned
+        ("proxy.contact", 2),  # turned between the plan and the send (batch 1's own rules)
+        ("proxy.host", 2),  # the gateway's own check at the send
+    ],
+)
+async def test_a_persons_check_waits_when_the_siem_turns_as_it_is_claimed(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine, template: str, normal: int
+) -> None:
+    """D-325: a person's check claimed in the moment the SIEM leaves NORMAL is put back, never
+    refused, and runs once the SIEM is back."""
+    inv = await seed(migrated_engine, body(steps=TIMELINE), decided=True)
+    entity = C2 if template == "proxy.contact" else HOST
+    await queue(app_engine, inv, "check", "person", template=template, entity=entity,
+                requested_by="asha")  # fmt: skip
+    gateway = FakeGateway(Turning(normal))
+    e = env(app_engine, gateway)
+    assert await wave.run_pass(e, "w", wave=False) == {**ZERO, "waiting": 1}
+    (row,) = await rows(app_engine, "SELECT status, outcome FROM investigation_checks")
+    assert row.status == "queued"
+    assert row.outcome is None or "error" not in row.outcome
+    assert e.hold_until is not None  # the service holds off for a while
+    sent = [c[0] for c in gateway.calls]  # only the gateway's own check lets the call start
+    assert sent == ([template] if template == "proxy.host" else [])
+    later = FakeGateway(healthy())
+    assert await wave.run_pass(env(app_engine, later), "w", wave=False) == {**ZERO, "done": 1}
+    (row,) = await rows(app_engine, "SELECT status FROM investigation_checks")
+    assert row.status == "done"
+
+
+async def test_an_engine_wave_planned_as_the_siem_turns_waits_too(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine
+) -> None:
+    inv = await seed(migrated_engine, body(steps=TIMELINE))
+    assert await queue(app_engine, inv, "wave", "engine") is not None
+    gateway = FakeGateway(Turning(1))
+    done = await wave.run_pass(env(app_engine, gateway), "w", wave=False)
+    assert done == {**ZERO, "waiting": 1}
+    (row,) = await rows(app_engine, "SELECT status FROM investigation_checks")
+    assert row.status == "queued"
+    assert gateway.calls == []
+
+
+async def test_a_check_that_cannot_be_asked_is_still_refused_whatever_the_siem(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine
+) -> None:
+    inv = await seed(migrated_engine, body(), decided=True)
+    await queue(app_engine, inv, "check", "person", template="proxy.host", entity=C2,
+                requested_by="asha")  # fmt: skip
+    e = env(app_engine, FakeGateway(Turning(1)))
+    assert await wave.run_pass(e, "w", wave=False) == {**ZERO, "refused": 1}
+    (row,) = await rows(app_engine, "SELECT status, outcome FROM investigation_checks")
+    assert row.status == "refused"
+    assert "takes an internal address, not a public one" in row.outcome["error"]
 
 
 async def test_the_engines_waves_go_by_importance_within_the_days_cap(

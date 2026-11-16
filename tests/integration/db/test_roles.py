@@ -696,7 +696,7 @@ def test_the_runtime_grants_match_migration_0003(monkeypatch: pytest.MonkeyPatch
         "risk_object_scores", "risk_crossings", "risk_incidents", "risk_incident_objects",
         "risk_incident_groups", "risk_links", "risk_threats", "risk_aliases", "exposure_checks",
         "case_holds", "case_seen", "spot_checks", "user_rounds", "report_sends",
-        "risk_gray_items", "risk_mode",
+        "risk_gray_items", "risk_mode", "risk_evidence", "risk_readings",
     }  # fmt: skip
     assert roles.RUNTIME_GRANTS["alembic_version"] == roles.TableGrant(select=True)
     assert roles.RUNTIME_GRANTS["audit_events"].update == ()
@@ -825,6 +825,8 @@ MIRROR_0034 = ("case_id", "kibana_case_id", "kibana_version", "status", "title",
          ("GRANT UPDATE (title, certainty, shown, shown_day, queued_at, raised_by_ai, presented,"
           " presented_at) ON risk_incidents TO argus_runtime",
           "risk_gray_items", "risk_mode")),
+        ("0101_risk_evidence", ("risk_evidence",)),
+        ("0104_risk_readings", ("risk_readings",)),
     ],
 )  # fmt: skip
 def test_the_runtime_grants_match_each_migration(

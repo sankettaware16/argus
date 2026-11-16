@@ -761,3 +761,21 @@ async def test_the_asker_tells_a_missing_stream_from_an_expired_day(
     answer = await asker.ask(task)
     assert answer.refused == refused
     assert (answer.refused in watch.FINAL_REFUSALS) is (reason == "source_expired")
+
+
+def test_a_collector_delay_not_yet_checked_is_asked_again_not_final() -> None:
+    """D-321: a collector gap closed within the hour whose reconciliation has not run yet
+    (``late_unchecked``) may still prove an outage or only lateness: the day waits for the next
+    run. A real gap touching the day stays final whatever else is pending."""
+    live = DAY_END + timedelta(hours=2)
+    late = [(DAY_START + timedelta(hours=20), DAY_START + timedelta(hours=20, minutes=12))]
+    found = watch.coverage_reason(DAY_START, DAY_END, live, [], late)
+    assert found is not None
+    assert found[0] is False
+    assert "collected late" in found[1]
+    elsewhere = [(DAY_END + timedelta(minutes=5), DAY_END + timedelta(minutes=9))]
+    assert watch.coverage_reason(DAY_START, DAY_END, live, [], elsewhere) is None
+    stalled = [("source_stalled", DAY_START, DAY_START + timedelta(hours=1))]
+    final = watch.coverage_reason(DAY_START, DAY_END, live, stalled, late)
+    assert final is not None
+    assert final[0] is True

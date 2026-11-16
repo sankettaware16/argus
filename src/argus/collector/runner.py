@@ -15,7 +15,7 @@ from typing import Any
 
 from argus.collector import store
 from argus.collector.collector import LIVE, Collector, PollResult
-from argus.gateway.errors import BreakerOpenError, GatewayError, RefusedError
+from argus.gateway.errors import BreakerOpenError, GatewayError, LaneBusyError, RefusedError
 
 log = logging.getLogger("argus.collector")
 
@@ -28,6 +28,16 @@ BACKFILL_RETRY = timedelta(minutes=1)
 TICK = 5.0  # seconds between looks at the schedule
 GAP_KINDS = ("argus_collector_lag", "breaker_open")
 SUBJECT = "alerts"
+
+
+def gap_detail(exc: BaseException) -> str:
+    """Why a poll failed, as the gap records it: ``lane_busy`` when the collector's own budget
+    freed up only after the poll's deadline (nothing was sent: ARGUS's own load, not the
+    SIEM's), apart from a request that ran out of time (``deadline_passed``) and the gateway's
+    other reasons; anything else by its type's name (D-321)."""
+    if isinstance(exc, LaneBusyError):
+        return "lane_busy"
+    return exc.reason if isinstance(exc, GatewayError) else type(exc).__name__
 
 
 @dataclass
@@ -54,7 +64,7 @@ class Runner:
             result = await self.collector.poll()
         except Exception as exc:  # any failure, not only the gateway's: never a silent stall
             kind = "breaker_open" if isinstance(exc, BreakerOpenError) else "argus_collector_lag"
-            reason = exc.reason if isinstance(exc, GatewayError) else type(exc).__name__
+            reason = gap_detail(exc)
             async with self.engine.begin() as conn:
                 start = await store.cursor(conn, LIVE) or now
                 await store.open_gap(conn, kind, SUBJECT, start, reason)

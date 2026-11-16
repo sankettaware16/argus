@@ -374,6 +374,7 @@ class Preparer:
             per_day=cfg.per_day,
             canary=cfg.canary,
             min_update_gap=cfg.min_update_gap,
+            kibana_paused=await store.kibana_paused(conn, case_id),
         )
         needs_approval = not open_done and not in_progress and total < cfg.canary
         if needs_approval:

@@ -331,7 +331,9 @@ async def load(
         known_at = {r.id: (r.raised_at, r.stored_at)
                     for r in await conn.execute(_KNOWN_AT, {"ids": batch})}  # fmt: skip
         stored_answers = await exposure_db.followups(conn, batch)
-        for g in await store.groups(conn, batch, names, exposure=config.exposure):
+        # without the incident evidence (D-323): it was asked after the fact, for presented
+        # incidents only, and carries no time a step could honour
+        for g in await store.groups(conn, batch, names, exposure=config.exposure, measured=False):
             sources = tuple(exposure_db.outside_sources(g))
             answer_at: datetime | None = None
             if mode == "oracle" and oracle and sources:

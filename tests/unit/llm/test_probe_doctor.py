@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from cryptography import x509
 from pydantic import SecretStr
 
 from argus.llm import budget
@@ -153,7 +154,8 @@ def test_an_imported_certificate_is_checked(tmp_path: Path) -> None:
     )
     assert elsewhere is not None
     assert elsewhere.detail == "the certificate does not name 127.0.0.2"
-    late = llm_doctor.certificate_check(provider(ca_file=str(cert)), NOW + timedelta(days=810))
+    expires = x509.load_pem_x509_certificate(cert.read_bytes()).not_valid_after_utc
+    late = llm_doctor.certificate_check(provider(ca_file=str(cert)), expires + timedelta(days=1))
     assert late is not None
     assert not late.ok
     assert "run the setup again" in late.detail

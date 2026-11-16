@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import signal
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -21,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus.assets import load_asset_map
 from argus.assets.classify import IpClassifier
 from argus.config.errors import ConfigError
-from argus.config.settings import Settings
+from argus.config.settings import Settings, SiemSettings
 from argus.context import capacity, checkpoints
 from argus.context.packs import default_registry
 from argus.context.worker import Worker, WorkerConfig
@@ -29,7 +28,9 @@ from argus.db.errors import DB_ERRORS, short_db_error
 from argus.freshness.reader import policy_of
 from argus.gateway.budget import BudgetConfig
 from argus.gateway.cli import ConfigOption, engine_for, load
-from argus.gateway.service import build_gateway, collector_config, health_config
+from argus.gateway.lanes import Lane
+from argus.gateway.service import build_gateway, health_config, lane_plan
+from argus.ops.stopping import until_stopped
 
 FIRST_RUN_NAMES = frozenset(
     {"proxy.pair", "proxy.contact", "dns.host_domains", "web.path_outcomes", "logs.source_events"}
@@ -91,11 +92,8 @@ def worker_run(concurrency: Concurrency = 4, config: ConfigOption = None) -> Non
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     async def use(worker: Worker) -> None:
-        stop = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, stop.set)
-        await worker.run_forever(stop)
+        stop = asyncio.Event()  # a signal lets the running jobs finish (D-322)
+        await until_stopped(worker.run_forever(stop), stop=stop)
 
     asyncio.run(_with_worker(load(config), use, concurrency=concurrency))
 
@@ -220,19 +218,26 @@ async def load_changes(engine: AsyncEngine) -> list[tuple[datetime, int]]:
         return [(at, int(n)) for at, n in rows]
 
 
+def capacity_budget(siem: SiemSettings) -> BudgetConfig:
+    """The allowance enrichment spends: its own lane's (D-321), not the collector's."""
+    return lane_plan(siem).config(Lane.ENRICHMENT)
+
+
 def capacity_rows(
     changes: list[tuple[datetime, int]],
     profiles: list[str],
     outage: timedelta,
     budget: BudgetConfig,
 ) -> list[dict[str, Any]]:
+    """Each profile replayed through ``budget`` (the enrichment lane's): the collector's polls
+    are on their own lane, so none are modelled in it."""
     days = capacity.full_days(changes)
     start = capacity.busiest_start(changes, outage) if outage else None
     rows = []
     for name in profiles:
         profile = capacity.PROFILES[name]
         steady = capacity.simulate(
-            changes, capacity.Scenario(profile, capacity.LATENCY, budget=budget)
+            changes, capacity.Scenario(profile, capacity.LATENCY, budget=budget, collector_ms=())
         )
         row: dict[str, Any] = {
             "profile": name,
@@ -252,7 +257,7 @@ def capacity_rows(
         if start is not None:
             hit = capacity.simulate(
                 changes,
-                capacity.Scenario(profile, capacity.LATENCY, budget=budget,
+                capacity.Scenario(profile, capacity.LATENCY, budget=budget, collector_ms=(),
                                   outage=(start, start + outage)),
             )  # fmt: skip
             drained = hit.drained_after
@@ -300,8 +305,8 @@ def worker_capacity(
     if not changes:
         typer.echo("no stored alerts to replay")
         raise typer.Exit(1)
-    rows = capacity_rows(  # the collector's lane: the collector and enrichment share it
-        changes, names, timedelta(hours=outage_hours), collector_config(settings.siem)
+    rows = capacity_rows(
+        changes, names, timedelta(hours=outage_hours), capacity_budget(settings.siem)
     )
     first, last = min(changes)[0], max(changes)[0]
     typer.echo(f"{len(changes)} changes, {first:%Y-%m-%d %H:%M} to {last:%Y-%m-%d %H:%M} UTC")

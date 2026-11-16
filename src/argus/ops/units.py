@@ -47,6 +47,11 @@ MANIFEST: dict[str, tuple[Role, str]] = {
     "argus-soak-sample.service": (Role.TRIGGERED, "started by argus-soak-sample.timer"),
     "argus-risk.timer": (Role.CHOICE, "the incident engine's pass (P4-F, D-317)"),
     "argus-risk.service": (Role.TRIGGERED, "started by argus-risk.timer"),
+    "argus-risk-check.timer": (
+        Role.CHOICE,
+        "the checking lane: exposure checks and the engine incidents' evidence (D-323)",
+    ),
+    "argus-risk-check.service": (Role.TRIGGERED, "started by argus-risk-check.timer"),
     "argus-backup.timer": (Role.SOON, "the nightly dump (Q-A2)"),
     "argus-backup.service": (Role.TRIGGERED, "started by argus-backup.timer"),
     "argus-backup-drill.timer": (Role.SOON, "the weekly restore drill (Q-A2)"),

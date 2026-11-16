@@ -5,6 +5,7 @@ ledger rows with the new columns, the audited resume, the new switches."""
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -20,8 +21,14 @@ from argus.gateway import budget as bu
 from argus.gateway.budget import Verdict
 from argus.gateway.kibana import writes
 from argus.gateway.kibana.writes import WriteClass, WriteUnits
-from argus.gateway.lanes import Lane, LaneStates
-from argus.gateway.pgstore import SWITCHES, PgStore, lanes_from_json, lanes_to_json
+from argus.gateway.lanes import Lane, LanePlan, LaneStates
+from argus.gateway.pgstore import (
+    SWITCHES,
+    PgStore,
+    budget_to_json,
+    lanes_from_json,
+    lanes_to_json,
+)
 from argus.gateway.state import LedgerEntry
 from argus.gateway.templates import CostClass
 from tests.integration.gateway.test_pgstore import TIMES
@@ -246,3 +253,53 @@ async def test_ledger_rows_carry_the_lane_and_the_write(app_engine: AsyncEngine)
     with pytest.raises(DBAPIError):  # still append-only for the runtime role
         async with app_engine.begin() as conn:
             await conn.execute(text("UPDATE siem_requests SET outcome = 'x'"))
+
+
+async def test_the_enrichment_lane_starts_from_a_row_stored_before_it(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine
+) -> None:
+    """Production's 'lanes' row holds every other lane's bucket (D-321): the enrichment lane
+    starts full beside them, its requests are ledgered as its own, and the collector's
+    bucket does not pay for them; the reserve for the poll holds in Postgres too."""
+    before = {
+        "buckets": {"investigation": bu_json(9_000), "checking": bu_json(1_000)},
+        "starts": {"identity": [T0.isoformat()]},
+    }
+    async with migrated_engine.begin() as conn:
+        await conn.execute(
+            text("UPDATE siem_state SET state = CAST(:s AS jsonb) WHERE name = 'lanes'"),
+            {"s": json.dumps(before)},
+        )
+    store = PgStore(app_engine, LanePlan().config(Lane.COLLECTOR), LanePlan())
+    admitted = await store.lane_admit(Lane.ENRICHMENT, CostClass.HEAVY, T0, 1.0, "e1")
+    assert admitted.verdict is Verdict.ADMITTED
+    assert admitted.lease is not None
+    await store.lane_settle(Lane.ENRICHMENT, admitted.lease, 3_900, T0, 1.0)
+    lanes = await store.lanes()
+    assert lanes.bucket(Lane.ENRICHMENT).day_used_ms == 3_900
+    assert lanes.bucket(Lane.ENRICHMENT).tokens_ms == 10_000 - 3_900  # it started full
+    assert lanes.bucket(Lane.INVESTIGATION).day_used_ms == 9_000  # the others kept
+    assert (await store.budget()).day_used_ms == 0
+    await store.record(LedgerEntry(
+        T0, "enrichment", "enrich", "proxy.host", 1, (), "ok", 200, 3_900, 4_000, 10, 1,
+        lane="enrichment",
+    ))  # fmt: skip
+    async with migrated_engine.connect() as conn:
+        assert (await conn.execute(text("SELECT lane FROM siem_requests"))).scalar_one() == (
+            "enrichment"
+        )
+    async with migrated_engine.begin() as conn:  # the collector's bucket nearly spent
+        spent = bu.BudgetState(tokens_ms=900.0, refilled_at=T0, day=T0.date())
+        await conn.execute(
+            text("UPDATE siem_state SET state = CAST(:s AS jsonb) WHERE name = 'budget'"),
+            {"s": json.dumps(budget_to_json(spent))},
+        )
+    kept = await store.budget_admit(CostClass.LIGHT, T0, 1.0, "r1", kept_ms=1_000)
+    assert (kept.verdict, kept.reason) == (Verdict.WAIT, "server_time")
+    polled = await store.budget_admit(CostClass.LIGHT, T0, 1.0, "p1")
+    assert polled.verdict is Verdict.ADMITTED
+
+
+def bu_json(used: int) -> dict[str, object]:
+    return budget_to_json(bu.BudgetState(day=T0.date(), day_used_ms=used, tokens_ms=0.0,
+                                         refilled_at=T0))  # fmt: skip

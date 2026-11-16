@@ -271,6 +271,17 @@ class Publish:
 
 
 @dataclass(frozen=True)
+class TeamOpened:
+    """ARGUS records that its case team opened the case in Kibana (``incident_id`` the IR number,
+    ``kibana_case_id`` the case it read back): the case no longer waits for someone who may open
+    it there. Any state; the machine plans no Kibana write (the team keeps its own case), and the
+    case stays unmirrored (the outbox writes only to a case ARGUS created)."""
+
+    incident_id: str
+    kibana_case_id: str
+
+
+@dataclass(frozen=True)
 class RequestClosure:
     reason: Reason
     note: str | None = None
@@ -343,6 +354,7 @@ Command = (
     | AddressMoved
     | Retitle
     | Publish
+    | TeamOpened
     | RequestClosure
     | ProposeClosure
     | RequestMerge
@@ -832,6 +844,16 @@ def decide(
             after = replace(case, mirrored=True, kibana_wait=None, version=case.version + 1)
             write = kibana.create(after, span, by_person=by_person)
             return Step("published", case, after, {}, (write,))
+        case TeamOpened(incident_id=incident_id, kibana_case_id=kibana_case_id):
+            _argus(actor, "recording the case team's Kibana case")
+            if case.kibana_wait is None:
+                raise _refuse("conflict", "the case does not wait for Kibana")
+            if not incident_id.strip() or not kibana_case_id.strip():
+                raise _refuse("invalid", "the case team's Kibana case names its IR and its id")
+            after = replace(case, kibana_wait=None, version=case.version + 1)
+            details = {"by": "case_team", "incident_id": incident_id,
+                       "kibana_case_id": kibana_case_id}  # fmt: skip
+            return Step("published", case, after, details, ())
         case RequestClosure(reason=reason, note=note, window=window):
             _person(actor, Capability.MANAGE, "requesting a closure")
             _state(case, CONFIRMED, "request closing")

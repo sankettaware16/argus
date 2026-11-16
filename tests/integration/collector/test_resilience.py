@@ -159,10 +159,11 @@ async def test_an_outage_opens_one_gap_and_recovery_reconciles(app_engine: Async
     assert gaps == [("argus_collector_lag", NOW, None)]
     es.before = None
     clock.advance(MIN)
+    recovered = clock.now  # the poll's time: later jobs of the step may wait for the budget
     await runner.step()
     async with app_engine.connect() as conn:
         gaps = (await conn.execute(text("SELECT kind, end_at FROM coverage_gaps"))).all()
-    assert gaps == [("argus_collector_lag", clock.now)]
+    assert gaps == [("argus_collector_lag", recovered)]
     assert set(await stored(app_engine)) == es.ids()
     clock.advance(MIN)
     await runner.step()  # the reconciliation the recovery scheduled

@@ -57,6 +57,11 @@ def count(n: int) -> str:
     return f"{n:,}"
 
 
+def times(n: int) -> str:
+    """``1 time`` / ``4,120 times``."""
+    return f"{n:,} {'time' if n == 1 else 'times'}"
+
+
 def dwell(span: timedelta) -> str:
     """A span in the two biggest units: ``13 days 4 hours``, ``2 hours 5 minutes``,
     ``under a minute``."""

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from argus import site
 from argus.cases import chain, known, knownview
+from argus.collector.lateness import LATE_KIND, LATE_WITHIN, reading_sql
 from argus.db.models import CLOSURE_REASONS, OUTCOMES
 from argus.reporter.model import Metric, Section, Unit, Value, Window
 from argus.responder.machine import ist_day
@@ -31,13 +32,15 @@ HOSTS_SHOWN = 20
 NOTIFIED_SHOWN = 30  # notified cases the weekly report lists one by one
 CONFIRMED = "('open', 'assigned', 'contained')"
 LANES = (
-    "collector", "investigation", "freshness", "kibana_read", "kibana_write", "identity",
-    "measurement", "unassigned",
+    "collector", "enrichment", "investigation", "freshness", "kibana_read", "kibana_write",
+    "identity", "measurement", "checking", "unassigned",
 )  # fmt: skip
 LANE_WORDS = {
-    "collector": "reading alerts", "investigation": "investigating", "freshness": "log freshness",
+    "collector": "reading alerts", "enrichment": "gathering evidence",
+    "investigation": "investigating", "freshness": "log freshness",
     "kibana_read": "reading Kibana", "kibana_write": "writing to Kibana",
-    "identity": "sign-in checks", "measurement": "measuring", "unassigned": "not tagged",
+    "identity": "sign-in checks", "measurement": "measuring",
+    "checking": "the incident engine's checks", "unassigned": "not tagged",
 }  # fmt: skip
 DAY_CAP_MS = 3_600_000  # 60 minutes of the SIEM server time a day (argus.soak.DAY_CAP_MS)
 # What a person did in Kibana to an ARGUS case, around ARGUS's approvals.
@@ -52,6 +55,7 @@ UNEXPLAINED_KINDS = ("unexplained_argus_action", "unexplained_argus_case",
 OUTBOX_BACKLOG = "('planned', 'approved', 'sending')"
 LEDGER_OUTCOMES = ("sent", "ambiguous", "conflict", "refused", "failed")
 ACTION_STATES = ("recommended", "requested", "reported_done", "verified", "not_verified")
+GAP_LABELS = {"argus_collector_lag": "ARGUS was not collecting"}  # its late stretches: gaps.late
 PROBE_STATES = ("normal", "caution", "degraded", "stop")
 GAP_KINDS = ("rule_not_running", "rule_gap_reported", "source_stalled",
              "late_data_beyond_lookback", "truncated_execution", "argus_collector_lag",
@@ -1303,24 +1307,38 @@ async def writeback(conn: AsyncConnection, w: Window) -> Section:
 
 async def gaps(conn: AsyncConnection, w: Window) -> Section:
     overlap = "start_at < :e AND coalesce(end_at, CAST(:now AS timestamptz)) > :s"
+    # every gap but the collector's that were only lateness (caught up, nothing missed, as at
+    # the making: argus.collector.lateness, D-321), which are counted apart
+    # only the rows any figure below can count (each reading looks up reconciliation runs):
+    # the ones that touch the period, ends on its start included, and the open ones
+    read = (
+        f"(SELECT g.*, {reading_sql('g', 'CAST(:now AS timestamptz)')} AS reading"
+        " FROM coverage_gaps g WHERE g.end_at IS NULL OR (g.start_at < :e"
+        " AND coalesce(g.end_at, CAST(:now AS timestamptz)) >= :s)) AS gaps"
+    )
+    minutes = (
+        "coalesce(floor(sum(extract(epoch FROM least(coalesce(end_at, CAST(:now AS"
+        " timestamptz)), :e) - greatest(start_at, :s))) FILTER (WHERE {where}) / 60), 0)::int"
+    )
+    gap = f"{overlap} AND reading <> 'late'"
     row = await _one(
         conn,
         f"""SELECT
-          count(*) FILTER (WHERE {overlap}) AS overlapping,
-          count(*) FILTER (WHERE {_IN.format(col="start_at")}) AS opened,
-          count(*) FILTER (WHERE {_IN.format(col="end_at")}) AS closed,
+          count(*) FILTER (WHERE {gap}) AS overlapping,
+          count(*) FILTER (WHERE {_IN.format(col="start_at")} AND reading <> 'late') AS opened,
+          count(*) FILTER (WHERE {_IN.format(col="end_at")} AND reading <> 'late') AS closed,
           count(*) FILTER (WHERE end_at IS NULL) AS open_now,
-          coalesce(floor(sum(extract(epoch FROM
-            least(coalesce(end_at, CAST(:now AS timestamptz)), :e) - greatest(start_at, :s))
-            ) FILTER (WHERE {overlap}) / 60), 0)::int AS minutes
-        FROM coverage_gaps""",
+          {minutes.format(where=gap)} AS minutes,
+          count(*) FILTER (WHERE {overlap} AND reading = 'late') AS late,
+          {minutes.format(where=f"{overlap} AND reading = 'late'")} AS late_minutes
+        FROM {read}""",
         w,
     )
     kinds = {
         r.kind: r.n
         for r in await _all(
             conn,
-            f"SELECT kind, count(*) AS n FROM coverage_gaps WHERE {overlap} GROUP BY kind",
+            f"SELECT kind, count(*) AS n FROM {read} WHERE {gap} GROUP BY kind",
             w,
         )
     }
@@ -1340,7 +1358,9 @@ async def gaps(conn: AsyncConnection, w: Window) -> Section:
             row.overlapping,
             "count",
             "Rows of coverage_gaps that began before the period ended and had not "
-            "ended before it began (an open gap counts up to the making).",
+            "ended before it began (an open gap counts up to the making), but for the "
+            "collector's late stretches (gaps.late). The same holds for every gaps.* count "
+            "and minute below but gaps.open_now.",
         ),
         metric(
             "gaps.opened",
@@ -1371,10 +1391,27 @@ async def gaps(conn: AsyncConnection, w: Window) -> Section:
             "Whole minutes (rounded down) of all gaps clipped to the period, added up; gaps "
             "that overlap each other are counted each.",
         ),
+        metric(
+            "gaps.late",
+            "ARGUS collected late (caught up; nothing missed)",
+            row.late,
+            "count",
+            f"Rows of coverage_gaps of kind '{LATE_KIND}' that overlap the period, closed "
+            f"within {int(LATE_WITHIN.total_seconds() // 60)} minutes, whose hours a "
+            "reconciliation that began after the close covered with no hour differing and "
+            "nothing recovered (as at the making); not outages, so in no other gaps.* count.",
+        ),
+        metric(
+            "gaps.late_minutes",
+            "Minutes ARGUS collected late",
+            row.late_minutes,
+            "count",
+            "Whole minutes (rounded down) of those late stretches clipped to the period, added up.",
+        ),
     ]
     metrics += [
-        metric(f"gaps.kind.{k}", f"Gaps: {k.replace('_', ' ')}", kinds.get(k, 0), "count",
-               f"Gaps of kind '{k}' that overlap the period.")
+        metric(f"gaps.kind.{k}", f"Gaps: {GAP_LABELS.get(k, k.replace('_', ' '))}",
+               kinds.get(k, 0), "count", f"Gaps of kind '{k}' that overlap the period.")
         for k in GAP_KINDS
     ]  # fmt: skip
     metrics += [

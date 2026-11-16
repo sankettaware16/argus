@@ -73,7 +73,7 @@ async def test_a_possible_incident_is_confirmed_and_another_dismissed_in_the_app
         dialog = page.get_by_role("alertdialog")
         await dialog.wait_for()
         what = await dialog.get_by_test_id("what-happens").inner_text()
-        assert "nothing is sent there by this" in what
+        assert "ARGUS sends nothing there" in what  # posting is off in the suite
         assert not await dialog.get_by_test_id("payload").is_visible()  # plain words first
         await dialog.get_by_text("Show the exact request").click()
         assert json.loads(await dialog.get_by_test_id("payload").inner_text()) == {

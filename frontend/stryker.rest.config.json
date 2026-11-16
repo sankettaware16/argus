@@ -37,6 +37,7 @@
     "src/components/decide/UndoToast.tsx",
     "src/components/decide/target.ts",
     "src/components/decide/useOutcome.ts",
+    "src/components/incident/AiReading.tsx",
     "src/components/incident/CheckList.tsx",
     "src/components/incident/Ciso.tsx",
     "src/components/incident/Glance.tsx",

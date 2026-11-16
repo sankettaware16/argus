@@ -49,6 +49,27 @@ export interface Related {
   state: string;
   reason: string;
 }
+/** One claim of ARGUS AI's reading, and the incident's facts it rests on (D-324). */
+export interface AiClaim {
+  text: string;
+  based_on: string[];
+}
+export interface AiSection {
+  key: string;
+  title: string;
+  claims: AiClaim[];
+}
+/** ARGUS AI's reading: text only, it never changes the queue. */
+export interface AiReading {
+  kind: "story" | "second_opinion";
+  model: string;
+  written_at: string | null;
+  /** it read the incident as it is now (false: an earlier version) */
+  current: boolean;
+  agrees: boolean;
+  incidents: "one" | "two" | "unsure" | null;
+  sections: AiSection[];
+}
 export interface Engine {
   priority: number;
   band: Band;
@@ -69,6 +90,8 @@ export interface Engine {
   seen: Seen[];
   related: Related[];
   disagreement: string | null;
+  ai_story: AiReading | null;
+  ai_second_opinion: AiReading | null;
   team_notified_at: string | null;
   alert_groups: number | null;
   alerts: number | null;
@@ -182,6 +205,34 @@ function relatedOf(v: unknown): Related | null {
   const number = num(o?.number);
   return id && number !== null ? { case_id: id, number, title: str(o?.title) ?? "", state: str(o?.state) ?? "", reason: str(o?.reason) ?? "" } : null;
 }
+function aiClaimOf(v: unknown): AiClaim | null {
+  const o = obj(v);
+  const text = str(o?.text);
+  return text !== null && text.trim() !== "" ? { text, based_on: each(o?.based_on, str) } : null;
+}
+function aiSectionOf(v: unknown): AiSection | null {
+  const o = obj(v);
+  const key = str(o?.key);
+  const title = str(o?.title);
+  const claims = each(o?.claims, aiClaimOf);
+  return key && title && claims.length > 0 ? { key, title, claims } : null;
+}
+/** ARGUS AI's reading, or null: none written, or not of a known kind or with nothing to show. */
+export function aiReadingOf(v: unknown): AiReading | null {
+  const o = obj(v);
+  const kind = one(o?.kind, ["story", "second_opinion"] as const);
+  const sections = each(o?.sections, aiSectionOf);
+  if (o === null || kind === null || sections.length === 0) return null;
+  return {
+    kind,
+    model: str(o.model) ?? "a model",
+    written_at: str(o.written_at),
+    current: o.current !== false,
+    agrees: o.agrees !== false,
+    incidents: one(o.incidents, ["one", "two", "unsure"] as const),
+    sections,
+  };
+}
 function personOf(v: unknown): Person | null {
   const o = obj(v);
   const username = str(o?.username);
@@ -225,6 +276,8 @@ export function engineOf(raw: unknown): Engine | null {
     seen: each(o.seen, seenOf),
     related: each(o.related, relatedOf),
     disagreement: str(o.disagreement),
+    ai_story: aiReadingOf(o.ai_story),
+    ai_second_opinion: aiReadingOf(o.ai_second_opinion),
     team_notified_at: str(o.team_notified_at),
     alert_groups: num(o.alert_groups),
     alerts: num(o.alerts),

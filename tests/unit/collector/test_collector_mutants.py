@@ -16,7 +16,7 @@ from argus.collector import collector as co
 from argus.collector import runner as ru
 from argus.collector import store as st
 from argus.collector.templates import AlertCounts, AlertStates, CountsParams, StatesParams
-from argus.gateway.errors import BreakerOpenError
+from argus.gateway.errors import BreakerOpenError, DeadlinePassedError, LaneBusyError
 
 pytestmark = pytest.mark.unit
 
@@ -286,6 +286,14 @@ async def test_a_failed_poll_opens_a_gap_and_recovery_reconciles(
     fake.poll_error = RuntimeError("x")
     await run.guarded_poll()
     assert gaps[-1] == ("open", ("argus_collector_lag", "alerts", T0 - HOUR, "RuntimeError"))
+    # D-321: the collector's own budget freeing up too late is told apart from a request that
+    # ran out of time
+    fake.poll_error = LaneBusyError("the budget (server_time) frees up too late", T0)
+    await run.guarded_poll()
+    assert gaps[-1] == ("open", ("argus_collector_lag", "alerts", T0 - HOUR, "lane_busy"))
+    fake.poll_error = DeadlinePassedError("the deadline passed")
+    await run.guarded_poll()
+    assert gaps[-1] == ("open", ("argus_collector_lag", "alerts", T0 - HOUR, "deadline_passed"))
     fake.poll_error = None
     fake.now = T0 + timedelta(minutes=5)
     assert await run.guarded_poll() == "polled"

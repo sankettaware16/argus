@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from argus.assess.patterns import day_of
 from argus.normalize.fields import values
-from argus.risk import exposure_db
+from argus.risk import exposure_db, outbound_db
 from argus.risk.config import Exposure
 from argus.risk.observe import IDENTITY_FIELDS, Group, ObjectRef, Observation, Observed
 from argus.risk.roles import FIELDS
@@ -124,13 +124,15 @@ async def pending(
 async def groups(
     conn: AsyncConnection, ids: Sequence[uuid.UUID], signal_names: Sequence[str],
     outside: Mapping[uuid.UUID, bool] | None = None, outside_flag: str = "",
-    exposure: Exposure | None = None,
+    exposure: Exposure | None = None, *, measured: bool = True,
 ) -> list[Group]:  # fmt: skip
     """The groups ``ids`` as :class:`Group`: their alerts' fields and source indices (the newest
     :data:`ALERTS_PER_GROUP`), the newest dossier's known signals of ``signal_names``, the stored
     raise flags (with ``outside_flag`` added where ``outside`` says the cache flags one of the
     group's indicators) and the known-infection decision; with ``exposure``, an inbound group's
-    sites and its source's checked facts (E3, ``exposure_db.attach``)."""
+    sites and its source's checked facts (E3, ``exposure_db.attach``), and, with ``measured``,
+    what the incident evidence checks found about its addresses (D-323,
+    ``outbound_db.attach``)."""
     if not ids:
         return []
     bound = {"ids": list(ids)}
@@ -171,6 +173,8 @@ async def groups(
         )  # fmt: skip
     if exposure is not None:
         out = await exposure_db.attach(conn, out, exposure)
+        if measured:
+            out = await outbound_db.attach(conn, out)
     return sorted(out, key=lambda g: str(g.id))
 
 

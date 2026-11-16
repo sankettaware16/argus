@@ -7,12 +7,15 @@
   strict answer models, with what each cost.
 - ``report`` (the read-only days' figures), ``model`` (the read load at projected case counts),
   ``status`` (state, open findings, paused cases) and ``resume-case`` (lift the pause on a case).
+- ``explain``: a person marks one finding explained (as the database owner); it lifts no pause.
 """
 
 from __future__ import annotations
 
 import logging
 import math
+import shlex
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -23,7 +26,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus import site
 from argus.config.errors import ConfigError
 from argus.config.settings import Settings
-from argus.gateway.cli import ConfigOption, _run, engine_for, load, owner_engine_for
+from argus.db.errors import DB_ERRORS, short_db_error
+from argus.gateway.cli import (
+    EXPLAIN_NEEDS_OWNER,
+    ConfigOption,
+    _run,
+    engine_for,
+    load,
+    owner_engine_for,
+)
 from argus.gateway.errors import GatewayError
 from argus.gateway.kibana.paths import KEndpoint, wire_path
 from argus.gateway.kibana.templates import (
@@ -35,9 +46,12 @@ from argus.gateway.kibana.templates import (
 )
 from argus.kibana_sync import readmodel
 from argus.kibana_sync.classify import Intervals
-from argus.kibana_sync.cycle import COMPONENT, SyncConfig, Syncer
+from argus.kibana_sync.cycle import COMPONENT, PAUSED_BY_ALARM, SyncConfig, Syncer
+from argus.ops.stopping import until_stopped
 
 log = logging.getLogger("argus.kibana_sync")
+ALARMS_LISTED = 20  # the open alarms ``status`` lists by id
+MIN_REASON = 10  # an explanation is a sentence, not a word
 sync_app = typer.Typer(no_args_is_help=True, help="Kibana read-back and reconciliation.")
 FIRST_READ_COMPONENT = "kibana-first-read"
 FIRST_READ_PER_PAGE = 10
@@ -71,8 +85,16 @@ def build(settings: Settings, engine: AsyncEngine) -> Syncer:
     kibana = build_kibana_gateway(settings, store, es_gateway=es)
 
     async def team_verdicts(deadline: datetime) -> None:
-        """After a complete cycle, the case team's cases are read for a person's
-        ``Verdict:`` comment (the same lane, the same reader key)."""
+        """After a cycle, a case the case team opened in Kibana stops waiting for Kibana (the
+        database only), and the case team's cases are read for a person's ``Verdict:`` comment
+        (the same lane, the same reader key)."""
+        from argus.caseteam import opened
+
+        try:
+            for line in (await opened.clear_waits(engine)).lines():
+                log.info(line)
+        except Exception:  # the verdicts are read all the same
+            log.exception("the case team's Kibana cases were not recorded on their cases")
         report = await verdicts.read_all(
             engine,
             kibana,
@@ -158,7 +180,7 @@ def sync_run(config: ConfigOption = None) -> None:
         finally:
             await engine.dispose()
 
-    _run(go())
+    _run(until_stopped(go()))  # a stop cancels the cycle: exit 0 (D-322)
 
 
 @sync_app.command("once")
@@ -446,6 +468,16 @@ def sync_status(config: ConfigOption = None) -> None:
                         )
                     )
                 ).all()
+                alarms = (
+                    await conn.execute(
+                        text(
+                            "SELECT id, kind, kibana_case_id, found_at FROM kibana_findings"
+                            " WHERE resolved_at IS NULL AND severity = 'alarm'"
+                            " ORDER BY found_at, id LIMIT :n"
+                        ),
+                        {"n": ALARMS_LISTED},
+                    )
+                ).all()
                 paused = (
                     await conn.execute(
                         text(
@@ -471,6 +503,11 @@ def sync_status(config: ConfigOption = None) -> None:
             "open findings: "
             + (", ".join(f"{r.kind} ({r.severity}) {r.n}" for r in kinds) or "none")
         )
+        lines += [
+            f"open alarm {r.id}: {r.kind}, Kibana case {r.kibana_case_id or '-'},"
+            f" found {r.found_at:%Y-%m-%d %H:%M} UTC (`argus kibana sync explain {r.id}`)"
+            for r in alarms
+        ]
         lines += [f"paused: {r.kibana_case_id}: {r.paused_reason}" for r in paused]
         return lines
 
@@ -521,3 +558,167 @@ def sync_resume_case(
 
     changed = _run(go())
     typer.echo(f"{kibana_case_id}: " + ("resumed" if changed else "not paused"))
+
+
+@dataclass(frozen=True)
+class Explained:
+    """What ``explain`` did: the finding (None when there is no such id), whether this call
+    marked it (False: it was resolved before, ``resolved_at``/``resolved_by`` say when and by
+    whom), the paused write classes with why, and how many other alarms are still open."""
+
+    finding_id: int
+    kind: str | None = None
+    severity: str | None = None
+    kibana_case_id: str | None = None
+    marked: bool = False
+    resolved_at: datetime | None = None
+    resolved_by: str | None = None
+    paused: tuple[tuple[str, str], ...] = ()
+    open_alarms: int = 0
+
+
+async def explain(engine: AsyncEngine, finding_id: int, reason: str, *, by: str) -> Explained:
+    """Mark one finding explained, as the database owner (the runtime may only add findings):
+    ``resolved_at``, ``resolved_by`` and an audit event with the reason, in one transaction.
+    Sync status, the reports, the web and the writer's ramp then stop counting it. It lifts no
+    pause: a person resumes each class (``argus kibana resume``) once they have looked."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from argus.db.audit import record_audit
+    from argus.gateway.kibana import writes
+
+    async with engine.begin() as conn:
+        row = (
+            await conn.execute(
+                text(
+                    "SELECT id, kind, severity, kibana_case_id, case_id, resolved_at, resolved_by"
+                    " FROM kibana_findings WHERE id = :i FOR UPDATE"
+                ),
+                {"i": finding_id},
+            )
+        ).first()
+        if row is None:
+            return Explained(finding_id)
+        marked = row.resolved_at is None
+        resolved_at, resolved_by = row.resolved_at, row.resolved_by
+        if marked:
+            resolved_at, resolved_by = (
+                await conn.execute(
+                    text(
+                        "UPDATE kibana_findings SET resolved_at = now(), resolved_by = :b"
+                        " WHERE id = :i RETURNING resolved_at, resolved_by"
+                    ),
+                    {"i": finding_id, "b": by},
+                )
+            ).one()
+            session = AsyncSession(bind=conn)
+            await record_audit(
+                session,
+                actor=by,
+                action="kibana.finding_explained",
+                target_type="kibana_finding",
+                target_id=str(finding_id),
+                details={
+                    "kind": row.kind,
+                    "severity": row.severity,
+                    "kibana_case_id": row.kibana_case_id,
+                    "case_id": None if row.case_id is None else str(row.case_id),
+                    "reason": reason,
+                },
+            )
+            await session.close()
+        state = (
+            await conn.execute(text("SELECT state FROM siem_state WHERE name = 'kibana'"))
+        ).scalar_one_or_none()
+        lane = writes.from_json(state if isinstance(state, dict) else {})
+        open_alarms = (
+            await conn.execute(
+                text(
+                    "SELECT count(*) FROM kibana_findings"
+                    " WHERE resolved_at IS NULL AND severity = 'alarm'"
+                )
+            )
+        ).scalar_one()
+    return Explained(
+        finding_id, row.kind, row.severity, row.kibana_case_id, marked, resolved_at,
+        resolved_by, tuple(sorted(lane.paused.items())), int(open_alarms),
+    )  # fmt: skip
+
+
+def explained_lines(done: Explained, reason: str) -> list[str]:
+    """What ``explain`` prints: the finding, the paused classes and the exact commands that
+    lift the pauses this alarm set (never run by it)."""
+    if done.kind is None:
+        return [f"finding {done.finding_id}: no such finding (`argus kibana sync status`)"]
+    what = f"finding {done.finding_id} ({done.kind}, {done.severity})"
+    if done.marked:
+        lines = [f"{what}: explained; it no longer counts as open"]
+    else:
+        at = f"{done.resolved_at:%Y-%m-%d %H:%M} UTC" if done.resolved_at else "earlier"
+        lines = [f"{what}: already resolved ({at}, by {done.resolved_by or 'unknown'})"]
+    if not done.paused:
+        lines.append("paused write classes: none")
+        return lines
+    lines.append("paused write classes: " + ", ".join(f"{cls} ({why})" for cls, why in done.paused))
+    by_alarm = [cls for cls, why in done.paused if why == PAUSED_BY_ALARM]
+    other = [cls for cls, why in done.paused if why != PAUSED_BY_ALARM]
+    if done.open_alarms:
+        lines.append(
+            f"{done.open_alarms} other alarm(s) are still open: explain or fix them before"
+            " lifting the pause (`argus kibana sync status` lists them)"
+        )
+    if by_alarm and done.severity != "alarm":
+        lines.append(
+            f"paused by a reconciliation alarm, not by this finding ({done.severity}):"
+            " explain the alarm (`argus kibana sync status` lists the open ones)"
+        )
+    elif by_alarm:
+        said = shlex.quote(f"finding {done.finding_id} explained: {reason}")
+        lines.append(
+            "this command lifts nothing; to lift the alarm's pause, as the database owner:"
+        )
+        lines += [f"  argus kibana resume --class {cls} --reason {said}" for cls in by_alarm]
+    if other:
+        lines.append(
+            f"paused for another reason (not this alarm): {', '.join(other)};"
+            " see `argus kibana state` before lifting"
+        )
+    return lines
+
+
+@sync_app.command("explain")
+def sync_explain(
+    finding_id: Annotated[
+        int, typer.Argument(help="the finding's id (`argus kibana sync status`)")
+    ],
+    reason: Annotated[str, typer.Option(help="why it is explained (kept in the audit trail)")],
+    config: ConfigOption = None,
+) -> None:
+    """Mark one reconciliation finding explained, as the database owner: sync status, the
+    reports and the web stop counting it as open. It lifts no pause: it prints the paused write
+    classes and the `argus kibana resume` lines that lift them."""
+    reason = reason.strip()
+    if len(reason) < MIN_REASON:
+        typer.echo(f"error: --reason says why, in at least {MIN_REASON} characters", err=True)
+        raise typer.Exit(2)
+    settings = load(config)
+    engine = owner_engine_for(
+        settings,
+        f"kibana sync explain {finding_id} --reason {shlex.quote(reason)}",
+        needs=EXPLAIN_NEEDS_OWNER,
+    )
+
+    async def go() -> Explained:
+        try:
+            return await explain(engine, finding_id, reason, by="cli")
+        except DB_ERRORS as exc:
+            typer.echo(f"error: {short_db_error(exc)}", err=True)
+            raise typer.Exit(1) from None
+        finally:
+            await engine.dispose()
+
+    done = _run(go())
+    for line in explained_lines(done, reason):
+        typer.echo(line)
+    if done.kind is None:
+        raise typer.Exit(1)

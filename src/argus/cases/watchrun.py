@@ -29,6 +29,7 @@ from argus.cases.machine import AfterClosure, CaseRefused, Link, NewActivity, Op
 from argus.cases.membership import Shared
 from argus.cases.model import Actor, Case, Indicator, Member, QuietWindow, Severity, max_severity
 from argus.cases.service import CaseService
+from argus.collector.lateness import reading_sql
 from argus.context import batch1, beacon
 from argus.context.packs import TaskSpec
 from argus.db.audit import record_audit
@@ -602,20 +603,31 @@ async def alert_activity(
 
 async def _coverage(
     conn: AsyncConnection, first: datetime, now: datetime
-) -> tuple[datetime | None, list[tuple[str, datetime, datetime | None]]]:
+) -> tuple[
+    datetime | None,
+    list[tuple[str, datetime, datetime | None]],
+    list[tuple[datetime, datetime]],
+]:
+    """The live cursor, the gaps that may have hidden alerts, and the collector's short delays
+    no reconciliation has checked yet; a delay it found complete is no gap (D-321)."""
     live = (
         await conn.execute(text("SELECT at FROM collector_cursors WHERE name = 'live'"))
     ).scalar_one_or_none()
     gaps = (
         await conn.execute(
             text(
-                "SELECT kind, start_at, end_at FROM coverage_gaps WHERE start_at < :now"
+                f"SELECT kind, start_at, end_at, {reading_sql('g')} AS reading"  # noqa: S608 - a constant fragment
+                " FROM coverage_gaps g WHERE start_at < :now"
                 " AND (end_at IS NULL OR end_at > :first)"
             ),
             {"first": first, "now": now},
         )
     ).all()
-    return live, [(g.kind, g.start_at, g.end_at) for g in gaps]
+    return (
+        live,
+        [(g.kind, g.start_at, g.end_at) for g in gaps if g.reading == "outage"],
+        [(g.start_at, g.end_at) for g in gaps if g.reading == "late_unchecked"],
+    )
 
 
 _PUT = text(
@@ -693,7 +705,7 @@ async def alerts_check(
             ).scalars()
         )
     activity = await alert_activity(conn, case.id, extra, since)
-    live, gaps = await _coverage(conn, since, now)
+    live, gaps, pending = await _coverage(conn, since, now)
     today = watch.utc_day(now)
     crowded = found.too_common.get(case.id)
     backlog = watch.WATCH_AFTER_CLOSURE.days if after else watch.BACKLOG_DAYS
@@ -707,7 +719,7 @@ async def alerts_check(
         elif day >= today:
             continue  # today is not over: only activity is news
         else:
-            unseen = watch.coverage_reason(window[0], window[1], live, gaps)
+            unseen = watch.coverage_reason(window[0], window[1], live, gaps, pending)
             if unseen is None and crowded is not None:
                 judged = watch.Judged("unverified", watch.TOO_COMMON, {})
             elif unseen is None:

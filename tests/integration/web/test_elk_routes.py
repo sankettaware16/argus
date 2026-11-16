@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from argus.web.capabilities import Capability
 from argus.web.deps import Surface
 from tests.integration.web.elk_rig import Rig, make_rig
 from tests.integration.web.test_routes_declared import (
@@ -57,7 +58,7 @@ async def test_every_change_refuses_nobody_and_a_view_only_session(rig: Rig) -> 
                 assert got.status_code == 401, path
     http, csrf = await rig.signed_in("vera.elk", capabilities=VIEWER)  # view only
     for (method, path), need in changes.items():
-        if need == SESSION:
+        if need in (SESSION, Capability.VIEW):  # a person's own marks (seen, caught up) need view
             continue
         data = {"csrf_token": csrf} if surface(path) is Surface.FORM else None
         got = await http.request(method, concrete(path, ids), headers={"X-CSRF-Token": csrf},
@@ -89,6 +90,7 @@ async def test_every_read_needs_view_and_a_review_session_may_change_exactly_wha
         k for k, v in EXPECTED.items() if k[0] in CHANGES and v not in ("open", SESSION)
     }
     needs = {EXPECTED[k].value for k in review_routes}
-    # Q-B3 added the case kind (manage_cases, approve, reopen): a reviewer holds none of them
-    assert needs <= {"review", "answer_gold", "manage_cases", "approve", "reopen"}
-    assert needs & {c.value for c in REVIEWER} == {"review"}
+    # Q-B3 added the case kind (manage_cases, approve, reopen): a reviewer holds none of them;
+    # UI v2 a person's own marks (seen, caught up), which need only view
+    assert needs <= {"review", "answer_gold", "manage_cases", "approve", "reopen", "view"}
+    assert needs & {c.value for c in REVIEWER} == {"review", "view"}

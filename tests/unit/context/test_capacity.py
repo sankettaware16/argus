@@ -242,3 +242,30 @@ def test_a_burst_waits_in_the_queue_two_at_a_time() -> None:
     wide = simulate([(T0, i) for i in range(40)], Scenario(Profile("p", (H,), ()), EXACT))
     assert wide.backlog_peak == 38
     assert (wide.max_wait_s, wide.p95_wait_s) == pytest.approx((367.315, 361.545))
+
+
+def test_the_command_models_enrichments_own_lane_without_the_collectors_polls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D-321: enrichment no longer shares the collector's bucket, so `argus worker capacity`
+    replays it through the enrichment lane's allowance, and the collector's polls (on their
+    own lane) take nothing from it."""
+    from argus.config.settings import SiemSettings
+    from argus.context import capacity as model
+    from argus.context import cli
+    from argus.gateway.lanes import Lane
+    from argus.gateway.service import lane_plan
+
+    siem = SiemSettings()
+    assert cli.capacity_budget(siem) == lane_plan(siem).config(Lane.ENRICHMENT)
+    seen: list[Scenario] = []
+    real = model.simulate
+
+    def spy(changes: list[tuple[datetime, int]], scenario: Scenario) -> Report:
+        seen.append(scenario)
+        return real(changes, scenario)
+
+    monkeypatch.setattr(model, "simulate", spy)
+    cli.capacity_rows([(T0, 1)], ["stub"], timedelta(0), cli.capacity_budget(siem))
+    assert seen
+    assert all(s.collector_ms == () for s in seen)

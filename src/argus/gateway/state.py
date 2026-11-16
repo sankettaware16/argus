@@ -125,7 +125,7 @@ class GatewayState(Protocol):
     async def health(self) -> HealthMemory: ...
     async def save_health(self, memory: HealthMemory) -> None: ...
     async def budget_admit(
-        self, cost: CostClass, now: datetime, scale: float, lease_id: str
+        self, cost: CostClass, now: datetime, scale: float, lease_id: str, *, kept_ms: int = 0
     ) -> budget_core.Admission: ...
     async def budget_settle(
         self, lease: budget_core.Lease, took_ms: int, now: datetime, scale: float
@@ -204,9 +204,9 @@ class DiscoveryStore:
         return self.adopted if self.adopted is not None else await self.inner.health()
 
     async def budget_admit(
-        self, cost: CostClass, now: datetime, scale: float, lease_id: str
+        self, cost: CostClass, now: datetime, scale: float, lease_id: str, *, kept_ms: int = 0
     ) -> budget_core.Admission:
-        return await self.inner.budget_admit(cost, now, scale, lease_id)
+        return await self.inner.budget_admit(cost, now, scale, lease_id, kept_ms=kept_ms)
 
     async def budget_settle(
         self, lease: budget_core.Lease, took_ms: int, now: datetime, scale: float
@@ -285,7 +285,7 @@ class MemoryStore:
         self.memory = memory
 
     async def budget_admit(
-        self, cost: CostClass, now: datetime, scale: float, lease_id: str
+        self, cost: CostClass, now: datetime, scale: float, lease_id: str, *, kept_ms: int = 0
     ) -> budget_core.Admission:
         async with self.lock:
             # heavy queries one at a time across every lane; the concurrency limit shared by all
@@ -295,8 +295,9 @@ class MemoryStore:
             if waiting is not None:
                 return waiting
             admission, self.budget = budget_core.admit(
-                self.budget, self.budget_config, cost, now, scale=scale, lease_id=lease_id
-            )
+                self.budget, self.budget_config, cost, now, scale=scale, lease_id=lease_id,
+                kept_ms=kept_ms,
+            )  # fmt: skip
             return admission
 
     async def budget_settle(

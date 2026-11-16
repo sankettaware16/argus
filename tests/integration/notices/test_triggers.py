@@ -21,11 +21,12 @@ from argus.assets.classify import IpClassifier
 from argus.cases.machine import AfterClosure, Notify, Open
 from argus.cases.model import KIBANA_TO_OPEN, LOCAL_CAPABILITIES, Actor, Indicator, Member
 from argus.cases.service import CaseService
+from argus.collector.lateness import LATE_WITHIN
 from argus.gateway.health import HealthMemory, HealthState
 from argus.gateway.kibana import writes as kibana_writes
 from argus.gateway.pgstore import health_to_json
 from argus.notices import triggers
-from argus.notices.model import Condition, Target
+from argus.notices.model import OUTAGE_AFTER, Condition, Target, ready
 from tests.integration.cases.conftest import APPROVER, KIBANA, Person, asking
 from tests.integration.cases.test_closure_approval import _closed, _desk_decide, _mirror
 from tests.integration.cases.test_opener import _review
@@ -487,6 +488,15 @@ async def test_an_open_gap_of_arguss_own_is_an_outage_and_a_siems_truncation_is_
     assert set(found) == {"gap:source_stalled", "gap:argus_collector_lag"}
     assert found["gap:argus_collector_lag"].severity == "high"
     assert found["gap:source_stalled"].since is not None
+    # D-321: a collector gap is news only once it can no longer be lateness, so a gap that
+    # later reads "collected late, caught up" was never announced as an outage
+    assert found["gap:argus_collector_lag"].after == LATE_WITHIN == OUTAGE_AFTER
+    assert found["gap:source_stalled"].after is None
+    lag = found["gap:argus_collector_lag"]
+    assert lag.since is not None
+    assert not ready(lag.kind, lag.since, lag.since + LATE_WITHIN - timedelta(seconds=1),
+                     lag.after)  # fmt: skip
+    assert ready(lag.kind, lag.since, lag.since + LATE_WITHIN, lag.after)
 
 
 # --------------------------------------------------------------------------- all five

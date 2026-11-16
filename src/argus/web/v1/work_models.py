@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, BeforeValidator, Field
 
 from argus.web.v1.case_models import (
     CaseRowOut,
@@ -21,13 +21,21 @@ from argus.web.v1.case_models import (
     SeenOut,
     Told,
 )
-from argus.web.v1.models import In, NoteText, Out, RequiredText, ReviewId, VersionNumber
+from argus.web.v1.models import (
+    In,
+    NoteText,
+    Out,
+    RequiredText,
+    ReviewId,
+    VersionNumber,
+    _json_integer,
+)
 
 BULK_DISMISS = 25  # the most possible incidents one "Not an incident" closes (spec §6.5)
 BULK_REVIEW = 100  # the most alert groups of one incident one bulk review marks
 SpotAnswer = Literal["right", "wrong", "cant_tell"]
 SpotKind = Literal["incident", "alert_group"]
-EngineVersion = Annotated[int, Field(ge=1, le=2**31 - 1)]
+EngineVersion = Annotated[int, Field(ge=1, le=2**31 - 1), BeforeValidator(_json_integer)]
 
 
 class HoldIn(In):

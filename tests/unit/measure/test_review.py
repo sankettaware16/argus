@@ -15,6 +15,7 @@ import pytest
 from argus.gateway.budget import BudgetState
 from argus.gateway.errors import TimedOutError, TransportFailedError
 from argus.gateway.health import HealthConfig, HealthMemory, HealthState, scale
+from argus.gateway.lanes import Lane, LaneStates
 from argus.gateway.state import LedgerEntry, MemoryStore, ProbeRow, RecentRequest
 from argus.gateway.templates import CostClass
 from argus.gateway.transport import WireRequest, WireResponse
@@ -322,7 +323,9 @@ async def test_f6_nothing_is_sent_during_slow_start_after_a_budget_wait() -> Non
         await clock.sleep(seconds)
 
     r.gateway.sleep = gateway_sleep
-    store.budget = BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())
+    store.lanes = LaneStates(
+        {Lane.ENRICHMENT: BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())}
+    )
     report = await r.session.run()
     assert flipped
     assert scale(store.memory, clock(), r.session.config) < 1
@@ -344,7 +347,9 @@ async def test_f6_a_reading_gone_stale_during_a_budget_wait_is_probed_again_firs
         await clock.sleep(seconds)
 
     r.gateway.sleep = gateway_sleep
-    store.budget = BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())
+    store.lanes = LaneStates(
+        {Lane.ENRICHMENT: BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())}
+    )
     report = await r.session.run()
     assert report.complete, report.stopped
     sent = next(e for e in store.ledger if e.purpose == "measure")
@@ -366,7 +371,9 @@ async def test_f6_a_caution_reading_during_a_budget_wait_stops_the_request() -> 
                                  HealthMemory())  # fmt: skip
 
     r.gateway.sleep = gateway_sleep
-    store.budget = BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())
+    store.lanes = LaneStates(
+        {Lane.ENRICHMENT: BudgetState(tokens_ms=0.0, refilled_at=T0, day=T0.date())}
+    )
     report = await r.session.run()
     assert [e for e in store.ledger if e.purpose == "measure"] == []
     assert report.stopped is not None

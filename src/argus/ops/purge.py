@@ -224,6 +224,7 @@ _CASCADES = (
     "risk_groups",
     "risk_entities",
     "risk_observations",
+    "risk_incident_groups",  # an incident's link to the alert group
 )
 # What hangs off the victims (:ids), table by table, in the order foreign keys need.
 _BY_INVESTIGATION = (

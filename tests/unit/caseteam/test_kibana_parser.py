@@ -201,6 +201,38 @@ def test_the_review_repro_f1_a_fence_is_never_inside_bold() -> None:
     assert got.beyond(base) == {}
 
 
+def test_an_evidence_lines_values_are_list_items_of_code_and_nothing_else() -> None:
+    """D-325: the deciding values under an evidence line read as one list, each item a code
+    span, whatever a value from the logs holds."""
+    report = team.amadey()
+    evil = (
+        "http://198.51.100.7/x**![beacon](http://evil.example/p.png)**",
+        "/a`` | [c](http://evil.example/l) <b>x</b> @team",
+        "- not an item\n# not a heading",
+    )
+    line = report.evidence[1].model_copy(
+        update={
+            "shows": "The most requested addresses there, without their query strings",
+            "details": tuple(m.ReportDetail(text=v, count=n) for n, v in enumerate(evil, 1)),
+        }
+    )
+    swapped = report.model_copy(update={"evidence": (report.evidence[0], line,
+                                                     *report.evidence[2:])})  # fmt: skip
+    with team.no_check():
+        text = team.texts(swapped)["comment:evidence:1"]
+    got = reader.read([text])[0]
+    check("details", text, got)
+    plain = line.model_copy(
+        update={"details": tuple(m.ReportDetail(text="x", count=n) for n in (1, 2, 3))}
+    )
+    base_report = swapped.model_copy(update={"evidence": (report.evidence[0], plain,
+                                                          *report.evidence[2:])})  # fmt: skip
+    base = reader.read([team.texts(base_report)["comment:evidence:1"]])[0]
+    assert got.beyond(base) == {}
+    assert got.count("listItem") == base.count("listItem") >= 3
+    guard.check(text, ALLOWED)
+
+
 def test_the_review_repro_f2_a_pipe_in_a_value_cannot_split_a_cell() -> None:
     report = team.amadey()
     value = "http://198.51.100.7/a\\\\|[Open the report](http://evil.example/login)"
