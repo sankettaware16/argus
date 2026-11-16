@@ -16,10 +16,10 @@ model; every request to your SIEM goes through the [Elastic Gateway](architectur
 | [Investigating](#investigating) | evidence packs, dossiers, threat intel, outside lookups, sign-in attribution, the investigation wave, Check more, freshness |
 | [Deciding](#deciding) | decision engine, safety floor, AI investigator, proposals, gold set, tuning |
 | [Cases and incidents](#cases-and-incidents) | suggested cases, campaigns, the case lifecycle, known infections, incident reports, block lists, recommended actions, the still-active watch |
-| [People](#people) | the Inbox, reviews, approvals, ELK sign-in, the emergency account, daily and weekly reports, notices |
+| [People](#people) | the web app, reviews, approvals, users and roles, ELK sign-in, the emergency account, daily and weekly reports, notices |
 | [Kibana](#kibana) | read-back, the case team, alert status write-back |
 | [Protecting the SIEM and the data](#protecting-the-siem-and-the-data) | the Elastic Gateway, the LLM gateway, the privacy layer, the audit trail |
-| [Operating it](#operating-it) | init, discovery, doctor, units, backups, retention, kill switches |
+| [Operating it](#operating-it) | one-command install, the first-time setup, Settings, discovery, doctor, units, backups, retention, kill switches |
 
 ---
 
@@ -82,8 +82,8 @@ tell", never "clean". Commands: `argus ti status | lookup VALUES | sync`.
 
 ### Outside threat intel
 
-Optional, with your own **free** keys in `.env`, for **public** addresses and names only (a
-private or own address is never sent):
+Optional, with your own **free** keys pasted in **Settings → Outside sources** (stored in
+`.env`), for **public** addresses and names only (a private or own address is never sent):
 
 | Source | Answers | Key |
 |---|---|---|
@@ -147,18 +147,17 @@ User names are shown only to people with `see_logs` and are **never sent to a mo
 
 ## People
 
-### The Inbox (`argus-web`)
+### The web app (`argus-web`)
 
-A calm web app for reviewers (React, light and dark from the system setting, keyboard navigation):
+A calm web app for reviewers and for whoever runs ARGUS (React, light and dark from the system
+setting, keyboard navigation):
 
-| Section | Pages |
+| Menu | Pages |
 |---|---|
-| **Home** | What needs a person today, in order; the **Dashboard** (alerts, investigations and incidents at a glance) |
-| **Review** | Needs attention (start here), Not reviewed, Reviewed, All; Notified, still active |
-| **Cases** | Open cases, Notified cases, My cases, **Approvals** |
-| **Browse** | By rule, by host or IP, **Patterns** |
-| **AI & reports** | **Proposals**, **Reports** (daily and weekly), **Tuning**, **Metrics** (what the AI did and what it cost), **Gold set** |
-| **System** | Health (whether data is arriving; a gap is *unknown*, never *clean*), Glossary |
+| **Main** | **Today** (what needs a person today, and what ARGUS handled on its own), **Incidents**, **Search**, **Reports** |
+| **More** | Overview, **Approvals**, Rule tuning, ARGUS quality (what the AI did, what it cost, the gold set), System health (whether data is arriving; a gap is *unknown*, never *clean*), Help & glossary |
+| **More queues** | **Patterns**, **Proposals** |
+| **Administration** (administrators) | **Settings**, **Users and roles**, Design system |
 
 Every change ARGUS composes for a person shows **the exact request first**; if someone else changed
 the item meanwhile nothing is saved. Text from logs, alerts, Kibana or a model is always shown as
@@ -171,10 +170,10 @@ text. Details: [web-ui-guide.md](web-ui-guide.md); the reviewers' one-page guide
 
 | Capability | What it does | Default |
 |---|---|---|
-| **Local accounts** | `argus user add`, eight capabilities (`view`, `see_logs`, `review`, `answer_gold`, `manage_cases`, `reopen`, `approve`, `admin`); passwords hashed with Argon2; failed sign-ins slow down and lock; sessions end after 30 minutes idle or 8 hours. | on |
+| **Users and roles** | Local accounts made in the app: four roles (Viewer, Analyst, Lead, Administrator) or a custom set of eight capabilities (`view`, `see_logs`, `review`, `answer_gold`, `manage_cases`, `reopen`, `approve`, `admin`). A new person gets a one-time link (72 hours) to choose their own password; an administrator never sees it. Accounts are switched off and on, and sessions ended, from the same page. Passwords hashed with Argon2; failed sign-ins slow down and lock; sessions end after 30 minutes idle or 8 hours. | on |
 | **Two-person approvals** | Closing or merging a case is one person's request and **another person's approval** (with the password re-typed); a closure for a real incident needs two different approvers. Approvals are signed with a key. | on (needs the approval key) |
 | **Sign in with ELK accounts** | People use their own Elasticsearch/Kibana accounts; each capability is derived from what the account **actually holds** (actions, never role names) and re-checked during the session; superusers and admin accounts are refused. | off (`web.elk_signin`) |
-| **Emergency account** | With ELK sign-in on, a one-time view-and-review account a person switches on at the ARGUS machine while ELK is down (`argus break-glass`). | off |
+| **Emergency account** | With ELK sign-in on, a one-time view-and-review account a person switches on at the ARGUS machine while ELK is down (`argus break-glass`, on the server only). | off |
 
 ![Approvals waiting for a second person](images/screenshots/approvals.png)
 
@@ -192,7 +191,7 @@ text. Details: [web-ui-guide.md](web-ui-guide.md); the reviewers' one-page guide
 
 | Capability | What it does | Default |
 |---|---|---|
-| **Read-back** (`argus-kibana-sync`) | Reads the Kibana cases that hold ARGUS's alerts (and the case team's), what people did to them, and `Verdict:` comments, every 10 minutes when the SIEM is NORMAL. | on where Kibana is configured; the unit is enabled by you |
+| **Read-back** (`argus-kibana-sync`) | Reads the Kibana cases that hold ARGUS's alerts (and the case team's), what people did to them, and `Verdict:` comments, every 10 minutes when the SIEM is NORMAL. | on where Kibana is configured (the first-time setup starts it) |
 | **Discover links** | Every evidence line of an incident report opens its query in Kibana Discover. | on |
 | **The case team** (`WC`) | Posts a person-confirmed incident case to Kibana as **seven Kibana users**, each owning one part (lead, evidence, visualiser, intel, responder, hunter, reporter), with the PDF and CSVs in the case's Files tab and live charts of its alerts. ARGUS creates its own users and keys with one command. See [case-team.md](case-team.md). | **off** |
 | **Alert status write-back** (`WA`) | After people's reviewed verdicts, closes (benign, policy, false positive) or acknowledges (true positive, follow-up) those alerts, a few a minute, reading back each change. | **off** |
@@ -216,14 +215,21 @@ case it did not create. See [kibana.md](kibana.md).
 
 ## Operating it
 
+Install with one command, then run ARGUS from the web app. The server is left with a short list
+of jobs: upgrades, restoring a backup, the AI providers' keys, the asset map file, the emergency
+account, and recovery when the web itself is down ([operations.md](operations.md#what-stays-on-the-server)).
+
 | Capability | What it does |
 |---|---|
-| **`argus init`** | Sets up a working ARGUS in nine steps, interactive or scripted (`--answers FILE`): prerequisites, `.env` with generated database passwords, PostgreSQL in Docker, the CA pin, the read-only keys (it prints the exact Dev Tools request), the organisation, discovery, the LLM keys, the systemd units, then doctor. Rerun at any time: it keeps what is done. [install.md](install.md) |
+| **One-command install** | `./install.sh` (needs uv and Docker with compose): the database with generated passwords, the web's certificate, one question (the address people open ARGUS at), the web and `argus-admin` started, and a one-time link (72 hours) for the first administrator. [install.md](install.md) |
+| **First-time setup** | In the browser, four steps: your organisation; the SIEM (ARGUS reads the certificate it presents and shows the fingerprint to compare; the read-only key, sealed at once); Kibana (optional); review and run. `argus-admin` then runs the rest of the installation, discovery included, and starts every service, showing its progress. |
+| **Settings** | Every setting with its help, in sections; a change is checked again and applied by `argus-admin`, which restarts only what reads it and **rolls back** if a service does not come back. Keys and addresses need the password again; anything that lets ARGUS write to the SIEM also needs a typed confirmation. Keys are sealed and never shown again. The SIEM load budget is shown, not changeable. [configuration.md](configuration.md#changing-a-setting-in-the-app) |
+| **`argus init`** | The same installation from the terminal, in ten steps, interactive or scripted (`--answers FILE`): prerequisites, `.env` with generated database passwords, PostgreSQL in Docker, the CA pin, the read-only keys (it prints the exact Dev Tools request), the organisation, discovery, the LLM keys, the web, the systemd units, then doctor. Rerun at any time: it keeps what is done. Also used for upgrades. [install.md](install.md) |
 | **Discovery** | `argus discover` proposes your site (log families and their roles, the Kibana space, threat-intel sources, versions, Kibana feature ids) from **metadata only**: index names, aliases, mappings; it never reads a document. [runbooks/discover.md](runbooks/discover.md) |
-| **`argus doctor`** | Every part, offline, each problem with its fix: configuration, database and grants, migrations, site, CA and key expiry, agents, LLM keys, privacy, units, backups, write keys, the web's certificate. |
+| **`argus doctor`** | On the server: every part, offline, each problem with its fix: configuration, database and grants, migrations, site, CA and key expiry, agents, LLM keys, privacy, units, backups, write keys, the web's certificate. |
 | **systemd units** | `argus units install` renders the unit templates for this checkout and this uv, with memory caps and low CPU priority, shows the diff and installs them as user units. |
 | **Backups** | A nightly `pg_dump` with fingerprints (21:30 UTC), a weekly **restore drill** into a scratch database comparing every table (Sundays 22:00 UTC), retention of nightly, verified, migration and manual dumps, and optionally a dump before every
 migration (`backup.before_migration`). `argus backup check` does a dump and its drill now. |
 | **Retention** | A purge with a dry-run plan per table (`argus purge plan`), raw alert sources after 30 days, everything after `memory.window` (90 days) unless held. Scheduled deletion is off until you decide. |
-| **Kill switches** | `argus siem stop` (all, or one component), `argus llm stop`, `argus kibana resume` after a pause: effective at once, resuming needs the database owner. |
-| **Status at a glance** | `argus siem status`, `collect status`, `worker status`, `assess status`, `llm status`, `kibana state`, `case team status`. |
+| **Kill switches** | On the server: `argus siem stop` (all, or one component), `argus llm stop`, `argus kibana resume` after a pause: effective at once, resuming needs the database owner. |
+| **Status at a glance** | In the app: System health and the status in the header. On the server: `argus siem status`, `collect status`, `worker status`, `assess status`, `llm status`, `kibana state`, `case team status`, `admin status`. |

@@ -1,7 +1,8 @@
 # Web UI Guide
 
-The ARGUS **Inbox** is where people meet ARGUS's work: what needs attention, the investigations
-with their evidence, ARGUS's proposals, cases, approvals and reports. This page is for whoever
+The ARGUS web app is where people meet ARGUS's work (what needs attention, incidents with their
+evidence, ARGUS's proposals, approvals and reports) and where an administrator runs ARGUS:
+the first-time setup, every setting, and the people who may sign in. This page is for whoever
 sets it up and administers it. The guide for the people who review alerts every day is
 [guide-ta-ra.md](guide-ta-ra.md) (written for reviewers: research and teaching assistants in the
 original deployment, analysts anywhere).
@@ -10,6 +11,7 @@ original deployment, analysts anywhere).
 
 - [Opening it](#opening-it)
 - [Signing in](#signing-in)
+- [Administration](#administration)
 - [Users and capabilities](#users-and-capabilities)
 - [The pages](#the-pages)
 - [How changes are made](#how-changes-are-made)
@@ -23,21 +25,23 @@ original deployment, analysts anywhere).
 
 ## Opening it
 
-`argus-web` serves the Inbox on **`127.0.0.1:8765`** by default. Two ways to reach it:
+`./install.sh` asks one question, the address people open ARGUS at, and serves the app there
+over HTTPS on port **8765** (`https://<address>:8765/`), with a certificate it made itself
+([install.md](install.md#install-in-two-steps)). Left empty, the app stays on
+**`127.0.0.1:8765`**, reachable through an SSH forward:
 
-- **An SSH forward** (nothing to configure):
+```bash
+ssh -L 8765:127.0.0.1:8765 argus@argus-host.example.org
+# then open http://127.0.0.1:8765/
+```
 
-  ```bash
-  ssh -L 8765:127.0.0.1:8765 argus@argus-host.example.org
-  # then open http://127.0.0.1:8765/
-  ```
+To use your own certificate, or to change the host names and networks allowed: allowed hosts and
+networks are in **Settings → The web app**; the certificate itself is the server's
+([install.md](install.md#73-your-own-certificate-and-the-firewall)).
 
-- **On the network, over HTTPS**: a certificate, the host names browsers use, and the client
-  networks allowed, all three required. See
-  [install.md](install.md#73-your-own-certificate-and-the-firewall).
-
-The app lives at `/app`; the address `/` and the older page addresses lead there. Light and dark
-follow the browser's system setting. It is tested in current Chromium (Chrome, Edge) and Firefox.
+The app lives at `/app`; the address `/` and every older page address lead to the same thing in
+the app (links in Kibana cases and notices keep working). Light and dark follow the browser's
+system setting. It is tested in current Chromium (Chrome, Edge) and Firefox.
 
 ![The Home page: what needs a person today, in order](images/screenshots/inbox.png)
 
@@ -45,9 +49,16 @@ follow the browser's system setting. It is tested in current Chromium (Chrome, E
 
 ## Signing in
 
-The sign-in page is `/signin`. By default people sign in with **local accounts** made on the
-ARGUS machine ([next section](#users-and-capabilities)); optionally with their own ELK accounts
+The sign-in page is `/signin`. People sign in with **local accounts** made in the app
+([Users and capabilities](#users-and-capabilities)), or with their own ELK accounts
 ([below](#sign-in-with-elk-accounts)).
+
+- **The first administrator** (`admin`) sets a password through the one-time link
+  `./install.sh` prints (`https://<address>:8765/welcome?token=…`, valid 72 hours). Lost it, or it
+  ran out? Run `./install.sh` again on the server: it keeps everything done and prints a new one.
+- **Everyone else** gets a one-time link from an administrator (Users and roles → *Add a person*,
+  or *New password link* to reset one) and chooses their own password at `/welcome`. Nobody else
+  ever sees or types it.
 
 ![The sign-in page](images/screenshots/signin.png)
 
@@ -57,25 +68,79 @@ ARGUS machine ([next section](#users-and-capabilities)); optionally with their o
   from a wrong password.
 - **Sessions** end after 30 minutes without a request of the person's (the status bar's own
   refreshes do not count) and 8 hours after sign-in in any case (`web.session_idle`,
-  `web.session_absolute`).
-- **Step-up:** approving asks for the password again.
+  `web.session_absolute`, in Settings → The web app).
+- **Step-up:** approving, changing a sensitive setting and managing people ask for the password
+  again (*Confirm your password* opens a new tab; it holds for five minutes).
 - **Never past a certificate warning.** Tell reviewers to stop and report any certificate warning
   instead of clicking through.
 
+## Administration
+
+Administrators find these under **More → Administration**:
+
+- **Settings**: every setting of ARGUS with its help and current value, in sections (the SIEM,
+  Kibana, the web app, sign-in, notices, retention, backups, outside lookups, the incident engine
+  and more). A save is checked again and applied by the service `argus-admin`, which restarts only
+  what reads the setting and shows the result within seconds; if a service does not come back,
+  the change is **rolled back**. Keys and addresses need your password again; anything that lets
+  ARGUS write to the SIEM also needs you to type *let ARGUS write to the SIEM*. Keys are never
+  shown, only replaced. Full reference:
+  [configuration.md](configuration.md#changing-a-setting-in-the-app).
+- **Users and roles**: [next section](#users-and-capabilities).
+- **Design system**: the app's colours and components (for developers).
+
+**First-time setup** is not in the menu. Until ARGUS has its SIEM address and key, an
+administrator sees a card on **Today**, *Finish the first-time setup*, whose **Start the setup**
+button opens `/app/setup`. Four steps:
+
+1. **Your organisation**: its name, the security team's name, what kind of organisation, your own
+   domains and public networks, the time zone and a short label for it, the incident id prefix.
+2. **The SIEM**: Elasticsearch's address. *Check the certificate* reads what the address
+   presents and shows the certificate authority's SHA-256 fingerprint; compare it with what your
+   SIEM administrator gives you, then choose *Trust this certificate authority*, or *My system
+   already trusts it* for a certificate from an authority this machine already knows. Then the
+   read-only API key (sealed at once), when it expires, and the index patterns of your logs.
+3. **Kibana** (optional): its address and how its certificate is trusted, a read-only key and
+   when it expires, the Kibana space with the Security alerts (found by itself when left empty).
+   ARGUS writes nothing to Kibana until that is switched on in Settings.
+4. **Review and run**: the answers (keys only as "set"), then **Run the setup**, with your
+   password confirmed again.
+
+`argus-admin` then runs the rest of the installation with those answers: it checks the SIEM,
+discovers the log families and the Kibana space, writes the configuration and starts every
+service. The page shows its output as it goes; if it stops, your answers are kept, so fix what it
+names and run it again. The AI providers are not part of the setup: their keys are added on the
+server ([llm.md](llm.md)).
+
 ## Users and capabilities
 
-```bash
-uv run argus user add alice --name "Alice Example"     # the password is asked twice
-uv run argus user add bob --capability view --capability review
-uv run argus user list                                  # accounts, capabilities, last seen
-uv run argus user grant alice manage_cases reopen approve
-uv run argus user revoke alice approve
-uv run argus user disable bob                           # their sessions end at once
-uv run argus sessions end-all                           # end every session
-```
+**More → Administration → Users and roles** lists everyone who can sign in, with their role, when
+they were last seen, their open sessions and their status. Each change asks for your password
+again (within five minutes).
 
-User names are lowercase, 2–32 characters. A new account without `--capability` gets **view,
-see_logs, review, answer_gold**.
+- **Add a person**: their name, a sign-in name (lower case, 2–32 characters) and a role. ARGUS
+  shows a one-time link, valid 72 hours, which you pass on; they choose their own password with it.
+- **Change role**: takes effect the next time the person's session reads its access (within a
+  minute).
+- **New password link**: a one-time link to choose a new password; an older unused link stops
+  working.
+- **Switch off / Switch on**: switched off, a person can no longer sign in and every open session
+  ends; nothing they did is removed.
+- **End sessions**: signs the person out of every browser now.
+
+People who sign in through ELK are shown with an *ELK sign-in* badge; their access follows their
+ELK roles and is changed there. The emergency account is changed only from the server
+([below](#the-emergency-account)).
+
+The roles:
+
+| Role | What it gives |
+|---|---|
+| Viewer | `view`: reads incidents, reports and Today; changes nothing |
+| Analyst (TA/RA) | `view`, `see_logs`, `review`, `answer_gold`, `manage_cases`: works the queue |
+| Lead | an analyst who may also `reopen` and `approve` (closures and Kibana posts) |
+| Administrator | everything, and ARGUS's settings and accounts (`admin`) |
+| Custom | exactly the capabilities you tick, when no role fits |
 
 | Capability | Lets a person | Needs |
 |---|---|---|
@@ -86,36 +151,42 @@ see_logs, review, answer_gold**.
 | `manage_cases` | manage cases: take, assign, contain, request closure, merge, open | view |
 | `reopen` | reopen a closed case | view |
 | `approve` | approve closures and other requests, after confirming it is them | view, manage_cases |
-| `admin` | change ARGUS's settings | view |
+| `admin` | change ARGUS's settings, run the first-time setup, manage people | view |
 
 A capability counts only with its prerequisites; a grant whose prerequisite is missing grants
-nothing. Changes reach a person's open sessions at their next request (`grant`) or at once
-(`revoke`, `disable`). The **Your access** page (in the Account menu) tells each person what they
-may do and why; send people there when a button is greyed out.
+nothing. The **Your access** page (in the Account menu) tells each person what they may do and
+why; send people there when a button is greyed out.
+
+**From the server** (recovery, scripting, or ending every session at once):
+
+```bash
+uv run argus user list                                  # accounts, capabilities, last seen
+uv run argus user add alice --name "Alice Example"     # the password is asked twice
+uv run argus user grant alice manage_cases reopen approve
+uv run argus user revoke alice approve
+uv run argus user disable bob                           # their sessions end at once
+uv run argus sessions end-all                           # end every session
+```
 
 ## The pages
 
-The menu is on the left (behind *Menu* on a phone):
+The menu is on the left (on a phone, the four main pages are a bar at the bottom):
 
-| Section | Page | What it is |
+| Where | Page | What it is |
 |---|---|---|
-| **Home** | Home | What needs a person today, in order: ARGUS's cases, the patterns to close, single investigations |
-| | Dashboard | Alerts, investigations and incidents (confirmed cases) at a glance |
-| **Review** | Needs attention | Follow-ups, changed and severe investigations: **start here** |
-| | Not reviewed / Reviewed / All | Every investigation, by review state |
-| | Notified, still active | Devices whose owner was told: counted, not raised |
-| **Cases** | Needs a decision / Open incidents / Notified cases / My cases | Possible incidents to confirm or dismiss, and confirmed incidents across investigations |
+| **Main** | Today | What needs a person today, and what ARGUS handled on its own; administrators also see the setup card until the setup is done |
+| | Incidents | Every incident and possible incident, by priority |
+| | Search | One box for an address, a host, an account, a domain, a rule or an incident |
+| | Reports | Incident reports first, then the daily and weekly summaries |
+| **More** | Overview | Alerts, alert groups and incidents at a glance |
 | | Approvals | Closures and merges waiting for a second person |
-| **Browse** | By rule / By host or IP | Investigations per detection rule, or per host, address, domain or user |
-| | Patterns | Groups of alike investigations, to decide at once |
-| **AI & reports** | Proposals | Outcomes ARGUS proposes, grouped by what decided them, with an audit sample |
-| | Reports | The daily and weekly reports (figures say how they were counted) |
-| | Tuning | Weekly per-rule suggestions to make noisy rules quieter (you apply them in Kibana) |
-| | Metrics | How the AI is doing: results, waiting work, cost against the caps |
-| | Gold set | The answer key that measures how often ARGUS is right |
-| **System** | Health | Whether data is arriving, and any gaps (a gap is *unknown*, never *clean*) |
-| | Glossary | Every page and word explained |
-| | Design system | The app's colours and components (for developers) |
+| | Rule tuning | Weekly per-rule suggestions to make noisy rules quieter (you apply them in Kibana) |
+| | ARGUS quality | How often ARGUS is right: its results, waiting work and cost, and the gold set |
+| | System health | Whether data is arriving, and any gaps (a gap is *unknown*, never *clean*) |
+| | Help & glossary | Every page and word explained |
+| **More queues** | Patterns | Groups of alike alert groups, to decide at once |
+| | Proposals | Outcomes ARGUS proposes, grouped by what decided them, with an audit sample |
+| **Administration** (admins) | Settings, Users and roles, Design system | [Above](#administration) |
 | **Account** | Your access | What you may do and why (a server page) |
 
 ![The Dashboard: alerts, investigations and incidents at a glance](images/screenshots/dashboard.png)
@@ -126,49 +197,95 @@ The menu is on the left (behind *Menu* on a phone):
 
 ![Reports: the daily and weekly reports](images/screenshots/reports.png)
 
-**An investigation's page** has a strip of key facts and tabs: **Overview** (the verdict in a
-few lines, the reasons to look, what ARGUS found), **Report** (every fact with the request it
-came from), **AI assessment** (what the decision engine and the AI investigator propose, with the
-facts they quote), **What ARGUS checked** (the rule's own steps), **Alerts** (the alerts with
-chosen columns; the raw alert on demand), **History**. The decision is made in **Your review**:
-a decision (Real: act on it; Real but harmless; Allowed by policy; Wrong alert; Can't tell yet,
-over the review outcomes true positive, benign: expected activity, benign: allowed by policy,
-rule false positive and inconclusive), *Come back to it* for a follow-up, a note, *Save
-decision*; *Accept ARGUS's call* does it in one click when ARGUS makes a call.
+**Today** lists what needs a person: **Needs you** (possible incidents, by priority, each card
+with **Confirm incident…** and **Not an incident ▾**), **Just decided** (with **Undo** for a
+closure), **New activity**, **Waiting for your approval**, **ARGUS is unsure about these**, and
+**Handled by ARGUS** with a short **Spot-check** of what ARGUS closed on its own.
 
-![An investigation's page: the key facts, the verdict and the evidence, with Your review](images/screenshots/investigation.png)
+**Incidents** is the queue, in tabs (**Needs you**, **Mine**, **Open**, **Owner told**,
+**Closed**, **All**) with filters. On a wide screen a row opens a **preview** beside the list
+(what happened, why, what was checked, the campus side and the other side) with the same two
+decision buttons. Selected rows (`x`) can be closed together with one reason, merged (**Merge
+into one…**) or compared (**Review together**); confirming is always one at a time.
 
-**A case's page** reads: for a possible incident (a suspected case) the decision first (**Confirm
-as incident**, **Not an incident…** with a reason, **Merge into…**; `POST
-/api/v1/cases/{id}/confirm` and `/dismiss`, the same commands as `argus case confirm` and
-`dismiss`, needing `manage_cases`, and `review` too for a dismissal), then the summary with the
-case's one IR number, the incident **Report** (with a PDF and CSVs of indicators and affected
-devices; every evidence line has its query and a link that opens it in Kibana; its header says
-the case's state and ARGUS's call apart), what's new, timeline, evidence, hypotheses, unknowns,
-actions, members, the Kibana mirror, notes, history. Actions: Take, Assign, Release, Contain,
-Request closure, Merge, Reopen, **Check more** (one approved, read-only question to the SIEM about
-one host or address, its cost shown first).
+**An incident's page** (`/app/incidents/<id>`; old case addresses lead here) has a sticky
+**decision bar** (docked at the bottom on a phone) with ARGUS's call in words and the buttons of
+the incident's state; a disabled one says why:
 
-The header carries one quiet **System: OK** that opens to the SIEM, the Kibana read-back and (for
-an admin) the AI cost; a banner appears only when the queue itself may be incomplete (ARGUS is
-not reading the SIEM, or has read no new alert for two hours).
+| State | Buttons |
+|---|---|
+| Possible incident | **Confirm incident…** (a dialog: what happens, what is **Still open**, **Take it myself**, a note, the exact request), **Not an incident ▾** (Expected activity, Scan or attempt: no sign it worked, Allowed by policy, Wrong rule, Duplicate of…; then **Close it**, with **Undo** for a few seconds), **Merge into…** |
+| Open, nobody's | **Take it**, **Assign ▾**; under **More ▾**: Send to Kibana…, Report to the CISO…, Mark contained, Request closure, Merge into… |
+| Yours | the next step first (Send to Kibana…, Report to the CISO… or Record that the owner was told…); the rest, Mark contained, Request closure, Release, Merge into…, under **More ▾** |
+| Owner told | **Request closure**; under **More ▾**: Re-notify, Withdraw notice, Send to Kibana…, Report to the CISO… |
+| Contained | **Request closure**; the rest under **More ▾** |
+| Closed | **Reopen** (with the `reopen` capability) |
+
+Confirming and the other incident actions need `manage_cases`; dismissing needs `review` as
+well, and the bar shows the buttons only to people with `review`. Closing and a confirmed incident's merge are requests a second
+person approves ([Approvals](#approvals)).
+
+Under the bar, the tabs: **Overview** (what happened, why ARGUS raised it with its priority out of
+100, what was seen, what ARGUS checked, other explanations, related incidents, next steps),
+**Story** (who talked to what, the timeline), **Evidence** (with **Ask ARGUS to check something
+else**: one approved, read-only question to the SIEM about one host or address, its cost shown
+first), **Entities**, **Alert groups**, **Report** (the incident report with its PDF and CSVs,
+every evidence line with its query and a Kibana Discover link, **Confirm the verdict** /
+**Reject with a reason…**, and the **Kibana case preview**), **Activity** (the log, filtered by
+People, ARGUS, AI or Kibana; **Add a note to this incident**; owner and containment). **More
+about this incident** has Copy link, Copy ID, Copy IR number, Download the report (PDF),
+**Everything on one page** and the raw record.
 
 ![A case's page: summary, incident report, timeline, evidence and actions](images/screenshots/case.png)
 
 ![Page 1 of a case's incident report PDF](images/screenshots/incident-report.png)
 
-**Keyboard** on the lists: `j`/`k` or the arrows move, `Enter` opens, `Esc` goes back, `?` lists
-the keys.
+**Search** takes an address, a host, an account, a domain, a rule, an incident number or an IR
+number, and lists the matching incidents and alert groups. An **entity page**
+(`/app/entities/<device|account|site|outside>/<value>`) shows what ARGUS knows about it, the
+incidents whose title names it and its alert groups of the last 5 days; an entity chip on an
+incident opens a side panel with **Open full page**. **▸ Advanced: alert-group filters** opens the
+older alert-group lists (Needs attention, by rule, by host or IP; `/app/inbox` leads there).
+
+**An alert group's page** (`/app/alert-groups/<id>`) is the building block under incidents: one
+rule, one actor, one day. It has a strip of key facts and tabs: **Overview**, **Report** (every
+fact with the request it came from), **AI assessment** (what the decision engine and the AI
+investigator propose, with the facts they quote; **Ask the AI investigator now**), **What ARGUS
+checked** (the rule's own steps), **Alerts** (chosen columns; the raw alert on demand),
+**History**. **Your decision** has five outcomes: **Real: open an incident…** (marking it real
+opens a possible incident, or adds it to the incident that holds its activity), Real but harmless,
+Allowed by policy, Wrong alert, Can't tell yet; *Come back to it* keeps it in Needs attention
+for a follow-up; then **Save decision** (or **Add note only**). **Accept ARGUS's call** does it in
+one click when ARGUS makes a call. **More → More queues** keeps two alert-group queues:
+**Proposals** (ARGUS's proposed outcomes by group, with an audit sample and **Confirm all**) and
+**Patterns** (alike alert groups to decide at once).
+
+![An investigation's page: the key facts, the verdict and the evidence, with Your review](images/screenshots/investigation.png)
+
+The header carries one quiet status (**● OK**, **Caution** or **Problem**) that opens to the
+SIEM, ARGUS's reading, the Kibana read-back and (for an administrator) the AI cost, with a link
+to System health. A banner on Today appears only in the Problem state: ARGUS has stopped reading
+the SIEM, or has not measured its health for over an hour, so new incidents may be missing or
+late.
+
+**Keyboard** (while you are not typing): `j`/`k` next and previous card or row, `Enter` or `o`
+open the incident, `Esc` close a pane, menu or dialog, `c` **Confirm incident…**, `d` **Not an
+incident…** (then `e`, `s`, `p`, `w` or `u` for the reason), `x` select a row, `/` search, `?`
+the keys; on an alert group's page `1`–`5` choose the outcome, `C` accepts ARGUS's call and `N`
+goes to the next one. Nothing is sent on one key. The single-letter keys can be switched off with
+the **Single-key shortcuts** box.
 
 ## How changes are made
 
-- **What ARGUS composes for you** (accepting a proposal, asking the AI, deciding a group,
-  confirming proposals, a case action, an approval) first shows **the exact request it will
-  send**. Read it, then confirm.
-- **What you write yourself** (a review, a note, a gold-set answer) is saved from its form.
+- **What ARGUS composes for you** (confirming or dismissing an incident, accepting a proposal,
+  asking the AI, deciding a group, confirming proposals, an incident action, an approval) keeps
+  **the exact request it will send** one click away (**Show the exact request**). Read it, then
+  confirm.
+- **What you write yourself** (a decision on an alert group, a note, a gold-set answer) is saved
+  from its form.
 - If someone else changed the item meanwhile, nothing is saved and you see what changed.
 - A failed change says why in plain words and is never retried by itself.
-- Notes are for people only; they are never sent to a model.
+- Notes are for people only; they are never sent to a model or to Kibana.
 - Text that came from logs, alerts, Kibana or a model is always shown as text: ARGUS takes no
   instruction from it.
 
@@ -184,7 +301,8 @@ approval.
 
 The web signs each approval with a key. Until it has one, the Approvals queue can be read but no
 decision is recorded (doctor: `web.approval_key_file is not set: the approvals queue can be read,
-but no decision is recorded`). Make one and give it to the web:
+but no decision is recorded`). The key is made **on the server** (Settings shows its path
+read-only):
 
 ```bash
 mkdir -p -m 700 data/keys
@@ -232,7 +350,7 @@ otherwise. `answer_gold` is given in ARGUS, not by ELK. `uv run argus identity m
 map for your Kibana's feature ids; `uv run argus identity check` checks one account (the password
 is asked, never passed).
 
-To switch it on:
+To switch it on, first give the web its own secret **on the server** (once):
 
 ```bash
 mkdir -p -m 700 data/keys
@@ -242,13 +360,15 @@ uv run argus sessions keygen data/keys/web-secret      # 64 hex digits, mode 060
 ```yaml
 # config/local.yaml
 web:
-  elk_signin: true
   secret_file: data/keys/web-secret
-  database_role: api        # argus init already set this
+  database_role: api        # the installer already set this
 ```
 
-ELK sign-in needs TLS unless the web is on the loopback (a password is typed only over TLS).
-Restart the web. Then move people over one by one, keeping their history:
+Then, in the app, turn on `web.elk_signin` in **Settings → The web app** (it asks for your
+password again); the timeouts and the accounts refused or allowed as administrators are in
+**Settings → Sign-in through ELK**. ELK sign-in needs TLS unless the web is on the loopback (a
+password is typed only over TLS). Then move people over one by one, keeping their history (on the
+server):
 
 ```bash
 uv run argus identity link alice --elk alice.example    # the local account finds the ELK one
@@ -256,14 +376,17 @@ uv run argus identity cutover                           # where each account sta
 uv run argus identity disable-local alice               # after her first ELK sign-in worked
 ```
 
-The way back is to set `elk_signin: false` (local passwords are kept until each person's ELK
-sign-in has worked; `argus identity enable-local` gives one back).
+The way back is to turn `web.elk_signin` off again in Settings (local passwords are kept until
+each person's ELK sign-in has worked; `argus identity enable-local` gives one back). In Users and
+roles, people who sign in through ELK carry an *ELK sign-in* badge and their access is changed in
+ELK.
 
 ## The emergency account
 
 With ELK sign-in on, a break-glass account lets people **view and review** while ELK cannot be
-asked. A person at the ARGUS machine switches it on (it asks why and checks that the SIEM is
-really down), and gets a one-time password:
+asked. It is deliberately **not** in the app (it is for when sign-in itself is broken): a person
+at the ARGUS machine switches it on (it asks why and checks that the SIEM is really down), and
+gets a one-time password:
 
 ```bash
 uv run argus break-glass on
@@ -271,7 +394,8 @@ uv run argus break-glass status
 uv run argus break-glass off
 ```
 
-Nothing it does reaches Kibana; it cannot approve or change settings.
+Nothing it does reaches Kibana; it cannot approve or change settings. Users and roles shows it
+as the *Emergency account*, read-only.
 
 ## The API
 
@@ -283,8 +407,13 @@ the pages (a signed-in browser session with its CSRF token).
 
 | Symptom | Cause and fix |
 |---|---|
-| `argus-web` exits at start: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks` | `units.web.host` (or `web.host`) is not the loopback but one of the other three is missing. |
-| The browser says *Invalid host header* or the connection is refused from another machine | The name in the address bar is not in `allowed_hosts`, or the client is not in `allowed_networks`, or the firewall blocks 8765. |
+| `argus-web` exits at start: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks` | `units.web.host` (or `web.host`) is not the loopback but one of the other three is missing. Rerun `./install.sh` and give the address. |
+| The browser says *Invalid host header* or the connection is refused from another machine | The name in the address bar is not in the allowed hosts, or the client is not in the allowed networks (Settings → The web app), or the firewall blocks 8765. If you cannot reach the app at all, fix it on the server: rerun `./install.sh` with the right address. |
+| Settings or the setup says *argus-admin is not running* | Changes wait until it runs. On the server: `systemctl --user status argus-admin`, `journalctl --user -u argus-admin -n 50`, then `systemctl --user restart argus-admin`. `uv run argus admin status` shows when it was last seen. |
+| A change shows **rolled back** | A service did not start with the new value, so the previous files were put back. The outcome line says which service; `journalctl --user -u <that service> -n 30` says why. |
+| A change shows **refused** | `argus-admin` did not accept the value (the reason is shown), or the installation uses the hardened custody layout, where settings are changed by the custodian on the server. |
+| *Confirm your password again (within five minutes)* | Use *Confirm your password* (a new tab), then save again: your edits are kept. |
+| The one-time link has expired | For a person: *New password link* in Users and roles. For the first administrator: rerun `./install.sh`. |
 | Approvals cannot be decided | No approval key: see [Approvals](#approvals). |
 | Doctor: `web certificate pin` FAIL | The served certificate changed: update `web.tls_pin_sha256`. |
 | Doctor: `frontend build` FAIL | The committed web build does not match `frontend/` (a local change to the frontend): rebuild it ([development.md](development.md#the-web-app)) or `git checkout frontend src/argus/web/spa`. |

@@ -298,7 +298,7 @@ function Review({ f, onJump }: { f: SetupForm; onJump: (s: Step) => void }) {
         </div>
         <div className="contents">
           <dt className="text-muted">AI providers</dt>
-          <dd className="m-0">off for now; you add them later in Settings</dd>
+          <dd className="m-0">off: ARGUS works without them (their keys are added on the server, see docs/llm.md)</dd>
         </div>
       </dl>
       {allProblems(f) && (

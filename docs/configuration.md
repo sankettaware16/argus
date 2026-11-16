@@ -1,12 +1,16 @@
 # Configuration
 
-Reference for every file ARGUS reads, the order in which they win, and the settings an operator
-is likely to change. The authoritative list, with every bound, is the settings code:
-[`src/argus/config/settings.py`](../src/argus/config/settings.py) and
-[`src/argus/site.py`](../src/argus/site.py) (each setting has a docstring).
+How ARGUS is configured: where every value lives, the order in which the files win, and the
+settings an operator is likely to change. **Change settings in the web app** (More →
+Administration → Settings); this page is the reference behind that page, and covers the few
+settings that are still kept in files on the server. The authoritative list, with every bound, is
+the settings code: [`src/argus/config/settings.py`](../src/argus/config/settings.py) and
+[`src/argus/site.py`](../src/argus/site.py) (each setting has a docstring, which is also the help
+Settings shows).
 
 **Contents**
 
+- [Changing a setting in the app](#changing-a-setting-in-the-app)
 - [Where every value lives](#where-every-value-lives): one table, value by value
 - [The files](#the-files)
 - [Precedence](#precedence)
@@ -24,59 +28,118 @@ is likely to change. The authoritative list, with every bound, is the settings c
 
 ---
 
+## Changing a setting in the app
+
+**Settings** (administrators only) shows every setting of ARGUS with its help and its current
+value: 268 in all, 183 of them changeable there. They are grouped in sections:
+
+| Section | What it holds |
+|---|---|
+| Organisation and data sources | `site.*`: the organisation's names, own domains and networks, time zone, incident id prefix, log families, Kibana space, threat-intel sources, quiet hours |
+| SIEM | `siem.url`, its CA file, the read-only key and its expiry (the load budget, lanes and health thresholds are shown read-only) |
+| Kibana | `kibana.*`: address, CA, keys and their expiry, write classes, the read-back |
+| The web app | session lengths, the public address, allowed hosts and networks, ELK sign-in |
+| Sign-in through ELK | `identity.*` |
+| Kibana cases | `case_team.*` |
+| Incident engine | `risk.*` |
+| Evidence checks | `enrichment.*` |
+| Outside sources | `outside.*`: the VirusTotal, Shodan and Censys keys and limits |
+| Cases, Notices, Owner notices | `cases.*`, `notices.*` (the e-mail relay and recipients), `notified.*` |
+| Sign-in records, Incident reports, Investigations, Freshness | `signins.*`, `incident.*`, `investigation.*`, `freshness.*` |
+| History, Retention, Backups | `history.window`, `retention.*`, `backup.*` |
+| Write-back, Logging, Asset map, Campaigns | `writeback.*`, `logging.*`, `assets.*` (the map's path only), `campaigns.*` |
+
+A search box finds a setting by its name, its key or its help.
+
+**Three levels of care.**
+
+| Level | Which settings | What it asks |
+|---|---|---|
+| Normal | most of them | an administrator |
+| Sensitive | keys, addresses and CA files (`siem.url`, `kibana.url`, ...), `site.space`, the web's public address, allowed hosts and networks, ELK sign-in, `identity.admin_accounts`, `assets.map_path` | your password confirmed again within the last five minutes |
+| SIEM write | `kibana.write_classes`, `case_team.post`, `.per_day`, `.auto`, `.canary`, `.auto_min_confidence`, `writeback.enabled` | that, and typing *let ARGUS write to the SIEM* |
+
+**What happens on Save.** The web checks each value against the setting's type and bounds. The
+service `argus-admin` then checks it again, writes it, restarts only the services that read it
+(a timer's service reads it at its next run) and reports on the page. If a restarted service does
+not come back, it puts the previous files back and the change shows as **rolled back**. Under
+the hardened custody layout every change is refused: the settings there are the custodian's.
+
+**Where a change is written.** A change goes to every place that already sets that setting, so no
+copy disagrees: `config/admin.yaml`, `.env`, a service's own env file (`local/argus-writer.env`)
+or its credential folder. A setting set in none of them goes to its home: `config/admin.yaml`,
+or `.env` for a secret, or the one service's own file for a setting only it reads. ARGUS never
+edits `config/argus.yaml`, `config/local.yaml` or `config/site.yaml` from the app: a value set
+in the app wins over them, and a setting's reset (in Settings) takes it out of `admin.yaml` so
+the files' value applies again. A setting the app shows as *Changed in the app* lives in
+`admin.yaml`.
+
+**Keys** are sealed the moment they reach ARGUS; only `argus-admin` can open them. A key is never
+shown again, only replaced, and is never written to `admin.yaml`.
+
+**Not in Settings**, by design: the SIEM load budget, its lanes and health thresholds (set in the
+files after a measurement), the web's own address, port and certificate, the units
+(`units.*`), the database connection, `memory.window`, custody, the AI providers' keys and caps
+(`config/llm.yaml`, `config/llm.local.yaml`). These stay on the server.
+
 ## Where every value lives
 
 Every value an operator gives ARGUS, where it goes, who puts it there, and whether ARGUS needs it.
-**Secrets** go only in `.env`, the LLM keys file, or a credential folder, never in YAML.
+"Setup" is the app's first-time setup (which runs `argus init` with its answers; a terminal-only
+install answers the same questions in `argus init` itself). **Secrets** go only in `.env`, the LLM
+keys file, or a credential folder, never in YAML.
 
 | Value | Setting or name | File | Set by | Required? |
 |---|---|---|---|---|
-| Database passwords (owner, runtime, web) | `ARGUS_DATABASE__OWNER_PASSWORD`, `ARGUS_DATABASE__PASSWORD`, `ARGUS_DATABASE__API_PASSWORD` | `.env` | `argus init` (generated) | yes |
-| Database host, port, name, users | `ARGUS_DATABASE__HOST`, `__PORT`, `__NAME`, `__USER`, `__OWNER_USER` | `.env` | `argus init` | yes |
-| Elasticsearch's address | `siem.url` | `config/local.yaml` | `argus init` step 4 | yes |
-| The SIEM's pinned CA | `siem.ca_file` (`data/certs/siem-ca.crt`) | `config/local.yaml`; the certificate in `data/certs/` | `argus init` step 4 | yes |
-| The read-only Elasticsearch key | `ARGUS_SIEM__API_KEY` | `.env` | `argus init` step 5 | yes |
-| Its expiry date | `siem.api_key_expires` | `config/local.yaml` | `argus init` step 5 | recommended (doctor warns 30 days ahead) |
-| Kibana's address and CA | `kibana.url`, `kibana.ca_file`, `kibana.enabled` | `config/local.yaml` | `argus init` step 4 | optional |
-| Kibana's reader key, its expiry | `ARGUS_KIBANA__READER_API_KEY`; `kibana.reader_api_key_expires` | `.env`; `config/local.yaml` | `argus init` step 5 | optional |
-| Organisation, team name, kind | `site.organisation.name`, `.short_name`, `.kind` | `config/site.yaml` | `argus init` step 6 | yes |
-| Own domains | `site.own_domains` | `config/site.yaml` | `argus init` step 6 | yes (at least one) |
-| Own public networks | `site.own_networks` | `config/site.yaml` | `argus init` step 6 | optional |
-| Time zone and its label | `site.timezone`, `site.timezone_label` | `config/site.yaml` | `argus init` step 6 | yes (choose once) |
-| Incident id prefix | `site.incident_id_prefix` | `config/site.yaml` | `argus init` step 6 | yes |
-| Log families, space, threat-intel sources, versions | `site.families`, `site.space`, `site.ti_sources`, `site.kibana_features` | `config/site.yaml` | `argus discover` (init step 6), you | yes (families, space) |
-| Quiet hours | `site.quiet_hours` | `config/site.yaml` | you | optional (00:00–01:30 UTC) |
-| History depth | `history.window` | `config/local.yaml` | you | optional (`5d`) |
-| The LLM keys file's path | `keys_file` | `config/llm.local.yaml` | `argus init` step 7 | optional |
-| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ... | your keys file (mode 600) | you ([llm.md](llm.md#4-where-the-keys-go)) | optional |
+| Database passwords (owner, runtime, web) | `ARGUS_DATABASE__OWNER_PASSWORD`, `ARGUS_DATABASE__PASSWORD`, `ARGUS_DATABASE__API_PASSWORD` | `.env` | `./install.sh` (generated) | yes |
+| Database host, port, name, users | `ARGUS_DATABASE__HOST`, `__PORT`, `__NAME`, `__USER`, `__OWNER_USER` | `.env` | `./install.sh` | yes |
+| Elasticsearch's address | `siem.url` | `config/local.yaml`; `config/admin.yaml` once changed in Settings | Setup; Settings → SIEM | yes |
+| The SIEM's pinned CA | `siem.ca_file` (`data/certs/siem-ca.crt`) | `config/local.yaml`; the certificate in `data/certs/` | Setup (you compare its fingerprint) | yes |
+| The read-only Elasticsearch key | `ARGUS_SIEM__API_KEY` | `.env` | Setup; Settings → SIEM | yes |
+| Its expiry date | `siem.api_key_expires` | `config/local.yaml` / `admin.yaml` | Setup; Settings → SIEM | recommended (doctor warns 30 days ahead) |
+| Kibana's address and CA | `kibana.url`, `kibana.ca_file`, `kibana.enabled` | `config/local.yaml` / `admin.yaml` | Setup; Settings → Kibana | optional |
+| Kibana's reader key, its expiry | `ARGUS_KIBANA__READER_API_KEY`; `kibana.reader_api_key_expires` | `.env`; `config/local.yaml` / `admin.yaml` | Setup; Settings → Kibana | optional |
+| Organisation, team name, kind | `site.organisation.name`, `.short_name`, `.kind` | `config/site.yaml` / `admin.yaml` | Setup; Settings → Organisation and data sources | yes |
+| Own domains | `site.own_domains` | `config/site.yaml` / `admin.yaml` | Setup; Settings | yes (at least one) |
+| Own public networks | `site.own_networks` | `config/site.yaml` / `admin.yaml` | Setup; Settings | optional |
+| Time zone and its label | `site.timezone`, `site.timezone_label` | `config/site.yaml` / `admin.yaml` | Setup; Settings | yes (choose once) |
+| Incident id prefix | `site.incident_id_prefix` | `config/site.yaml` / `admin.yaml` | Setup; Settings | yes |
+| Log families, space, threat-intel sources | `site.families`, `site.space`, `site.ti_sources` | `config/site.yaml` / `admin.yaml` | discovery during the setup (`argus discover`); Settings | yes (families, space) |
+| Versions, Kibana feature ids | `site.elastic_versions`, `site.kibana_versions`, `site.kibana_features` | `config/site.yaml` | discovery, you (read-only in the app) | defaults |
+| Quiet hours | `site.quiet_hours` | `config/site.yaml` / `admin.yaml` | Settings | optional (00:00–01:30 UTC) |
+| History depth | `history.window` | `admin.yaml` (or `config/local.yaml`) | Settings → History | optional (`5d`) |
+| The LLM keys file's path | `keys_file` | `config/llm.local.yaml` | you, on the server (or `argus init` step 7) | optional |
+| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ... | your keys file (mode 600) | you, on the server ([llm.md](llm.md#4-where-the-keys-go)) | optional |
 | Cost caps | `daily_cap_usd`, `monthly_cap_usd`, `shares`, `margin` | `config/llm.yaml` | you, in a local commit | optional ($1.50 / $40) |
-| The asset map | `assets.map_path` (`data/assets/asset_map.yaml`) | the map itself | `argus assets import` | required before any model or outside key |
-| Outside threat-intel keys | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | `.env` | you | optional |
-| Your DNS resolvers | `campaigns.resolvers` | `config/local.yaml` | you | recommended |
-| The services to run | `units.run` | `config/local.yaml` | `argus init --start`, you | yes, once started |
-| The web on the network | `units.web.host`, `tls_cert`, `tls_key`, `allowed_hosts`, `allowed_networks`, `public_url` | `config/local.yaml` | you | optional (loopback by default) |
-| The address in permanent links | `web.public_url` | `config/local.yaml` | you | needed by notices and the case team |
-| The approval key | `web.approval_key_file` (`data/keys/approval-signing.key`) | `config/local.yaml`; the key in `data/keys/` | `argus approvals keygen`, you | needed to record approvals |
-| ELK sign-in | `web.elk_signin`, `web.secret_file` | `config/local.yaml`; `data/keys/web-secret` | `argus sessions keygen`, you | optional |
-| E-mail notices | `ARGUS_NOTICES__ENABLED`, `__RELAY_HOST`, `__RELAY_FROM`, `__RECIPIENTS`, `__WEB_URL`, `__USER`, `__PASSWORD` | `.env` | you | optional |
-| The case team's keys | `case_team.<agent>_api_key` | `local/creds-writer/case_team.<agent>_api_key` (credential files, mode 600) | `argus case team provision` | only for the case team |
-| The case team's switches | `ARGUS_KIBANA__WRITE_CLASSES=WC`, `ARGUS_CASE_TEAM__POST=true` | `local/argus-writer.env` | you | only for the case team |
-| The writer's database login | `database.writer_password` | `local/creds-writer/database.writer_password` | you | only for Kibana writes |
+| The asset map | the file itself; its path `assets.map_path` (`data/assets/asset_map.yaml`) | the map itself | `argus assets import` on the server; the path in Settings → Asset map | required before any model or outside key |
+| Outside threat-intel keys | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | `.env` | Settings → Outside sources | optional |
+| Your DNS resolvers | `campaigns.resolvers` | `admin.yaml` (or `config/local.yaml`) | Settings → Campaigns | recommended |
+| The services to run | `units.run` | `config/local.yaml` | `./install.sh` and the setup, then you on the server | yes, once started |
+| The web on the network | `units.web.host`, `tls_cert`, `tls_key` | `config/local.yaml` | `./install.sh` (the address question) | optional (loopback by default) |
+| Allowed hosts and networks, the address in permanent links | `web.allowed_hosts`, `web.allowed_networks`, `web.public_url` (each with its `units.web` twin) | `config/local.yaml` / `admin.yaml` | `./install.sh`; Settings → The web app | needed on the network; `public_url` by notices and the case team |
+| The approval key | `web.approval_key_file` (`data/keys/approval-signing.key`) | `config/local.yaml`; the key in `data/keys/` | `argus approvals keygen`, you, on the server | needed to record approvals |
+| ELK sign-in | `web.elk_signin`; `web.secret_file` | `admin.yaml` or `config/local.yaml`; `data/keys/web-secret` | Settings → The web app; the secret by `argus sessions keygen` on the server | optional |
+| E-mail notices | `notices.enabled`, `.relay_host`, `.relay_from`, `.recipients`, `.web_url`, `.user`, `.password` | `.env` or `admin.yaml` (the password in `.env`) | Settings → Notices | optional |
+| The case team's keys | `case_team.<agent>_api_key` | `local/creds-writer/case_team.<agent>_api_key` (credential files, mode 600) | `argus case team provision`; replaced in Settings → Kibana cases | only for the case team |
+| The case team's switches | `ARGUS_KIBANA__WRITE_CLASSES=WC`, `ARGUS_CASE_TEAM__POST=true` | `local/argus-writer.env` | Settings (SIEM write), or you | only for the case team |
+| The writer's database login | `database.writer_password` | `local/creds-writer/database.writer_password` | you, on the server | only for Kibana writes |
 
 ## The files
 
 | File | Tracked in git | Who writes it | What it holds |
 |---|---|---|---|
-| `config/argus.yaml` | yes | the project | Neutral defaults, with comments. **Leave it as shipped**: put your changes in `config/local.yaml`, so `git pull` never conflicts. |
-| `config/site.yaml` | no | `argus init` / `argus discover --write` | The `site` section only: your organisation and its Elastic (log families, space, threat intel, time zone, domains, networks, quiet hours). |
-| `config/local.yaml` | no | `argus init`, then you | This installation's own values: the SIEM's and Kibana's addresses and CA files, the keys' expiry dates, `units`, and any setting you change. Any section may be in it. |
+| `config/argus.yaml` | yes | the project | Neutral defaults, with comments. **Leave it as shipped**, so `git pull` never conflicts. |
+| `config/site.yaml` | no | the setup / `argus init` / `argus discover --write` | The `site` section only: your organisation and its Elastic (log families, space, threat intel, time zone, domains, networks, quiet hours). |
+| `config/local.yaml` | no | `./install.sh` and the setup, then you on the server | This installation's own values: the SIEM's and Kibana's addresses and CA files, the keys' expiry dates, `units`, and any setting changed by hand. Any section may be in it. |
+| `config/admin.yaml` | no | `argus-admin`, from Settings | The settings changed in the app. Never a secret. Leave it to the app; a reset in Settings removes a value from it. |
 | `config/llm.yaml` | yes | the project | The LLM providers, their models, limits and the cost caps ([llm.md](llm.md)). |
-| `config/llm.local.yaml` | no | `argus init` | Laid over `llm.yaml`; may set `keys_file` only. |
+| `config/llm.local.yaml` | no | you, on the server (or `argus init`) | Laid over `llm.yaml`; may set `keys_file` only. |
 | `config/llm_data_policy.yaml` | yes | the project | What a model may see of a dossier ([llm.md](llm.md#9-the-privacy-layer)). |
 | `config/grouping.yaml` | yes | you, rarely | The group-key fields of rules that declare none ([architecture.md](architecture.md#2-group)). |
-| `.env` | no | `argus init` | **Secrets only**: database passwords, the API keys. Mode 600. Shared with docker compose. |
+| `.env` | no | `./install.sh`, the setup, `argus-admin` (keys from Settings) | **Secrets**: database passwords, the API keys. Mode 600. Shared with docker compose. |
 
-Never put a secret in a YAML file: secrets are `.env` (or the environment) only.
+Never put a secret in a YAML file: secrets are `.env` (or the environment, or a credential file)
+only.
 
 ## Precedence
 
@@ -86,14 +149,17 @@ Highest first:
 2. A systemd credential directory (`CREDENTIALS_DIRECTORY`), secret settings only
 3. The process environment (`ARGUS_...` variables)
 4. `.env`
-5. `config/local.yaml`
-6. `config/argus.yaml` (or the file `--config` / `ARGUS_CONFIG` names)
-7. `config/site.yaml` (the `site` section only)
-8. The defaults in code
+5. `config/admin.yaml` (what was changed in Settings)
+6. `config/local.yaml`
+7. `config/argus.yaml` (or the file `--config` / `ARGUS_CONFIG` names)
+8. `config/site.yaml` (the `site` section only)
+9. The defaults in code
 
-`config/local.yaml` and `config/site.yaml` are read from the folder of the config file in use.
-Sections merge key by key: a `local.yaml` that sets `siem: {url: ...}` keeps `siem.budget` from
-the files below it.
+`config/admin.yaml`, `config/local.yaml` and `config/site.yaml` are read from the folder of the
+config file in use. Sections merge key by key: a `local.yaml` that sets `siem: {url: ...}` keeps
+`siem.budget` from the files below it. A value set in the app therefore wins over the same value
+in `local.yaml` or `site.yaml`; one set in `.env` or the environment wins over the app (Settings
+writes such a setting to `.env` for that reason).
 
 **Unknown names are errors**, in every file and in the environment: a misspelled setting stops
 ARGUS with the setting's name and where it was set, instead of being ignored.
@@ -133,10 +199,13 @@ The secrets ARGUS reads:
 | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | Optional outside threat intel ([below](#outside)) |
 | `ARGUS_NOTICES__PASSWORD` | Optional: the e-mail relay's login ([below](#notices)) |
 
-The LLM providers' keys are not settings: they live in the keys file named by
+The keys among these are replaced in Settings; the database passwords are the installer's. The
+LLM providers' keys are not settings: they live in the keys file named by
 `config/llm.local.yaml` ([llm.md](llm.md)).
 
 ## Inspecting and validating
+
+In the app, Settings shows each setting's current value and where it is set. On the server:
 
 ```bash
 uv run argus config show          # the effective configuration, secrets masked
@@ -144,15 +213,18 @@ uv run argus config validate      # exit 2 if invalid, with every problem listed
 uv run argus doctor               # the configuration plus every other part
 ```
 
-Restart the services after a change (`systemctl --user restart argus-collector argus-worker
-argus-web argus-assess`): each reads its settings when it starts.
+A change made in Settings restarts what it needs by itself. After editing a file on the server,
+restart the services (`systemctl --user restart argus-collector argus-worker argus-web
+argus-assess`): each reads its settings when it starts.
 
 ---
 
 ## The site (`config/site.yaml`)
 
-Everything about your organisation's Elastic that is not code. `argus discover` proposes it;
-you may edit it by hand.
+Everything about your organisation's Elastic that is not code. The first-time setup writes it:
+your answers about the organisation, and what discovery (`argus discover`) found in the SIEM. Change
+it later in **Settings → Organisation and data sources** (the versions and Kibana feature ids are
+shown there read-only), or by hand on the server. The file looks like this:
 
 ```yaml
 site:
@@ -220,7 +292,8 @@ user_agent`; **dns** `client_ip client_ip_alt query_name query_type response_cod
 `client_ip user_name action outcome user_agent`. A role left out uses its ECS name; a text field
 with a keyword sub-field is written with the suffix (`url.domain.keyword`).
 
-After editing the site, check it and narrow the key to it:
+After a new log family or threat-intel source, the key must be allowed to read it. On the
+server, check it and, if needed, make a narrower key for the new site:
 
 ```bash
 uv run argus config validate
@@ -233,13 +306,16 @@ uv run argus init --force-key         # prints the exact key for the new site, a
 ## `config/argus.yaml`, section by section
 
 The values below are the shipped ones (`config/argus.yaml`), which in a few places differ from
-the code's own defaults. Set any of them in `config/local.yaml`.
+the code's own defaults. Change them in **Settings** (each subsection names its section there);
+the few marked *file only* are set in `config/local.yaml` on the server.
 
 ### environment
 
-`environment: dev` — one of `dev`, `test`, `prod`; shown by doctor.
+`environment: dev` — one of `dev`, `test`, `prod`; shown by doctor. *File only.*
 
 ### history
+
+Settings → History.
 
 | Setting | Shipped | Range | Meaning |
 |---|---|---|---|
@@ -251,11 +327,12 @@ Durations are written `30s`, `15m`, `36h`, `5d`.
 
 | Setting | Shipped | Meaning |
 |---|---|---|
-| `memory.window` | `90d` | How long ARGUS keeps alerts, investigations and their history locally. Older ones are removed by the retention purge unless held. Never shorter than `history.window` in effect. |
+| `memory.window` | `90d` | How long ARGUS keeps alerts, investigations and their history locally. Older ones are removed by the retention purge unless held. Never shorter than `history.window` in effect. *File only.* |
 
 ### retention
 
-What the purge removes, and when ([operations.md](operations.md#retention-and-the-purge)):
+What the purge removes, and when ([operations.md](operations.md#retention-and-the-purge)). In
+the app: Settings → Retention.
 
 | Setting | Shipped | Meaning |
 |---|---|---|
@@ -263,42 +340,45 @@ What the purge removes, and when ([operations.md](operations.md#retention-and-th
 | `retention.evidence` | `90d` | Evidence snapshots (log rows a query returned), from the investigation's newest review |
 | `retention.quarantine` | `30d` | A quarantined alert's raw `_source` |
 | `retention.app_logs` | `14d` | ARGUS's own logs: they go to the systemd journal; this is reported, the journal's own settings enforce it |
-| `retention.scheduled` | `false` | Whether the scheduled purge (`argus-purge.timer`) may delete. Off until you decide. |
+| `retention.scheduled` | `false` | Whether the scheduled purge (`argus-purge.timer`) may delete. Off until you decide. The timer itself is switched on on the server. |
 
 Each period is at least `history.window` in effect.
 
 ### database
 
-`pool_size` (5), `max_overflow` (5), `connect_timeout` (5s), `statement_timeout` (30s). The
-connection itself is `.env` only ([above](#environment-variables)).
+`pool_size` (5), `max_overflow` (5), `connect_timeout` (5s), `statement_timeout` (30s). *File
+only.* The connection itself is `.env` only ([above](#environment-variables)).
 
 ### logging
 
-`level` (`INFO`; `DEBUG`, `WARNING`, `ERROR`), `format` (`console` for people, `json` for log
-shippers). Logs go to stdout and so to the systemd journal; secrets are redacted.
+Settings → Logging. `level` (`INFO`; `DEBUG`, `WARNING`, `ERROR`), `format` (`console` for
+people, `json` for log shippers). Logs go to stdout and so to the systemd journal; secrets are redacted.
 
 ### assets
 
-`assets.map_path` (default `data/assets/asset_map.yaml`): where `argus assets import` installs
-your asset map ([llm.md](llm.md#10-the-asset-map)). `assets.campus_prefixes` is the older name of
+`assets.map_path` (default `data/assets/asset_map.yaml`; Settings → Asset map): where
+`argus assets import` installs your asset map ([llm.md](llm.md#10-the-asset-map)). The map file
+itself is copied to the server and imported there; the app holds only its path. `assets.campus_prefixes` is the older name of
 `site.own_networks`; set the latter.
 
 ### siem
 
-Set in `config/local.yaml` by `argus init`:
+Set by the first-time setup; changed in Settings → SIEM:
 
 | Setting | Meaning |
 |---|---|
 | `siem.url` | Elasticsearch's address, `https://host[:port]` (no default: ARGUS sends nothing without one) |
 | `siem.ca_file` | The pinned CA (default `data/certs/siem-ca.crt`) |
 | `siem.api_key_expires` | The key's expiry date; doctor warns 30 days ahead |
-| `siem.budget.*` | [The load budget](#the-load-budget) |
-| `siem.health.*` | [The health thresholds](#health-states) |
-| `siem.lanes.*` | Per-lane allowances (advanced) |
+| `siem.budget.*` | [The load budget](#the-load-budget) (*file only*; shown read-only in the app) |
+| `siem.health.*` | [The health thresholds](#health-states) (*file only*) |
+| `siem.lanes.*` | Per-lane allowances (advanced; *file only*) |
 
-The key itself is `ARGUS_SIEM__API_KEY` in `.env`.
+The key itself is `ARGUS_SIEM__API_KEY` in `.env`; Settings replaces it there.
 
 ### reference and enrichment
+
+`enrichment.*` is Settings → Evidence checks; `reference.ti_sync` is *file only*.
 
 | Setting | Shipped | Meaning |
 |---|---|---|
@@ -309,7 +389,7 @@ The key itself is `ARGUS_SIEM__API_KEY` in `.env`.
 
 ### investigation
 
-`investigation.wave` (`false`): the deterministic wave. For an undecided investigation with a gap
+Settings → Investigations. `investigation.wave` (`false`): the deterministic wave. For an undecided investigation with a gap
 a query could close, ARGUS asks the ranked checks (through the investigation lane: 400 ms a
 minute, 6 minutes a day, NORMAL health only) before any model is asked. Its caps:
 `wave_per_day` (120), `item_requests` (4), `item_heavy` (2), `item_server_ms` (4000). A person's
@@ -317,11 +397,13 @@ minute, 6 minutes a day, NORMAL health only) before any model is asked. Its caps
 
 ### freshness
 
-`freshness.mode` (`off`): watermarks of each log source, so that "nothing found" can be told from
+Settings → Freshness. `freshness.mode` (`off`): watermarks of each log source, so that "nothing found" can be told from
 "the logs were not there yet". `shadow` records readings without using them; `on` needs measured
 `freshness.margins` per source. Leave it `off` unless you are measuring.
 
 ### cases and campaigns
+
+Settings → Cases and Settings → Campaigns.
 
 | Setting | Shipped | Meaning |
 |---|---|---|
@@ -333,7 +415,7 @@ minute, 6 minutes a day, NORMAL health only) before any model is asked. Its caps
 
 ### notified
 
-How a case whose owner was told is tracked quietly: `renotify_days` (7), `network_days` (21),
+Settings → Owner notices. How a case whose owner was told is tracked quietly: `renotify_days` (7), `network_days` (21),
 `quiet_days` (14), `active_days` (3), `move_gap` (2h), `move_window` (72h), `move_similarity`
 (0.8), `volume_factor` (10), `managed_types` (asset-map `site.type` values of machines you
 manage), `reopen_days` (30), `per_pass` (500). See the comments in `config/argus.yaml`.
@@ -342,7 +424,7 @@ manage), `reopen_days` (30), `per_pass` (500). See the comments in `config/argus
 
 ARGUS writes an incident report for each suggested or open case (summary, verdict, timeline,
 actors, assets, evidence with the query behind each line, indicators, actions) from its own
-database, as a page, a PDF and two CSVs.
+database, as a page, a PDF and two CSVs. Settings → Incident reports.
 
 | Setting | Shipped | Meaning |
 |---|---|---|
@@ -355,7 +437,7 @@ database, as a page, a PDF and two CSVs.
 
 ### signins
 
-`signins.enabled` (`true`): who was behind an internal address. ARGUS reads the site's `auth`
+Settings → Sign-in records. `signins.enabled` (`true`): who was behind an internal address. ARGUS reads the site's `auth`
 family's sign-in logs for the addresses of its investigations (a few requests a pass) and keeps
 the accounts per address and day (180 days). Usernames are shown only to people who may see logs
 and are never sent to a model. Without an `auth` family it does nothing. See
@@ -364,7 +446,8 @@ and are never sent to a model. Without an `auth` family it does nothing. See
 ### outside
 
 Optional outside threat intel for **public** addresses and names only: VirusTotal (reputation),
-Shodan and Censys (what a public server is). A source without a key is off; keys go in `.env`.
+Shodan and Censys (what a public server is). A source without a key is off. Paste the keys in
+**Settings → Outside sources** (they are stored in `.env`).
 The rate limits default to below the free plans (`virustotal_per_minute` 3, `virustotal_per_day`
 400, `shodan_per_day` 200, `censys_per_day` 10, `censys_per_month` 50; results cached 7 days, "no
 record" 1 day). With no Shodan key, Shodan's free InternetDB is used (`shodan_internetdb: true`).
@@ -374,13 +457,17 @@ record" 1 day). With no Shodan key, Shodan's free InternetDB is used (`shodan_in
 ### notices
 
 E-mail notices that carry a link, a severity and a count (never a name). Off
-(`notices.enabled: false`). The relay and recipients go in `.env`:
-`ARGUS_NOTICES__ENABLED`, `ARGUS_NOTICES__RELAY_HOST`, `ARGUS_NOTICES__RELAY_PORT` (25),
-`ARGUS_NOTICES__RELAY_FROM`, `ARGUS_NOTICES__RECIPIENTS` (comma-separated),
-`ARGUS_NOTICES__WEB_URL`, and `ARGUS_NOTICES__USER` / `ARGUS_NOTICES__PASSWORD` if the relay needs
-a login. See [the notices runbook](runbooks/notices.md).
+(`notices.enabled: false`). Set them in **Settings → Notices**: `enabled`, `relay_host`,
+`relay_port` (25), `relay_starttls`, `relay_from`, `recipients`, `web_url`, and `user` /
+`password` if the relay needs a login (the password goes to `.env`). On an older installation
+they may be in `.env` as `ARGUS_NOTICES__...`; Settings then changes them there. The
+`argus-notices.timer` that sends them is switched on on the server
+([operations.md](operations.md#services-and-timers)). See
+[the notices runbook](runbooks/notices.md).
 
 ### backup
+
+Settings → Backups.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -389,7 +476,7 @@ a login. See [the notices runbook](runbooks/notices.md).
 | `backup.keep_verified` | 4 | Dumps a restore drill proved, kept besides |
 | `backup.keep_migration` / `keep_manual` | 5 / 5 | |
 | `backup.max_age` | `35d` | No dump older than this is kept (except the newest one a drill restored) |
-| `backup.before_migration` | `false` | `argus db upgrade` / `downgrade` dump the database first and stop if that fails. Turn it on in `.env` (`ARGUS_BACKUP__BEFORE_MIGRATION=true`). |
+| `backup.before_migration` | `false` | `argus db upgrade` / `downgrade` dump the database first and stop if that fails. Turn it on in Settings (or `ARGUS_BACKUP__BEFORE_MIGRATION=true` in `.env`). |
 | `backup.tools` | `image` | `pg_dump` runs in a throwaway container of the pinned PostgreSQL image (needs Docker) |
 
 ---
@@ -430,7 +517,10 @@ they wait out a slow start after CAUTION, when the bucket is smaller than that).
 lane's bucket may hold while the SIEM is NORMAL; it changes neither the refill nor the day.
 `argus siem status` shows each lane's server time today.
 
-A smaller ceiling scales the lanes with it. To halve ARGUS's daily load:
+The budget, the lanes and the health thresholds are **shown in Settings but not changeable
+there**, on purpose: they protect a production SIEM and are set in the files after a measurement
+of your cluster. A smaller ceiling scales the lanes with it. To halve ARGUS's daily load, on the
+server:
 
 ```yaml
 # config/local.yaml
@@ -469,9 +559,12 @@ then all of it. The thresholds:
 
 ## Kibana and its write classes
 
+Settings → Kibana. Changing `kibana.write_classes` is a *SIEM write* change: it asks for your
+password and the typed confirmation.
+
 | Setting | Default | Meaning |
 |---|---|---|
-| `kibana.enabled` | `false` | Nothing is sent to Kibana while false. `argus init` sets it to `true` in `local.yaml` when you give a Kibana key. |
+| `kibana.enabled` | `false` | Nothing is sent to Kibana while false. The setup sets it to `true` when you give a Kibana key. |
 | `kibana.url` | none | Kibana's address (`local.yaml`) |
 | `kibana.ca_file` | `data/certs/siem-ca.crt` | The pinned CA Kibana's certificate must chain to |
 | `kibana.base_path` | empty | Kibana's `server.basePath`, if set (`/kibana`) |
@@ -492,12 +585,17 @@ The write classes, all off by default:
 | `W1`, `W2`, `W3` | The earlier case writer's create / update / approved-closure classes |
 
 Every write class also needs its own key held only by the writer's environment (never `.env`;
-doctor fails if a write key is found in a shared place) and a person present at its first run.
+doctor fails if a write key is found in a shared place), its unit switched on on the server, and
+a person present at its first run.
 See [kibana.md](kibana.md).
 
 ---
 
 ## The web
+
+Settings → The web app holds the session lengths, the public address, the allowed hosts and
+networks, and ELK sign-in. The web's own address, port, certificate and secret files are shown
+there read-only: the installer sets them on the server.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -515,18 +613,20 @@ See [kibana.md](kibana.md).
 | `web.secret_file` | none | The web's own secret (needed for ELK sign-in) |
 | `web.classic` | none | No longer used (the classic pages are gone); accepted so an older file loads; `argus doctor` warns until it is removed |
 
-The web service gets its network settings from `units.web` (next section); the others may go in
-the `web` section of `local.yaml`.
+The web service gets its network settings from `units.web` (next section). A change in Settings
+to one of them (the allowed hosts, networks or public address) is written with its `units.web`
+twin, and `argus-admin` renders the web unit again.
 
 ## Units
 
-`units` in `config/local.yaml` says how `argus units install` renders the systemd units:
+*File only.* `units` in `config/local.yaml` says how `argus units install` renders the systemd
+units:
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `units.root` | this checkout | The checkout the units run (absolute) |
 | `units.uv` | the uv running the command | The uv the units start ARGUS with (absolute) |
-| `units.run` | the four services | The units this installation runs. Doctor warns while none of them is started yet and fails while some run and a listed one is not enabled. `argus init --start` writes it: the four services, the Kibana read-back when Kibana is set up, the backup timers unless declined, and whatever it listed already. |
+| `units.run` | the five services | The units this installation runs. Doctor warns while none of them is started yet and fails while some run and a listed one is not enabled. `./install.sh` writes the web and `argus-admin`; the setup (`argus init --start`) adds the collector, worker and assessments, the Kibana read-back when Kibana is set up, and the backup timers unless declined. |
 | `units.web.host`, `tls_cert`, `tls_key`, `allowed_hosts`, `allowed_networks`, `public_url`, `approval_key_file`, `database_role` | none | Rendered into the web unit's environment; a value left out drops its line |
 | `units.web.classic` | none | No longer used; as `web.classic` |
 
@@ -535,7 +635,9 @@ service ([operations.md](operations.md#services-and-timers)).
 
 ## The case team (`case_team`)
 
-The seven Kibana users that post incident cases ([case-team.md](case-team.md)). Off by default:
+The seven Kibana users that post incident cases ([case-team.md](case-team.md)). Off by default.
+Settings → Kibana cases; `post`, `auto`, `auto_min_confidence`, `per_day` and `canary` are *SIEM
+write* changes. The team's users and keys are made on the server (`argus case team provision`):
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -547,13 +649,14 @@ The seven Kibana users that post incident cases ([case-team.md](case-team.md)). 
 | `case_team.max_alerts` / `alerts_per_call` / `alert_pause` | `500` / `100` / `3s` | Alerts attached per case, per call, and the gap between calls |
 | `case_team.min_update_gap` | `6h` | At most one "Update" round in this time |
 | `case_team.look` | `40` | Cases examined in one pass |
-| `case_team.lead_api_key`, `evidence_api_key`, `intel_api_key`, `responder_api_key`, `hunter_api_key`, `reporter_api_key`, `visualiser_api_key` | none | The team's keys: credential files only (`local/creds-writer/`), never `.env` or YAML |
+| `case_team.lead_api_key`, `evidence_api_key`, `intel_api_key`, `responder_api_key`, `hunter_api_key`, `reporter_api_key`, `visualiser_api_key` | none | The team's keys: credential files only (`local/creds-writer/`), never `.env` or YAML; Settings replaces them there |
 | `case_team.keys_expire` | none | Their common expiry; `argus case team provision` writes it |
 
 ## The LLM gateway (`config/llm.yaml`)
 
-Not part of the settings above: its own file, laid under `config/llm.local.yaml`
-([llm.md](llm.md), [costs.md](costs.md)).
+Not part of the settings above and **not in the app yet**: its own file, laid under
+`config/llm.local.yaml`, edited on the server ([llm.md](llm.md), [costs.md](costs.md)). Restart
+`argus-assess` after a change.
 
 | Key | Shipped | Meaning |
 |---|---|---|
@@ -566,6 +669,8 @@ Not part of the settings above: its own file, laid under `config/llm.local.yaml`
 
 ## Other sections
 
-`identity` (ELK sign-in timeouts and refused accounts), `writeback` (the alert status write-back,
-off), `soak` and `custody` (used by the project's own production checks) are documented in
+`identity` (ELK sign-in timeouts and refused accounts; Settings → Sign-in through ELK),
+`writeback` (the alert status write-back, off; Settings → Write-back, a *SIEM write* change),
+`risk` (the incident engine; Settings → Incident engine, with its weights in `config/risk.yaml`),
+`soak` and `custody` (used by the project's own production checks; *file only*) are documented in
 `settings.py`. Leave them as shipped unless a guide tells you otherwise.

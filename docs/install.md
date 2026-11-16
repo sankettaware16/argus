@@ -1,25 +1,41 @@
 # Installing ARGUS
 
-The complete installation guide: from a bare Linux machine to ARGUS taking in your SIEM's alerts
-and serving the reviewers' Inbox.
+From a bare Linux machine to ARGUS taking in your SIEM's alerts, in two steps: one command on the
+server, then the rest in your browser. After that, people use and run ARGUS from the web app:
+settings, users and roles included.
 
-ARGUS reads your Elastic SIEM with a **read-only API key** and writes nothing to it unless you
-switch a write on yourself. Everything it keeps (alerts, investigations, dossiers, reviews) lives
-in its own PostgreSQL database on this machine.
+ARGUS reads your Elastic SIEM with a **read-only API key** and writes nothing to it unless an
+administrator switches a write on. Everything it keeps (alerts, investigations, cases, reviews)
+lives in its own PostgreSQL database on this machine.
 
 > **Upgrading an existing installation?** Follow [upgrading.md](upgrading.md) instead.
 
-## The quick way: two commands, then the browser
+## Install in two steps
+
+### What you need
+
+- **A Linux machine** (4 cores, 8 GB of memory and 100 GB of disk recommended; section 1)
+  with **Docker and its compose plugin**, **[uv](https://docs.astral.sh/uv/)** and **git**
+  (section 2 shows how to install them). Run ARGUS from an ordinary account, for example `argus`,
+  that is in the `docker` group.
+- **From the SIEM:** Elasticsearch's address, and **a read-only API key** for ARGUS. Section 3.2
+  has the exact request an Elastic administrator runs to make it. Optionally, Kibana's address
+  and a read-only Kibana key, if you want ARGUS to read Kibana cases.
+- About 15 minutes.
+
+### Step 1: on the server
 
 ```bash
 git clone <ARGUS's repository> argus && cd argus
 ./install.sh
 ```
 
-`./install.sh` needs [uv](https://docs.astral.sh/uv/) and Docker with compose (section 2). It does
-only what needs this machine: the database, the web's certificate, and two services (the web and
-`argus-admin`). It asks where people open ARGUS (this machine's address) and prints a one-time
-link (valid 72 hours) for the first administrator:
+`./install.sh` installs ARGUS's Python packages, creates the database (in Docker) with new
+passwords of its own, makes the web's certificate and starts two services: the web app and
+`argus-admin`, which applies the changes people make in the app. It asks one question, the
+address people will open ARGUS at (this machine's IP address or name; leave it empty to keep the
+web on this machine only and reach it through an SSH tunnel, section 7.2). It ends with a
+one-time link for the first administrator:
 
 ```
 init: done. Open this link within 72 hours to set admin's password and finish the setup
@@ -28,32 +44,90 @@ in the browser:
     https://192.0.2.10:8765/welcome?token=…
 ```
 
-Open it, choose your password, and the app's **First-time setup** asks the rest, one screen at a
-time: the SIEM's address (it shows the certificate the SIEM presents for you to compare), the
-read-only API key (section 3 says how to make one), your organisation and time zone, the data
-ARGUS found in your SIEM, the asset map and the AI providers (both optional). It then starts every
-service and shows the first alerts arriving.
+Lost the link, or it ran out? Run `./install.sh` again: it keeps everything already done and
+prints a new one (the old link stops working).
 
-After that, everything is in the app: **Settings** (every setting, each with its help; a change
-is checked and applied within seconds, and undone by itself if a service does not start with
-it), **Users and roles** (accounts, roles, one-time password links), and the system's health.
-Keys you paste are sealed at once: the app can never show them again, only replace them. Nothing
-that writes to your SIEM is on until an administrator switches it on and types the confirmation.
+### Step 2: in the browser
 
-The sections below are the complete reference, and the way to install from the terminal only
-(`argus init`, interactive or with an answers file).
+1. **Open the link** and choose a password for the account `admin` (10 characters or more).
+   Your browser warns about the certificate the first time: ARGUS made it itself
+   (section 7.3 shows how to use your own).
+2. **Sign in.** Today shows a card, **Finish the first-time setup**: press **Start the setup**.
+3. **Answer the four steps:**
+   - **Your organisation:** its name, the security team's name, your own domains and networks
+     (so ARGUS can tell inside from outside), the time zone, and the prefix of incident ids.
+   - **The SIEM:** Elasticsearch's address. ARGUS reads the certificate the SIEM presents and
+     shows it; compare its fingerprint with the one your Elastic administrator gives you, then
+     trust it by its certificate authority or pin it. Paste the read-only API key and when it
+     expires. The log index patterns are optional: ARGUS finds the log families itself.
+   - **Kibana (optional):** its address, its certificate, a read-only key and the Kibana space
+     with the Security alerts (found by itself when left empty). Without a key, Kibana stays off;
+     you can add it later in Settings.
+   - **Review and run:** check the summary, confirm your password, and press the button.
+4. **Watch it finish.** `argus-admin` checks the SIEM with your answers, discovers which logs
+   and Kibana space your SIEM has, writes the configuration, and starts every service. The page
+   shows its progress. The first alerts arrive in the Inbox within minutes.
+
+Keys you paste are sealed as soon as they leave the browser: only `argus-admin` can open them,
+and the app can never show them again, only replace them.
+
+### After the setup: everything is in the app
+
+| To… | Go to |
+|---|---|
+| Change any setting (the SIEM, Kibana, outside lookups such as VirusTotal, notices, retention, backups, sign-in, the incident engine…) | **More → Administration → Settings** |
+| Add people, give them a role, reset a password, switch an account off | **More → Administration → Users and roles** |
+| See whether data is arriving, and any gaps | **More → System health** |
+| Work alerts and incidents | **Today**, **Incidents**, **Search** ([web-ui-guide.md](web-ui-guide.md)) |
+
+**Settings** shows every setting with its help and its current value, grouped by subject. A
+change is checked, written and applied by `argus-admin` within seconds, and only the services that
+read it restart. If a service does not come back, the old configuration is put back by itself and
+the change is marked *rolled back*. Changing a key or an address asks for your password again;
+anything that would let ARGUS **write to your SIEM** (Kibana cases, write-back) also asks you to
+type a confirmation. The limits on ARGUS's load on the SIEM are shown, not editable.
+
+**Users and roles** offers four roles (Viewer, Analyst, Lead, Administrator) or a custom set of
+capabilities ([web-ui-guide.md](web-ui-guide.md#users-and-capabilities)). A new person gets a
+one-time link, valid 72 hours, to choose their own password; nobody else ever sees it. People can
+also sign in with their ELK accounts (Settings → Sign-in through ELK); their roles then come from
+ELK.
+
+### What still happens on the server
+
+A few things are deliberately not in the app, either because they replace the app itself or
+because they need this machine's files:
+
+- **Upgrading ARGUS** to a new version: [upgrading.md](upgrading.md).
+- **The AI providers' keys and daily caps** (optional): `config/llm.local.yaml` and its keys
+  file ([llm.md](llm.md)). ARGUS works without them.
+- **The asset map file** (which devices and networks belong to whom): copy it to the server and
+  import it with `uv run argus assets` ([configuration.md](configuration.md)); its path is a
+  setting in the app.
+- **Restoring a backup** (the nightly dumps and the weekly drill run by themselves):
+  [operations.md](operations.md).
+- **Recovery when the web itself is down:** `uv run argus doctor`,
+  `systemctl --user status 'argus-*'`, and [troubleshooting.md](troubleshooting.md).
+- **The break-glass account** (view and review only) for when ELK sign-in is down:
+  `uv run argus break-glass`.
+
+## The complete reference, and installing from the terminal
+
+The numbered sections below explain every step in depth, for administrators who want to know
+exactly what is installed where, and for installing without a browser: `argus init` asks the
+same questions in the terminal, or reads them from an answers file (section 5).
 
 **Contents**
 
-0. [Clean setup from zero](#0-clean-setup-from-zero): the whole path on one page, every value and
-   the file it lands in
+0. [Clean setup from zero](#0-clean-setup-from-zero): the whole terminal path on one page, every
+   value and the file it lands in
 1. [Requirements](#1-requirements)
 2. [Prepare the machine](#2-prepare-the-machine): Docker and compose v2, uv, git
 3. [Prepare the SIEM side](#3-prepare-the-siem-side): what to have ready, the API keys
 4. [Run `argus init`](#4-run-argus-init): the ten steps, one by one
 5. [Scripted install: `argus init --answers`](#5-scripted-install-argus-init---answers)
 6. [Start the services](#6-start-the-services)
-7. [Create the first web user and open the Inbox](#7-create-the-first-web-user-and-open-the-inbox)
+7. [More people, and opening the app](#7-more-people-and-opening-the-app)
 8. [Verify the installation](#8-verify-the-installation)
 9. [Rerunning `argus init`](#9-rerunning-argus-init)
 10. [A second ARGUS on the same machine](#10-a-second-argus-on-the-same-machine)
@@ -304,7 +378,7 @@ What one production installation measured (about 12,000 alerts a day, five servi
 
 Network: the machine reaches Elasticsearch (usually `:9200`) and, optionally, Kibana (usually
 `:5601`) over **HTTPS**. Reviewers reach the web Inbox on port `8765` (loopback by default; see
-[section 7](#7-create-the-first-web-user-and-open-the-inbox)). PostgreSQL listens on
+[section 7](#7-more-people-and-opening-the-app)). PostgreSQL listens on
 `127.0.0.1:55432` only.
 
 ### The SIEM
@@ -1055,11 +1129,13 @@ described in [operations.md](operations.md#services-and-timers).
 
 ---
 
-## 7. Create the first web user and open the Inbox
+## 7. More people, and opening the app
 
 ### 7.1 More people
 
-`argus init` made the first account (step 8). Add the others:
+Add people in the app: **More → Administration → Users and roles → Add a person** gives them a role and
+a one-time link to set their own password. From the terminal, the same is possible (useful when
+you installed without a browser; `argus init` made the first account at step 8):
 
 ```bash
 uv run argus user add alice --name "Alice Example"

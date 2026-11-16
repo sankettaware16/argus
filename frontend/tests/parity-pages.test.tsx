@@ -299,7 +299,7 @@ describe("the menu", () => {
     await user.click(within(nav).getByRole("button", { name: /More/ }));
     const more = Object.fromEntries(within(screen.getByTestId("more-list")).getAllByRole("link").map((a) => [a.textContent?.trim(), a.getAttribute("href")]));
     expect(more).toMatchObject({ Overview: "/app/overview", Approvals: "/app/approvals", "Rule tuning": "/app/tuning", "ARGUS quality": "/app/quality?tab=metrics", "System health": "/app/health", "Help & glossary": "/app/glossary", Patterns: "/app/patterns", Proposals: "/app/proposals" });
-    expect(within(screen.getByTestId("more-list")).getByText("Classic queues")).toBeTruthy();
+    expect(within(screen.getByTestId("more-list")).getByText("More queues")).toBeTruthy();
     await user.click(screen.getByTestId("account-menu"));
     const account = within(screen.getByTestId("account-items"));
     expect(account.getByRole("link", { name: "Your access" }).getAttribute("href")).toBe("/access");

@@ -153,7 +153,9 @@ def _people(config: Path) -> int:
         engine = create_engine(load_settings(config).database)
         try:
             async with engine.connect() as conn:
-                found = await conn.execute(text("SELECT count(*) FROM users WHERE kind = 'person'"))
+                found = await conn.execute(text(  # an invited account not yet used cannot
+                    "SELECT count(*) FROM users WHERE kind = 'person'"
+                    " AND NOT (realm = 'local' AND password_hash = '!')"))  # fmt: skip
                 return int(found.scalar_one())
         finally:
             await engine.dispose()
@@ -212,7 +214,8 @@ def _add_person(config: Path, username: str, name: str, password: str) -> None:
 
 def _welcome(config: Path, username: str) -> str:
     """The first administrator, with a one-time link to set their own password (D-327): its
-    token, shown once. As the owner: the web's functions need an administrator to make one."""
+    token, shown once. As the owner: the web's functions need an administrator to make one. A
+    rerun after the link ran out gives the same account, still without a password, a new link."""
     import asyncio
     import secrets
     from datetime import UTC, datetime, timedelta
@@ -233,9 +236,20 @@ def _welcome(config: Path, username: str) -> str:
                 made = await conn.scalar(
                     text("INSERT INTO users (username, display_name, password_hash, capabilities,"
                          " kind, realm) VALUES (:u, 'Administrator', '!', :c, 'person', 'local')"
-                         " RETURNING id"),
+                         " ON CONFLICT (username) DO NOTHING RETURNING id"),
                     {"u": username, "c": [c.value for c in Capability]},
                 )  # fmt: skip
+                if made is None:
+                    made = await conn.scalar(
+                        text("SELECT id FROM users WHERE username = :u AND realm = 'local'"
+                             " AND kind = 'person' AND password_hash = '!'"),
+                        {"u": username},
+                    )  # fmt: skip
+                    if made is None:
+                        raise InitError(f"{username} already has a password: sign in with it")
+                    await conn.execute(
+                        text("UPDATE user_links SET used_at = :t WHERE user_id = :u"
+                             " AND used_at IS NULL"), {"t": now, "u": made})  # fmt: skip
                 await conn.execute(
                     text("INSERT INTO user_links (token_hash, user_id, purpose, created_at,"
                          " expires_at) VALUES (:h, :u, 'welcome', :t, :e)"),
@@ -391,7 +405,8 @@ class Init:
         port = self.settings().web.port
         base = f"https://{address}:{port}" if address else f"http://127.0.0.1:{port}"
         if self.host.people(self.o.config) > 0:
-            self.say(f"\ninit: done; open {base}/ and sign in (Settings → First-time setup)")
+            self.say(f"\ninit: done; open {base}/ and sign in (until the setup is done, a card"
+                     " on Today leads to it)")  # fmt: skip
             return 0
         name = "admin"
         if self.ask.scripted and self.ask.given("web.person"):

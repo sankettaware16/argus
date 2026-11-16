@@ -118,9 +118,14 @@ The screenshots show a demo installation on made-up data. More in the
 - **Cost-first AI** — no keys means $0; free tiers (Groq, OpenRouter, Google Gemini) first; paid
   fallbacks (OpenAI, then Anthropic) only when no free provider can answer, within daily and
   monthly caps overall and per provider. Measured: about **$0.60 to $1.20 a day**.
-- **Operable** — one command installs it (`argus init`, interactive or scripted), `argus doctor`
-  checks every part with the fix for each problem, verified backups with a weekly restore drill,
-  a retention purge, systemd units rendered for your machine.
+- **Run from the browser** — one command installs it (`./install.sh`); a first-time setup in the
+  app connects your SIEM; **Settings** holds every setting with its help (each change checked,
+  applied by `argus-admin` within seconds, and rolled back by itself if a service does not come
+  back; keys sealed and never shown again); **Users and roles** gives people a role and a
+  one-time link to set their own password. Anything that would write to your SIEM needs an
+  administrator's password and a typed confirmation.
+- **Operable** — `argus doctor` checks every part with the fix for each problem, verified
+  backups with a weekly restore drill, a retention purge, systemd units rendered for your machine.
 
 The full catalogue: [docs/features.md](docs/features.md).
 
@@ -156,31 +161,54 @@ layer, the database, the services): [docs/architecture.md](docs/architecture.md)
 | A Linux machine with systemd | yes | 2 vCPU / 4 GB RAM / 50 GB SSD at least; 4 vCPU / 8 GB / 100 GB recommended; ARGUS uses about 1.2 GB of memory |
 | Docker Engine with compose v2, git, [uv](https://docs.astral.sh/uv/) | yes | uv fetches Python 3.12 itself; Node.js is not needed |
 | Elasticsearch and Kibana **8.x or 9.x** with Kibana Security, over HTTPS | yes | any licence, Basic included |
-| Someone who can create an API key in it, for five minutes | yes | ARGUS prints the exact read-only request |
+| Someone who can create an API key in it, for five minutes | yes | the exact read-only request: [docs/install.md](docs/install.md#32-the-api-keys-argus-asks-for) |
 | LLM keys (Groq, OpenRouter, Gemini free; OpenAI paid) | no | without them ARGUS investigates deterministically |
 
-### Install
+### Install: one command, then the browser
 
 ```bash
 git clone https://github.com/sankettaware16/argus.git
 cd argus
-uv run argus init
+./install.sh
 ```
 
-`argus init` checks the prerequisites, writes `.env` with generated database passwords, starts
-PostgreSQL in Docker and creates the schema, pins your SIEM's CA, prints the Dev Tools request for
-the read-only key and checks the key you paste, asks about your organisation, **discovers** your
-log families, Kibana space and threat-intel sources (metadata only), asks for your LLM keys file
-(optional), sets up the web (the address people open, a certificate signed by your CA or
-self-signed, your own sign-in), installs the systemd user units, starts them if you say so, and
-ends with `argus doctor`. A key or date pasted in the wrong form is explained and asked again.
-Rerun it any time: it keeps what is done. For a scripted install:
-`uv run argus init --answers answers.yaml`.
+`./install.sh` installs ARGUS's packages, starts PostgreSQL in Docker with new passwords, makes the
+web's certificate and starts two services: the web app and `argus-admin`, which applies the
+changes people make in the app. It asks one question (the address people open ARGUS at) and ends
+with a one-time link for the first administrator:
 
-The whole path from a fresh machine, with every value and the file it lands in:
-[docs/install.md](docs/install.md#0-clean-setup-from-zero).
+```
+    https://192.0.2.10:8765/welcome?token=…
+```
+
+Open it, choose a password, sign in, and press **Start the setup** on Today. Four short steps
+ask for your organisation (name, domains, networks, time zone), Elasticsearch's address (ARGUS
+shows the certificate it presents, for you to compare and trust) and a **read-only API key**, and
+optionally Kibana. ARGUS then discovers your log families, Kibana space and threat-intel sources
+(metadata only), writes its configuration and starts every service. The first alerts arrive in
+minutes. Lost the link? Run `./install.sh` again.
+
+The whole path, including how to make the read-only key and how to install from the terminal
+alone (`uv run argus init`, interactive or with an answers file):
+[docs/install.md](docs/install.md).
+
+### Run it from the app
+
+| To… | Go to |
+|---|---|
+| Change a setting: the SIEM, Kibana, outside lookups (VirusTotal, Shodan, Censys), notices, retention, backups, sign-in, the incident engine | **More → Administration → Settings** |
+| Add people, give them a role (Viewer, Analyst, Lead, Administrator), reset a password | **More → Administration → Users and roles** |
+| See whether data is arriving | **More → System health** |
+| Work incidents | **Today**, **Incidents**, **Search**, **Reports** ([guide](docs/web-ui-guide.md)) |
+
+A few jobs stay on the server on purpose: upgrading ([docs/upgrading.md](docs/upgrading.md)),
+the AI providers' keys (below), importing the asset map file, restoring a backup, and recovery
+when the web itself is down (`uv run argus doctor`).
 
 ### AI keys (optional)
+
+ARGUS works without any model. To let its AI investigator help, put the keys in a private file
+and give its path in `config/llm.local.yaml`:
 
 ```bash
 install -m 600 /dev/null ~/llm-keys.env          # then paste NAME=value lines into it:
@@ -192,50 +220,36 @@ uv run argus llm probe && uv run argus llm ping
 
 Where to get each key, step by step: [docs/llm.md](docs/llm.md#3-getting-each-key-step-by-step).
 
-### Run
-
-```bash
-uv run argus init --start        # starts every service, the Kibana read-back and the nightly backup
-```
-
-Init ends with the address to open (`https://<this machine>:8765/`) and you sign in with the name
-and password you gave it. If it says the services stop when you log out, an administrator runs
-`sudo loginctl enable-linger <account>` once. Installing on the SIEM's own machine, or moving
-ARGUS to another one: [docs/install.md](docs/install.md#13-argus-on-the-siems-own-machine).
-
 ## Usage
 
-ARGUS runs as four services; people use it from the browser, operators from the command line:
+People use ARGUS from the browser; the command line is for the server-side jobs above and for
+recovery.
 
 | # | Interface | For | Needs a terminal? |
 |---|---|---|---|
-| 1 | **Web Inbox** (`argus-web`, [guide](docs/web-ui-guide.md)) | reviewers: decide, confirm, approve, read cases and reports | no |
-| 2 | **Command line** (`uv run argus ...`, about 180 commands) | operators: install, health, backups, users, kill switches | yes |
-| 3 | **Kibana** ([integration](docs/kibana.md)) | the read-back of cases; the case team's posts (off by default) | no |
+| 1 | **The web app** (`argus-web`, [guide](docs/web-ui-guide.md)) | everyone: incidents, cases, reports, approvals; administrators: settings, users and roles | no |
+| 2 | **Kibana** ([integration](docs/kibana.md)) | the read-back of cases; the case team's posts (off by default) | no |
+| 3 | **Command line** (`uv run argus ...`) | the server: install, upgrade, backups, recovery, kill switches | yes |
 
 | Service | What it does |
 |---|---|
 | `argus-collector` | probes the SIEM's health and takes in new alerts every minute, reconciles hourly |
 | `argus-worker` | gathers the evidence and writes a dossier for each queued investigation |
 | `argus-assess` | proposes outcomes (decision engine, then the optional AI investigator), suggests cases, writes incident reports and the weekly tuning report |
-| `argus-web` | the Inbox and its API, over HTTPS on the address init set up (or `127.0.0.1:8765`) |
+| `argus-web` | the web app and its API, over HTTPS on the address set at install (or `127.0.0.1:8765`) |
+| `argus-admin` | applies the settings and first-time setup people do in the app; never reachable from the network |
 
-Common tasks:
+For the server (every command has `--help`; day-to-day operation:
+[docs/operations.md](docs/operations.md)):
 
 ```bash
 uv run argus doctor                  # every part, offline, with the fix for each problem
+uv run argus admin status            # the latest changes made in the app, and what became of each
 uv run argus siem status             # the SIEM's health state, kill switches, today's budget
-uv run argus siem selftest           # TLS pin, version and the key's privileges (5 small requests)
-uv run argus collect status          # what ARGUS holds
 uv run argus siem stop --reason "…"  # stop every request to the SIEM at once
-uv run argus llm status              # model use and cost against the caps
-uv run argus case list               # the newest cases
-uv run argus case report 3 --pdf report.pdf   # a case's incident report as a PDF
 uv run argus backup check            # a dump and a verified restore of it
-uv run argus discover                # propose the site's log families from metadata
+uv run argus break-glass --help      # a view-and-review account for when ELK sign-in is down
 ```
-
-Every command has `--help`. Day-to-day operation: [docs/operations.md](docs/operations.md).
 
 ## Cost
 
@@ -357,7 +371,7 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 
 | Document | Contents |
 |---|---|
-| [Installation](docs/install.md) | Clean setup from zero, requirements, Docker and uv per distribution, the SIEM's API keys, `argus init` step by step, scripted installs, services, the first user, TLS, verification |
+| [Installation](docs/install.md) | `./install.sh` and the first-time setup in the browser; then the full reference: requirements, Docker and uv per distribution, the SIEM's API keys, installing from the terminal (`argus init`, scripted), TLS, verification |
 | [Features](docs/features.md) | Everything ARGUS can do, area by area, with what is on and off by default |
 | [Configuration](docs/configuration.md) | Where every value lives, the files and their precedence, the site, every section of `config/argus.yaml`, the load budget |
 | [Architecture](docs/architecture.md) | The pipeline, the Elastic Gateway, the privacy layer, the database, the services, the tech stack |
@@ -366,7 +380,7 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 | [The investigation agents](docs/agents.md) | The investigator and its specialists, their tools, how to change or add one |
 | [The case team](docs/case-team.md) | The seven Kibana users, provisioning, switching posting on, the canary, the read-back |
 | [Operations](docs/operations.md) | Services and timers, `argus doctor`, logs, backups, retention, kill switches, key rotation, certificates |
-| [Web UI Guide](docs/web-ui-guide.md) | Sign-in, users and capabilities, every page, approvals, ELK sign-in |
+| [Web UI Guide](docs/web-ui-guide.md) | Sign-in, every page, approvals, Settings, Users and roles, ELK sign-in |
 | [Reviewers' guide](docs/guide-ta-ra.md) | One page for the people who review alerts every day |
 | [Kibana integration](docs/kibana.md) | The reader key, the read-back, the self-test, write classes (off by default) |
 | [Upgrading](docs/upgrading.md) | A verified backup, migrate, reinstall the units, restart; rolling back |

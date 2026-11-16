@@ -4,8 +4,14 @@ Real messages ARGUS prints, what they mean, and the fix. Search this page for th
 
 **First steps for any problem**
 
+1. **In the app:** More → **System health** (is the SIEM reachable, are alerts arriving, any
+   gaps), and the status in the page header. An administrator's **Settings** page says when
+   `argus-admin` is not running and shows what became of each change.
+2. **On the server**, when the app does not open or does not say enough:
+
 ```bash
 uv run argus doctor                     # every part, offline; FAIL lines first
+systemctl --user status 'argus-*' --no-pager
 uv run argus siem status                # health state, kill switches, breaker, today's budget
 journalctl --user -u 'argus-*' --since '1 hour ago' -p warning --no-pager
 uv run argus config validate            # the configuration, every problem listed
@@ -13,6 +19,7 @@ uv run argus config validate            # the configuration, every problem liste
 
 **Contents**
 
+- [Settings and the first-time setup](#settings-and-the-first-time-setup)
 - [`argus init`](#argus-init)
 - [Certificates and TLS](#certificates-and-tls)
 - [The API key](#the-api-key)
@@ -26,7 +33,26 @@ uv run argus config validate            # the configuration, every problem liste
 
 ---
 
+## Settings and the first-time setup
+
+| What you see | Meaning and fix |
+|---|---|
+| *argus-admin is not running: changes you save wait until it runs* (Settings), *the setup starts when it runs* (setup) | The service that applies changes is down. On the server: `systemctl --user status argus-admin`, `journalctl --user -u argus-admin -n 50`, `systemctl --user restart argus-admin`. `uv run argus admin status` shows when it was last seen. |
+| *argus-admin is not running here, so a key cannot be saved yet* | Keys are sealed for `argus-admin`, so a key can be saved only while it runs. Start it as above, then save again. |
+| A change shows **rolled back** | A restarted service did not come back with the new value; the previous files were put back and the services restarted with them. Read why: `journalctl --user -u <the service named> -n 30`. |
+| A change shows **refused** | `argus-admin` checked the value again and did not accept it (the reason is on the line), or the installation uses the custody layout, where settings are the custodian's ([runbooks/custody.md](runbooks/custody.md)). |
+| *Confirm your password again (within five minutes) to change this* | Keys, addresses, sign-in and allowed hosts need your password again: *Confirm your password* (a new tab), then save again. Your edits are kept. |
+| *Type "let ARGUS write to the SIEM" to save this change* | The change lets ARGUS write to the SIEM; type the words exactly. |
+| A setting says *Set in the files (argus.yaml / local.yaml) … It is not changed here* | It is changed on the server on purpose (the load budget, the web's own address and certificate, ...): [configuration.md](configuration.md#changing-a-setting-in-the-app). |
+| A value in Settings has no effect | The same setting is also set in the process environment (an `ARGUS_...` variable in a unit), which wins over every file. `uv run argus config show` shows the value in effect. |
+| *The setup did not finish* | Its output names the problem (the messages are the same as `argus init`'s, below). Your answers are kept: *Back to fix*, then run it again. The full log: `journalctl --user -u argus-admin -n 200`. |
+| No *Finish the first-time setup* card on Today | It shows only to administrators, and only until ARGUS has its SIEM address and key. Open `/app/setup` directly to run it again (it replaces the connection; to change one value, use Settings). |
+| The one-time link says it has expired or was used | First administrator: rerun `./install.sh` on the server; it keeps everything and prints a new link (the old one stops working). Anyone else: an administrator makes a *New password link* in Users and roles. |
+
 ## `argus init`
+
+`./install.sh` runs `argus init`, and the first-time setup in the app runs the rest of it with
+your answers, so these messages may appear in the terminal or in the setup's output.
 
 | Message | Fix |
 |---|---|
@@ -83,17 +109,18 @@ uv run argus config validate            # the configuration, every problem liste
 
 | Message | Fix |
 |---|---|
-| `the SIEM key is not what ARGUS needs: lacks read on logs-* (make one with the request above: argus init --force-key)` | The key was made with another role. Make a new key with init's exact request and `argus init --force-key`. |
+| `the SIEM key is not what ARGUS needs: lacks read on logs-* (make one with the request above: argus init --force-key)` | The key was made with another role. Make a new key with init's exact request, then paste it in Settings → SIEM (or `argus init --force-key` on the server). |
 | `... holds write on ...` / `holds cluster privilege manage` | The key can write: ARGUS refuses it. Make it with the request init prints (the role inline limits the key, whatever its creator may do). |
 | `the key does not authenticate as an API key` / `problem: not authenticated with an API key` | The value is not an API key (a password, a service token). |
 | `problem: lacks cluster privilege monitor` | The health probe needs `monitor`. |
 | `problem: server version 7.17.x is not >=8.0,<10` | ARGUS supports Elasticsearch 8.x and 9.x (`site.elastic_versions`). |
 | `the SIEM self-test failed: ... (the key needs the exact role below: argus init --force-key)` | After discovery the key must read every family and threat-intel source of the site; the exact role follows the message. |
 | doctor `the SIEM key ... expires ...` | Rotate it ([operations.md](operations.md#rotating-the-api-keys)). |
-| Collector logs a 401/403 and `siem status` shows STOP with `auth_failed` | The key expired or was invalidated. Rotate it, restart the services. |
+| Collector logs a 401/403 and System health (or `siem status`) shows STOP with `auth_failed` | The key expired or was invalidated. Replace it in Settings → SIEM; the services that read it restart by themselves. |
 
-`argus siem selftest` prints `selftest passed: TLS pinned, server 8.19, read-only API key` when
-everything holds. (The version in that line is fixed text: the version check itself compares your
+A key pasted in Settings is stored without this privilege check; run `uv run argus siem
+selftest` on the server after a new key. It prints
+`selftest passed: TLS pinned, server 8.19, read-only API key` when everything holds. (The version in that line is fixed text: the version check itself compares your
 server's real version with `site.elastic_versions`.)
 
 ## The SIEM: quiet hours, deferred, budget, stopped
@@ -117,14 +144,17 @@ itself.
 
 ## Nothing arrives
 
-1. `systemctl --user status argus-collector`: running? If it restarts in a loop, read
-   `journalctl --user -u argus-collector -n 100`.
-2. `uv run argus siem status`: NORMAL? kill switches? budget?
-3. `uv run argus collect status`: what the store holds, the backfill's progress.
-4. The space: `site.space` must be the Kibana space whose rules produce the alerts
-   (`.alerts-security.alerts-<space>`). Check in Kibana's Security app which space you are in.
-5. The key: `uv run argus siem selftest`.
-6. Do the rules fire at all? In Kibana: Security → Alerts, in that space.
+1. Was the first-time setup finished? Until it is, only the web and `argus-admin` run, and Today
+   shows administrators the setup card.
+2. More → **System health**: the SIEM's state, *Alerts collected up to*, *History loaded back to*.
+3. On the server, `systemctl --user status argus-collector`: running? If it restarts in a loop,
+   read `journalctl --user -u argus-collector -n 100`.
+4. `uv run argus siem status`: NORMAL? kill switches? budget?
+5. The space: `site.space` (Settings → Organisation and data sources) must be the Kibana space
+   whose rules produce the alerts (`.alerts-security.alerts-<space>`). Check in Kibana's Security
+   app which space you are in.
+6. The key: `uv run argus siem selftest`.
+7. Do the rules fire at all? In Kibana: Security → Alerts, in that space.
 
 The collector's first run backfills `history.window` newest hours first; a large SIEM's first
 days take a while within the budget.
@@ -133,10 +163,10 @@ days take a while within the budget.
 
 | Message | Fix |
 |---|---|
-| `agent: off (no model key)` (in the assessment service's log) | No LLM keys: expected without keys. Add keys ([llm.md](llm.md)). |
+| `agent: off (no model key)` (in the assessment service's log) | No LLM keys: expected without keys. Add keys on the server ([llm.md](llm.md)); they are not in Settings. |
 | `no asset map imported: the privacy layer needs it before any model or outside service is asked (`argus assets import FILE`)` | You added a model key or an outside threat-intel key without an asset map. Import one ([llm.md](llm.md#10-the-asset-map)), then restart `argus-assess`. Or remove the key. |
 | doctor `PASS assets no asset map imported (asset context is unknown)` | Fine without model keys: ARGUS runs without asset context. |
-| doctor `FAIL privacy domains no domain of the organisation is listed ...` | Set `site.own_domains` (at least one) in `config/site.yaml`. |
+| doctor `FAIL privacy domains no domain of the organisation is listed ...` | Add at least one own domain in Settings → Organisation and data sources (`site.own_domains`). |
 | `llm.keys_file: ... is readable by others (chmod 600)` | `chmod 600` the keys file. |
 | `warn: ... holds no key config/llm.yaml names (...)` | The file's names are not the providers' key names (`GROQ_API_KEY`, ...). |
 | `argus llm probe` says `unauthorized` | The provider refused the key. |
@@ -147,14 +177,14 @@ days take a while within the budget.
 | Message | Fix |
 |---|---|
 | `Kibana key: not checked now (its lane is paced; discovery spent this minute's share): check it later with `argus kibana selftest`` | Not an error: run `uv run argus kibana selftest` a minute later. |
-| `Kibana's key is not what ARGUS needs: ...` | Make the key with init's printed request (Cases **read** in the space, nothing more), `argus init --force-key`. |
+| `Kibana's key is not what ARGUS needs: ...` | Make the key with init's printed request (Cases **read** in the space, nothing more), then replace it in Settings → Kibana (or `argus init --force-key`). |
 | `Kibana answered as to someone who is not signed in: it did not accept the key` | The key in `.env` is wrong (often the `api_key` field). Check it: `curl --cacert data/certs/siem-ca.crt -H "Authorization: ApiKey <key>" https://<siem>:9200/_security/_authenticate` names `argus-kibana-reader` for a good key. Then `argus init --force-key`. |
 | The status bar says **Kibana sync: not running yet** | No read-back cycle is recorded yet. Check `systemctl --user status argus-kibana-sync` and `uv run argus kibana sync status`. The first cycle runs within minutes of the unit starting; while `kibana.enabled` or `kibana.sync.enabled` is false the unit says so and exits. |
 | **Kibana sync: late** or **failing** | Its newest cycle is over 90 minutes old, or failed: `journalctl --user -u argus-kibana-sync -n 50`; the SIEM in STOP pauses it on purpose. |
 | `PROBLEM: holds ...` from `argus kibana selftest` | The key holds a write privilege it must not: make a narrower key. |
-| `kibana.url is not configured (kibana: url: in the settings file)` | Kibana is enabled without an address: rerun `argus init` with Kibana's address, or set `kibana.enabled: false`. |
+| `kibana.url is not configured (kibana: url: in the settings file)` | Kibana is enabled without an address: give Kibana's address in Settings → Kibana, or switch `kibana.enabled` off there. |
 | `argus-kibana-sync` fails at start: `Failed to load environment files` or `the credential directory ... does not exist` | The unit reads `local/argus-kibana-read.env` and `local/creds-sync/`: rerun `argus init` (it makes both when Kibana is set up). |
-| `argus kibana state` shows `STOPPED` | Kibana answered 401: renew the key, then `argus kibana resume --reason "..."`. |
+| `argus kibana state` shows `STOPPED` | Kibana answered 401: renew the key (Settings → Kibana), then on the server `argus kibana resume --reason "..."`. |
 
 ## The services and units
 
@@ -162,7 +192,7 @@ days take a while within the budget.
 |---|---|
 | doctor `FAIL unit argus-web.service the installed copy differs from its rendered template (argus units install)` | You changed `units`, pulled a new version, or edited the installed file: `argus units install --apply --reload`, restart that service. |
 | doctor `FAIL unit ... not installed: run argus units install --apply` | Install the units. |
-| doctor `WARN unit ... installed, not started yet (argus init --start)` | Nothing runs yet, by your choice at init: `uv run argus init --start`. |
+| doctor `WARN unit ... installed, not started yet (argus init --start)` | Nothing runs yet: finish the first-time setup in the app, or `uv run argus init --start` on a terminal install. |
 | doctor `FAIL unit ... installed but not enabled` | Some units run, and this one, listed in `units.run`, does not: `uv run argus init --start`, or `systemctl --user enable --now <unit>`, or remove it from `units.run`. |
 | doctor `WARN unit ... enabled, but units.run does not list it (...): add it there (config/local.yaml) so doctor watches it` | Add the unit to `units.run`. |
 | doctor `FAIL unit ... enabled before its production step (...)` | A unit that waits for its own decision (purge, notices, reports, writer) is enabled but not in `units.run`. Add it to `units.run` if you meant it, else disable it. |
@@ -175,10 +205,10 @@ days take a while within the budget.
 | doctor `WARN writer login ... the case team is off, and its login does not log in with ...` | Not a failure while the case team is off; `argus init` repairs the login before you switch it on. |
 | The services stop when you log out | `sudo loginctl enable-linger $USER`. |
 | `journalctl --user` shows nothing | Turn on persistent journald storage ([operations.md](operations.md#logs)). |
-| The web exits: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks; ...` | Rerun `argus init` and give the address at step 8, or complete `units.web` by hand ([install.md](install.md#73-your-own-certificate-and-the-firewall)). |
-| `units.web: public_url's host must be the loopback or one of allowed_hosts` | The address in `public_url` and `allowed_hosts` disagree (often after a move): rerun `argus init` and give the address at step 8; it writes both. |
+| The web exits: `the web app listens on the loopback only unless it has TLS (tls_cert, tls_key), allowed_hosts and allowed_networks; ...` | Rerun `./install.sh` and give the address, or complete `units.web` by hand ([install.md](install.md#73-your-own-certificate-and-the-firewall)). |
+| `units.web: public_url's host must be the loopback or one of allowed_hosts` | The address in `public_url` and `allowed_hosts` disagree (often after a move): rerun `./install.sh` and give the address; it writes both. |
 | The web page says **ARGUS cannot reach its database** | The web logs in with its own login (`units.web.database_role: api`) and that login does not exist or has another password: rerun `argus init` (it makes it from `ARGUS_DATABASE__API_PASSWORD` or the web's credentials folder), then `systemctl --user restart argus-web`. `journalctl --user -u argus-web -n 30` shows the database's answer. |
-| The browser warns about the certificate | Self-signed: import the certificate (or your CA) into the browsers, or rerun `argus init` with your CA at step 8 after deleting `data/tls/argus.crt`. Never type a password past a warning you did not expect. |
+| The browser warns about the certificate | Self-signed: import the certificate (or your CA) into the browsers, or use your own certificate ([install.md](install.md#73-your-own-certificate-and-the-firewall)). Never type a password past a warning you did not expect. |
 
 ## Doctor on a fresh install
 
@@ -186,10 +216,11 @@ These are **expected** on a new installation and do not make doctor exit 1:
 
 | Line | Why, and when it goes away |
 |---|---|
-| `WARN backups no dump in data/backups yet: ...` | The first nightly dump runs at 21:30 UTC (init enables the timer with `--start`); `argus backup dump` makes one now. |
+| `WARN backups no dump in data/backups yet: ...` | The first nightly dump runs at 21:30 UTC (the setup enables the timer); `argus backup dump` makes one now. |
 | `WARN restore drill never run: ...` | Goes with the first drill (`argus backup drill`, or the weekly timer). |
 | `WARN unit argus-backup.timer not enabled yet (...): a production step` | You declined the backups at init: `systemctl --user enable --now argus-backup.timer argus-backup-drill.timer` and add both to `units.run`. |
-| `WARN service units ... none started yet: argus init --start starts them` | You answered no to starting: `uv run argus init --start`. |
+| `WARN service units ... none started yet: argus init --start starts them` | The first-time setup has not run yet: finish it in the app (it starts them). On a terminal install where you answered no to starting: `uv run argus init --start`. |
+| `WARN classic setting web.classic ... is no longer used: remove it` | An older `config/local.yaml` still names the classic pages, which are gone: delete the line. |
 | `WARN approval signing key (web) web.approval_key_file is not set: ...` | Make the key when you want two-person approvals ([web-ui-guide.md](web-ui-guide.md#approvals)). |
 | `WARN node toolchain no Node at ... (the system Node is never used): the frontend cannot be built on this machine` | Only developers who rebuild the web app need Node ([development.md](development.md#the-web-app)). |
 | `WARN custody not installed: ...` | A root-owned hardening layout used by the project's own production; not needed for a standard installation. |

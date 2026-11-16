@@ -1,9 +1,10 @@
 # ARGUS — one-page guide for the TA/RA
 
-**The short version.** ARGUS reads every alert from the SIEM (the SIEM), groups related alerts
-into one *investigation* per rule, key and day, checks the rule's own steps, and writes a short
-**dossier** for each. You open the app (at `/app`), look at what needs you, and decide. ARGUS
-never decides for you and never edits a rule.
+**The short version.** ARGUS reads every alert from the SIEM, groups related alerts into
+*alert groups* (one per rule, key and day), checks the rule's own steps and the logs, and raises an
+**incident** when something across those groups looks like a real problem. You open the app (at
+`/app`), look at what needs you on **Today**, and decide. ARGUS never confirms an incident for
+you and never edits a rule.
 
 **Stop at any certificate warning.** ARGUS asks for your password. If your browser shows *any*
 warning about the site's certificate (untrusted, expired, wrong name, "your connection is not
@@ -13,8 +14,8 @@ ARGUS admin. A warning is never "just the first time".
 ## What ARGUS does in Kibana
 - **Today it changes nothing in Kibana.** You decide in ARGUS; a verdict or a closed case here
   does not show in Kibana.
-- **Writing to Kibana ships switched off.** Your project owner switches it on one kind at a time
-  (cases first, then alert status), each after a trial with a person watching. When a kind is
+- **Writing to Kibana ships switched off.** An ARGUS administrator switches it on one kind at a
+  time in Settings (cases first, then alert status), each after a trial with a person watching. When a kind is
   on, ARGUS does only this, and the case or alert page says what it wrote:
   - **Cases:** creates a Kibana case for a confirmed ARGUS case, with a title, tags, a first
     comment and representative alerts, and keeps its severity, tags and comments up to date.
@@ -40,16 +41,16 @@ ARGUS admin. A warning is never "just the first time".
   instruction from it.
 
 ## Open it and sign in
-- **Open** the address your admin gave you, from a computer on the campus subnet. Once your
-  admin has made the app the main entrance (a separate step), any old address you have
-  bookmarked leads to the same page in the app. Until then old addresses open the older
-  pages, as before.
-- **Sign in** with your **ELK (Kibana) username and password**, the same ones you use in
-  Kibana. Until the cutover reaches you, your ARGUS reviewer account (ask for one:
-  `argus user add <name>`) still works; the sign-in page is the same.
-- **Your ELK account replaces it.** Your old reviews, notes and place in the lists stay with you:
-  the admin links the two accounts first. ARGUS keeps no separate password for you; change yours
-  in Kibana (user menu, Edit profile). What you can do in ARGUS follows your ELK roles.
+- **Open** the address your admin gave you, from a network ARGUS allows. Any old address you
+  have bookmarked, and every link in a Kibana case or a notice, leads to the same thing in the app.
+- **Your account.** An ARGUS administrator adds you in *Users and roles* and sends you a
+  one-time link (valid 72 hours). Open it and choose your own password; nobody else sees it.
+  Forgot it? Ask for a new password link. Most reviewers get the **Analyst (TA/RA)** role.
+- **If your ARGUS uses ELK sign-in,** sign in with your **ELK (Kibana) username and password**
+  instead, the same ones you use in Kibana. Your old reviews, notes and place in the lists stay
+  with you: the admin links the two accounts first. ARGUS then keeps no separate password for
+  you; change yours in Kibana (user menu, Edit profile). What you can do in ARGUS follows your
+  ELK roles.
 - **Your first ELK sign-in should show no warning**: no certificate warning, and no banner at
   the top of the page saying that ARGUS cannot confirm your access or that this is an
   emergency session. If you see one, stop and tell the admin before you go on.
@@ -64,131 +65,146 @@ ARGUS admin. A warning is never "just the first time".
 - **Sessions** end after 30 minutes without a page of yours (the status bar's refreshes do not
   count) and 8 hours after signing in whatever you do. A change sent after that asks you to
   sign in again and is not saved: copy a long note before you step away.
-- **Step-up.** Approving a closure asks for your password again, to confirm it is you.
+- **Step-up.** Approving a closure asks for your password again, to confirm it is you
+  (*Confirm your password* opens a new tab).
+- **Settings and people** are for administrators only; you do not need them for reviewing.
 - **Browsers.** ARGUS is tested in **Chromium (Chrome, Edge) and Firefox**, current versions.
   Other browsers may work; if something looks wrong in one, try one of these and tell an admin.
-- **The menu** is on the left (behind *Menu* on a phone): *Home*, *Dashboard*, *Review*,
-  *Cases*, *Browse*, *AI & reports*, *System*. The *Glossary* explains every page and word.
-  *Your access* (a server page) says what your account may do and why; open it when a button
-  is greyed out or a change is refused.
+- **The menu** is on the left (on a phone, a bar at the bottom): *Today*, *Incidents*,
+  *Search*, *Reports*, and under *More*: *Overview*, *Approvals*, *Rule tuning*, *ARGUS
+  quality*, *System health*, *Help & glossary*, and the queues *Patterns* and *Proposals*.
+  *Help & glossary* explains every page and word. *Your access* (a server page) says what your
+  account may do and why; open it when a button is greyed out or a change is refused.
 
 ## Daily routine (10–20 minutes)
-1. **Home** shows what needs you today: investigations that need attention, your cases, and
-   closures waiting for a decision. Each tile is a link to its list.
-2. **Needs attention** (*Review*). Start here: severe investigations, threat-list hits, and ones
-   that changed after someone reviewed them. On the list, `j`/`k` or the arrows move, `Enter`
-   opens, `Esc` goes back, `?` lists the keys.
-3. **Open one.** The strip under the title holds the key facts. The tabs:
-   - **Overview:** the verdict in a few lines, the reasons to look, what ARGUS found;
-   - **Report:** every fact, with the request it came from;
-   - **AI assessment:** what the decision engine and the AI investigator propose, with the
-     facts they quote;
-   - **What ARGUS checked:** the rule's own steps, answered or waiting;
-   - **Alerts:** the alerts with the columns you choose; the raw alert on demand;
-   - **History:** reviews and changes.
-4. **Decide** at the top of the page. When ARGUS makes a call and it is right, **Accept ARGUS's
-   call** (key `C`) is one click. Otherwise choose one of the five decisions (keys `1` to `5`),
-   add a short note if useful, then **Save decision**. **Come back to it** keeps the alert group
-   in Needs attention as a follow-up; *Can't tell yet* ticks it for you. If someone else got there
-   first, nothing is saved and you see what changed: read it again.
 
-| Decision (key) | Use it when | Example |
-|---|---|---|
-| **Real: act on it** (1) | Real, and someone must act; it may open or join an incident | A lab PC beacons to an IP on a threat list |
-| **Real but harmless** (2) | It happened, but no action is needed: an attempt that failed, or expected activity | An internet scanner got only 403/404 answers |
-| **Allowed by policy** (3) | Allowed by campus policy | An approved vulnerability scan by the IT team |
-| **Wrong alert** (4) | The rule's claim is wrong | An "executable download" alert for Windows Update |
-| **Can't tell yet** (5) | You cannot tell yet | Not enough data: it stays for a follow-up |
+1. **Today.** Start here. **Needs you** lists the possible incidents waiting for a person,
+   sorted by priority. Below it: **Just decided** (what you decided this session, with **Undo**
+   for a closure), **New activity** on incidents you know, **Waiting for your approval** (for
+   approvers), **ARGUS is unsure about these**, and **Handled by ARGUS**, with a short
+   **Spot-check** of what it closed on its own: read a few, it takes seconds each. Each card has
+   the decision buttons and an **Open →** link.
+2. **Incidents** is the full queue, in tabs: **Needs you**, **Mine**, **Open**, **Owner told**,
+   **Closed**, **All**, with filters. On a wide screen, clicking a row opens a **preview** beside
+   the list (what happened, why, what was checked, the campus side and the other side) with the
+   same decision buttons; `Enter` or `o` opens the full page. Select rows with `x` to close
+   several possible incidents with one reason (**Not an incident ▾**), **Merge into one…**, or
+   **Review together**. There is no bulk confirm: **Confirm incidents one at a time.**
+3. **An incident's page.** The **decision bar** stays at the top while you scroll (at the bottom
+   on a phone). Under it, the tabs: **Overview** (what happened, why ARGUS raised it, what was
+   seen, what ARGUS checked, other explanations, related incidents, next steps), **Story** (who
+   talked to what, and the timeline), **Evidence** (with **Ask ARGUS to check something else**),
+   **Entities**, **Alert groups**, **Report**, **Activity** (the log, notes, owner and
+   containment). **More about this incident** has **Copy link**, **Download the report (PDF)**
+   and **Everything on one page**. If the incident changes while you read, a strip says so:
+   **Show what changed**.
+4. **Decide** in the bar. On a possible incident:
+   - **Confirm incident…** opens a dialog that says what happens and anything **Still open —
+     read before you confirm**, with **Take it myself** and an optional note. The button then
+     reads **Confirm incident** (or **Confirm anyway** when something is still open).
+   - **Not an incident ▾** opens the reasons, each with its letter key:
 
-5. **Patterns.** Many alike? Check the "In common" values, then decide for the whole group.
-6. **Browse** (*By rule*, *By host or IP*), **Not reviewed**, **Reviewed**, **All**: to find
-   something again. **Health** says whether data is arriving; a gap means *unknown*, never
-   *clean*.
+| Reason (key) | Use it when |
+|---|---|
+| **Expected activity** (`e`) | It happened and it is normal here (a scheduled scan, a nightly backup) |
+| **Scan or attempt: no sign it worked** (`s`) | Someone probed or tried; nothing answered or changed. Not offered when something answered: check first |
+| **Allowed by policy** (`p`) | Risky but allowed here (a sanctioned remote-access tool) |
+| **Wrong rule** (`w`) | The rule fired on something that was not an attack |
+| **Duplicate of…** (`u`) | Another incident covers it: name it, and this one is merged into it |
 
-Every change **ARGUS composes for you** shows **the exact request it will send** first:
-accepting a proposal, asking the AI investigator, deciding a group of alike investigations,
-confirming proposals, a case action (take, assign, release, contain, reopen, request closure,
-merge, check more) and an approval. Read it, then confirm. What you write yourself is saved
-from its own form without that step: your decision (**Save decision**, **Add note only**), a
-gold-set answer, and notes on cases and addresses. The exact request is one click away in every
-confirm dialog (**Show the exact request**). A message says what
-happened, and a failed change is never retried by itself.
+   Then a short sheet with an optional note and **Close it**. A closure can be undone for a few
+   seconds (**Undo**), and from Today's **Just decided** for the rest of your session.
+   - **Merge into…** moves it into another incident.
+
+   On a confirmed incident the bar offers what fits its state: **Take it**, **Assign ▾**, and
+   under **More ▾**: **Send to Kibana…**, **Report to the CISO…**, **Mark contained**, **Record
+   that the owner was told…**, **Request closure**, **Release**, **Merge into…**. A closed one
+   offers **Reopen**. A greyed-out button says why. If someone else decided first, nothing is
+   sent and you see what changed.
+
+**Keys** (anywhere, while you are not typing): `j`/`k` next and previous card or row, `Enter` or
+`o` open, `Esc` close a pane or menu, `c` **Confirm incident…**, `d` **Not an incident…** (then
+the reason's letter), `x` select a row, `/` search, `?` the list of keys, `g` then `t`, `i`, `s`
+or `r` to go to Today, Incidents, Search or Reports. Nothing is sent on one key: `c` and `d` only
+open the dialog or menu.
+
+**Search** takes an address, a host, an account, a domain, a rule, an incident number (`#31`) or
+an IR number. It lists the matching incidents and alert groups, and **Open its page** leads to
+the **entity page** of a device, an account, a site or an outside address: what ARGUS knows about it, the
+incidents whose title names it, and its alert groups of the last 5 days. Clicking an entity chip on an
+incident opens a short panel with **Open full page**. **▸ Advanced: alert-group
+filters** opens the older alert-group lists (Needs attention, by rule, by host or IP).
+
+**Alert groups** are the building blocks under incidents. Their pages (linked from an
+incident's **Alert groups** tab, from Search and from some Today cards) keep the older layout:
+tabs **Overview**, **Report**, **AI assessment**, **What ARGUS checked**, **Alerts**, **History**,
+and **Your decision** with five outcomes (keys `1`–`5`): **Real: open an incident…**, **Real but
+harmless**, **Allowed by policy**, **Wrong alert**, **Can't tell yet**; then **Save decision**.
+**Come back to it** keeps it in Needs attention for a follow-up; **Accept ARGUS's call** (key
+`C`) takes ARGUS's proposal in one click; `N` goes to the next one. Marking one real opens a
+possible incident, or adds it to the incident that holds its activity.
+
+Every change **ARGUS composes for you** shows **the exact request it will send** first, one click
+away (**Show the exact request**). What you write yourself (a note, a decision) is saved from its
+own form. A failed change says why and is never retried by itself.
 
 ## ARGUS's proposals
-Each investigation has an **AI assessment** tab. Two assessors fill it:
-- **The decision engine** proposes an outcome only when people's past verdicts on the same
-  kind of alert agree: at least 5 of them, 95% alike, none older than 30 days.
-- **The AI investigator** looks at what the engine leaves open. It reads the dossier with
-  every campus name and address hidden, may ask the SIEM for more evidence (a fixed list of
-  read-only checks), and must quote the facts behind its answer. Whether it is ready, off or
-  refused (its instruction files must match the versions written into ARGUS's code) is not
-  shown in the app yet: ask an ARGUS admin. **Metrics** shows what it has done.
-  **Ask the AI investigator now** works on any investigation.
 
-Neither may propose a harmless outcome while a danger sign is present or unknown (the "floor").
-Then **Accept ARGUS's call** at the top of the page if it is right; if it is wrong, choose the
-right decision there, and your decision teaches the engine. The AI assessment tab only reads. **No proposal** means ARGUS could not decide; the
-tab says why.
+- **On an incident,** ARGUS's call is the first line of the decision bar, and the Overview says
+  **Why ARGUS raised it** (with its priority out of 100) and what it checked. An incident ARGUS's
+  AI raised says so (**Raised by ARGUS's AI**).
+- **On an alert group,** the **AI assessment** tab shows what the decision engine (your team's
+  past verdicts on the same kind of alert: at least 5, 95% alike, none older than 30 days) and
+  the AI investigator propose, with the facts they quote. **Ask the AI investigator now** works
+  on any alert group.
+- Neither may propose a harmless outcome while a danger sign is present or unknown (the
+  "floor"). If ARGUS is wrong, decide otherwise: your decision teaches the engine.
 
-**Proposals** (about 10 minutes a week). Proposals are grouped by what decided them. Open the
-**audit sample** of a group (picked at random each day); if those are right, **Confirm all**.
-Only the listed ones are confirmed; anything that changed meanwhile is skipped. A group that
-ARGUS calls *Real: act on it* is never confirmed together: a real attack starts an incident, so
-each one is decided on its own page.
+**More → More queues** holds two older queues, still useful:
 
-**Tuning** (weekly). Per rule: how often it fires, how often a run hit its alert limit (alerts
-were lost), your verdicts, and suggested changes. A suggestion is kept only with evidence (an
-exception needs at least 3 of your benign or false-positive verdicts on that value and no true
-positive). Apply what you agree with in Kibana yourself.
+- **Proposals** (about 10 minutes a week): alert-group outcomes ARGUS proposes, grouped by what
+  decided them. Open the **Audit sample** of a group; if those are right, **Confirm all**. Only
+  the listed ones are confirmed, and nothing is closed in Kibana.
+- **Patterns**: alike alert groups, to decide in one go after checking what they have **In
+  common**.
 
-**The AI cost bar** (top of every page) shows what the paid AI provider has cost this month
-against the monthly cap (`monthly_cap_usd` in `config/llm.yaml`). It turns amber at the
-`margin` share of it (80 % by default): from then on normal work uses only the free providers. **Metrics** has the details and says if the kill switch has stopped the AI.
+**Rule tuning** (weekly, under More). Per rule: how often it fires, how often a run hit its alert
+limit, your verdicts, and suggested changes, each kept only with evidence. Apply what you agree
+with in Kibana yourself.
+
+**What the AI costs** is in **More → ARGUS quality** (Metrics), which also says if the AI has
+been stopped. Past 80 % of the monthly cap (by default), normal work uses only the free
+providers.
 
 ## Cases
-A **case** is one problem across days, hosts and rules: alert groups ARGUS links by the same
-actor, indicator or command-and-control address. An **incident** is a case a person confirmed; a
-**possible incident** is one ARGUS thinks may be an incident, waiting for a person. **Cases**
-opens on **Needs a decision**; the other tabs are Mine, Open, Owner told, Closed and All, and the
-*Next step* column says what each case asks for. A case page reads in this order: (for a possible
-incident) the decision, summary, report, what's new, timeline, evidence, hypotheses, unknowns,
-actions, members, the Kibana mirror, notes, history.
-- **Is this an incident?** On a possible incident the decision is at the top: **Confirm as
-  incident** (it becomes an open incident and waits for someone who may open it in Kibana, as
-  every confirmed case does), **Not an incident…** with a reason (expected activity; a scan or
-  attempt where nothing happened; allowed by policy; the rule was wrong; a duplicate of another
-  case, which is merged into it), or **Merge into…** another case. Owner, containment and
-  closure become available once it is confirmed.
-- **Take, Assign, Release, Contain** change who owns the case and its state.
+
+An **incident** is a case a person confirmed; a **possible incident** waits for a person. Once
+confirmed:
+
+- **Take it**, **Assign ▾**, **Release**, **Mark contained** change who owns it and its state.
 - **Request closure** needs a reason; a second person approves it in **Approvals** after
-  confirming their password (a real-incident closure needs two different approvers).
-  **Merge** works the same way. **Reopen** brings a closed case back: it needs a reason but
-  no approval. A button that is greyed out says why.
-- **Check more** asks the SIEM one approved question about one host or address. It is queued
-  under your name, its cost is shown first, and its answer is recorded.
-- **Notes** are for people only; they are never sent to a model.
-- **Approvals** shows each request with its exact changes and the alerts before and after. A
-  group of alike closures is approved by a sample first, then the rest, at most 20 at a time.
-- **Report** (right after the summary) is the incident report ARGUS writes for each suggested or
-  open case, the one the team used to write by hand: what happened, ARGUS's verdict, the
-  timeline, who did what, what was affected, the evidence, what was ruled out, the indicators and
-  the actions with their owners. **Every evidence line has the exact query behind it and a link
-  that opens it in Kibana Discover** (read-only, a new tab): check any line in one click. **Confirm
-  the verdict** if it is right; **Reject with a reason** if it is wrong (say what it is instead
-  and why: the reason is saved with the label ARGUS learns from). Neither closes the case:
-  closing stays a request and an approval. The PDF and the two CSVs (indicators, affected
-  devices) are in the Report section; ARGUS writes a new version when the case changes and keeps
-  the old ones.
-- **Kibana case preview** (next) is what ARGUS would write to the incident case in Kibana for
-  this case: step by step, each by its own Kibana user (`argus-lead` opens the case and gives the
-  verdict last, `argus-evidence`, `argus-visualiser` (the "Incident at a glance" comment: numbers and live
-  charts of the case's alerts), `argus-intel`, `argus-responder`, `argus-hunter`,
-  `argus-reporter`), every comment word for word. **Posting is off until the team switches it
-  on**, so for now it only shows; looking at it writes nothing. For the first case an approver
-  reads the steps and approves exactly them. Once a case is in Kibana, comment
-  `Verdict: true positive` or `Verdict: false positive: <your reason>` from your own account:
-  ARGUS reads it, saves it as the label it learns from and proposes the closure; closing stays an
-  approval.
+  confirming their password (a real-incident closure needs two different approvers). A confirmed
+  incident's merge works the same way. **Reopen** brings a closed incident back: it needs a reason
+  but no approval.
+- **Ask ARGUS to check something else** (Evidence tab) asks the SIEM one approved, read-only
+  question about one host or address. Its cost is shown first, and its answer is recorded.
+- **Notes** (Activity tab, **Add a note to this incident**) are for people only; they are never
+  sent to a model or to Kibana.
+- **Record that the owner was told…** moves it to **Owner told**: ARGUS then watches it quietly
+  and raises only something new.
+- **Report** tab: the incident report ARGUS writes (what happened, the verdict, timeline, who did
+  what, what was affected, the evidence, what was ruled out, indicators, actions). **Every
+  evidence line has the exact query behind it and a link that opens it in Kibana Discover.**
+  **Confirm the verdict** if it is right; **Reject with a reason…** if it is wrong. Neither closes
+  the incident. The PDF and the two CSVs are there too, and a new version is written when the
+  incident changes.
+- **Kibana case preview** (Report tab) is exactly what ARGUS would write to the case in Kibana,
+  step by step, each step by its own Kibana user. **Send to Kibana…** posts it, once the team has
+  switched posting on. Once a case is in Kibana, comment `Verdict: true positive` or
+  `Verdict: false positive: <your reason>` from your own account: ARGUS reads it and proposes the
+  closure; closing stays an approval.
+- **Approvals** (under More) shows each request with its exact changes. Approving or rejecting
+  needs your password again (**Confirm it is you**).
 
 ## Reports
 **Reports** has a daily and a weekly report: what waits for a person, what happened, what went
@@ -198,7 +214,7 @@ wrong. Every figure says how it was counted. Download one as text or JSON.
 An **answer key**: real alerts with the correct outcome written by a person, used to check how
 often ARGUS and the AI are right. ARGUS pre-fills each with a suggestion, the reason and the
 evidence; you **confirm or correct** in the *Gold set: your answer* box on the investigation
-(the *Gold set* page lists them). Think hard only where you disagree: the key must be your own
+(*ARGUS quality*, Gold set tab, lists them). Think hard only where you disagree: the key must be your own
 judgement.
 
 ## Rules of thumb
@@ -209,8 +225,9 @@ judgement.
 
 ## If the app does not work
 Reload the page first: usually ARGUS was updated a moment ago and the page needs the new files.
-If it still does not work, tell an ARGUS admin what you were doing and what the page said.
-Old links (in Kibana cases, notices and bookmarks) open the same thing in the app.
+If a page says it could not load, use its **Try again**; nothing was changed. If it still does
+not work, tell an ARGUS admin what you were doing and what the page said. Old links (in Kibana
+cases, notices and bookmarks) open the same thing in the app.
 
 ## What happens before we call ARGUS ready to roll out
 | Step | Who | Status |

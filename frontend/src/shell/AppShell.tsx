@@ -51,7 +51,7 @@ function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onP
 function MoreList({ onPick }: { onPick?: () => void }) {
   const items = useMoreItems();
   const plain = items.filter((i) => i.group === undefined);
-  const groups = ["Classic queues", "Administration"].map((name) => ({ name, items: items.filter((i) => i.group === name) })).filter((g) => g.items.length > 0);
+  const groups = ["More queues", "Administration"].map((name) => ({ name, items: items.filter((i) => i.group === name) })).filter((g) => g.items.length > 0);
   return (
     <ul className="m-0 flex list-none flex-col gap-0.5 p-0" data-testid="more-list">
       {plain.map((item) => (

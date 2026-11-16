@@ -37,4 +37,4 @@ def test_a_second_run_makes_no_second_administrator(tmp_path: Path) -> None:
                               tmp_path / "a.yml")  # fmt: skip
     assert run.go(answers, web_setup=True) == 0, run.text
     assert run.welcomed == []
-    assert "sign in (Settings → First-time setup)" in run.text
+    assert "a card on Today leads to it" in run.text

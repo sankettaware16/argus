@@ -7,6 +7,32 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **One command, then the browser:** `./install.sh` installs the packages, the database, the
+  web's certificate and two services, and prints a one-time link (72 hours) for the first
+  administrator. Running it again prints a new link if the first one was never used.
+- **First-time setup in the app:** your organisation, Elasticsearch (its certificate shown to
+  compare and trust, a read-only key) and optionally Kibana; ARGUS then discovers your log
+  families, writes its configuration and starts every service.
+- **Settings in the app:** every setting with its help, grouped by subject. A change is checked
+  again and applied by a new service, `argus-admin`, which restarts only the services that read
+  it and puts the old configuration back if one does not come back. Keys are sealed for
+  `argus-admin` alone and never shown again. A key or an address needs the administrator's
+  password again; anything that writes to the SIEM also needs a typed confirmation. The SIEM load
+  budget is shown, not editable. App-made changes land in `config/admin.yaml` unless the setting
+  already lives in another file.
+- **Users and roles in the app:** Viewer, Analyst, Lead and Administrator, or a custom set of
+  capabilities; a new person or a forgotten password gets a one-time link to choose a password
+  (`/welcome`); switch an account off, end its sessions. The database itself checks the
+  administrator's session and recent password confirmation for each of these.
+
+### Removed
+
+- **The classic server-rendered pages.** Every address they had (links in Kibana cases
+  included) leads to the same thing in the app; their forms answer 410. `web.classic` is accepted
+  and ignored, with a note from `argus doctor`.
+
 ## [0.2.0] — 2026-11-07
 
 ### Added

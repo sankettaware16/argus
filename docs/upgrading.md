@@ -1,12 +1,14 @@
 # Upgrading
 
-How to move an installation to a newer version of ARGUS, and back if something goes wrong. The
-whole procedure takes about ten minutes; ARGUS stops taking in alerts only while the services
+How to move an installation to a newer version of ARGUS, and back if something goes wrong.
+Upgrading is one of the few jobs that is done **on the server**, not in the web app: it replaces
+the code the app itself runs on. Everything you changed in the app (Settings, people, reviews)
+is kept. The whole procedure takes about ten minutes; ARGUS stops taking in alerts only while the services
 restart (a minute), and the collector's reconciliation and backfill catch up on anything that
 arrived meanwhile.
 
-**The strategy in one line:** read the release notes → a verified backup → pull → migrate →
-reinstall the units → restart → doctor → timers back on. Keep the dump until the new version has
+**The strategy in one line:** read the release notes → pause the timers and `argus-admin` → a
+verified backup → pull → migrate → reinstall the units → restart → doctor → timers back on. Keep the dump until the new version has
 run for a few days.
 
 ---
@@ -21,8 +23,9 @@ uv run argus doctor         # start from a clean state: fix any FAIL first
 uv run argus db current     # the database's migration revision now
 ```
 
-Your own files (`.env`, `config/local.yaml`, `config/site.yaml`, `config/llm.local.yaml`,
-`data/`) are not tracked by git, so a pull never touches them. If you edited a tracked file (for
+Your own files (`.env`, `config/local.yaml`, `config/site.yaml`, `config/admin.yaml` (what was
+changed in Settings), `config/llm.local.yaml`, `local/`, `data/`) are not tracked by git, so a
+pull never touches them. If you edited a tracked file (for
 example `config/llm.yaml`), commit it on a local branch first or `git stash` it.
 
 Read the release notes ([CHANGELOG.md](../CHANGELOG.md)) for the new version: a new setting, a
@@ -31,16 +34,18 @@ change to the key's role, or a step to take by hand is announced there.
 Avoid 00:00–01:30 UTC (the SIEM's quiet hours) so the first minutes after the restart are not
 also the hours in which ARGUS waits.
 
-## 1. Stop the timers
+## 1. Stop the timers and argus-admin
 
-A oneshot timer that fires during the upgrade would run half-updated code:
+A oneshot timer that fires during the upgrade would run half-updated code, and so would
+`argus-admin` if someone saved a setting in the app meanwhile (it restarts services):
 
 ```bash
 systemctl --user list-timers 'argus-*'
-systemctl --user stop 'argus-*.timer'
+systemctl --user stop 'argus-*.timer' argus-admin
 ```
 
-(`stop` only pauses them; they stay enabled.)
+(`stop` only pauses them; they stay enabled. A setting saved in the app while `argus-admin` is
+stopped waits, and is applied when it starts again in step 6.)
 
 ## 2. A verified backup
 
@@ -52,8 +57,9 @@ uv run argus backup check
 table's fingerprint: a backup known to restore. It ends with the dump's path; note it. The
 services keep running.
 
-(To make `argus db upgrade` always dump first by itself, set
-`ARGUS_BACKUP__BEFORE_MIGRATION=true` in `.env`. It is off by default.)
+(To make `argus db upgrade` always dump first by itself, turn on `backup.before_migration` in
+Settings → Backups, or set `ARGUS_BACKUP__BEFORE_MIGRATION=true` in `.env`. It is off by
+default.)
 
 ## 3. Get the new version
 
@@ -97,6 +103,7 @@ uv run argus units install --apply --reload
 
 ```bash
 systemctl --user restart argus-collector argus-worker argus-web argus-assess
+systemctl --user start argus-admin
 # and any optional service you run, e.g.:
 systemctl --user restart argus-kibana-sync
 systemctl --user status 'argus-*' --no-pager
@@ -111,8 +118,11 @@ journalctl --user -u 'argus-*' --since '5 minutes ago' -p warning --no-pager
 ```
 
 Doctor's `services run the deployed code` line warns if a service still runs code from before the
-pull (restart it). Open the Inbox: if the browser shows an old page, reload it (the app reloads
-itself on its next navigation when its build changed).
+pull (restart it). `uv run argus admin status` shows `argus-admin` seen again. Then open the app:
+**System health** shows alerts arriving, and **Settings** no longer says *argus-admin is not
+running*. If the browser shows an old page, reload it (the app reloads itself on its next
+navigation when its build changed). A new version may bring new settings: they appear in
+Settings with their defaults.
 
 ## 8. Timers back on
 
@@ -133,15 +143,19 @@ If the new version misbehaves:
 ### A. Code only (no migration ran, or the migrations are backwards compatible)
 
 ```bash
-systemctl --user stop 'argus-*.timer'
+systemctl --user stop 'argus-*.timer' argus-admin
 git checkout v0.1.0            # the version noted in step 0
 uv sync
 uv run argus units install --apply --reload
-systemctl --user restart argus-collector argus-worker argus-web argus-assess
+systemctl --user restart argus-collector argus-worker argus-web argus-assess argus-admin
 uv run argus doctor
 ```
 
 If doctor says the database is ahead of the code (`migrations`), go on with B or C.
+
+If you changed in Settings a setting that only the new version knows, the older code stops on it
+as an unknown name in `config/admin.yaml` (`argus config validate` names it): remove that line
+from the file.
 
 ### B. Downgrade the migrations
 
@@ -149,11 +163,11 @@ Each migration has a downgrade. Run it **with the new code still checked out** (
 downgrade steps), down to the revision you noted in step 0:
 
 ```bash
-systemctl --user stop argus-collector argus-worker argus-web argus-assess
+systemctl --user stop argus-collector argus-worker argus-web argus-assess argus-admin
 uv run argus db downgrade --yes <revision from step 0>
 git checkout v0.1.0 && uv sync
 uv run argus units install --apply --reload
-systemctl --user start argus-collector argus-worker argus-web argus-assess
+systemctl --user start argus-collector argus-worker argus-web argus-assess argus-admin
 uv run argus doctor
 ```
 
@@ -164,13 +178,14 @@ A downgrade can drop tables or columns the new version added, and their data wit
 ARGUS has no restore command for the live database (the drill only restores into a scratch
 database). Restoring is plain PostgreSQL, run inside the database container. This **replaces the
 whole database** with the dump: everything ARGUS took in since the dump is gone from ARGUS (the
-collector backfills alerts from the SIEM again, within `history.window`; reviews made since are
-lost).
+collector backfills alerts from the SIEM again, within `history.window`; reviews, people and
+accounts added since are lost). The settings files, `config/admin.yaml` among them, are not in
+the dump and stay as they are.
 
 ```bash
 cd ~/argus
 systemctl --user stop 'argus-*.timer'
-systemctl --user stop argus-collector argus-worker argus-web argus-assess argus-kibana-sync
+systemctl --user stop argus-collector argus-worker argus-web argus-assess argus-admin argus-kibana-sync
 
 uv run argus backup list                 # pick the dump, e.g. from step 2
 DUMP=data/backups/manual/argus-20270115T093000123456Z.dump
@@ -187,7 +202,7 @@ git checkout v0.1.0 && uv sync           # the code that matches the dump's revi
 uv run argus db bootstrap                # the roles' passwords and grants
 uv run argus db check
 uv run argus units install --apply --reload
-systemctl --user start argus-collector argus-worker argus-web argus-assess
+systemctl --user start argus-collector argus-worker argus-web argus-assess argus-admin
 uv run argus doctor
 ```
 

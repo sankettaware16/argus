@@ -28,9 +28,9 @@ export const MORE: NavItem[] = [
   { label: "ARGUS quality", to: "/quality", search: { tab: "metrics" }, hint: "How often ARGUS is right: its results and the gold set" },
   { label: "System health", to: "/health", hint: "Is data arriving; any gaps" },
   { label: "Help & glossary", to: "/glossary", hint: "What every word means" },
-  { label: "Patterns", to: "/patterns", hint: "Groups of alike alert groups to review at once", group: "Classic queues" },
-  { label: "Proposals", to: "/proposals", hint: "Outcomes ARGUS proposes, to confirm", group: "Classic queues" },
-  { label: "Settings", to: "/settings", hint: "Change how ARGUS works: the SIEM, Kibana, AI providers, notices and more", admin: true, group: "Administration" },
+  { label: "Patterns", to: "/patterns", hint: "Groups of alike alert groups to review at once", group: "More queues" },
+  { label: "Proposals", to: "/proposals", hint: "Outcomes ARGUS proposes, to confirm", group: "More queues" },
+  { label: "Settings", to: "/settings", hint: "Change how ARGUS works: the SIEM, Kibana, outside lookups, notices and more", admin: true, group: "Administration" },
   { label: "Users and roles", to: "/users", hint: "Who may sign in to ARGUS and what they may do", admin: true, group: "Administration" },
   { label: "Design system", to: "/design", hint: "The app's colours, components and safety checks", admin: true, group: "Administration" },
 ];
