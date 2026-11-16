@@ -141,7 +141,7 @@ async def test_wrong_sign_ins_never_wait_for_a_second_connection(
     assert await count(production_pool, counted) == results.count(401)
 
 
-@pytest.mark.parametrize("path", [f"{V1}/metrics", "/metrics"])
+@pytest.mark.parametrize("path", [f"{V1}/metrics"])
 async def test_metrics_never_wait_for_a_second_connection(
     production_pool: AsyncEngine, path: str
 ) -> None:
@@ -322,7 +322,7 @@ async def test_two_sign_in_forms_in_one_browser_both_work(
 # --------------------------------------------------------------------------- F7
 
 
-async def test_the_classic_gold_refusal_is_audited_like_v1(
+async def test_a_refused_gold_answer_is_audited(
     seeded: AsyncEngine, web_engine: AsyncEngine
 ) -> None:
     async with seeded.begin() as conn:
@@ -339,12 +339,8 @@ async def test_the_classic_gold_refusal_is_audited_like_v1(
             "also_gold": True})  # fmt: skip
         assert v1.status_code == 403
         assert await count(seeded, denials) == 1
-        classic = await http.post(f"/investigations/{inv['id']}/review", data={
-            "csrf_token": token, "action": "reviewed", "outcome": "benign_expected",
-            "seen_version": str(inv["version"]), "seen_review": "", "also_gold": "1"})  # fmt: skip
-    assert classic.status_code == 403
-    assert "answer_gold" in classic.text
-    assert await count(seeded, denials) == 2
+    # a classic form address is gone: the old answer is a 410 that writes and audits nothing
+    assert await count(seeded, denials) == 1
 
 
 # --------------------------------------------------------------------------- F8

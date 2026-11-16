@@ -4,7 +4,6 @@ for two reviewers), derived human states, security headers, hostile alert conten
 from __future__ import annotations
 
 import asyncio
-import re
 from datetime import timedelta
 
 import httpx
@@ -21,7 +20,6 @@ from tests.integration.web.conftest import (
     SAME_ORIGIN,
     first_investigation,
     log_in,
-    to_signin,
 )
 
 pytestmark = pytest.mark.integration
@@ -101,30 +99,6 @@ async def test_security_headers(client: httpx.AsyncClient) -> None:
     assert "access-control-allow-origin" not in response.headers
 
 
-async def test_pages_need_a_login_and_all_render(client: httpx.AsyncClient) -> None:
-    for path in ("/", "/rules", "/hosts", "/health", "/glossary", "/patterns"):
-        response = await client.get(path)
-        assert (response.status_code, response.headers["location"]) == (303, to_signin(path))
-    form = await client.post("/login", data={"username": "asha", "password": PASSWORD})
-    assert form.status_code == 303
-    inv = await first_investigation(client)
-    alert_id = (await client.get(f"/api/investigations/{inv['id']}")).json()["alerts"][0][
-        "alert_id"
-    ]
-    for path in ("/", "/?view=open", "/?view=reviewed", "/?view=all", "/rules", "/hosts",
-                 "/health", "/glossary", "/patterns", "/dashboard",
-                 f"/investigations/{inv['id']}", f"/investigations/{inv['id']}/alerts/{alert_id}",
-                 "/?view=all&kind=ip&value=10.0.0.1", "/?view=open&rule=rule-1"):  # fmt: skip
-        response = await client.get(path)
-        assert response.status_code == 200, path
-        # same-origin scripts only, the cost bar's (D-094) and, on an investigation, its tabs
-        # (D-102): no inline or foreign script
-        scripts = re.findall(r"<script[^>]*>", response.text)
-        page = path == f"/investigations/{inv['id']}"
-        tabs = ['<script src="/static/tabs.js" defer>'] if page else []
-        assert scripts == ['<script src="/static/cost.js" defer>', *tabs], path
-
-
 # --------------------------------------------------------------------------- reviews
 
 
@@ -192,25 +166,6 @@ async def test_a_stale_version_is_a_conflict_and_bad_input_is_refused(
     assert (await review(client, csrf, inv, action="note")).status_code == 422  # empty note
     assert (await review(client, csrf, inv, outcome="guilty")).status_code == 422
     assert (await review(client, csrf, inv, note="x" * 4001)).status_code == 422
-
-
-async def test_the_review_form(client: httpx.AsyncClient) -> None:
-    await client.post("/login", data={"username": "asha", "password": PASSWORD})
-    inv = await first_investigation(client)
-    page = (await client.get(f"/investigations/{inv['id']}")).text
-    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page)
-    assert csrf is not None
-    form = {"action": "reviewed", "seen_version": inv["version"], "seen_review": "",
-            "outcome": "benign_policy", "note": "ok"}  # fmt: skip
-    missing = await client.post(f"/investigations/{inv['id']}/review", data=form)
-    assert missing.status_code == 403
-    done = await client.post(f"/investigations/{inv['id']}/review",
-                             data={**form, "csrf_token": csrf.group(1)})  # fmt: skip
-    assert done.status_code == 303
-    again = await client.post(f"/investigations/{inv['id']}/review",
-                              data={**form, "csrf_token": csrf.group(1)})  # fmt: skip
-    assert again.status_code == 409
-    assert "nothing was saved" in again.text
 
 
 # --------------------------------------------------------------------------- hostile content

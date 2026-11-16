@@ -433,7 +433,7 @@ async def test_the_break_glass_drill_while_elk_is_unreachable(
     # 3. the one-time password signs in once, while ELK is still down
     glass = rig.browser()
     assert (await rig.sign_in(glass, breakglass.NAME, password_of(out))).status_code == 303
-    assert "Emergency (break-glass) session" in (await glass.get("/")).text
+    assert "Emergency (break-glass) session" in (await glass.get("/access")).text
     csrf = await rig.csrf(glass)
     assert (await rig.review(glass, csrf)).status_code == 201  # view and review
     assert (await rig.one("SELECT kibana_ok FROM review_events")).kibana_ok is False
@@ -506,7 +506,7 @@ async def test_first_elk_sign_ins_raise_no_warning(rig: Rig, elk_on: Path) -> No
         http = rig.browser()
         made = await rig.sign_in(http, name)
         assert made.status_code == 303, made.text
-        for path in ("/", "/access", "/rules"):
+        for path in ("/access",):
             page = await http.get(path)
             assert page.status_code == 200, path
             assert 'role="alert"' not in page.text, path

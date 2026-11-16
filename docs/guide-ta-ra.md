@@ -208,12 +208,9 @@ judgement.
 - A note helps the next person: one line on why.
 
 ## If the app does not work
-Once your admin has made the app the main entrance, choose **Classic pages (read-only)** in
-the menu. They show the same investigations, rules, hosts and reports for reading; the review,
-confirm and ask-the-AI buttons are not there and nothing can be saved. A banner on each page
-says so, and opening the app again brings you back. (Before that switch the older pages are
-still the normal pages, buttons included, and the menu entry just opens them.) Tell an admin
-what went wrong.
+Reload the page first: usually ARGUS was updated a moment ago and the page needs the new files.
+If it still does not work, tell an ARGUS admin what you were doing and what the page said.
+Old links (in Kibana cases, notices and bookmarks) open the same thing in the app.
 
 ## What happens before we call ARGUS ready to roll out
 | Step | Who | Status |

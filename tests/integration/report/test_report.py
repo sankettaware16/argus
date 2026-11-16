@@ -279,8 +279,8 @@ async def test_the_api_the_page_and_the_cli(
         page = await http.get(f"/investigations/{inv}/report")
         assert (page.status_code, page.headers["location"]) == (
             303,
-            f"/signin?next=%2Finvestigations%2F{inv}%2Freport",
-        )  # Q-A1's sign-in page
+            f"/app/investigations/{inv}?tab=report",
+        )  # the old address leads to the app's report tab
         login = await http.post("/api/login", json={"username": "asha", "password": PASSWORD})
         assert login.status_code == 200
         got = await http.get(f"/api/investigations/{inv}/report")
@@ -293,18 +293,6 @@ async def test_the_api_the_page_and_the_cli(
                                    params=bad)).status_code in (404, 422)  # fmt: skip
         none = "00000000-0000-0000-0000-000000000000"
         assert (await http.get(f"/api/investigations/{none}/report")).status_code == 404
-        html = await http.get(f"/investigations/{inv}/report")
-        assert html.status_code == 200
-        body = html.text
-        assert "What ARGUS found with extra SIEM queries" in body
-        assert "Where each fact came from" in body
-        for p in expected.provenance:
-            assert p.eid in body
-        other = await http.get(f"/investigations/{inv}/report", params={"assessment": a.id})
-        assert other.status_code == 200
-        assert (await http.get(f"/investigations/{none}/report")).status_code == 404
-        detail = await http.get(f"/investigations/{inv}")
-        assert f'href="/investigations/{inv}/report"' in detail.text
     code, out = await asyncio.to_thread(_invoke, "report", "show", inv)
     assert code == 0, out
     assert out.count("report@2 for investigation") == 2  # the investigator's, the engine's
@@ -332,43 +320,3 @@ async def test_the_api_the_page_and_the_cli(
 
 
 HOSTILE = '<script>window.__pwned=1</script><img src=x onerror="alert(1)">\u202e"'
-
-
-async def test_hostile_values_are_inert_on_the_page(
-    app_engine: AsyncEngine,
-    saver: AsyncPostgresSaver,
-    migrated_engine: AsyncEngine,
-    web_engine: AsyncEngine,
-) -> None:
-    """A destination, a URL and a host name from the logs that are markup or bidi tricks show
-    as text: escaped, the control character visible, nothing to run."""
-    d = await day(app_engine, saver)
-    async with migrated_engine.begin() as conn:  # what a hostile proxy log would have held
-        planted = (
-            "UPDATE evidence SET snapshot = jsonb_set(snapshot, '{aggregations,urls,buckets}',"
-            " jsonb_build_array(jsonb_build_object('key', CAST(:h AS text), 'doc_count', 4)))"
-            " WHERE template = 'proxy.destination' AND snapshot ? 'aggregations'"
-        )
-        await conn.execute(text(planted), {"h": HOSTILE})
-        await auth.add_user(conn, "asha", "Asha", PASSWORD)
-    reports = await every_report(app_engine, d.packs)
-    a, r = next((a, r) for a, r in reports if any(
-        HOSTILE in v.text for f in r.found.new.new_facts for v in f.values))  # fmt: skip
-    app = create_app(web_engine, clock=lambda: scenario.AGENT_AT)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
-                                 base_url="http://127.0.0.1",
-                                 headers={"Origin": "http://127.0.0.1"}) as http:  # fmt: skip
-        await http.post("/api/login", json={"username": "asha", "password": PASSWORD})
-        page = await http.get(f"/investigations/{a.investigation_id}/report",
-                              params={"assessment": a.id})  # fmt: skip
-    assert page.status_code == 200
-    body = page.text
-    assert "<script>window.__pwned" not in body
-    assert "<img src=x" not in body
-    assert "\u202e" not in body
-    assert "&lt;script&gt;window.__pwned=1&lt;/script&gt;" in body
-    assert "U+202E" in body
-    assert page.headers["content-security-policy"].startswith("default-src 'self'")
-    text_out = render.text(r)
-    assert "\u202e" not in text_out
-    assert "\\u202e" in text_out  # a value as written (repr), the character escaped

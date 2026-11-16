@@ -303,7 +303,7 @@ describe("the menu", () => {
     await user.click(screen.getByTestId("account-menu"));
     const account = within(screen.getByTestId("account-items"));
     expect(account.getByRole("link", { name: "Your access" }).getAttribute("href")).toBe("/access");
-    expect(account.getByRole("link", { name: "Classic pages" }).getAttribute("href")).toBe("/classic");
+    expect(account.queryByRole("link", { name: "Classic pages" })).toBeNull();
     expect(account.getByRole("button", { name: "Sign out" })).toBeTruthy();
   });
 

@@ -3,7 +3,6 @@ filter, the incidents, and the page and API behind a login."""
 
 from __future__ import annotations
 
-import re
 import statistics
 from datetime import timedelta
 from typing import Any
@@ -171,26 +170,12 @@ async def test_each_filter_narrows_every_widget(
     assert (await build(seeded, old)).kpis["cases"] == 0
 
 
-async def test_the_page_and_the_api(seeded: AsyncEngine, client: httpx.AsyncClient) -> None:
-    assert (await client.get("/dashboard")).status_code in (303, 307)  # signed out
+async def test_the_api(seeded: AsyncEngine, client: httpx.AsyncClient) -> None:
     assert (await client.get("/api/dashboard")).status_code == 401
     await client.post("/login", data={"username": "asha", "password": "correct horse battery"})
-    page = (await client.get("/dashboard")).text
-    assert "<h1>Dashboard</h1>" in page
-    assert '<a aria-current="page" href="/dashboard"' in page
-    assert re.findall(r"<script[^>]*>", page) == ['<script src="/static/cost.js" defer>']
-    assert 'role="img" aria-label="Alerts per day by severity"' in page
-    assert "style=" not in page  # the CSP allows no inline style
-    filtered = (
-        await client.get("/dashboard", params=[("severity", "high"), ("range", "24h")])
-    ).text
-    assert '<input type="checkbox" name="severity" value="high" checked>' in filtered
-    assert "severity: high" in filtered  # the active filter's chip
-    assert 'aria-label="Alerts per hour by severity"' in filtered
     for bad in ({"range": "1y"}, {"severity": "urgent"}, {"kind": "mac", "value": "x"},
                 {"start": "yesterday"}, {"value": "x" * 301},
                 {"start": "2019-12-31", "end": "x"}):  # fmt: skip
-        assert (await client.get("/dashboard", params=bad)).status_code == 422, bad
         assert (await client.get("/api/dashboard", params=bad)).status_code == 422, bad
     for asked, used in (  # a custom span is clamped, never refused (schemathesis, 10-21)
         (("2000-01-01", "6281-04-29"), ("2098-12-31", "2100-01-01")),  # 2099-01-01 to 2100-01-01
@@ -267,33 +252,6 @@ async def test_the_span_before_the_hourly_switch_and_half_filters(seeded: AsyncE
     assert spans == ["hour", "hour", "day"]  # 1 and 2 days hourly, 3 daily
 
 
-async def test_the_page_names_every_choice(client: httpx.AsyncClient) -> None:
-    await client.post("/login", data={"username": "asha", "password": "correct horse battery"})
-    page = (await client.get("/dashboard", params={"range": "30d"})).text
-    ranges = {"24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days",
-              "90d": "Last 90 days"}  # fmt: skip
-    for key, title in ranges.items():
-        selected = " selected" if key == "30d" else ""
-        assert f'<option value="{key}"{selected}>{title}</option>' in page
-    states = {"unreviewed": "Not reviewed", "follow_up": "Follow-up",
-              "changed_since_review": "Changed since review", "reviewed": "Reviewed"}  # fmt: skip
-    for key, title in states.items():
-        assert f'<input type="checkbox" name="state" value="{key}"> {title}</label>' in page
-    ais = {"proposed_tp": "Proposes true positive", "proposed_other": "Proposes benign",
-           "no_proposal": "No proposal", "working": "Working on it",
-           "none": "Not assessed"}  # fmt: skip
-    for key, title in ais.items():
-        assert f'<input type="checkbox" name="ai" value="{key}"> {title}</label>' in page
-    week = (await client.get("/dashboard")).text
-    assert '<option value="7d" selected>Last 7 days</option>' in week
-    assert "Last 7 days:" in week
-    days = (await client.get("/dashboard", params={"range": "90d"})).text
-    assert "Last 90 days:" in days
-    for title in ("Top IP addresses", "Top hosts", "Top domains", "Top users"):
-        assert f"<h2>{title}</h2>" in page
-    assert "Last 30 days:" in page
-
-
 async def test_the_form_as_a_browser_sends_it(
     seeded: AsyncEngine, client: httpx.AsyncClient
 ) -> None:
@@ -301,9 +259,6 @@ async def test_the_form_as_a_browser_sends_it(
     await client.post("/login", data={"username": "asha", "password": "correct horse battery"})
     rule = (await build(seeded)).rules[0]["rule_id"]
     query = f"range=7d&rule={rule}&kind=&value=&start=&end="
-    got = await client.get(f"/dashboard?{query}")
-    assert got.status_code == 200
-    assert f'<option value="{rule}" selected>' in got.text
     api = (await client.get(f"/api/dashboard?{query}")).json()
     assert [r["rule_id"] for r in api["rules"]] == [rule]
     half = await client.get("/api/dashboard?start=2026-10-01&end=&kind=ip&value=")

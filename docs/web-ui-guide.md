@@ -117,7 +117,6 @@ The menu is on the left (behind *Menu* on a phone):
 | | Glossary | Every page and word explained |
 | | Design system | The app's colours and components (for developers) |
 | **Account** | Your access | What you may do and why (a server page) |
-| | Classic pages (read-only) | The older server-rendered pages, kept as a read-only fallback |
 
 ![The Dashboard: alerts, investigations and incidents at a glance](images/screenshots/dashboard.png)
 

@@ -50,7 +50,6 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("POST", "/api/investigations/{investigation_id}/reviews"): C.REVIEW,
     ("GET", "/api/rules"): C.VIEW,
     ("GET", "/api/entities"): C.VIEW,
-    ("GET", "/api/cost"): C.VIEW,
     ("GET", "/api/dashboard"): C.VIEW,
     ("GET", "/api/health"): C.VIEW,
     # /api/v1
@@ -97,6 +96,18 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/today/caught-up"): C.VIEW,
     ("POST", "/api/v1/cases/bulk-dismiss"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/members/reviews"): C.REVIEW,
+    ("GET", "/api/v1/admin/settings"): C.ADMIN,  # Settings (P4-H, D-327)
+    ("POST", "/api/v1/admin/changes"): C.ADMIN,
+    ("GET", "/api/v1/admin/users"): C.ADMIN,  # users and roles (P4-H, D-327)
+    ("POST", "/api/v1/admin/users"): C.ADMIN,
+    ("PUT", "/api/v1/admin/users/{user_id}/capabilities"): C.ADMIN,
+    ("POST", "/api/v1/admin/users/{user_id}/link"): C.ADMIN,
+    ("PUT", "/api/v1/admin/users/{user_id}/access"): C.ADMIN,
+    ("POST", "/api/v1/admin/users/{user_id}/sessions/end"): C.ADMIN,
+    ("GET", "/api/v1/admin/changes"): C.ADMIN,
+    ("POST", "/api/v1/admin/jobs/inspect-tls"): C.ADMIN,
+    ("POST", "/api/v1/admin/jobs/setup"): C.ADMIN,
+    ("GET", "/api/v1/admin/jobs/{job_id}"): C.ADMIN,
     ("POST", "/api/v1/cases/{case_id}/sent"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/actions/{action_id}/done"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/undo-dismissal"): C.MANAGE_CASES,
@@ -144,10 +155,11 @@ EXPECTED: dict[tuple[str, str], Any] = {
     # signing in and out
     ("GET", "/signin"): "open",
     ("POST", "/signin"): "open",
+    ("GET", "/welcome"): "open",  # a one-time link sets a password (D-327)
+    ("POST", "/welcome"): "open",
     ("GET", "/stepup"): SESSION,
     ("POST", "/stepup"): SESSION,
     ("GET", "/access"): SESSION,  # Your access (Q-E2): even a person with no access sees why
-    ("GET", "/classic"): C.VIEW,  # Q-B4: choose the read-only classic pages (a cookie, no data)
     ("GET", "/login"): "open",
     ("POST", "/login"): "open",
     ("POST", "/logout"): "open",
@@ -164,34 +176,13 @@ EXPECTED: dict[tuple[str, str], Any] = {
     # permanent links
     ("GET", "/go/investigation/{investigation_id}"): "open",
     ("GET", "/go/case/{case_id}"): "open",
-    # the classic pages and forms
-    ("GET", "/"): C.VIEW,
-    ("GET", "/dashboard"): C.VIEW,
-    ("GET", "/rules"): C.VIEW,
-    ("GET", "/glossary"): C.VIEW,
-    ("GET", "/patterns"): C.VIEW,
-    ("POST", "/patterns/review"): C.REVIEW,
-    ("GET", "/hosts"): C.VIEW,
-    ("GET", "/health"): C.VIEW,
-    ("GET", "/investigations/{investigation_id}"): C.VIEW,
-    ("GET", "/investigations/{investigation_id}/report"): C.VIEW,  # report@2 (Q-F2)
-    ("GET", "/cases/{case_id}/report"): C.VIEW,  # AR7: the incident report, read only
-    ("GET", "/gold"): C.VIEW,
-    ("POST", "/investigations/{investigation_id}/gold"): C.ANSWER_GOLD,
-    ("POST", "/investigations/{investigation_id}/review"): C.REVIEW,
-    ("POST", "/investigations/{investigation_id}/accept"): C.REVIEW,
-    ("POST", "/investigations/{investigation_id}/assess"): C.REVIEW,
-    ("GET", "/proposals"): C.VIEW,
-    ("POST", "/proposals/confirm"): C.REVIEW,
-    ("GET", "/tuning"): C.VIEW,
-    ("GET", "/metrics"): C.VIEW,
-    ("GET", "/investigations/{investigation_id}/alerts/{alert_id}"): C.VIEW,
 }
 # The only routes that serve anyone, each for a stated reason (argus.web.app's Open values).
 OPEN = {
     ("POST", "/api/login"), ("GET", "/signin"), ("POST", "/signin"), ("GET", "/login"),
     ("POST", "/login"), ("POST", "/logout"), ("GET", "/api/v1/openapi.json"),
     ("GET", "/go/investigation/{investigation_id}"), ("GET", "/go/case/{case_id}"),
+    ("GET", "/welcome"), ("POST", "/welcome"),
     ("GET", "/app/assets/{name}"), ("GET", "/app/favicon.svg"),
     ("HEAD", "/app/assets/{name}"), ("HEAD", "/app/favicon.svg"),
 }  # fmt: skip
@@ -200,10 +191,11 @@ NO_TOKEN = {
     ("POST", "/api/login"): "sign-in: no session yet (the origin check guards it)",
     ("POST", "/login"): "sign-in: no session yet (the origin check guards it)",
     ("POST", "/signin"): "sign-in: its own login-CSRF token",
+    ("POST", "/welcome"): "a one-time link: its token is the secret a forger cannot know",
     ("POST", "/logout"): "ends the session only with the session's CSRF token",
 }
 CLASSIC_BEFORE_QA1 = {key for key in EXPECTED if not key[1].startswith(("/api/v1", "/go/", "/app"))
-                      and key[1] not in ("/signin", "/stepup")}  # fmt: skip
+                      and key[1] not in ("/signin", "/stepup", "/welcome")}  # fmt: skip
 
 
 def routes(app: FastAPI) -> list[APIRoute]:
@@ -313,7 +305,8 @@ async def fixture_ids(engine: AsyncEngine) -> dict[str, str]:
             )
         ).one()
     return {"investigation_id": str(inv), "alert_id": str(alert), "case_id": str(uuid.uuid4()),
-            "request_id": "1", "path:path": "design", "name": "index-missing.js"}  # fmt: skip
+            "request_id": "1", "user_id": "1", "job_id": "1", "path:path": "design",
+            "name": "index-missing.js"}  # fmt: skip
 
 
 def concrete(path: str, ids: dict[str, str]) -> str:
@@ -437,6 +430,9 @@ async def test_no_state_change_from_a_url(seeded: AsyncEngine, web_engine: Async
     """Every GET route, signed in and signed out, leaves every table as it was."""
     ids = await fixture_ids(seeded)
     gets = [path for (method, path) in EXPECTED if method == "GET"]
+    async with seeded.begin() as conn:  # every GET answered (a refusal is audited: a write)
+        await conn.execute(text("UPDATE users SET capabilities = array_append(capabilities,"
+                                " 'admin') WHERE username = 'asha'"))  # fmt: skip
     async with client(web_engine) as http:
         await signed(http, "asha")
         before = await digest(seeded)

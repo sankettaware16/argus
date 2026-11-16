@@ -152,14 +152,13 @@ async def test_your_access_is_there_for_a_person_without_access_and_for_local_ac
         assert "argus user grant" in page
 
 
-async def test_not_verified_says_so_on_every_page_and_in_your_access(rig: Rig) -> None:
+async def test_not_verified_says_so_on_the_server_pages_and_in_your_access(rig: Rig) -> None:
     http, _ = await rig.signed_in("asha.elk")
     rig.lane.down = "unreachable"
     rig.clock.advance(minutes=6)
     await http.get("/api/investigations")
     await rig.settle()
-    for path in ("/", "/rules", "/access"):
-        assert "cannot confirm your access in ELK" in (await http.get(path)).text, path
+    assert "cannot confirm your access in ELK" in (await http.get("/access")).text
     access = (await http.get("/access")).text
     assert "not sent to Kibana" in access
     assert "approvals" in access
@@ -167,7 +166,7 @@ async def test_not_verified_says_so_on_every_page_and_in_your_access(rig: Rig) -
     rig.clock.advance(minutes=6)
     await http.get("/api/investigations")
     await rig.settle()
-    assert "cannot confirm your access" not in (await http.get("/")).text
+    assert "cannot confirm your access" not in (await http.get("/access")).text
 
 
 async def test_the_page_of_an_admin_account_says_it_keeps_no_copy(

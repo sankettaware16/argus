@@ -445,51 +445,6 @@ async def raw_alert(
     return None if row is None else dict(row.raw)
 
 
-async def incident_report_of(
-    conn: AsyncConnection, investigation_id: uuid.UUID
-) -> tuple[uuid.UUID, int] | None:
-    """The active case that holds the investigation and has an incident report: its id and
-    number, for the classic page's link to the read-only report."""
-    row = (
-        await conn.execute(
-            text(
-                "SELECT c.id, c.number FROM case_members m JOIN cases c ON c.id = m.case_id"
-                " WHERE m.investigation_id = :i AND m.removed_at IS NULL"
-                " AND c.state IN ('suspected', 'open', 'assigned', 'contained')"
-                " AND EXISTS (SELECT 1 FROM incident_reports r WHERE r.case_id = c.id)"
-                " ORDER BY c.number LIMIT 1"
-            ),
-            {"i": investigation_id},
-        )
-    ).first()
-    return None if row is None else (row.id, int(row.number))
-
-
-async def outside_intel(
-    conn: AsyncConnection, investigation_id: uuid.UUID, now: datetime,
-    view: Any = None,
-) -> list[tuple[str, str]]:  # fmt: skip
-    """What outside threat intel said of the investigation's external addresses and names
-    as (indicator, plain sentence), detections first: the cache's answers still kept under
-    ``view`` (the configured ``outside.cache_window``, ``clean_cache_window`` and
-    ``flag_threshold``; the defaults without one). The page only reads; it never asks a source."""
-    from argus.outside import facts
-    from argus.outside import read as outside_read
-
-    view = view or outside_read.View(facts.DEFAULT_WINDOW, facts.DEFAULT_THRESHOLD,
-                                     facts.DEFAULT_CLEAN_WINDOW)  # fmt: skip
-    found = await outside_read.facts_for(
-        conn,
-        [investigation_id],
-        now,
-        view.window,
-        view.threshold,
-        clean_window=view.clean_window,
-        parent_ok=view.parent_ok,
-    )
-    return [(str(f["value"]), facts.describe(f)) for f in found.get(investigation_id, [])]
-
-
 async def dossier(conn: AsyncConnection, investigation_id: uuid.UUID) -> dict[str, Any] | None:
     """The newest dossier of an investigation, with each signal's plain sentence."""
     from argus.context.display import sentence

@@ -4,16 +4,14 @@ OpenAPI surface and the audit rows of form logins."""
 
 from __future__ import annotations
 
-import re
 import uuid
-from typing import Any
 
 import httpx
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from tests.integration.web.conftest import PASSWORD, first_investigation, log_in, to_signin
+from tests.integration.web.conftest import PASSWORD, first_investigation, log_in
 
 pytestmark = pytest.mark.integration
 
@@ -21,7 +19,7 @@ API = {
     "/api/login", "/api/logout", "/api/investigations", "/api/investigations/{investigation_id}",
     "/api/investigations/{investigation_id}/alerts/{alert_id}/raw",
     "/api/investigations/{investigation_id}/reviews", "/api/rules", "/api/entities",
-    "/api/health", "/api/cost", "/api/dashboard",
+    "/api/health", "/api/dashboard",
     "/api/investigations/{investigation_id}/report",
 }  # fmt: skip
 
@@ -29,10 +27,7 @@ API = {
 async def form_login(http: httpx.AsyncClient) -> str:
     response = await http.post("/login", data={"username": "asha", "password": PASSWORD})
     assert (response.status_code, response.headers["location"]) == (303, "/")
-    page = (await http.get("/")).text
-    found = re.search(r'name="csrf_token" value="([^"]+)"', page)
-    assert found is not None
-    return found.group(1)
+    return str((await http.get("/api/v1/session")).json()["csrf_token"])
 
 
 async def test_openapi_surface_headers_hosts_and_static(client: httpx.AsyncClient) -> None:
@@ -152,58 +147,10 @@ async def test_api_logout_kills_the_token(client: httpx.AsyncClient) -> None:
 # --------------------------------------------------------------------------- pages
 
 
-async def test_every_page_says_what_it_is(client: httpx.AsyncClient) -> None:
-    inv = await first_investigation_page(client)
-    detail = (await client.get(f"/api/investigations/{inv}")).json()
-    alert_id = detail["alerts"][0]["alert_id"]
-    pages = {
-        "/": "<h1>Needs attention</h1>",
-        "/?view=open": "<h1>Not reviewed yet</h1>",
-        "/?view=all": "<h1>All</h1>",
-        "/rules": "Rule 1" if False else "rule-1",
-        "/hosts": "10.0.0.1",
-        "/health": "Coverage gaps",
-        f"/investigations/{inv}": "Mark reviewed",
-        f"/investigations/{inv}/alerts/{alert_id}": "Raw alert",
-        "/?view=all&kind=ip&value=10.0.0.1": "ip: <span",
-        "/?view=all&rule=rule-1": "Rule: <span",
-        "/?view=all&kind=bogus&value=x": "<h1>All</h1>",
-    }
-    for path, expected in pages.items():
-        response = await client.get(path)
-        assert response.status_code == 200, path
-        assert expected in response.text, path
-    assert "10.0.0.2" not in (await client.get("/?view=all&kind=ip&value=10.0.0.1")).text
-    bogus = (await client.get("/?view=all&kind=bogus&value=x")).text
-    assert "10.0.0." in bogus  # an unknown kind is no filter at all
-    missing = await client.get(f"/investigations/{uuid.uuid4()}")
-    assert (missing.status_code, "No such investigation." in missing.text) == (404, True)
-    no_alert = await client.get(f"/investigations/{inv}/alerts/nope")
-    assert (no_alert.status_code, "No such alert here." in no_alert.text) == (404, True)
-    paged = (await client.get("/?view=all&offset=100")).text
-    assert "Nothing here." in paged
-
-
 async def first_investigation_page(client: httpx.AsyncClient) -> str:
     await form_login(client)
     inv = await first_investigation(client)
     return str(inv["id"])
-
-
-async def test_pages_send_strangers_to_the_login(client: httpx.AsyncClient) -> None:
-    inv = uuid.uuid4()
-    for path in ("/", "/rules", "/hosts", "/health", f"/investigations/{inv}",
-                 f"/investigations/{inv}/alerts/x"):  # fmt: skip
-        response = await client.get(path)
-        assert (response.status_code, response.headers["location"]) == (303, to_signin(path)), path
-    posted = await client.post(f"/investigations/{inv}/review",
-                               data={"action": "reviewed", "seen_version": 0})  # fmt: skip
-    assert (posted.status_code, posted.headers["location"]) == (
-        303, to_signin(f"/investigations/{inv}"))  # fmt: skip
-    login = await client.get("/login")  # the old address leads to the sign-in page
-    assert (login.status_code, login.headers["location"]) == (303, "/signin")
-    signin = await client.get("/signin")
-    assert 'action="/signin"' in signin.text
 
 
 async def test_form_login_logout_and_audit(client: httpx.AsyncClient, seeded: AsyncEngine) -> None:
@@ -214,12 +161,12 @@ async def test_form_login_logout_and_audit(client: httpx.AsyncClient, seeded: As
     ignored = await client.post("/logout", data={"csrf_token": "forged"})
     assert ignored.headers["location"] == "/signin?why=out"
     client.cookies.set("argus_session", token)
-    assert (await client.get("/")).status_code == 200  # a forged logout ends nothing
+    assert (await client.get("/api/v1/session")).status_code == 200  # a forged logout ends nothing
     out = await client.post("/logout", data={"csrf_token": csrf})
     assert (out.status_code, out.headers["location"]) == (303, "/signin?why=out")
     assert "Max-Age=0" in out.headers["set-cookie"]
     client.cookies.set("argus_session", token)
-    assert (await client.get("/")).status_code == 303  # the session is over
+    assert (await client.get("/api/v1/session")).status_code == 401  # the session is over
     async with seeded.connect() as conn:
         rows = (await conn.execute(text(
             "SELECT actor, action, outcome, details->>'username' FROM audit_events"
@@ -228,37 +175,8 @@ async def test_form_login_logout_and_audit(client: httpx.AsyncClient, seeded: As
                     ("user:asha", "logout", "success", None)]  # fmt: skip
 
 
-async def test_the_review_form_paths(client: httpx.AsyncClient, seeded: AsyncEngine) -> None:
-    csrf = await form_login(client)
-    inv = await first_investigation(client)
-    url = f"/investigations/{inv['id']}/review"
-    base: dict[str, Any] = {"csrf_token": csrf, "seen_version": inv["version"],
-                            "seen_review": "", "outcome": "", "note": ""}  # fmt: skip
-    expired = await client.post(url, data={**base, "action": "reviewed", "csrf_token": "x"})
-    assert (expired.status_code, "The form expired" in expired.text) == (403, True)
-    unknown = await client.post(url, data={**base, "action": "reviewed", "outcome": "guilty"})
-    assert (unknown.status_code, "Unknown outcome." in unknown.text) == (422, True)
-    empty = await client.post(url, data={**base, "action": "note"})
-    assert (empty.status_code, "a note needs text" in empty.text) == (422, True)
-    nowhere = await client.post(f"/investigations/{uuid.uuid4()}/review",
-                                data={**base, "action": "reviewed"})  # fmt: skip
-    assert (nowhere.status_code, "No such investigation." in nowhere.text) == (404, True)
-    first = await client.post(url, data={**base, "action": "note", "note": "  first  "})
-    assert first.status_code == 303
-    async with seeded.connect() as conn:
-        review_id, note = (await conn.execute(text(
-            "SELECT id, note FROM review_events ORDER BY id DESC LIMIT 1"))).one()  # fmt: skip
-    assert note == "first"
-    second = await client.post(url, data={**base, "action": "reviewed",
-                                          "seen_review": str(review_id),
-                                          "outcome": "true_positive"})  # fmt: skip
-    assert second.status_code == 303
-    stale = await client.post(url, data={**base, "action": "reviewed", "seen_review": "x",
-                                         "outcome": "true_positive"})  # fmt: skip
-    bare = await client.post(url, data={**base, "action": "reviewed",
-                                        "seen_review": str(review_id)})  # fmt: skip
-    assert bare.status_code == 422
-    assert "choose an outcome to mark it reviewed" in bare.text
-    assert (stale.status_code, "nothing was saved" in stale.text) == (409, True)
-    page = (await client.get(f"/investigations/{inv['id']}")).text
-    assert "True positive" in page
+async def test_the_old_login_address_leads_to_the_sign_in_page(client: httpx.AsyncClient) -> None:
+    login = await client.get("/login")
+    assert (login.status_code, login.headers["location"]) == (303, "/signin")
+    signin = await client.get("/signin")
+    assert 'action="/signin"' in signin.text

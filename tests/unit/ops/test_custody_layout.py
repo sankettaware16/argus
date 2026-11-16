@@ -29,7 +29,9 @@ UNIT_DIR = CUSTODY / "units"
 USER_UNITS = REPO_ROOT / "deploy" / "systemd"
 ARGUS = "/opt/argus/current/.venv/bin/argus"
 # The user units as an installation renders them (D-295): a made-up checkout and uv.
-PARAMS = units.UnitParams(Path("/srv/argus"), "/usr/local/bin/uv", {"WEB_CLASSIC": "fallback"})
+PARAMS = units.UnitParams(
+    Path("/srv/argus"), "/usr/local/bin/uv", {"WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
+)
 RENDERED = units.rendered_units(PARAMS, USER_UNITS)
 
 

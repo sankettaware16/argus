@@ -80,7 +80,7 @@ _MAX_REPORTED_PROBLEMS = 50
 
 
 class _Section(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, use_attribute_docstrings=True)
 
 
 class HistorySettings(_Section):
@@ -508,12 +508,9 @@ class WebSettings(_Section):
     database_role: Literal["app", "api"] = "app"
     """The login the web uses: ``api`` is its own (``database.api_user``), with only the
     grants the web needs; ``app`` the runtime login every other ARGUS process uses."""
-    classic: Literal["primary", "fallback"] = "primary"
-    """Which are the main pages: ``primary`` serves the classic pages at their addresses;
-    ``fallback`` leads a classic page's address to the same page under ``/app`` (303), keeps the
-    classic pages read-only at ``/classic`` (their forms are refused with a pointer to ``/app``)
-    and opens a permanent link to an investigation in the app. Back to ``primary`` is the whole
-    rollback."""
+    classic: Literal["primary", "fallback"] | None = None
+    """No longer used: the classic pages are gone and their addresses lead to ``/app``. An older
+    file or unit that still sets it loads; ``argus doctor`` says to remove it."""
     spa_dir: Path | None = None
     """The folder the app at ``/app`` is served from: by default the build committed in
     the package (``argus/web/spa``); another folder only for a test or a deploy copy."""
@@ -1030,8 +1027,8 @@ class UnitWebSettings(_Section):
     allowed_hosts: Annotated[tuple[_UnitValue, ...], BeforeValidator(_items)] = ()
     """As written in the unit (a host name keeps its capitals there; the web lowers them)."""
     allowed_networks: Annotated[tuple[_UnitValue, ...], BeforeValidator(_items)] = ()
-    classic: Literal["primary", "fallback"] | None = "fallback"
-    """``fallback``: people land on ``/app``; left out, the classic pages are the main ones."""
+    classic: Literal["primary", "fallback"] | None = None
+    """No longer used (see ``web.classic``): accepted so an older ``local.yaml`` loads."""
     public_url: _UnitValue | None = None
     approval_key_file: _UnitValue | None = None
     database_role: Literal["app", "api"] | None = None
@@ -1048,7 +1045,6 @@ class UnitWebSettings(_Section):
                 "allowed_hosts": self.allowed_hosts,
                 "allowed_networks": self.allowed_networks,
                 "public_url": self.public_url,
-                "classic": self.classic or "primary",
                 "database_role": self.database_role or "app",
             }
         )
@@ -1063,7 +1059,6 @@ class UnitWebSettings(_Section):
             "TLS_KEY": self.tls_key,
             "ALLOWED_HOSTS": ",".join(self.allowed_hosts),
             "ALLOWED_NETWORKS": ",".join(self.allowed_networks),
-            "CLASSIC": self.classic,
             "PUBLIC_URL": self.public_url,
             "APPROVAL_KEY_FILE": self.approval_key_file,
             "DATABASE_ROLE": self.database_role,
@@ -1671,6 +1666,7 @@ def load_settings(
     """
     path = resolve_config_path(config_path)
     from_yaml = yaml_layer(path, Settings)
+    from_admin = admin_file_layer(path)
     from_local = local_file_layer(path)
     from_site = site_file_layer(path)
     from_dotenv = dotenv_layer(env_file, Settings)
@@ -1683,6 +1679,7 @@ def load_settings(
             from_credentials,
             from_environment,
             from_dotenv,
+            from_admin,
             from_local,
             from_yaml,
             from_site,
@@ -1709,6 +1706,7 @@ def load_settings(
 
 SITE_FILE = "site.yaml"
 LOCAL_FILE = "local.yaml"
+ADMIN_FILE = "admin.yaml"  # what people changed in the app (D-327); argus-admin writes it
 
 
 def local_file_layer(config_path: Path) -> Layer | None:
@@ -1720,6 +1718,30 @@ def local_file_layer(config_path: Path) -> Layer | None:
     if local_path == config_path or not local_path.is_file():
         return None
     return yaml_layer(local_path, Settings)
+
+
+def admin_file_layer(config_path: Path) -> Layer | None:
+    """``admin.yaml`` beside the config file, if there is one: the settings people changed in the
+    app (D-327), above ``local.yaml`` and below .env and the environment. ``argus-admin`` writes it;
+    it is never in git, so a deploy never meets it. A secret is never in it."""
+    admin_path = config_path.parent / ADMIN_FILE
+    if admin_path == config_path or not admin_path.is_file():
+        return None
+    layer = yaml_layer(admin_path, Settings)
+    for section, values in list(layer.data.items()):
+        model = Settings.model_fields.get(section)
+        if not isinstance(values, dict) or model is None:
+            continue
+        for name in [n for n in values if _secret_field(model.annotation, n)]:
+            layer.problems.append(f"{ADMIN_FILE} never holds a secret: {section}.{name}")
+            del values[name]
+    return layer
+
+
+def _secret_field(section: Any, name: str) -> bool:
+    fields = getattr(section, "model_fields", {})
+    info = fields.get(name)
+    return info is not None and "SecretStr" in repr(info.annotation)
 
 
 def site_file_layer(config_path: Path) -> Layer | None:

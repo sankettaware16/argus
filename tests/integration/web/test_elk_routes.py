@@ -91,6 +91,6 @@ async def test_every_read_needs_view_and_a_review_session_may_change_exactly_wha
     }
     needs = {EXPECTED[k].value for k in review_routes}
     # Q-B3 added the case kind (manage_cases, approve, reopen): a reviewer holds none of them;
-    # UI v2 a person's own marks (seen, caught up), which need only view
-    assert needs <= {"review", "answer_gold", "manage_cases", "approve", "reopen", "view"}
+    # UI v2 a person's own marks (seen, caught up), which need only view; P4-H the admin kind
+    assert needs <= {"review", "answer_gold", "manage_cases", "approve", "reopen", "view", "admin"}
     assert needs & {c.value for c in REVIEWER} == {"review", "view"}

@@ -1186,13 +1186,6 @@ TARGETS: dict[str, Target] = {
         test_timeout=120,
         max_workers=3,
     ),
-    "web_charts": Target(  # D-103
-        "src/argus/web/charts.py",
-        tests=("tests/unit/web/test_dashboard.py", "tests/integration/web/test_dashboard.py"),
-        link_env=True,
-        test_timeout=120,
-        max_workers=3,
-    ),
     "sk_soak2": Target(
         "src/argus/soak2.py",
         tests=("tests/integration/test_soak2.py", "tests/integration/test_soak2_exact.py"),
@@ -1802,14 +1795,6 @@ EQUIVALENT: dict[str, dict[str, str]] = {
         ),
         "audit: await session.close() @0: await session.close() -> pass": (
             "closing the helper session frees it; the caller's connection holds the work"
-        ),
-    },
-    "web_charts": {  # D-103 dashboard charts: reviewed one by one (2026-10-21)
-        "stacked: top = _nice(max(totals, default=0)) @32: 0 -> 1": (
-            "only an empty series uses the default, and _nice gives 5 for both 0 and 1"
-        ),
-        "stacked: n = max(len(series), 1) @21: 1 -> 2": (
-            "only an empty series uses the floor, and it draws no bar to place"
         ),
     },
     "web_security": {  # Q-A1 request rules: reviewed one by one (2026-10-23)

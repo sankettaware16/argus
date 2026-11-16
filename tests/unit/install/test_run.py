@@ -47,6 +47,7 @@ class Run:
         self.units = tmp_path / "units"
         self.tmp = tmp_path
         self.people: list[tuple[str, str, str]] = []
+        self.welcomed: list[str] = []  # the first administrators made with a one-time link
         self.writers: dict[str, str] = {}  # the fake database's writer logins and passwords
         self.bootstrap: Callable[[Path], None] = self._bootstrap
         self.upgrade: Callable[[Path], None] = lambda _c: self.db.append("upgrade")
@@ -83,6 +84,7 @@ class Run:
             uv=lambda: "/usr/bin/uv", local_ip=lambda _t: "192.0.2.10",
             people=lambda _c: len(self.people),
             add_person=lambda _c, u, n, pw: self.people.append((u, n, pw)), user=lambda: "argus",
+            welcome=lambda _c, u: self.welcomed.append(u) or "tok-123",
         )  # fmt: skip
 
     def options(self, **kw: Any) -> Options:

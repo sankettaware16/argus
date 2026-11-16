@@ -37,6 +37,283 @@
         "title": "Accepted",
         "type": "object"
       },
+      "AccountAccessIn": {
+        "additionalProperties": false,
+        "properties": {
+          "disabled": {
+            "title": "Disabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "disabled"
+        ],
+        "title": "AccountAccessIn",
+        "type": "object"
+      },
+      "AccountLinkOut": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AccountOut"
+          }
+        },
+        "required": [
+          "user",
+          "link",
+          "expires_at"
+        ],
+        "title": "AccountLinkOut",
+        "type": "object"
+      },
+      "AccountNewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "view",
+                    "see_logs",
+                    "review",
+                    "answer_gold",
+                    "manage_cases",
+                    "reopen",
+                    "approve",
+                    "admin"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilities"
+          },
+          "display_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f]+$",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "viewer",
+                  "analyst",
+                  "lead",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "username": {
+            "pattern": "^[a-z][a-z0-9_.-]{1,31}$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "display_name"
+        ],
+        "title": "AccountNewIn",
+        "type": "object"
+      },
+      "AccountOut": {
+        "additionalProperties": false,
+        "properties": {
+          "break_glass": {
+            "title": "Break Glass",
+            "type": "boolean"
+          },
+          "capabilities": {
+            "items": {
+              "enum": [
+                "view",
+                "see_logs",
+                "review",
+                "answer_gold",
+                "manage_cases",
+                "reopen",
+                "approve",
+                "admin"
+              ],
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "disabled": {
+            "title": "Disabled",
+            "type": "boolean"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "link_open": {
+            "title": "Link Open",
+            "type": "boolean"
+          },
+          "managed_in_elk": {
+            "title": "Managed In Elk",
+            "type": "boolean"
+          },
+          "open_sessions": {
+            "title": "Open Sessions",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "analyst",
+              "lead",
+              "admin",
+              "custom",
+              "elk"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "disabled",
+          "capabilities",
+          "role",
+          "managed_in_elk",
+          "break_glass",
+          "created_at",
+          "last_seen_at",
+          "open_sessions",
+          "link_open"
+        ],
+        "title": "AccountOut",
+        "type": "object"
+      },
+      "AccountRoleIn": {
+        "additionalProperties": false,
+        "description": "A role, or a set of capabilities (each brings what it needs); not both.",
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "view",
+                    "see_logs",
+                    "review",
+                    "answer_gold",
+                    "manage_cases",
+                    "reopen",
+                    "approve",
+                    "admin"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilities"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "viewer",
+                  "analyst",
+                  "lead",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "AccountRoleIn",
+        "type": "object"
+      },
+      "AccountsOut": {
+        "additionalProperties": false,
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleOut"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AccountOut"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users",
+          "roles"
+        ],
+        "title": "AccountsOut",
+        "type": "object"
+      },
       "Action": {
         "additionalProperties": false,
         "properties": {
@@ -594,6 +871,33 @@
           "version"
         ],
         "title": "AppliedOut",
+        "type": "object"
+      },
+      "ApplierOut": {
+        "additionalProperties": false,
+        "properties": {
+          "last_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "running",
+          "last_seen"
+        ],
+        "title": "ApplierOut",
         "type": "object"
       },
       "ApprovalGroupOut": {
@@ -7500,6 +7804,22 @@
         "title": "IncidentReportRowOut",
         "type": "object"
       },
+      "InspectIn": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "maxLength": 300,
+            "pattern": "^https://[A-Za-z0-9.\\-]+(:[0-9]{1,5})?/?$",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "InspectIn",
+        "type": "object"
+      },
       "InvestigationBrief": {
         "additionalProperties": false,
         "properties": {
@@ -8278,6 +8598,72 @@
           "sentence"
         ],
         "title": "Item",
+        "type": "object"
+      },
+      "JobOut": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "inspect_tls",
+              "setup"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "result",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "JobOut",
         "type": "object"
       },
       "KeyField": {
@@ -13518,6 +13904,54 @@
         "title": "ReviewedIn",
         "type": "object"
       },
+      "RoleOut": {
+        "additionalProperties": false,
+        "properties": {
+          "about": {
+            "title": "About",
+            "type": "string"
+          },
+          "capabilities": {
+            "items": {
+              "enum": [
+                "view",
+                "see_logs",
+                "review",
+                "answer_gold",
+                "manage_cases",
+                "reopen",
+                "approve",
+                "admin"
+              ],
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "viewer",
+              "analyst",
+              "lead",
+              "admin"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "about",
+          "capabilities"
+        ],
+        "title": "RoleOut",
+        "type": "object"
+      },
       "Row": {
         "additionalProperties": false,
         "description": "A line of the evidence table: a known fact and how it bears on the verdict.",
@@ -13994,6 +14428,38 @@
         "title": "SearchOut",
         "type": "object"
       },
+      "SectionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "about": {
+            "title": "About",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/components/schemas/SettingOut"
+            },
+            "title": "Settings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "about",
+          "settings"
+        ],
+        "title": "SectionOut",
+        "type": "object"
+      },
       "SeenDone": {
         "additionalProperties": false,
         "properties": {
@@ -14254,6 +14720,361 @@
           "site"
         ],
         "title": "SessionOut",
+        "type": "object"
+      },
+      "SettingChangeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 120,
+            "pattern": "^[a-z_]+(\\.[a-z0-9_]+)+$",
+            "title": "Key",
+            "type": "string"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "value": {
+            "nullable": true,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "SettingChangeIn",
+        "type": "object"
+      },
+      "SettingChangeOut": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "applying",
+              "applied",
+              "refused",
+              "rolled_back"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "state",
+          "outcome",
+          "created_at",
+          "finished_at",
+          "by"
+        ],
+        "title": "SettingChangeOut",
+        "type": "object"
+      },
+      "SettingChangesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/SettingChangeIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Changes",
+            "type": "array"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "SettingChangesIn",
+        "type": "object"
+      },
+      "SettingChangesOut": {
+        "additionalProperties": false,
+        "properties": {
+          "batch": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/SettingChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch",
+          "changes"
+        ],
+        "title": "SettingChangesOut",
+        "type": "object"
+      },
+      "SettingOut": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "default": {
+            "nullable": true,
+            "title": "Default"
+          },
+          "editable": {
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "homes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Homes",
+            "type": "array"
+          },
+          "in_app": {
+            "title": "In App",
+            "type": "boolean"
+          },
+          "is_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Set"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "bool",
+              "int",
+              "float",
+              "text",
+              "choice",
+              "list",
+              "duration",
+              "date",
+              "path",
+              "secret",
+              "map"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "optional": {
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "risk": {
+            "enum": [
+              "normal",
+              "sensitive",
+              "siem_write"
+            ],
+            "title": "Risk",
+            "type": "string"
+          },
+          "value": {
+            "nullable": true,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "help",
+          "kind",
+          "risk",
+          "editable",
+          "optional",
+          "choices",
+          "minimum",
+          "maximum",
+          "default",
+          "homes",
+          "in_app"
+        ],
+        "title": "SettingOut",
+        "type": "object"
+      },
+      "SettingsOut": {
+        "additionalProperties": false,
+        "properties": {
+          "applier": {
+            "$ref": "#/components/schemas/ApplierOut"
+          },
+          "confirm_words": {
+            "title": "Confirm Words",
+            "type": "string"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "setup_needed": {
+            "title": "Setup Needed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sections",
+          "applier",
+          "problem",
+          "confirm_words",
+          "setup_needed"
+        ],
+        "title": "SettingsOut",
+        "type": "object"
+      },
+      "SetupIn": {
+        "additionalProperties": false,
+        "description": "The first-time setup's answers (``argus init``'s names: ``siem.url``, ``siem.trust``,\n``siem.fingerprint``, ``organisation.name`` ...) and its keys, which are sealed at once.",
+        "properties": {
+          "answers": {
+            "additionalProperties": true,
+            "maxProperties": 60,
+            "title": "Answers",
+            "type": "object"
+          },
+          "keys": {
+            "additionalProperties": {
+              "maxLength": 8192,
+              "type": "string"
+            },
+            "maxProperties": 2,
+            "propertyNames": {
+              "enum": [
+                "siem.api_key",
+                "kibana.api_key"
+              ]
+            },
+            "title": "Keys",
+            "type": "object"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "SetupIn",
         "type": "object"
       },
       "SigninAccountOut": {
@@ -16675,6 +17496,1121 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/changes": {
+      "get": {
+        "description": "What became of one save, or the latest fifty changes.",
+        "operationId": "getSettingChanges",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "batch",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingChangesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Changes",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "One save: checked here, applied together by argus-admin within seconds.",
+        "operationId": "saveSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingChangesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingChangesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Save Settings",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/inspect-tls": {
+      "post": {
+        "description": "The certificates an address presents, read by argus-admin (nothing is trusted).",
+        "operationId": "inspectTls",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Inspect Tls",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/setup": {
+      "post": {
+        "description": "The first-time setup: argus-admin runs `argus init` with these answers and keys.",
+        "operationId": "startSetup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Start Setup",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/{job_id}": {
+      "get": {
+        "description": "What became of a job.",
+        "operationId": "getAdminJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740992,
+              "minimum": 1,
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Job",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "description": "Every setting the app shows, with its value here and where it is set.",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Settings",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Every person's account, what it may do, and the roles to choose from.",
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "List Users",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "A local account and the one-time link its person opens to set their password.",
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountNewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Create User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/access": {
+      "put": {
+        "description": "Switch an account off (every session ends at once) or on again.",
+        "operationId": "setUserAccess",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740992,
+              "minimum": 1,
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountAccessIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Set Access",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/capabilities": {
+      "put": {
+        "description": "Change what an account may do; its open sessions see it at their next request.",
+        "operationId": "setUserCapabilities",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740992,
+              "minimum": 1,
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountRoleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Set Capabilities",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/link": {
+      "post": {
+        "description": "A new one-time link for this person to set a new password (older links end).",
+        "operationId": "makeUserLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740992,
+              "minimum": 1,
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Make Link",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/sessions/end": {
+      "post": {
+        "description": "End every open session of this account (they sign in again).",
+        "operationId": "endUserSessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "maximum": 9007199254740992,
+              "minimum": 1,
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "it changed while you looked (conflict), or is not ready yet (not_ready)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "End Sessions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/approvals": {
       "get": {
         "description": "The approvals queue: requests waiting for a decision (the exact writes, the alerts\nthen and now, who decided what), what was decided lately, the groups that may be\napproved together, and whether your step-up (typing your password again) is current.",

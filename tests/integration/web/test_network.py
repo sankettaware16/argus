@@ -188,6 +188,6 @@ async def test_argus_web_serves_https(tls_server: tuple[str, Path]) -> None:
         made = await http.post("/login", data={"username": "asha", "password": PASSWORD})
         assert made.status_code == 303
         assert "secure" in made.headers["set-cookie"].lower()
-        assert (await http.get("/dashboard")).status_code == 200  # the secure cookie came back
+        assert (await http.get("/access")).status_code == 200  # the secure cookie came back
     with pytest.raises(httpx.HTTPError):  # plain http to the TLS port is no answer
         httpx.get(url.replace("https", "http") + "/login", timeout=3)  # noqa: ASYNC210

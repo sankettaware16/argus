@@ -10,7 +10,9 @@ from argus.ops import units
 
 
 def render_into(folder: Path, names: Iterable[str] | None = None) -> list[Path]:
-    params = units.UnitParams(units.REPO, units.default_uv(), {"WEB_CLASSIC": "fallback"})
+    params = units.UnitParams(
+        units.REPO, units.default_uv(), {"WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
+    )
     rendered = units.rendered_units(params)
     folder.mkdir(parents=True, exist_ok=True)
     written = []

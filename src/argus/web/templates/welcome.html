@@ -1,0 +1,22 @@
+{% extends "gate.html" %}
+{% block title %}Set your password{% endblock %}
+{% block main %}
+<section class="card narrow">
+  <h1>Set your password</h1>
+  {% if error %}<p class="message" role="alert">{{ error }}</p>{% endif %}
+  {% if token %}
+  <p>Choose the password you will sign in to ARGUS with: 10 to 256 characters. This link works once.</p>
+  <form method="post" action="/welcome">
+    <input type="hidden" name="token" value="{{ token }}">
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="256">
+    <label for="again">The same password again</label>
+    <input id="again" name="again" type="password" autocomplete="new-password" required minlength="10" maxlength="256">
+    <button type="submit">Set my password</button>
+  </form>
+  {% else %}
+  <p>This page needs the link an ARGUS administrator gave you. <a href="/signin">Sign in</a> if you have a password.</p>
+  {% endif %}
+  <p class="hint">This page runs no script. If your browser warns about this site's certificate, stop and tell the ARGUS admin.</p>
+</section>
+{% endblock %}

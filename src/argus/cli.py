@@ -18,6 +18,7 @@ from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 
 from argus import __version__
+from argus.admin.cli import admin_app
 from argus.assess.cli import assess_app
 from argus.assets import store as asset_store
 from argus.assets.assetmap import AssetMap, AssetMapError, parse_asset_map
@@ -111,6 +112,7 @@ app.add_typer(approvals_app, name="approvals")
 app.add_typer(notices_app, name="notices")
 app.add_typer(signins_app, name="signins")
 app.add_typer(risk_app, name="risk")
+app.add_typer(admin_app, name="admin")
 app.command("web")(web_cli.web)
 app.command("discover")(discover)
 app.command("init")(init_command)

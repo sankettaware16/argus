@@ -321,8 +321,3 @@ details.as-table summary { cursor: pointer; color: var(--link); font-size: 0.9re
   .facts { grid-template-columns: minmax(0, 1fr); }
   .facts dd { margin-bottom: 6px; overflow-wrap: anywhere; }
 }
-/* the read-only fallback (Q-B4, web.classic = fallback): a classic form that changes something is
-   not shown; the server refuses it too */
-body.read-only form[action="/patterns/review"], body.read-only form[action="/proposals/confirm"],
-body.read-only form[action$="/review"], body.read-only form[action$="/accept"],
-body.read-only form[action$="/assess"], body.read-only form[action$="/gold"] { display: none; }

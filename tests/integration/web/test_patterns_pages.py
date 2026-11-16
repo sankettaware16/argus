@@ -71,21 +71,11 @@ async def pair(seeded: AsyncEngine, migrated: AsyncEngine, layer: Privacy) -> tu
     return shared.rep, shared.member
 
 
-async def test_the_classic_page_and_the_api_show_the_run_on_the_pattern_s_other_members(
+async def test_the_api_shows_the_run_on_the_pattern_s_other_members(
     client: httpx.AsyncClient, seeded: AsyncEngine, migrated_engine: AsyncEngine, layer: Privacy
 ) -> None:
     rep, member = await pair(seeded, migrated_engine, layer)
     await sign_in(client)
-
-    page = (await client.get(f"/investigations/{member}")).text
-    words = flat(page)
-    assert f'Same pattern as <a class="mono" href="/investigations/{rep}">{rep}</a>' in words
-    assert "the AI investigator proposed <strong>True positive</strong>" in words
-    assert "(confidence 75%)" in words
-    assert "It beacons every 300 s." in words
-    assert "It is not a proposal for this investigation and cannot be accepted here" in words
-    assert "Not assessed yet" not in words
-    assert 'name="assessment_id"' not in page  # nothing to accept
 
     shown = (await client.get(f"/api/v1/investigations/{member}")).json()
     assert shown["assessments"] == []
@@ -100,7 +90,6 @@ async def test_the_classic_page_and_the_api_show_the_run_on_the_pattern_s_other_
     assert own["same_pattern"] is None  # its own assessment is its own
     assert [a["status"] for a in own["assessments"]] == ["proposed"]
     assert own["acceptable_assessment_id"] is not None
-    assert "Same pattern as" not in (await client.get(f"/investigations/{rep}")).text
 
 
 async def test_nothing_is_a_proposal_for_the_members_of_the_pattern(
@@ -116,12 +105,15 @@ async def test_nothing_is_a_proposal_for_the_members_of_the_pattern(
             "SELECT id FROM assessments WHERE investigation_id = :i AND assessor = :a"),
             {"i": rep, "a": AGENT})).scalar_one()  # fmt: skip
     assert member not in proposals  # a proposal is the assessed investigation's alone
-    page = (await client.get(f"/investigations/{member}")).text
-    token = page.split('name="csrf_token" value="')[1].split('"')[0]
-    # whatever the form says, what it accepts is the run's own: the assessed investigation's review
-    accept = await client.post(f"/investigations/{member}/accept",
-                               data={"assessment_id": run, "csrf_token": token})  # fmt: skip
-    assert accept.status_code == 303
+    csrf = (await client.get("/api/v1/session")).json()["csrf_token"]
+    # a proposal is accepted on the assessed investigation alone: the review is its own
+    accept = await client.post(f"/api/v1/investigations/{member}/accept",
+                               json={"assessment_id": run},
+                               headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert accept.status_code == 404, accept.text  # not a proposal of this investigation
+    mine = await client.post(f"/api/v1/investigations/{rep}/accept", json={"assessment_id": run},
+                             headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert mine.status_code == 200, mine.text
     async with seeded.connect() as conn:
         reviews = dict((await conn.execute(text(
             "SELECT investigation_id, count(*) FROM review_events GROUP BY 1"))).all())  # fmt: skip
@@ -159,11 +151,6 @@ async def test_a_raised_investigation_is_in_needs_attention_with_the_reason(
     assert counts["raised"] == 1
     await sign_in(client)
 
-    inbox = (await client.get("/?view=attention")).text
-    assert f"/investigations/{mild.id}" in inbox
-    assert "ARGUS raised from its own evidence" in flat(inbox)
-    page = flat((await client.get(f"/investigations/{mild.id}")).text)
-    assert "ARGUS raised it: on a threat list; regular traffic, like a beacon." in page
     api = (await client.get("/api/v1/investigations", params={"view": "attention"})).json()
     row = next(i for i in api["items"] if i["id"] == str(mild.id))
     assert row["reasons"] == ["ARGUS raised it: on a threat list; regular traffic, like a beacon."]

@@ -542,6 +542,31 @@ async def site_check(settings: Settings) -> list[CheckResult]:
 
 
 @register_check
+async def classic_setting_check(settings: Settings) -> list[CheckResult]:
+    """``web.classic`` (or ``units.web.classic``) in an older file or unit: ignored now, since the
+    classic pages are gone."""
+    where = [
+        name
+        for name, value in (
+            ("web.classic", settings.web.classic),
+            ("units.web.classic", settings.units.web.classic),
+        )
+        if value is not None
+    ]
+    if not where:
+        return []
+    return [
+        CheckResult(
+            "classic setting",
+            True,
+            f"{' and '.join(where)} is no longer used: remove it (the classic pages are gone;"
+            " their addresses lead to /app)",
+            warn=True,
+        )
+    ]
+
+
+@register_check
 async def timezone_check(settings: Settings) -> list[CheckResult]:
     """The database reads the site's zone as Python does (the SQL report days and the
     investigation days must count the same days), asked at nine instants of 2026."""

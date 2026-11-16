@@ -186,7 +186,7 @@ async def test_the_break_glass_drill(rig: Rig, elk_on: Path) -> None:
     assert (await rig.sign_in(again, breakglass.NAME, password)).status_code == 401  # used up
     session = (await http.get("/api/v1/session")).json()
     assert {c["name"] for c in session["capabilities"]} == {"view", "review"}
-    assert "Emergency (break-glass) session" in (await http.get("/")).text
+    assert "Emergency (break-glass) session" in (await http.get("/access")).text
     assert "view and review only" in (await http.get("/access")).text or "emergency" in (
         await http.get("/access")).text.lower()  # fmt: skip
     csrf = session["csrf_token"]

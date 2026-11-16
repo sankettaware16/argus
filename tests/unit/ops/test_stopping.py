@@ -180,6 +180,7 @@ def test_the_web_returns_after_uvicorns_graceful_shutdown() -> None:
 # every long-running service (a unit that restarts, not run by a timer) and the code its command
 # runs: each goes through until_stopped or quiet_after_uvicorn
 STOPPED_BY = {
+    "argus-admin.service": "until_stopped",
     "argus-assess.service": "until_stopped",
     "argus-collector.service": "until_stopped",
     "argus-kibana-sync.service": "until_stopped",

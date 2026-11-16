@@ -1,6 +1,5 @@
-"""Q-B4's browser gate (plan §5 Q-B4, §7.5) on the real server with the switch on
-(``ARGUS_WEB__CLASSIC=fallback``; ``argus web`` as a process, throwaway database), in Chromium and
-Firefox. These are the counterparts of the classic browser tests:
+"""Q-B4's browser gate (plan §5 Q-B4, §7.5) on the real server (``argus web`` as a process,
+throwaway database), in Chromium and Firefox. The pages the app added over the classic ones:
 
 - the classic pages' hostile-content and axe test (``test_external``) for the pages the app did not
   have before Q-B4: By rule, By host or IP, Patterns, Health, Glossary, Metrics, Tuning and the Gold
@@ -8,8 +7,8 @@ Firefox. These are the counterparts of the classic browser tests:
   dark, 390 and 1440 px), no sideways scroll at phone width;
 - the classic sign-in test's end (a person lands on the Inbox with the cost bar): signing in leads
   to the app, whose status bar reads the cost and the SIEM;
-- the redirects as a browser follows them, the query kept, the fallback at ``/classic`` read-only
-  and left by opening the app, and a permanent link followed from another site
+- the redirects as a browser follows them, the query kept, a classic form address answered 410,
+  and a permanent link followed from another site
   (``test_v1_external``);
 - ``test_r15``'s pattern review: a group marked reviewed from the exact request, a changed
   investigation left alone.
@@ -65,8 +64,8 @@ PAGES = [  # By rule and By host or IP are retired: /rules and /hosts open the a
 async def switched(
     seeded: AsyncEngine, test_database: str
 ) -> AsyncIterator[tuple[str, dict[str, Any]]]:
-    """``test_external``'s server (a hostile record, dossiers, assessments, a tuning report), with
-    the switch on, and Q-B2's richer records (a gold item, reviews, a group of proposals)."""
+    """``test_external``'s server (a hostile record, dossiers, assessments, a tuning report), and
+    Q-B2's richer records (a gold item, reviews, a group of proposals)."""
     bad = doc(900, "rule-x", "10.9.9.9", NOW - timedelta(minutes=5))
     bad["_source"]["kibana.alert.rule.name"] = HOSTILE
     bad["_source"]["host"] = {"name": HOSTILE}
@@ -76,8 +75,7 @@ async def switched(
     records = await seed_more(seeded)
     port = free_port()
     env = {k: v for k, v in os.environ.items() if not k.startswith("ARGUS_")}
-    env.update(ARGUS_DATABASE__NAME=test_database, ARGUS_WEB__PORT=str(port),
-               ARGUS_WEB__CLASSIC="fallback")  # fmt: skip
+    env.update(ARGUS_DATABASE__NAME=test_database, ARGUS_WEB__PORT=str(port))
     from tests.conftest import suite_config
 
     env["ARGUS_CONFIG"] = str(suite_config())  # the suite's site, not this checkout's
@@ -193,7 +191,7 @@ async def test_signing_in_leads_to_the_app_whose_status_word_reads_the_siem(
 
 
 @pytest.mark.parametrize("name", BROWSERS)
-async def test_classic_addresses_lead_to_the_app_and_the_fallback_is_read_only(
+async def test_classic_addresses_lead_to_the_app_and_a_classic_form_is_gone(
     switched: tuple[str, dict[str, Any]], name: str
 ) -> None:
     from playwright.async_api import async_playwright
@@ -211,42 +209,26 @@ async def test_classic_addresses_lead_to_the_app_and_the_fallback_is_read_only(
         await page.fill("#password", PASSWORD)
         async with page.expect_navigation(url=f"{server}/app/rules"):  # which leads to the app
             await page.click("button[type=submit]")
-        assert await heading_of(page) == "By rule"
+        await page.wait_for_url(f"{server}/app/search?advanced=1&view=attention")  # UI v2's place
+        assert await heading_of(page) == "Inbox"
         await page.goto(f"{server}/dashboard?{SPAN}&severity=high")
         assert await heading_of(page) == "Dashboard"
         assert page.url == f"{server}/app/overview?{SPAN}&severity=high"
         await page.goto(f"{server}/?view=all&kind=ip&value=10.0.0.1")
-        assert page.url == f"{server}/app/search?advanced=1&view=all&kind=ip&value=10.0.0.1"
+        await page.wait_for_url(f"{server}/app/inbox?view=all&kind=ip&value=10.0.0.1")
         await page.locator("[role=grid]").wait_for()
         await page.goto(f"{server}/investigations/{inv}/report?assessment=1")
         await page.get_by_role("tab", selected=True).wait_for()
         assert page.url == f"{server}/app/alert-groups/{inv}?tab=report"
         assert await page.get_by_role("tab", selected=True).inner_text() == "Report"
-        # a rule's link inside the app opens the app's Inbox, not a classic page
-        await page.goto(f"{server}/app/rules")
-        await page.get_by_role("table", name="Rules").get_by_role("link").first.click()
-        await page.wait_for_url(re.compile(r".*/app/search\?advanced=1&.*rule=.*"))
-        # the fallback: chosen from the menu, read-only, left by opening the app
-        await page.goto(f"{server}/app/rules")
-        await page.get_by_role("link", name="Classic pages (read-only)").click()
-        await page.wait_for_url(f"{server}/")
-        await page.get_by_text("Classic pages, read-only.").wait_for()
-        await page.goto(f"{server}/investigations/{inv}")
-        await page.get_by_text("Classic pages, read-only.").wait_for()
-        assert await page.locator("form[action$='/review']").is_hidden()
-        assert (
-            await page.locator("form[action$='/accept']").count() == 0
-            or await page.locator("form[action$='/accept']").first.is_hidden()
-        )
+        # a classic form address is gone (410) and does nothing
         refused = await page.request.post(  # the page's own session, no console noise
             f"{server}/investigations/{inv}/review",
             form={"x": "1"},
             headers={"Origin": server},
         )
-        assert refused.status == 403
-        assert "read-only" in await refused.text()
-        await page.get_by_role("link", name="/app", exact=True).click()
-        await page.wait_for_url(re.compile(r".*/app/?$"))
+        assert refused.status == 410
+        assert "The classic pages are gone" in await refused.text()
         await page.goto(f"{server}/health")
         assert page.url == f"{server}/app/health"
         assert await watch.violations(page) == []
@@ -257,7 +239,7 @@ async def test_classic_addresses_lead_to_the_app_and_the_fallback_is_read_only(
 async def test_a_link_from_another_site_opens_the_investigation_in_the_app(
     switched: tuple[str, dict[str, Any]],
 ) -> None:
-    """``test_v1_external``'s bounce, with the switch on: the SameSite=Strict cookie is not sent on
+    """``test_v1_external``'s bounce: the SameSite=Strict cookie is not sent on
     the first navigation from another site, the bounce page opens the target again from this
     site, and the target is the app's page."""
     from playwright.async_api import Route, async_playwright

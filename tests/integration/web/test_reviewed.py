@@ -4,7 +4,6 @@ home page; a decision needs an outcome; the labels criterion of the exit report.
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -55,29 +54,13 @@ async def test_the_reviewed_view_newest_decision_first(seeded: AsyncEngine) -> N
     assert counts["attention"] >= 1
 
 
-async def test_pages_show_the_reviewed_view_summary_and_search(
+async def test_the_reviewed_view_lists_a_decided_investigation(
     client: httpx.AsyncClient, seeded: AsyncEngine
 ) -> None:
     await client.post("/login", data={"username": "asha", "password": PASSWORD})
     async with seeded.connect() as conn:
         first = (await queries.inbox(conn, "all"))[0]
     await decide(seeded, "asha", first, action="reviewed", outcome="rule_false_positive")
-    home = (await client.get("/")).text
-    nav = 'title="Investigations already decided, with who and when">Reviewed</a>'
-    assert f'href="/?view=reviewed" {nav}' in home
-    summary = re.sub(r"\s+", " ", home.split('<ul class="summary"', 1)[1].split("</ul>", 1)[0])
-    assert "<strong>1</strong> reviewed</a> (1 in the last 24 h)" in summary
-    assert '<form class="find" method="get" action="/">' in home
-    reviewed = (await client.get("/?view=reviewed")).text
-    assert "<h1>Reviewed</h1>" in reviewed
-    assert "Rule false positive" in reviewed
-    assert '<th scope="col">Decision</th>' in reviewed
-    assert '<ul class="summary"' not in reviewed  # the summary is on the home page only
-    filtered = (await client.get("/?view=attention&rule=rule-1")).text
-    assert '<ul class="summary"' not in filtered
-    (_, value) = first.key_fields[0]
-    found = (await client.get("/", params={"view": "all", "kind": "ip", "value": value})).text
-    assert str(first.id) in found
     api = await client.get("/api/investigations", params={"view": "reviewed"})
     assert [i["id"] for i in api.json()] == [str(first.id)]
 

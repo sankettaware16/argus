@@ -120,7 +120,9 @@ async def test_the_api_says_its_build_and_is_never_stored(client: httpx.AsyncCli
         assert response.headers["cache-control"] == "no-store"
         assert response.headers[spa.BUILD_HEADER] == BUILD.build_id()
         assert response.headers["content-security-policy"] == security.CSP  # no TT off /app
-    page = await client.get("/rules")  # the classic pages keep their policy, no build header
+    page = await client.get(
+        "/rules"
+    )  # an old address's redirect: the plain policy, no build header
     assert page.headers["content-security-policy"] == security.CSP
     assert spa.BUILD_HEADER.lower() not in page.headers
 

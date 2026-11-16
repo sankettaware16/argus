@@ -1,17 +1,15 @@
-"""The Inbox web app: the classic JSON API under /api,
-the typed API under /api/v1 (argus.web.v1), and server-rendered pages, all built on
-``queries`` and ``reviews``. Same origin only (Origin and Sec-Fetch-Site checked on every
-change), CSP self, sessions in HttpOnly SameSite=Strict cookies, a CSRF token on every change,
-and a declared capability on every route (argus.web.deps). Passwords are typed only into the
-server-rendered sign-in and step-up pages, which run no script."""
+"""The Inbox web app: the JSON API under /api, the typed API under /api/v1 (argus.web.v1), the
+React app under /app, the server-rendered sign-in, step-up, access and error pages, and the
+redirects from the old classic addresses (argus.web.classic). Same origin only (Origin and
+Sec-Fetch-Site checked on every change), CSP self, sessions in HttpOnly SameSite=Strict cookies, a
+CSRF token on every change, and a declared capability on every route (argus.web.deps). Passwords
+are typed only into the server-rendered sign-in and step-up pages, which run no script."""
 
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import ipaddress
 import logging
-import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -29,28 +27,24 @@ from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SecretStr
-from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from argus import site
-from argus.assess import queue as assess_queue
 from argus.cases import identity
 from argus.cases.service import no_quiet_window
 from argus.cases.signing import Signer, load_key
 from argus.config.settings import WebSettings
 from argus.context.packs import default_registry
-from argus.evaluation import store as gold_store
 from argus.report import store as report_store
 from argus.report.model import Report
-from argus.tuning import store as tuning_store
 from argus.web import (
     access,
-    assessed,
     auth,
-    charts,
     classic,
     dashboard,
     links,
@@ -72,7 +66,6 @@ from argus.web.deps import (
     audit_refusal,
     current,
     db,
-    forbidden,
     need,
     session_token,
 )
@@ -80,13 +73,11 @@ from argus.web.elk import Checker, Elk
 from argus.web.params import CLEAN, DashboardFilters, dashboard_filters
 from argus.web.render import plain
 from argus.web.reviews import (
-    OUTCOME_LABELS,
     NotFoundError,
     ReviewConflictError,
     add_review,
 )
 from argus.web.signin import ElkSignIn, LocalSignIn, Outcome, SignIn
-from argus.web.v1 import report_routes
 from argus.web.v1 import routes as v1
 
 __all__ = ["CLEAN", "Conn", "create_app", "dashboard_filters", "db", "plain"]
@@ -151,20 +142,6 @@ SECURITY_HEADERS = {
 }
 NO_SCRIPT_PAGES = frozenset({"/signin", "/stepup"})  # CSP script-src 'none'
 ViewName = Literal["attention", "open", "reviewed", "all", "known"]
-SortName = Literal["newest", "oldest", "urgent", "reviewed"]
-SORT_TITLES = {
-    "newest": "newest first",
-    "oldest": "oldest first",
-    "urgent": "most urgent first",
-    "reviewed": "newest decision first",
-}
-VIEW_TITLES = {
-    "attention": "Needs attention",
-    "open": "Not reviewed yet",
-    "reviewed": "Reviewed",
-    "all": "All",
-    "known": "Notified, still active",
-}
 
 
 class Strict(BaseModel):
@@ -308,13 +285,11 @@ def _out(summary: queries.Summary) -> InvestigationOut:
     )
 
 
-# What each classic route needs: declared once here, checked by the dependency itself.
+# What each route needs: declared once here, checked by the dependency itself.
 # Every person who could sign in before capabilities existed still holds each of these
 # (LOCAL_DEFAULT).
 PAGE_VIEW = need(Capability.VIEW, Surface.PAGE)
 PAGE_SESSION = need(None, Surface.PAGE)
-FORM_REVIEW = need(Capability.REVIEW, Surface.FORM, csrf=True)
-FORM_GOLD = need(Capability.ANSWER_GOLD, Surface.FORM, csrf=True)
 FORM_SESSION = need(None, Surface.FORM, csrf=True)
 API_VIEW = need(Capability.VIEW, Surface.API)
 API_REVIEW = need(Capability.REVIEW, Surface.API, csrf=True)
@@ -324,33 +299,22 @@ SIGN_OUT = Open("signing out: it ends the session only with the session's own CS
 PUBLIC = Open("a page or file anyone may load: it shows no data")
 LINK = Open("a permanent link: it only redirects, and the page it leads to checks access")
 APP_FILES = Open("the app's code and styles (Q-B1): no data in them; its page needs a session")
+WELCOME = Open("a one-time link sets its person's password (D-327): the link's token is the proof")
 
 Viewer = Annotated[auth.Reviewer, Depends(PAGE_VIEW)]
 Signed = Annotated[auth.Reviewer, Depends(PAGE_SESSION)]
-FormReviewer = Annotated[auth.Reviewer, Depends(FORM_REVIEW)]
-FormGold = Annotated[auth.Reviewer, Depends(FORM_GOLD)]
 FormSession = Annotated[auth.Reviewer, Depends(FORM_SESSION)]
 ApiReviewer = Annotated[auth.Reviewer, Depends(API_VIEW)]
 ApiWriter = Annotated[auth.Reviewer, Depends(API_REVIEW)]
 ApiSession = Annotated[auth.Reviewer, Depends(API_SESSION)]
-# What the page says after a save (the query names a fixed key, never free text).
-SAVED = {
-    "reviewed": "Saved: marked reviewed.",
-    "follow_up": "Saved: marked as needing follow-up.",
-    "note": "Saved: note added.",
-    "gold": "Saved your gold-set answer for the previous one. This is the next to answer.",
-    "accepted": "Saved: you accepted ARGUS's proposal (a confirmed proposal).",
-    "asked": "Asked: the AI investigator will look at this within a few minutes. Reload to"
-    " see its answer.",
-    "asked_exists": "The AI investigator has already assessed what this investigation shows"
-    " now: its answer is below.",
-}
 # Why the sign-in page was shown (a fixed key in the query, never free text).
 SIGNIN_WHY = {
     "ended": "Your session ended. Sign in again to continue.",
     "stepup": "You were signed out after three wrong passwords.",
     "out": "You are signed out.",
+    "password_set": "Your password is set. Sign in with it.",
 }
+LINK_GONE = "This link was used, ended or never made: ask an ARGUS administrator for a new one."
 SIGNIN_EXPIRED = "The sign-in form expired; try again."
 WRONG = "Wrong name or password."
 
@@ -430,13 +394,7 @@ def create_app(
     app.state.session_modes = ("elk", "break_glass") if elk else ("local",)
     # a case's permanent link (``/go/case/<uuid>``, in Kibana's case description) leads to its page
     app.state.case_page = lambda case_id: f"/app/cases/{case_id}"
-    # the switch to /app: with it on, an investigation's permanent link opens it there
-    fallback = web.classic == "fallback"
-    app.state.investigation_page = (
-        (lambda inv_id: f"/app/investigations/{inv_id}")
-        if fallback
-        else (lambda inv_id: f"/investigations/{inv_id}")
-    )
+    app.state.investigation_page = lambda inv_id: f"/app/investigations/{inv_id}"
     # the key that signs approvals (``argus approvals keygen``): without one the queue is read
     # only and a decision answers 503
     app.state.signer = Signer(load_key(web.approval_key_file)) if web.approval_key_file else None
@@ -461,15 +419,10 @@ def create_app(
         u=render.untrusted,
         ist=render.ist,
         utc=render.utc,
-        raw=render.raw_json,
-        hour12=render.hour12,
     )
-    templates.env.globals.update(outcomes=OUTCOME_LABELS, views=VIEW_TITLES, sorts=SORT_TITLES,
-                                 classic_fallback=fallback, zone_label=site.zone_label,
+    templates.env.globals.update(zone_label=site.zone_label,
                                  own_noun=site.noun, the_own_noun=site.the_noun, own_words=site.own,
                                  organisation=site.organisation)  # fmt: skip
-    templates.env.filters["plain"] = plain
-    templates.env.filters["duration"] = dashboard.duration
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
     def v1_path(request: Request) -> bool:
@@ -613,14 +566,12 @@ def create_app(
                     message=forbidden_page_text(capability))  # fmt: skip
 
     def classic_answer(request: Request) -> Response | None:
-        """The switch to /app (``web.classic``): a classic page's address leads to its page
-        in the app unless the browser chose the fallback (``/classic``); a classic form is refused
-        with a pointer to the same action there. Nothing else is touched. The path is the one
-        the router matches (decoded), not the URL's, so no spelling reaches a route unseen."""
+        """The old addresses lead to the app: a classic page's address answers 303 to its page
+        there, a classic form is refused (410) with a pointer to the same action. Nothing else is
+        touched. The path is the one the router matches (decoded), not the URL's, so no spelling
+        reaches a route unseen."""
         path = request.scope["path"]
         if request.method in ("GET", "HEAD"):
-            if classic.COOKIE in request.cookies:
-                return None
             query = request.scope.get("query_string", b"").decode("latin-1")
             target = classic.redirect_target(path, query)
             return RedirectResponse(target, status_code=303) if target is not None else None
@@ -628,7 +579,7 @@ def create_app(
             target = classic.action_target(path)
             if target is not None:
                 return page(request, "error.html", None, message=classic.REFUSED,
-                            app_link=target, status=403)  # fmt: skip
+                            app_link=target, status=410)  # fmt: skip
         return None
 
     @app.middleware("http")
@@ -647,7 +598,7 @@ def create_app(
             if api_v1:
                 return error_out(403, "origin", why)
             return JSONResponse({"detail": why}, status_code=403)
-        early = classic_answer(request) if fallback else None
+        early = classic_answer(request)
         response = early if early is not None else await call_next(request)
         pad_until = getattr(request.state, "pad_until", None)
         if pad_until is not None:  # a failed sign-in or step-up: the same time for every one,
@@ -855,11 +806,6 @@ def create_app(
     except Exception:
         cap, paid_share, daily_cap = 10.0, 0.8, None
 
-    @app.get("/api/cost", responses={401: {}})
-    async def api_cost(reviewer: ApiReviewer, conn: Conn) -> dict[str, Any]:
-        """The AI spend: this month and today, against the cap (the cost bar, D-094)."""
-        return await assessed.cost(conn, clock(), cap, paid_share, daily_cap)
-
     @app.get("/api/dashboard", responses={401: {}})
     async def api_dashboard(
         reviewer: ApiReviewer, conn: Conn, filters: DashboardFilters
@@ -957,6 +903,41 @@ def create_app(
         response.delete_cookie(signin_cookie, path="/", secure=tls, httponly=True,
                                samesite="strict")  # fmt: skip
         return response
+
+    @app.get("/welcome", response_class=HTMLResponse, include_in_schema=False,
+             dependencies=[Depends(WELCOME)])  # fmt: skip
+    async def welcome_form(
+        request: Request, token: Annotated[str | None, Query(max_length=100)] = None
+    ) -> Response:
+        """Set one's own password with a one-time link (D-327): a page that runs no script."""
+        return page(request, "welcome.html", None, token=token or "", error=None)
+
+    @app.post("/welcome", include_in_schema=False, dependencies=[Depends(WELCOME)])
+    async def welcome_post(
+        request: Request,
+        conn: Conn,
+        token: Annotated[str, Form(max_length=100, pattern=CLEAN)],
+        password: Annotated[str, Form(max_length=256, pattern=CLEAN)],
+        again: Annotated[str, Form(max_length=256, pattern=CLEAN)],
+    ) -> Response:
+        problem = None
+        if password != again:
+            problem = "The two passwords differ."
+        elif not 10 <= len(password) <= 256:
+            problem = "A password has 10 to 256 characters."
+        if problem is not None:
+            return page(request, "welcome.html", None, token=token, error=problem, status=422)
+        try:
+            hashed = auth.hash_password(password)
+            async with conn.begin_nested():
+                user = await conn.scalar(text("SELECT argus_link_use(:t, :h)"),
+                                         {"t": token, "h": hashed})  # fmt: skip
+        except DBAPIError:
+            return page(request, "welcome.html", None, token="", error=LINK_GONE, status=410)
+        name = await conn.scalar(text("SELECT username FROM users WHERE id = :u"), {"u": user})
+        await auth.audit(conn, actor=f"user:{name}", action="user.password_set",
+                         target_type="user", target_id=str(user))  # fmt: skip
+        return RedirectResponse("/signin?why=password_set", status_code=303)
 
     @app.get("/stepup", response_class=HTMLResponse, include_in_schema=False)
     async def stepup_form(
@@ -1066,20 +1047,6 @@ def create_app(
 
     links.install(app, page, LINK)
 
-    @app.get("/classic", include_in_schema=False)
-    async def classic_entry(request: Request, reviewer: Viewer) -> Response:
-        """The read-only fallback (Q-B4): with the switch on, this browser sees the classic pages
-        (a session cookie, cleared by opening /app); with it off, the classic pages are the main
-        pages and this leads to them. The choice is the person's own: a request a browser marks as
-        coming from another origin, even a sibling host of this site (the session cookie is
-        SameSite=Strict, which that satisfies), sets nothing (review B4 finding 6)."""
-        response = RedirectResponse("/", status_code=303)
-        own = request.headers.get("sec-fetch-site") in (None, "same-origin", "none")
-        if fallback and own:
-            response.set_cookie(classic.COOKIE, "1", httponly=True, samesite="strict",
-                                secure=tls, path="/")  # fmt: skip
-        return response
-
     @app.get("/login", include_in_schema=False, dependencies=[Depends(SIGN_IN)])
     async def login_page(
         next: Annotated[str | None, Query(max_length=security.NEXT_MAX)] = None,
@@ -1127,478 +1094,6 @@ def create_app(
         clear_cookie(response)
         return response
 
-    async def inbox_page(
-        request: Request,
-        reviewer: auth.Reviewer,
-        conn: AsyncConnection,
-        view: ViewName,
-        rule: str | None,
-        kind: str | None,
-        value: str | None,
-        offset: int,
-        sort: SortName | None = None,
-    ) -> Response:
-        entity = (kind, value) if kind in ("ip", "host", "domain", "user") and value else None
-        order = sort or ("reviewed" if view == "reviewed" else "newest")
-        found = await queries.inbox(
-            conn,
-            view,
-            rule=rule,
-            entity=entity,
-            offset=offset,
-            sort=order,
-        )
-        return page(
-            request,
-            "inbox.html",
-            reviewer,
-            view=view,
-            items=found,
-            rule=rule,
-            kind=kind,
-            value=value,
-            offset=offset,
-            sort=order,
-            ai=await assessed.verdicts(conn, [i.id for i in found]),
-            page_size=queries.PAGE,
-            deepest=queries.DEEPEST,
-            since=reviewer.previous_seen_at,
-            counts=await queries.counts(conn, clock())
-            if view == "attention" and not (rule or entity)
-            else None,
-        )
-
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    async def home(
-        request: Request,
-        reviewer: Viewer,
-        conn: Conn,
-        view: ViewName = "attention",
-        rule: Annotated[str | None, Query(max_length=200, pattern=CLEAN)] = None,
-        kind: Annotated[str | None, Query(max_length=10, pattern=CLEAN)] = None,
-        value: Annotated[str | None, Query(max_length=300, pattern=CLEAN)] = None,
-        offset: Annotated[int, Query(ge=0, le=queries.DEEPEST)] = 0,
-        sort: SortName | None = None,
-    ) -> Response:
-        return await inbox_page(request, reviewer, conn, view, rule, kind, value, offset, sort)
-
-    @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
-    async def dashboard_page(
-        request: Request, reviewer: Viewer, conn: Conn, filters: DashboardFilters
-    ) -> Response:
-        """The SOC dashboard (D-103): alerts, investigations and incidents, under one set of
-        filters."""
-        board = await dashboard.build(conn, filters, clock())
-        return page(request, "dashboard.html", reviewer, d=board, charts=charts,
-                    ranges=dashboard.RANGE_TITLES, state_titles=dashboard.STATE_TITLES,
-                    ai_titles=dashboard.AI_TITLES)  # fmt: skip
-
-    @app.get("/rules", response_class=HTMLResponse, include_in_schema=False)
-    async def rules_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        return page(request, "rules.html", reviewer, rules=await queries.by_rule(conn))
-
-    @app.get("/glossary", response_class=HTMLResponse, include_in_schema=False)
-    async def glossary_page(request: Request, reviewer: Viewer) -> Response:
-        return page(request, "glossary.html", reviewer, terms=queries.glossary())
-
-    async def patterns_view(
-        request: Request, reviewer: auth.Reviewer, conn: AsyncConnection, message: str | None
-    ) -> Response:
-        found = await queries.patterns_page(conn)
-        return page(
-            request, "patterns.html", reviewer, groups=found.groups, sampled=found.sampled,
-            sample=found.limit, message=message,
-        )  # fmt: skip
-
-    @app.get("/patterns", response_class=HTMLResponse, include_in_schema=False)
-    async def patterns_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        return await patterns_view(request, reviewer, conn, None)
-
-    @app.post("/patterns/review", include_in_schema=False)
-    async def patterns_review(
-        request: Request,
-        reviewer: FormReviewer,
-        conn: Conn,
-        items: Annotated[list[str], Form(max_length=200)],
-        outcome: Annotated[str, Form(max_length=40, pattern=CLEAN)] = "",
-    ) -> Response:
-        """Mark an explicit list of investigation versions reviewed (plan §9.4): each one only
-        if it is still exactly as the reviewer saw it; the others are left and counted."""
-        if outcome and outcome not in OUTCOME_LABELS:
-            return page(request, "error.html", reviewer, message="Unknown outcome.", status=422)
-        if not outcome:  # a group decision is a label for each of them
-            return page(
-                request, "error.html", reviewer,
-                message="Choose an outcome for the group.", status=422,
-            )  # fmt: skip
-        parsed = []
-        for item in items:  # at most 200: the form refuses more
-            parts = item.split(":")
-            try:
-                inv, version = uuid.UUID(parts[0]), int(parts[1])
-                latest = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-            except (ValueError, IndexError):
-                return page(
-                    request, "error.html", reviewer, message="A malformed item.", status=422
-                )
-            parsed.append((inv, version, latest))
-        done = changed = 0
-        for inv, version, latest in parsed:
-            try:
-                await add_review(
-                    conn,
-                    reviewer,
-                    inv,
-                    action="reviewed",
-                    outcome=outcome or None,  # type: ignore[arg-type]
-                    note="Reviewed with its pattern.",
-                    seen_review=latest,
-                    seen_version=version,
-                )
-                done += 1
-            except (ReviewConflictError, NotFoundError):
-                changed += 1
-        message = f"{done} reviewed." + (
-            f" {changed} changed since you looked and were left as they are." if changed else ""
-        )
-        return await patterns_view(request, reviewer, conn, message)
-
-    @app.get("/hosts", response_class=HTMLResponse, include_in_schema=False)
-    async def hosts_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        return page(request, "hosts.html", reviewer, entities=await queries.by_entity(conn))
-
-    @app.get("/health", response_class=HTMLResponse, include_in_schema=False)
-    async def health_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        return page(request, "health.html", reviewer, h=await queries.health(conn, clock()),
-                    investigator=_investigator_state())  # fmt: skip
-
-    async def detail_page(
-        request: Request,
-        reviewer: auth.Reviewer,
-        conn: AsyncConnection,
-        investigation_id: uuid.UUID,
-        message: str | None = None,
-        status: int = 200,
-    ) -> Response:
-        summary = await queries.investigation(conn, investigation_id)
-        if summary is None:
-            return page(
-                request, "error.html", reviewer, message="No such investigation.", status=404
-            )
-        dossier = await queries.dossier(conn, investigation_id)
-        fields = await queries.alert_fields(conn, investigation_id)
-        available = {f for f, _ in fields}
-        cookie = _columns_cookie(summary.rule_id)
-        params = request.query_params
-        if "cols" in params or params.get("columns") == "set":
-            asked = params.getlist("cols")
-        elif cookie in request.cookies:
-            asked = request.cookies[cookie].split(",")
-        else:  # the fields the rule's own steps name
-            asked = [f for s in (dossier or {}).get("report", {}).get("steps", [])
-                     for f in s.get("fields", [])]  # fmt: skip
-        columns = list(
-            dict.fromkeys(c for c in asked[:200] if c in available and _COLUMN.fullmatch(c))
-        )[: queries.MAX_COLUMNS]
-        response = page(
-            request,
-            "investigation.html",
-            reviewer,
-            inv=summary,
-            alerts=await queries.alerts(conn, investigation_id, columns=columns),
-            columns=columns,
-            fields=fields,
-            dossier=dossier,
-            outside=await queries.outside_intel(
-                conn, investigation_id, clock(), request.app.state.outside_view
-            ),
-            gaps=queries.banners(await queries.coverage(conn, summary)),
-            reviews=await queries.reviews(conn, investigation_id),
-            gold=await gold_store.item(conn, investigation_id, gold_store.ANY),
-            assessment=await assessed.current(conn, investigation_id),
-            assessments=(own := await assessed.history(conn, investigation_id)),
-            same=None
-            if any(assessed.is_agent(a.assessor) for a in own)
-            else await assessed.shared(conn, investigation_id),
-            can_ask=privacy is not None and _investigator_takes_requests(),
-            incident=await queries.incident_report_of(conn, investigation_id),
-            message=message,
-            status=status,
-        )
-        if params.get("columns") == "set":  # remembered for this rule, in this browser
-            response.set_cookie(
-                cookie, ",".join(columns), max_age=180 * 86400, path="/investigations",
-                httponly=True, samesite="strict",
-            )  # fmt: skip
-        return response
-
-    @app.get(
-        "/investigations/{investigation_id}/report",
-        response_class=HTMLResponse,
-        include_in_schema=False,
-    )
-    async def report_page(
-        request: Request,
-        investigation_id: uuid.UUID,
-        reviewer: Viewer,
-        conn: Conn,
-        assessment: Annotated[int | None, Query(ge=1, le=2**63 - 1)] = None,
-    ) -> Response:
-        """report@2 of each assessor's newest assessment (Q-F2), one of them shown."""
-        summary = await queries.investigation(conn, investigation_id)
-        reports = await report_store.current(conn, investigation_id, packs)
-        if assessment is not None and all(r.assessment_id != assessment for r in reports):
-            one = await report_store.report(conn, investigation_id, assessment, packs)
-            reports = [*reports, one] if one is not None else reports
-        if summary is None or not reports:
-            missing = "No report: the investigation or its dossier does not exist."
-            return page(request, "error.html", reviewer, status=404, message=missing)
-        shown = next((r for r in reports if r.assessment_id == assessment), reports[0])
-        return page(request, "report.html", reviewer, inv=summary, report=shown,
-                    reports=reports)  # fmt: skip
-
-    @app.get("/cases/{case_id}/report", response_class=HTMLResponse, include_in_schema=False)
-    async def incident_report_page(
-        request: Request,
-        case_id: uuid.UUID,
-        reviewer: Viewer,
-        conn: Conn,
-        version: Annotated[int | None, Query(ge=1, le=2**31 - 1)] = None,
-    ) -> Response:
-        """The case's incident report (AR7, D-190), read only: the new app's case page is where a
-        person confirms or rejects it."""
-        found = await report_routes.report_out(conn, case_id, reviewer, version)
-        if found is None:
-            return page(
-                request, "error.html", reviewer, status=404,
-                message="No such case, or no such version of its report.",
-            )  # fmt: skip
-        return page(request, "incident.html", reviewer, data=found)
-
-    @app.get(
-        "/investigations/{investigation_id}", response_class=HTMLResponse, include_in_schema=False
-    )
-    async def investigation_page(
-        request: Request, investigation_id: uuid.UUID, reviewer: Viewer, conn: Conn
-    ) -> Response:
-        saved = SAVED.get(request.query_params.get("saved", ""))
-        if saved and request.query_params.get("gold") == "1":
-            saved += " Also saved as your gold-set answer."
-        return await detail_page(request, reviewer, conn, investigation_id, message=saved)
-
-    @app.get("/gold", response_class=HTMLResponse, include_in_schema=False)
-    async def gold_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        """The gold set (P2, D-080): the answer key a person confirms, item by item."""
-        rows = await gold_store.items(conn, gold_store.ANY)
-        return page(request, "gold.html", reviewer, rows=rows,
-                    progress=await gold_store.progress(conn, gold_store.ANY))  # fmt: skip
-
-    @app.post("/investigations/{investigation_id}/gold", include_in_schema=False)
-    async def gold_answer(
-        request: Request,
-        investigation_id: uuid.UUID,
-        reviewer: FormGold,
-        conn: Conn,
-        outcome: Annotated[str, Form(max_length=40, pattern=CLEAN)] = "",
-        note: Annotated[str, Form(max_length=4000, pattern=CLEAN)] = "",
-    ) -> Response:
-        """A person's answer for a gold item; then the next unanswered one."""
-        try:
-            await gold_store.answer(
-                conn, investigation_id, reviewer.user_id, outcome, note, set_name=gold_store.ANY
-            )
-        except gold_store.GoldError as exc:
-            return await detail_page(
-                request, reviewer, conn, investigation_id, message=str(exc), status=422
-            )
-        left = [r for r in await gold_store.items(conn, gold_store.ANY) if r.outcome is None]
-        target = f"/investigations/{left[0].investigation_id}?saved=gold" if left else "/gold"
-        return RedirectResponse(target, status_code=303)
-
-    @app.post("/investigations/{investigation_id}/review", include_in_schema=False)
-    async def review_form(
-        request: Request,
-        investigation_id: uuid.UUID,
-        reviewer: FormReviewer,
-        conn: Conn,
-        action: Annotated[Literal["reviewed", "follow_up", "note"], Form()],
-        seen_version: Annotated[int, Form(ge=0)],
-        seen_review: Annotated[str, Form(max_length=20, pattern=CLEAN)] = "",
-        outcome: Annotated[str, Form(max_length=40, pattern=CLEAN)] = "",
-        note: Annotated[str, Form(max_length=4000, pattern=CLEAN)] = "",
-        also_gold: Annotated[str, Form(max_length=3, pattern=CLEAN)] = "",
-    ) -> Response:
-        if outcome and outcome not in OUTCOME_LABELS:
-            return page(request, "error.html", reviewer, message="Unknown outcome.", status=422)
-        gold = also_gold == "1" and bool(outcome)
-        if gold and not reviewer.can(Capability.ANSWER_GOLD):  # audited, as v1's
-            raise forbidden(reviewer, Capability.ANSWER_GOLD, Surface.FORM)
-        try:
-            await add_review(
-                conn,
-                reviewer,
-                investigation_id,
-                action=action,
-                outcome=outcome or None,  # type: ignore[arg-type]
-                note=note.strip() or None,
-                seen_review=int(seen_review) if seen_review.isdigit() else None,
-                seen_version=seen_version,
-            )
-        except NotFoundError:
-            return page(
-                request, "error.html", reviewer, message="No such investigation.", status=404
-            )
-        except ReviewConflictError:
-            return await detail_page(
-                request,
-                reviewer,
-                conn,
-                investigation_id,
-                status=409,
-                message="Someone else reviewed this, or new alerts arrived, while you were"
-                " reading. Here is the current state; nothing was saved.",
-            )
-        except ValueError as exc:
-            return await detail_page(
-                request, reviewer, conn, investigation_id, message=str(exc), status=422
-            )
-        if gold:  # the review's outcome is also the person's gold answer
-            try:
-                await gold_store.answer(
-                    conn, investigation_id, reviewer.user_id, outcome, note, set_name=gold_store.ANY
-                )
-            except gold_store.GoldError:
-                gold = False
-        target = f"/investigations/{investigation_id}?saved={action}" + ("&gold=1" if gold else "")
-        return RedirectResponse(target, status_code=303)
-
-    @app.post("/investigations/{investigation_id}/accept", include_in_schema=False)
-    async def accept_form(
-        request: Request,
-        investigation_id: uuid.UUID,
-        reviewer: FormReviewer,
-        conn: Conn,
-        assessment_id: Annotated[int, Form(ge=1)],
-    ) -> Response:
-        """A person accepts the current proposal (P8): a review with its outcome."""
-        try:
-            await assess_queue.accept(
-                conn, assessment_id, reviewer.user_id, kibana_ok=reviewer.kibana_ok
-            )
-        except assess_queue.AssessmentConflict:
-            return await detail_page(
-                request, reviewer, conn, investigation_id, status=409,
-                message="The proposal changed (new alerts, a newer assessment, or someone"
-                " reviewed it) while you were reading; nothing was saved.",
-            )  # fmt: skip
-        await auth.audit(conn, actor=f"user:{reviewer.username}", action="assessment.accept",
-                         target_type="assessment", target_id=str(assessment_id))  # fmt: skip
-        return RedirectResponse(f"/investigations/{investigation_id}?saved=accepted",
-                                status_code=303)  # fmt: skip
-
-    @app.post("/investigations/{investigation_id}/assess", include_in_schema=False)
-    async def assess_form(
-        request: Request,
-        investigation_id: uuid.UUID,
-        reviewer: FormReviewer,
-        conn: Conn,
-    ) -> Response:
-        """A person asks the AI investigator about this investigation now, reviewed or not
-        (D-095)."""
-        if privacy is None or not _investigator_takes_requests():
-            return page(request, "error.html", reviewer, status=503,
-                        message="The AI investigator is not available on this server.")  # fmt: skip
-        from argus.agent.agent import NAME as AGENT
-        from argus.assess import runner
-
-        got = await runner.request(conn, privacy, investigation_id, AGENT, clock())
-        if got == "refused":  # its file changed since the check above
-            return page(request, "error.html", reviewer, status=503,
-                        message="The AI investigator is not available on this server.")  # fmt: skip
-        if got == "no dossier":
-            return await detail_page(request, reviewer, conn, investigation_id, status=409,
-                                     message="ARGUS has not built this investigation's dossier"
-                                     " yet; try again in a few minutes.")  # fmt: skip
-        await auth.audit(conn, actor=f"user:{reviewer.username}", action="assessment.request",
-                         target_type="investigation", target_id=str(investigation_id),
-                         details={"result": got})  # fmt: skip
-        saved = "asked" if got == "queued" else "asked_exists"
-        return RedirectResponse(f"/investigations/{investigation_id}?saved={saved}",
-                                status_code=303)  # fmt: skip
-
-    @app.get("/proposals", response_class=HTMLResponse, include_in_schema=False)
-    async def proposals_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        """Proposals waiting for a person, grouped by what decided them (P8, D-074)."""
-        groups = await assessed.proposals(conn, clock().date())
-        done = request.query_params.get("confirmed", "")
-        return page(request, "proposals.html", reviewer, groups=groups,
-                    confirmed=done if done.replace("-", "").isdigit() else "")  # fmt: skip
-
-    @app.post("/proposals/confirm", include_in_schema=False)
-    async def confirm_form(
-        request: Request,
-        reviewer: FormReviewer,
-        conn: Conn,
-        group: Annotated[str, Form(max_length=600)],
-        ids: Annotated[str, Form(max_length=8000, pattern=r"^[0-9,]*$")],
-    ) -> Response:
-        """Accept a group's proposals, only those the page listed. A list holding a true positive
-        is refused (409), as in the API: each one starts an incident and is decided on its own."""
-        wanted = [int(i) for i in ids.split(",") if i][: assessed.GROUP_LIMIT]
-        if await assessed.true_positives(conn, wanted):
-            return page(request, "error.html", reviewer, status=409,
-                        message="A real attack starts an incident, so it is never confirmed with"
-                        " its group: open each one and decide it on its own page.")  # fmt: skip
-        accepted, skipped = await assessed.confirm(
-            conn,
-            group,
-            wanted,
-            reviewer.user_id,
-            "confirmed with its group",
-            kibana_ok=reviewer.kibana_ok,
-        )
-        await auth.audit(conn, actor=f"user:{reviewer.username}", action="assessment.confirm",
-                         target_type="assessment_group", target_id=group[:200],
-                         details={"accepted": accepted, "skipped": skipped})  # fmt: skip
-        return RedirectResponse(f"/proposals?confirmed={accepted}-{skipped}", status_code=303)
-
-    @app.get("/tuning", response_class=HTMLResponse, include_in_schema=False)
-    async def tuning_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        """The weekly rule-tuning reports (P7): suggestions for a person to apply in Kibana."""
-        return page(request, "tuning.html", reviewer, reports=await tuning_store.latest(conn))
-
-    @app.get("/metrics", response_class=HTMLResponse, include_in_schema=False)
-    async def metrics_page(request: Request, reviewer: Viewer, conn: Conn) -> Response:
-        """How the assessments and the model gateway are doing (P8)."""
-        now = clock()
-        quota, stopped = await assessed.gateway(conn, now)
-        return page(request, "metrics.html", reviewer, m=await assessed.metrics(conn, now),
-                    quota=quota, stopped=stopped)  # fmt: skip
-
-    @app.get(
-        "/investigations/{investigation_id}/alerts/{alert_id}",
-        response_class=HTMLResponse,
-        include_in_schema=False,
-    )
-    async def raw_page(
-        request: Request,
-        investigation_id: uuid.UUID,
-        alert_id: str,
-        reviewer: Viewer,
-        conn: Conn,
-    ) -> Response:
-        raw = await queries.raw_alert(conn, investigation_id, alert_id[:512])
-        if raw is None:
-            return page(request, "error.html", reviewer, message="No such alert here.", status=404)
-        return page(
-            request,
-            "raw.html",
-            reviewer,
-            raw=raw,
-            alert_id=alert_id,
-            investigation_id=investigation_id,
-        )
-
     build = spa.Build(web.spa_dir if web.spa_dir is not None else spa.BUILD_DIR)
     app.state.spa = build
     NOT_FOUND = "no such file in the app"  # noqa: N806
@@ -1620,14 +1115,10 @@ def create_app(
         index = build.index()
         if index is None:
             return page(request, "error.html", reviewer, status=503,
-                        message="The new app is not built on this server; the classic pages"
-                        " work as before.")  # fmt: skip
-        response = Response(index.body, media_type="text/html; charset=utf-8",
-                            headers={"Cache-Control": spa.REVALIDATE})  # fmt: skip
-        if classic.COOKIE in request.cookies:  # back in the app: the fallback choice ends
-            response.delete_cookie(classic.COOKIE, path="/", secure=tls, httponly=True,
-                                   samesite="strict")  # fmt: skip
-        return response
+                        message="The app is not built on this server: ask an ARGUS admin to"
+                        " run the frontend build.")  # fmt: skip
+        return Response(index.body, media_type="text/html; charset=utf-8",
+                        headers={"Cache-Control": spa.REVALIDATE})  # fmt: skip
 
     # GET and HEAD (RFC 9110): HEAD answers with GET's status and headers; the
     # server sends no body for it
@@ -1693,11 +1184,3 @@ def _message(error: Mapping[str, Any]) -> str:
     if kind in _SCHEMA_ONLY:
         return str(error.get("msg"))
     return "is not valid here"
-
-
-_COLUMN = re.compile(r"[A-Za-z0-9_@.\-]{1,120}")  # a field name a column may have
-
-
-def _columns_cookie(rule_id: str) -> str:
-    """The cookie that remembers a rule's chosen alert columns (one per rule)."""
-    return "argus_cols_" + hashlib.sha256(rule_id.encode()).hexdigest()[:12]

@@ -1,0 +1,14 @@
+[Unit]
+Description=ARGUS admin (P4-H, D-327): applies the settings people change in the app
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecStart=@UV@ run argus admin run
+Restart=on-failure
+RestartSec=10
+MemoryMax=256M
+Nice=5
+
+[Install]
+WantedBy=default.target

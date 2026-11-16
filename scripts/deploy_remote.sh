@@ -34,7 +34,7 @@ systemctl --user daemon-reload
 for unit in $(uv run python -c "from argus.config.settings import load_settings; print(' '.join(load_settings().units.run))"); do
   case $unit in
     *.timer) systemctl --user enable -q "$unit"; systemctl --user start "$unit" ;;
-    *.service) systemctl --user restart "$unit" ;;
+    *.service) systemctl --user enable -q "$unit"; systemctl --user restart "$unit" ;;
   esac
 done
 sleep 15

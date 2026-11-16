@@ -313,7 +313,7 @@ orchestrator: the services share nothing but the database.
 |---|---|---|
 | Language | **Python 3.12** (`requires-python >=3.12,<3.13`), fully typed (`mypy --strict`) | everything server-side |
 | Packaging and runs | **[uv](https://docs.astral.sh/uv/)** with a committed `uv.lock`; build backend hatchling | installs the locked dependencies and Python itself; the units start `uv run argus ...` |
-| Web server and API | **FastAPI** on **uvicorn**; **Jinja2** for the classic server pages; `python-multipart` for forms | the Inbox's JSON API under `/api/v1` (OpenAPI in `docs/api/openapi-v1.json`) and the app's sign-in pages |
+| Web server and API | **FastAPI** on **uvicorn**; **Jinja2** for the sign-in, step-up, access and error pages; `python-multipart` for forms | the Inbox's JSON API under `/api/v1` (OpenAPI in `docs/api/openapi-v1.json`) and the app's sign-in pages |
 | Database access | **SQLAlchemy 2** (async) on **psycopg 3** (`psycopg[binary]`, `psycopg-pool`) | every query; one pool per process, a statement timeout on every connection |
 | Database | **PostgreSQL 17** (`postgres:17-alpine`, pinned by digest) in Docker | alerts, investigations, dossiers, reviews, the request and model ledgers, the audit trail |
 | Migrations | **Alembic** (`src/argus/db/migrations/`) | the schema and the exact grants of each database role |

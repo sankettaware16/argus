@@ -5,7 +5,6 @@ API's documented responses, and the fallbacks when the model gateway is not conf
 
 from __future__ import annotations
 
-import html
 import re
 import uuid
 from datetime import timedelta
@@ -17,12 +16,10 @@ from markupsafe import escape
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from argus.evaluation import store as gold_store
 from argus.web import queries
-from argus.web.app import SAVED, create_app
-from tests.integration.web.conftest import BASE, NOW, PASSWORD, SAME_ORIGIN, to_signin
-from tests.integration.web.test_assessments import csrf, propose, signed_in
-from tests.integration.web.test_gold import with_dossiers
+from argus.web.app import create_app
+from tests.integration.web.conftest import BASE, NOW, PASSWORD, SAME_ORIGIN
+from tests.integration.web.test_assessments import signed_in
 
 pytestmark = pytest.mark.integration
 EXPIRED = "The form expired; reload the page and try again."
@@ -35,246 +32,6 @@ def alert(message: str) -> str:
 async def first(engine: AsyncEngine, n: int = 1) -> list[queries.Summary]:
     async with engine.connect() as conn:
         return (await queries.inbox(conn, "all"))[:n]
-
-
-async def test_signed_out_every_page_and_form_goes_to_the_login(
-    client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    (a,) = await first(seeded)
-    pages = ["/", "/rules", "/glossary", "/patterns", "/hosts", "/health", "/gold", "/proposals",
-             "/tuning", "/metrics", "/dashboard", f"/investigations/{a.id}",
-             f"/investigations/{a.id}/alerts/x"]  # fmt: skip
-    for path in pages:
-        got = await client.get(path)
-        assert (got.status_code, got.headers.get("location")) == (303, to_signin(path)), path
-    forms: list[tuple[str, dict[str, Any]]] = [
-        ("/patterns/review", {"items": f"{a.id}:1", "outcome": "true_positive"}),
-        (f"/investigations/{a.id}/gold", {"outcome": "true_positive"}),
-        (f"/investigations/{a.id}/review", {"action": "note", "seen_version": 1}),
-        (f"/investigations/{a.id}/accept", {"assessment_id": 1}),
-        (f"/investigations/{a.id}/assess", {}),
-        ("/proposals/confirm", {"group": "g", "ids": "1"}),
-    ]
-    for path, data in forms:
-        got = await client.post(path, data=data)
-        page = path.rsplit("/", 1)[0]  # back to the form's page after signing in
-        assert (got.status_code, got.headers.get("location")) == (303, to_signin(page)), path
-
-
-async def test_every_form_refuses_an_expired_token(
-    client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    (a,) = await first(seeded)
-    await signed_in(client)
-    forms: list[tuple[str, dict[str, Any]]] = [
-        ("/patterns/review", {"items": f"{a.id}:1", "outcome": "true_positive"}),
-        (f"/investigations/{a.id}/gold", {"outcome": "true_positive"}),
-        (f"/investigations/{a.id}/review", {"action": "note", "seen_version": 1}),
-        (f"/investigations/{a.id}/accept", {"assessment_id": 1}),
-        (f"/investigations/{a.id}/assess", {}),
-        ("/proposals/confirm", {"group": "g", "ids": "1"}),
-    ]
-    for path, data in forms:
-        for token in ({}, {"csrf_token": "x"}):  # missing, or wrong
-            got = await client.post(path, data={**data, **token})
-            assert got.status_code == 403, path
-            assert alert(EXPIRED) in got.text, path
-
-
-async def test_the_pattern_form_word_for_word(
-    client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    a, b = await first(seeded, 2)
-    await signed_in(client)
-    token = csrf((await client.get("/patterns")).text)
-
-    async def post(items: list[str], outcome: str) -> httpx.Response:
-        return await client.post("/patterns/review",
-                                 data={"items": items, "outcome": outcome,
-                                       "csrf_token": token})  # fmt: skip
-
-    unknown = await post([f"{a.id}:{a.version}"], "maybe")
-    assert (unknown.status_code, alert("Unknown outcome.") in unknown.text) == (422, True)
-    none = await post([f"{a.id}:{a.version}"], "")
-    assert (none.status_code, alert("Choose an outcome for the group.") in none.text) == (422, True)
-    broken = await post(["not-a-uuid:1"], "true_positive")
-    assert (broken.status_code, alert("A malformed item.") in broken.text) == (422, True)
-    too_many = await post([f"{uuid.uuid4()}:1"] * 201, "true_positive")
-    assert too_many.status_code == 422  # the form takes at most 200
-    done = await post([f"{a.id}:{a.version}", f"{b.id}:{b.version + 5}"], "benign_expected")
-    assert '<p class="message" role="status">1 reviewed. 1 changed since you looked and were' \
-           ' left as they are.</p>' in " ".join(done.text.split())  # fmt: skip
-
-
-async def test_the_review_form_word_for_word(
-    client: httpx.AsyncClient, seeded: AsyncEngine, migrated_engine: AsyncEngine
-) -> None:
-    records = await with_dossiers(seeded, migrated_engine, 3)
-    async with seeded.begin() as conn:
-        await gold_store.import_set(conn, records[:1])  # the first is in the gold set
-    a, b, c = await first(seeded, 3)
-    gold_id = uuid.UUID(records[0]["investigation_id"])
-    gold_inv = next(s for s in (a, b, c) if s.id == gold_id)
-    plain = next(s for s in (a, b, c) if s.id != gold_id)
-    await signed_in(client)
-    token = csrf((await client.get(f"/investigations/{plain.id}")).text)
-
-    async def review(inv: queries.Summary, **data: Any) -> httpx.Response:
-        return await client.post(f"/investigations/{inv.id}/review",
-                                 data={"csrf_token": token, "seen_version": inv.version,
-                                       **data})  # fmt: skip
-
-    unknown = await review(plain, action="reviewed", outcome="maybe")
-    assert (unknown.status_code, alert("Unknown outcome.") in unknown.text) == (422, True)
-    missing = await client.post(f"/investigations/{uuid.uuid4()}/review",
-                                data={"csrf_token": token, "action": "note", "note": "n",
-                                      "seen_version": 0})  # fmt: skip
-    assert (missing.status_code, alert("No such investigation.") in missing.text) == (404, True)
-    stale = await review(plain, action="follow_up", seen_version=plain.version + 1)
-    assert stale.status_code == 409
-    assert alert("Someone else reviewed this, or new alerts arrived, while you were reading."
-                 " Here is the current state; nothing was saved.") in stale.text  # fmt: skip
-    # a follow-up without outcome or note: neither is invented
-    follow = await review(plain, action="follow_up")
-    assert follow.headers["location"] == f"/investigations/{plain.id}?saved=follow_up"
-    async with seeded.connect() as conn:
-        row = (await conn.execute(text(
-            "SELECT outcome, note FROM review_events WHERE investigation_id = :i"),
-            {"i": plain.id})).one()  # fmt: skip
-    assert tuple(row) == (None, None)
-    # the gold box: only with also_gold=1 and an outcome; never on an item outside the set
-    kept = await review(gold_inv, action="reviewed", outcome="true_positive")
-    assert kept.headers["location"] == f"/investigations/{gold_inv.id}?saved=reviewed"
-    gold_inv = (await first(seeded, 3))[[s.id for s in await first(seeded, 3)].index(gold_inv.id)]
-    async with seeded.connect() as conn:
-        gold_inv = await queries.investigation(conn, gold_inv.id)  # type: ignore[assignment]
-    both = await review(gold_inv, action="reviewed", outcome="true_positive", also_gold="1",
-                        seen_review=str(gold_inv.latest_review))  # fmt: skip
-    assert both.headers["location"] == f"/investigations/{gold_inv.id}?saved=reviewed&gold=1"
-    async with seeded.connect() as conn:
-        plain = await queries.investigation(conn, plain.id)  # type: ignore[assignment]
-    outside = await review(plain, action="reviewed", outcome="benign_expected", also_gold="1",
-                           seen_review=str(plain.latest_review))  # fmt: skip
-    assert outside.headers["location"] == f"/investigations/{plain.id}?saved=reviewed"
-    # the gold form without a note keeps none
-    answered = await client.post(f"/investigations/{gold_id}/gold",
-                                 data={"csrf_token": token,
-                                       "outcome": "true_positive"})  # fmt: skip
-    assert answered.status_code == 303
-    async with seeded.connect() as conn:
-        notes = (await conn.execute(text("SELECT note FROM gold_labels"))).scalars().all()
-    assert notes[-1] is None
-
-
-@pytest.mark.parametrize("key", sorted(SAVED))
-async def test_each_saved_message_word_for_word(
-    key: str, client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    (a,) = await first(seeded)
-    await signed_in(client)
-    page = (await client.get(f"/investigations/{a.id}", params={"saved": key})).text
-    assert alert(SAVED[key]) in page
-    gold = (await client.get(f"/investigations/{a.id}", params={"saved": key, "gold": "1"})).text
-    assert alert(SAVED[key] + " Also saved as your gold-set answer.") in gold
-
-
-async def test_messages_that_must_not_show(client: httpx.AsyncClient, seeded: AsyncEngine) -> None:
-    (a,) = await first(seeded)
-    await signed_in(client)
-    for params in ({"gold": "1"}, {"saved": "nothing"}, {}):
-        got = await client.get(f"/investigations/{a.id}", params=params)
-        assert got.status_code == 200
-        assert 'class="message"' not in got.text
-    assert "Confirmed" not in (await client.get("/proposals")).text
-    missing = await client.get(f"/investigations/{uuid.uuid4()}")
-    assert (missing.status_code, alert("No such investigation.") in missing.text) == (404, True)
-    raw = await client.get(f"/investigations/{a.id}/alerts/nope")
-    assert (raw.status_code, alert("No such alert here.") in raw.text) == (404, True)
-    assert SAVED == {
-        "reviewed": "Saved: marked reviewed.",
-        "follow_up": "Saved: marked as needing follow-up.",
-        "note": "Saved: note added.",
-        "gold": "Saved your gold-set answer for the previous one. This is the next to answer.",
-        "accepted": "Saved: you accepted ARGUS's proposal (a confirmed proposal).",
-        "asked": "Asked: the AI investigator will look at this within a few minutes. Reload to"
-        " see its answer.",
-        "asked_exists": "The AI investigator has already assessed what this investigation shows"
-        " now: its answer is below.",
-    }
-
-
-async def test_columns_from_the_query_and_the_first_two_hundred_asked(
-    client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    (a,) = await first(seeded)
-    await signed_in(client)
-    asked = await client.get(f"/investigations/{a.id}", params={"cols": "source.ip"})
-    assert '<th scope="col" class="mono">source.ip</th>' in asked.text
-    late = await client.get(f"/investigations/{a.id}",
-                            params=[("cols", f"x{k}") for k in range(200)]
-                            + [("cols", "source.ip")])  # fmt: skip
-    assert '<th scope="col" class="mono">source.ip</th>' not in late.text  # past the first 200
-
-
-async def test_accepting_and_confirming_record_what_they_did(
-    client: httpx.AsyncClient, seeded: AsyncEngine
-) -> None:
-    ids = await propose(seeded, 2, "engine@1#k", "benign_expected")
-    (a,) = await first(seeded)
-    await signed_in(client)
-    token = csrf((await client.get(f"/investigations/{a.id}")).text)
-    stale = await client.post(f"/investigations/{a.id}/accept",
-                              data={"csrf_token": token, "assessment_id": 999_999})  # fmt: skip
-    assert stale.status_code == 409
-    assert alert("The proposal changed (new alerts, a newer assessment, or someone reviewed it)"
-                 " while you were reading; nothing was saved.") in stale.text  # fmt: skip
-    group = "g" * 250
-    done = await client.post("/proposals/confirm",
-                             data={"csrf_token": token, "group": group,
-                                   "ids": ",".join(map(str, ids))})  # fmt: skip
-    assert done.status_code == 303
-    async with seeded.connect() as conn:
-        audit = (await conn.execute(text(
-            "SELECT action, target_type, length(target_id) FROM audit_events"
-            " WHERE action LIKE 'assessment.%' ORDER BY id"))).all()  # fmt: skip
-    assert [tuple(r) for r in audit] == [("assessment.confirm", "assessment_group", 200)]
-    accepted = await client.post(f"/investigations/{a.id}/accept",
-                                 data={"csrf_token": token, "assessment_id": ids[0]})  # fmt: skip
-    async with seeded.connect() as conn:
-        last = (await conn.execute(text(
-            "SELECT action, target_type, target_id FROM audit_events ORDER BY id DESC LIMIT 1"))
-        ).one()  # fmt: skip
-    if accepted.status_code == 303:  # still current: the accept is audited on the assessment
-        assert tuple(last) == ("assessment.accept", "assessment", str(ids[0]))
-
-
-async def test_asking_without_a_dossier_or_a_privacy_layer(
-    seeded: AsyncEngine, client: httpx.AsyncClient, web_engine: AsyncEngine
-) -> None:
-    from argus.llm.privacy import Privacy, load_policy
-    from tests.unit.llm.conftest import ASSETS
-
-    (a,) = await first(seeded)  # no dossier stored for it
-    await signed_in(client)
-    token = csrf((await client.get(f"/investigations/{a.id}")).text)
-    off = await client.post(f"/investigations/{a.id}/assess", data={"csrf_token": token})
-    assert off.status_code == 503
-    assert alert("The AI investigator is not available on this server.") in off.text
-    app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1),
-                     privacy=Privacy.build(load_policy(), ASSETS))  # fmt: skip
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url=BASE, headers=SAME_ORIGIN
-    ) as http:
-        await signed_in(http)
-        token = csrf((await http.get(f"/investigations/{a.id}")).text)
-        early = await http.post(f"/investigations/{a.id}/assess", data={"csrf_token": token})
-        assert early.status_code == 409
-        assert alert("ARGUS has not built this investigation's dossier yet; try again in a few"
-                     " minutes.") in early.text  # fmt: skip
-    async with seeded.connect() as conn:
-        assert await conn.scalar(text(
-            "SELECT count(*) FROM audit_events"
-            " WHERE action = 'assessment.request'")) == 0  # fmt: skip
 
 
 async def test_the_gateway_fallbacks(
@@ -291,27 +48,19 @@ async def test_the_gateway_fallbacks(
         transport=httpx.ASGITransport(app=app), base_url=BASE, headers=SAME_ORIGIN
     ) as http:
         await signed_in(http)
-        cost = (await http.get("/api/cost")).json()
-        metrics = await http.get("/metrics")
+        cost = (await http.get("/api/v1/cost")).json()
     assert (cost["cap_usd"], cost["paid_until_usd"], cost["daily_cap_usd"]) == (10.0, 8.0, None)
-    assert metrics.status_code == 200
-    assert "Today against the limits" not in metrics.text
-    assert "Calls allowed." in metrics.text  # not stopped
     monkeypatch.undo()
     app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url=BASE, headers=SAME_ORIGIN
     ) as http:
         await signed_in(http)
-        assert "Today against the limits" in (await http.get("/metrics")).text
+        assert (await http.get("/api/v1/cost")).json()["daily_cap_usd"] is not None
 
 
 async def test_every_typed_value_is_accepted(client: httpx.AsyncClient) -> None:
     await signed_in(client)
-    for sort in ("newest", "oldest", "urgent", "reviewed"):
-        assert (await client.get("/", params={"view": "reviewed", "sort": sort})).status_code == 200
-    page = (await client.get("/", params={"sort": "newest"})).text
-    assert ">oldest first</a>" in page
     for name, values in (("severity", ("critical", "high", "medium", "low")),
                          ("state", ("unreviewed", "follow_up", "changed_since_review", "reviewed")),
                          ("verdict", ("true_positive", "benign_expected", "benign_policy",
@@ -324,13 +73,13 @@ async def test_every_typed_value_is_accepted(client: httpx.AsyncClient) -> None:
     for kind in ("ip", "host", "domain", "user"):
         found = await client.get("/api/dashboard", params={"kind": kind, "value": "203.0.113.9"})
         assert found.json()["kpis"]["cases"] == 0, kind  # the filter applies
-        inbox = await client.get("/", params={"view": "all", "kind": kind, "value": "203.0.113.9"})
-        assert "Nothing here." in inbox.text, kind
+        inbox = await client.get("/api/investigations", params={
+            "view": "all", "kind": kind, "value": "203.0.113.9"})  # fmt: skip
+        assert inbox.json() == [], kind
     early = await client.get("/api/dashboard", params={"start": "2019-06-01", "end": "2020-03-01"})
     assert early.json()["start"] == "2019-12-31T18:30:00+00:00"  # clamped to 2020-01-01 IST
-    one = await client.get("/dashboard", params={"start": "2026-10-01", "end": ""})
-    assert one.status_code == 200  # one date: the time menu's span, the page still renders
-    assert "Last 7 days:" in one.text
+    one = await client.get("/api/dashboard", params={"start": "2026-10-01", "end": ""})
+    assert one.status_code == 200  # one date: the time menu's span, the dashboard still builds
 
 
 async def test_the_validation_answer_and_the_logout_cookie(client: httpx.AsyncClient) -> None:
@@ -372,8 +121,8 @@ async def test_the_documented_responses(client: httpx.AsyncClient) -> None:
              "properties": {"detail": {"type": "string"}}},
         ]}}},
     }  # fmt: skip
-    for path in ("/api/investigations", "/api/rules", "/api/entities", "/api/cost",
-                 "/api/dashboard", "/api/health"):  # fmt: skip
+    for path in ("/api/investigations", "/api/rules", "/api/entities", "/api/dashboard",
+                 "/api/health"):  # fmt: skip
         assert "401" in codes(path, "get"), path
     one = "/api/investigations/{investigation_id}"
     assert {"401", "404"} <= set(codes(one, "get"))
@@ -443,55 +192,6 @@ async def test_the_last_gaps(client: httpx.AsyncClient, seeded: AsyncEngine) -> 
     note = await client.post(f"/api/investigations/{b.id}/reviews", headers=headers, json={
         "action": "note", "note": "z", "seen_review": 1, "seen_version": 0})  # fmt: skip
     assert note.status_code != 422  # the smallest allowed values pass the note's model too
-    # the pattern form when nothing changed: the count alone
-    await signed_in(client)
-    form = csrf((await client.get("/patterns")).text)
-    async with seeded.connect() as conn:
-        b = await queries.investigation(conn, b.id)  # type: ignore[assignment]
-    done = await client.post("/patterns/review", data={
-        "items": [f"{b.id}:{b.version}:{b.latest_review}"], "outcome": "benign_expected",
-        "csrf_token": form})  # fmt: skip
-    assert '<p class="message" role="status">1 reviewed.</p>' in done.text
-
-
-async def test_asking_and_confirming_exactly(
-    client: httpx.AsyncClient,
-    seeded: AsyncEngine,
-    migrated_engine: AsyncEngine,
-    web_engine: AsyncEngine,
-) -> None:
-    from argus.llm.privacy import Privacy, load_policy
-    from tests.unit.llm.conftest import ASSETS
-
-    await with_dossiers(seeded, migrated_engine, 1)
-    (a,) = await first(seeded)
-    app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1),
-                     privacy=Privacy.build(load_policy(), ASSETS))  # fmt: skip
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url=BASE, headers=SAME_ORIGIN
-    ) as http:
-        await signed_in(http)
-        token = csrf((await http.get(f"/investigations/{a.id}")).text)
-        asked = await http.post(f"/investigations/{a.id}/assess", data={"csrf_token": token})
-    assert asked.status_code == 303
-    ids = await propose(seeded, 1, "engine@1#k", "benign_expected", start=1)
-    await signed_in(client)
-    listing = (await client.get("/proposals")).text
-    token = csrf(listing)
-    group = html.unescape(listing.split('name="group" value="')[1].split('"')[0])
-    done = await client.post("/proposals/confirm",
-                             data={"csrf_token": token, "group": group,
-                                   "ids": str(ids[0])})  # fmt: skip
-    assert done.status_code == 303
-    async with seeded.connect() as conn:
-        audit = (await conn.execute(text(
-            "SELECT target_type FROM audit_events"
-            " WHERE action = 'assessment.request'"))).scalar()  # fmt: skip
-        notes = (await conn.execute(text(
-            "SELECT note FROM review_events WHERE assessment_id = :i"),
-            {"i": ids[0]})).scalars().all()  # fmt: skip
-    assert audit == "investigation"
-    assert notes == ["confirmed with its group"]
 
 
 async def test_an_unknown_name_with_the_dummy_password_is_refused(

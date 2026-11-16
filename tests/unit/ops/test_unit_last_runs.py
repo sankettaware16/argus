@@ -1,5 +1,5 @@
 """P4-E3: the service-units check reads what the user service manager says of the enabled units
-(D-305's finding: doctor said "7 of the 7 ... running as installed" while the case team's oneshot
+(D-305's finding: doctor said "8 of the 8 ... running as installed" while the case team's oneshot
 had failed every run since the install). An enabled timer whose service's last run failed fails,
 and so does an enabled service that failed; what is not enabled is not asked about. Fixtures
 only: the service manager is a fake, nothing here reads the real unit directory."""
@@ -61,7 +61,7 @@ def test_an_enabled_timer_whose_service_failed_its_last_run_fails(tmp_path: Path
     ask = Manager({"argus-case-team.service": FAILED, "argus-web.service": RUNNING})
     results = _results(folder, ask)
     assert results[0].label == "FAIL"
-    assert "6 of the 7 this installation runs running as installed" in results[0].detail
+    assert "7 of the 8 this installation runs running as installed" in results[0].detail
     assert results[0].detail.endswith("; 1 failed their last run")
     [line] = _by_name(results, "unit argus-case-team.service")
     assert line.label == "FAIL"
@@ -109,7 +109,7 @@ def test_a_timer_that_is_not_enabled_is_not_judged(tmp_path: Path) -> None:
 def test_an_enabled_service_that_failed_is_not_running(tmp_path: Path) -> None:
     folder = _installed_and_enabled(tmp_path)
     results = _results(folder, Manager({"argus-collector.service": FAILED}))
-    assert "6 of the 7" in results[0].detail
+    assert "7 of the 8" in results[0].detail
     [line] = _by_name(results, "unit argus-collector.service")
     assert line.label == "FAIL"
     assert line.detail.startswith("failed (exit-code, exit status 1, at ")
@@ -124,7 +124,7 @@ def test_running_or_fine_services_and_a_new_run_are_no_failure(tmp_path: Path) -
     says = {"argus-case-team.service": LastRun("activating", "success", "0", None),
             "argus-backup.service": FINE, "argus-web.service": RUNNING}  # fmt: skip
     results = _results(folder, Manager(says))
-    assert "7 of the 7" in results[0].detail
+    assert "8 of the 8" in results[0].detail
     assert "failed their last run" not in results[0].detail
     assert not any(r.detail.startswith(("its last run failed", "failed (")) for r in results)
 
@@ -220,7 +220,7 @@ def test_the_summary_counts_the_failed_runs(tmp_path: Path) -> None:
             "argus-worker.service": FAILED}  # fmt: skip
     results = _results(folder, Manager(says))
     assert results[0].label == "FAIL"
-    assert "4 of the 7 this installation runs running" in results[0].detail
+    assert "5 of the 8 this installation runs running" in results[0].detail
     assert results[0].detail.endswith("; 3 failed their last run")
     assert {r.name for r in results[1:] if not r.ok} == {
         "unit argus-case-team.service", "unit argus-soak-sample.service",
@@ -246,7 +246,7 @@ def test_posting_off_with_the_timer_enabled_is_a_choice_not_a_failure(tmp_path: 
     ask = Manager({"argus-case-team.service": REFUSED, "argus-case-team.timer": RUNNING})
     results = _results(folder, ask, refusing=checks.refusing_services(settings))
     assert results[0].label == "PASS", results
-    assert "7 of the 7 this installation runs running as installed" in results[0].detail
+    assert "8 of the 8 this installation runs running as installed" in results[0].detail
     assert results[0].detail.endswith(
         "; argus-case-team.service refuses its runs: posting is off (ARGUS_CASE_TEAM__POST is"
         " off in local/argus-writer.env)"

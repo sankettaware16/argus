@@ -1,4 +1,4 @@
-"""The SOC dashboard's filters, words and charts (D-103), without a database."""
+"""The SOC dashboard's filters and words (D-103), without a database."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import pytest
 
 from argus import site
 from argus.site import SiteSettings, zone
-from argus.web import charts
 from argus.web.dashboard import Filters, _fill, duration
 
 pytestmark = pytest.mark.unit
@@ -134,100 +133,6 @@ def test_hourly_buckets_follow_the_clock_changes_of_the_sites_zone() -> None:
         assert all(hour_apart(a, b) for (a, _), (b, _) in pairwise(got))
 
 
-@pytest.mark.parametrize(("top", "nice"), [(0, 5), (5, 5), (6, 6), (7, 8), (9, 10), (11, 12),
-                                           (13, 15), (21, 25), (31, 40), (40, 40), (41, 50),
-                                           (51, 60), (24_999, 25_000),
-                                           (25_001, 30_000), (81, 100)])  # fmt: skip
-def test_axis_tops_are_round(top: int, nice: int) -> None:
-    assert charts._nice(top) == nice
-
-
-def test_the_stacked_chart() -> None:
-    at = datetime(2026, 10, 21, tzinfo=IST)
-    series = [(at, {"low": 2, "high": 1}), (at + timedelta(days=1), {})]
-    svg = str(charts.stacked(series, ["low", "high"], 'Alerts <"x">', hourly=False))
-    assert svg.startswith('<svg class="chart" viewBox="0 0 960 220" role="img" '
-                          'aria-label="Alerts &lt;&#34;x&#34;&gt;">')  # fmt: skip
-    assert "<title>Wed 21 Oct IST: 3 alerts, 2 low, 1 high</title>" in svg
-    assert "<title>Thu 22 Oct IST: 0 alerts</title>" in svg
-    assert svg.count('class="bar-low"') == 1
-    assert svg.count('class="bar-high"') == 1
-    assert svg.count('class="bar-empty"') == 1  # an empty day still has a tooltip target
-    assert ">21 Oct</text>" in svg
-    assert svg.endswith("</svg>")
-    assert "<script" not in svg
-    assert "style=" not in svg  # the CSP allows no style attribute
-
-
-def test_bars_are_drawn_to_scale() -> None:
-    at = datetime(2026, 10, 21, tzinfo=IST)
-    svg = str(charts.stacked([(at, {"low": 5})], ["low"], "x", hourly=True))
-    plot_h = charts.H - charts.PAD_B - charts.PAD_T
-    assert f'height="{plot_h:.1f}"/>' in svg  # 5 of an axis to 5: the whole height
-    assert ">12 AM</text>" in svg
-
-
-def test_the_split_bar() -> None:
-    parts = charts.parts({"b": 1, "a": 3, "z": 0}, {"a": "Alpha <1>"}, "st")
-    assert parts == [("Alpha <1>", 3, "st-a"), ("b", 1, "st-b"), ("z", 0, "st-z")]
-    svg = str(charts.split(parts, "State"))
-    assert '<rect class="st-a" x="0.00" y="0" width="750.00" height="18">' in svg
-    assert "<title>Alpha &lt;1&gt;: 3</title>" in svg
-    assert '<rect class="st-b" x="750.00" y="0" width="250.00"' in svg
-    assert "st-z" not in svg  # nothing drawn for a zero
-    assert 'aria-label="State"' in svg
-    assert str(charts.split([], "empty")).endswith("</svg>")
-
-
-def test_the_stacked_chart_exactly() -> None:
-    """Every coordinate, worked out by hand: a 908 by 184 plot (960 by 220 less the margins),
-    two slots of 454 with bars of 48 (72 % of a slot, at most 48), an axis to 5 for a top of 3."""
-    at = datetime(2026, 10, 21, tzinfo=IST)
-    series = [(at, {"low": 2, "high": 1}), (at + timedelta(days=1), {})]
-    grid = "".join(
-        f'<line class="grid" x1="44" x2="952" y1="{y}.0" y2="{y}.0"/>'
-        f'<text class="axis" x="38" y="{y + 4}.0" text-anchor="end">{label}</text>'
-        for y, label in ((194, 0), (148, 1), (102, 2), (56, 3), (10, 5))
-    )
-    want = (
-        '<svg class="chart" viewBox="0 0 960 220" role="img" aria-label="A">' + grid
-        + "<g><title>Wed 21 Oct IST: 3 alerts, 2 low, 1 high</title>"
-        '<rect class="bar-low" x="247.0" y="120.4" width="48.0" height="73.6"/>'
-        '<rect class="bar-high" x="247.0" y="83.6" width="48.0" height="36.8"/></g>'
-        '<text class="axis" x="271.0" y="212" text-anchor="middle">21 Oct</text>'
-        "<g><title>Thu 22 Oct IST: 0 alerts</title>"
-        '<rect class="bar-empty" x="701.0" y="10" width="48.0" height="184"/></g>'
-        '<text class="axis" x="725.0" y="212" text-anchor="middle">22 Oct</text></svg>'
-    )  # fmt: skip
-    assert str(charts.stacked(series, ["low", "high"], "A", hourly=False)) == want
-    assert (charts.W, charts.H, charts.PAD_L, charts.PAD_B, charts.PAD_T) == (960, 220, 44, 26, 10)
-
-
-def test_many_buckets_thin_bars_and_every_other_tick() -> None:
-    at = datetime(2026, 10, 21, tzinfo=IST)
-    hours = [(at + timedelta(hours=k), {"low": 1}) for k in range(24)]
-    svg = str(charts.stacked(hours, ["low"], "x", hourly=True))
-    assert svg.count('text-anchor="middle"') == 12  # 24 bars: a tick on every second one
-    assert ">2 AM</text>" in svg
-    assert ">1 AM</text>" not in svg
-    assert "<title>21 Oct 1 AM IST: 1 alerts, 1 low</title>" in svg
-    assert 'width="27.2"' in svg  # 908 / 24 * 0.72
-    many = [(at + timedelta(hours=k), {}) for k in range(1000)]
-    assert 'width="1.5"' in str(charts.stacked(many, ["low"], "x", hourly=True))  # the least
-
-
-def test_the_split_bar_exactly_and_its_parts_in_order() -> None:
-    parts = charts.parts({"b_x": 1, "a": 1, "c": 2}, {}, "vd")
-    assert parts == [("c", 2, "vd-c"), ("a", 1, "vd-a"), ("b x", 1, "vd-b_x")]  # ties by key
-    assert str(charts.split(parts[:2], "S")) == (
-        '<svg class="split" viewBox="0 0 1000 18" preserveAspectRatio="none" role="img" '
-        'aria-label="S"><rect class="vd-c" x="0.00" y="0" width="666.67" height="18">'
-        '<title>c: 2</title></rect><rect class="vd-a" x="666.67" y="0" width="333.33" '
-        'height="18"><title>a: 1</title></rect></svg>'
-    )
-    assert str(charts.split([("z", 0, "vd-z")], "none")).endswith('aria-label="none"></svg>')
-
-
 def test_filters_and_cases_are_frozen_and_half_set_filters_are_none() -> None:
     import dataclasses
 
@@ -240,11 +145,3 @@ def test_filters_and_cases_are_frozen_and_half_set_filters_are_none() -> None:
     assert Filters(range="24h", start=date(2026, 10, 1)).params() == [("range", "24h")]
     assert Filters(kind="ip").chips() == Filters(value="x").chips() == []
     assert Filters(range="30d").span(NOW) == (NOW - timedelta(days=30), NOW)
-
-
-def test_ticks_thin_out_with_the_bucket_count() -> None:
-    at = datetime(2026, 10, 21, tzinfo=IST)
-    for n, ticks in ((12, 12), (18, 9), (30, 15), (48, 12)):  # one in round(n / 12)
-        svg = str(charts.stacked([(at + timedelta(hours=k), {}) for k in range(n)], ["low"], "x",
-                                 hourly=True))  # fmt: skip
-        assert svg.count('text-anchor="middle"') == ticks, n

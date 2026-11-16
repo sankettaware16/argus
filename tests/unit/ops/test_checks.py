@@ -476,7 +476,9 @@ def test_the_tunnel_is_where_the_setup_script_puts_it() -> None:
 
 
 # A made-up installation (D-295): its checkout, its uv, the units it runs.
-PARAMS = units.UnitParams(Path("/srv/argus"), "/usr/local/bin/uv", {"WEB_CLASSIC": "fallback"})
+PARAMS = units.UnitParams(
+    Path("/srv/argus"), "/usr/local/bin/uv", {"WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
+)
 RUN = (*units.CORE, "argus-soak-sample.timer", "argus-kibana-sync.service",
        "argus-case-team.timer")  # fmt: skip
 RENDERED = units.rendered_units(PARAMS)
@@ -500,7 +502,7 @@ def test_unit_results_summarise_and_flag(tmp_path: Path) -> None:
     results = _results(folder)
     assert results[0].name == "service units"
     assert results[0].label == "PASS"
-    assert "7 of the 7 this installation runs running as installed" in results[0].detail
+    assert "8 of the 8 this installation runs running as installed" in results[0].detail
     assert {r.name: r.label for r in results[1:]} == {
         "unit argus-backup.timer": "WARN",
         "unit argus-backup.service": "WARN",
@@ -609,7 +611,7 @@ def test_a_drop_in_that_changes_a_unit_fails_the_units_check(
     extra = tuple(v for k, v in places.items() if k != "user")
     before = _results(installed, *extra)
     assert labels(before) == [("service units", "PASS")]
-    assert "7 of the 7 this installation runs running as installed" in before[0].detail
+    assert "8 of the 8 this installation runs running as installed" in before[0].detail
     drop = places[where] / folder
     drop.mkdir(parents=True)
     (drop / name).write_text("[Service]\nExecStart=\nExecStart=/bin/other\n")
@@ -617,9 +619,9 @@ def test_a_drop_in_that_changes_a_unit_fails_the_units_check(
     assert after[0].label == "FAIL"
     flagged = [r for r in after[1:] if str(drop / name) in r.detail]
     assert [r.label for r in flagged] == ["FAIL"], after
-    running = re.search(r"; (\d+) of the 7 this installation runs", after[0].detail)
+    running = re.search(r"; (\d+) of the 8 this installation runs", after[0].detail)
     assert running is not None, after[0].detail
-    assert int(running.group(1)) < 7, after[0].detail  # the changed unit is not counted
+    assert int(running.group(1)) < 8, after[0].detail  # the changed unit is not counted
 
 
 # --------------------------------------------------------------------------- backups

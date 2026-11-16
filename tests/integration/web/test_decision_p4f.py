@@ -391,7 +391,7 @@ async def test_the_dashboard_counts_incidents_as_cases(world: World) -> None:
     assert {"incidents", "suspected"} <= set(kpis)
 
 
-async def test_the_dashboards_incidents_open_the_list_they_count(world: World) -> None:
+async def test_the_dashboards_incident_number_is_the_incident_lists_count(world: World) -> None:
     """Review (minor): the number counted notified incidents, and its link opened the Open view,
     which leaves them out. It opens the incidents view now, whose rows and count are the
     number."""
@@ -407,31 +407,11 @@ async def test_the_dashboards_incidents_open_the_list_they_count(world: World) -
         await sign_in(http, "mina")
         kpis = (await http.get(f"{V1}/dashboard", params={"range": "30d"})).json()["kpis"]
         listed = (await http.get(f"{V1}/cases", params={"view": "incidents"})).json()
-        classic = (await http.get("/dashboard")).text
     assert kpis["incident_cases"] == 2
     assert (listed["view"], len(listed["items"]), listed["counts"]["incidents"]) == (
         "incidents", 2, 2)  # fmt: skip
     assert (listed["counts"]["active"], listed["counts"]["notified"]) == (1, 1)
     assert str(told) in {c["id"] for c in listed["items"]}
-    assert 'href="/app/cases?view=incidents"' in classic
-    assert "view=active" not in classic
-
-
-async def test_the_classic_dashboard_keeps_one_meaning_of_incident(world: World) -> None:
-    """Review (minor): the classic page called investigations "Incidents" and "Suspected"
-    under the heading "Investigations called real"; it uses the app's words now."""
-    async with world.app() as http:
-        await sign_in(http, "mina")
-        span = {"start": "2026-10-01", "end": "2026-10-31"}  # the seeded investigations' days
-        page = (await http.get("/dashboard", params=span)).text
-    assert "Top rules by alerts" in page
-    assert "No rule in this span." not in page
-    assert ">Real (a person)</th>" in page
-    assert ">Real (ARGUS)</th>" in page
-    assert ">Incidents</th>" not in page
-    assert ">Suspected</th>" not in page
-    assert "No incident in this span" not in page
-    assert "By a person: their decision is" in page
 
 
 async def test_the_queue_never_calls_an_outside_address_a_device(world: World) -> None:

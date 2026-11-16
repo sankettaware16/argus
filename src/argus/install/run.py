@@ -60,6 +60,7 @@ class Options:
     force_key: bool = False
     force_site: bool = False
     llm_file: Path | None = None  # the LLM overlay; by default beside config/llm.yaml
+    web_setup: bool = False  # the host's part only; the rest in the app's first-time setup
 
     @property
     def env_file(self) -> Path:
@@ -209,6 +210,48 @@ def _add_person(config: Path, username: str, name: str, password: str) -> None:
     asyncio.run(add())
 
 
+def _welcome(config: Path, username: str) -> str:
+    """The first administrator, with a one-time link to set their own password (D-327): its
+    token, shown once. As the owner: the web's functions need an administrator to make one."""
+    import asyncio
+    import secrets
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import text
+
+    from argus.db.engine import create_engine
+    from argus.web import auth
+    from argus.web.capabilities import Capability
+
+    token = secrets.token_urlsafe(32)
+
+    async def make() -> None:
+        engine = create_engine(load_settings(config).database, role="owner")
+        now = datetime.now(UTC)
+        try:
+            async with engine.begin() as conn:
+                made = await conn.scalar(
+                    text("INSERT INTO users (username, display_name, password_hash, capabilities,"
+                         " kind, realm) VALUES (:u, 'Administrator', '!', :c, 'person', 'local')"
+                         " RETURNING id"),
+                    {"u": username, "c": [c.value for c in Capability]},
+                )  # fmt: skip
+                await conn.execute(
+                    text("INSERT INTO user_links (token_hash, user_id, purpose, created_at,"
+                         " expires_at) VALUES (:h, :u, 'welcome', :t, :e)"),
+                    {"h": auth.token_hash(token), "u": made, "t": now,
+                     "e": now + timedelta(hours=72)},
+                )  # fmt: skip
+                by = {"by": "argus init --web-setup"}
+                await auth.audit(conn, actor="cli", action="user.add", target_type="user",
+                                 target_id=username, details=by)  # fmt: skip
+        finally:
+            await engine.dispose()
+
+    asyncio.run(make())
+    return token
+
+
 @dataclass
 class Host:
     say: Callable[[str], None]
@@ -229,6 +272,7 @@ class Host:
     people: Callable[[Path], int] = _people
     writer_login: Callable[[DatabaseSettings], str | None] = _writer_login
     add_person: Callable[[Path, str, str, str], None] = _add_person
+    welcome: Callable[[Path, str], str] = _welcome
     user: Callable[[], str] = getpass.getuser
 
 
@@ -289,6 +333,8 @@ class Init:
         self.prerequisites()
         self.env()
         self.database()
+        if self.o.web_setup:
+            return self.web_setup()
         siem_url, kibana_url = self.addresses()
         self.keys(kibana_url)
         self.site(siem_url)
@@ -312,6 +358,49 @@ class Init:
         else:
             self.say("\ninit: done; ARGUS is set up but not started: argus init --start starts it")
         return code
+
+    def web_setup(self) -> int:
+        """The host's part (D-327): the web and argus-admin running, and a one-time link for the
+        first administrator; the SIEM, the keys, the organisation and the AI providers are the
+        app's first-time setup, which runs the rest of init with the answers given there."""
+        address = self.web("")
+        self.step(9, "the web and argus-admin (the other services start after the setup)")
+        names = ["argus-web.service", "argus-admin.service"]
+        local = files.read_yaml(self.o.local_file)
+        uv = self.host.uv()
+        if uv is None:
+            raise InitError("uv is not on PATH: set units.uv in config/local.yaml", 2)
+        changes: dict[str, Any] = {"units.root": str(self.o.root), "units.uv": uv}
+        if files.get(local, "units.run") is None:
+            changes["units.run"] = names
+        missing = {k: v for k, v in changes.items() if files.get(local, k) is None}
+        files.update_yaml(self.o.local_file, missing)
+        try:
+            plan = units.plan_install(units.params_of(self.settings().units), self.host.unit_dir)
+            units.apply_install(plan)
+        except (units.UnitsError, OSError) as exc:
+            raise InitError(f"the units cannot be installed: {exc}") from None
+        if self.host.systemctl(["daemon-reload"]) or self.host.systemctl(
+            ["enable", "--now", *names]
+        ):
+            raise InitError(
+                "the web and argus-admin did not start: systemctl --user status argus-*"
+            )
+        self.say(f"   started: {', '.join(names)}")
+        self.linger()
+        port = self.settings().web.port
+        base = f"https://{address}:{port}" if address else f"http://127.0.0.1:{port}"
+        if self.host.people(self.o.config) > 0:
+            self.say(f"\ninit: done; open {base}/ and sign in (Settings → First-time setup)")
+            return 0
+        name = "admin"
+        if self.ask.scripted and self.ask.given("web.person"):
+            name = self.ask.text("web.person", "", name)
+        token = self.host.welcome(self.o.config, name)
+        link = f"{base}/welcome?token={token}"
+        self.say(f"\ninit: done. Open this link within 72 hours to set {name}'s password and"
+                 f" finish the setup in the browser:\n\n    {link}\n")  # fmt: skip
+        return 0
 
     def prerequisites(self) -> None:
         self.step(1, "prerequisites")

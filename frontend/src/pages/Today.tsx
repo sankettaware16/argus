@@ -8,6 +8,7 @@ import { IncidentCard } from "../components/today/IncidentCard";
 import { UntrustedText } from "../components/UntrustedText";
 import { Button } from "../components/ui/button";
 import { Home } from "./Home";
+import { SetupCard } from "../components/today/SetupCard";
 import { SystemBanner } from "../shell/Status";
 import { BACKGROUND } from "../lib/api";
 import { unwrap } from "../lib/call";
@@ -466,6 +467,7 @@ export function TodayOrHome() {
   }
   return (
     <>
+      <SetupCard />
       <SystemBanner />
       {!today.data.served || today.data.today.mode === "shadow" ? <Home /> : <Today data={today.data.today} />}
     </>

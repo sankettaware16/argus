@@ -42,11 +42,13 @@ from argus.web.deps import Conn, Refusal, Surface, forbidden, need
 from argus.web.params import CLEAN, DashboardFilters
 from argus.web.reviews import NotFoundError, ReviewConflictError, add_review
 from argus.web.v1 import (  # UI v2's additions (spec §2.3), the engine's (P4-F E5)
+    admin_routes,
     case_routes,
     engine_routes,
     entity_routes,
     report_routes,
     team_routes,
+    user_routes,
     views,
     work_routes,
 )
@@ -669,4 +671,6 @@ def build(
     report_routes.install(router, clock=clock, errors=errors)  # the incident report
     team_routes.install(router, clock=clock, errors=errors)  # the Kibana case preview
     engine_routes.install(router, clock=clock, errors=errors)  # Today (P4-F E5)
+    admin_routes.install(router, clock=clock, errors=errors)  # Settings (P4-H, D-327)
+    user_routes.install(router, clock=clock, errors=errors)  # users and roles (D-327)
     return router

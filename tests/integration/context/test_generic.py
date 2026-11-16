@@ -8,7 +8,6 @@ from collections import Counter
 from datetime import timedelta
 from typing import Any
 
-import httpx
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
@@ -22,11 +21,8 @@ from argus.context.packs import default_registry
 from argus.context.worker import Worker
 from argus.gateway.templates import CostClass
 from argus.reference import store as reference
-from argus.web import auth
-from argus.web.app import create_app
 from tests.integration.context.conftest import NOW
 from tests.integration.grouping.test_grouping import doc, ingest
-from tests.integration.web.test_inbox import HOSTILE
 
 pytestmark = pytest.mark.integration
 
@@ -180,32 +176,6 @@ def test_field_facts_agree_with_a_brute_force_count(docs: list[dict[str, Any]]) 
         got["top"]
         == [list(t) for t in sorted(expected.items(), key=lambda kv: (-kv[1], kv[0]))][:8]
     )
-
-
-async def test_the_inbox_shows_the_dossier_and_hostile_notes_stay_inert(
-    app_engine: AsyncEngine, saver: AsyncPostgresSaver, web_engine: AsyncEngine
-) -> None:
-    note = f"### Investigation Steps\n1. Check `source.ip` {HOSTILE}\n2. Block it: {HOSTILE}"
-    await ingest(app_engine, [alert(1, note=note, **{"kibana.alert.rule.name": "hostile"})])
-    await run(app_engine, saver)
-    async with app_engine.begin() as conn:
-        await auth.add_user(conn, "asha", "Asha", "correct horse battery")
-    app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1))
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app),
-        base_url="http://127.0.0.1",
-        headers={"Origin": "http://127.0.0.1"},
-    ) as http:
-        await http.post("/login", data={"username": "asha", "password": "correct horse battery"})
-        (inv,) = (await http.get("/api/investigations", params={"view": "all"})).json()
-        page = (await http.get(f"/investigations/{inv['id']}")).text
-    assert "What ARGUS checked" in page
-    assert "Key facts" in page
-    assert "Answered" in page
-    assert "For you" in page
-    assert "<script>alert" not in page
-    assert "<img src=x" not in page
-    assert "Alerts: 1 alerts" in page
 
 
 # ----------------------------------------------------------------- exact (mutation testing)

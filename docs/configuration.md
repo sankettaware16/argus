@@ -513,7 +513,7 @@ See [kibana.md](kibana.md).
 | `web.approval_key_file` | none | The key that signs approvals ([web-ui-guide.md](web-ui-guide.md#approvals)) |
 | `web.elk_signin` | `false` | People sign in with their own ELK accounts ([web-ui-guide.md](web-ui-guide.md#sign-in-with-elk-accounts)) |
 | `web.secret_file` | none | The web's own secret (needed for ELK sign-in) |
-| `web.classic` | `primary` | The web unit sets `fallback`: people land on the app at `/app` |
+| `web.classic` | none | No longer used (the classic pages are gone); accepted so an older file loads; `argus doctor` warns until it is removed |
 
 The web service gets its network settings from `units.web` (next section); the others may go in
 the `web` section of `local.yaml`.
@@ -528,7 +528,7 @@ the `web` section of `local.yaml`.
 | `units.uv` | the uv running the command | The uv the units start ARGUS with (absolute) |
 | `units.run` | the four services | The units this installation runs. Doctor warns while none of them is started yet and fails while some run and a listed one is not enabled. `argus init --start` writes it: the four services, the Kibana read-back when Kibana is set up, the backup timers unless declined, and whatever it listed already. |
 | `units.web.host`, `tls_cert`, `tls_key`, `allowed_hosts`, `allowed_networks`, `public_url`, `approval_key_file`, `database_role` | none | Rendered into the web unit's environment; a value left out drops its line |
-| `units.web.classic` | `fallback` | |
+| `units.web.classic` | none | No longer used; as `web.classic` |
 
 After changing `units`: `uv run argus units install --apply --reload`, then restart the changed
 service ([operations.md](operations.md#services-and-timers)).

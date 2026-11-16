@@ -702,61 +702,6 @@ async def notified_world(live: Live) -> uuid.UUID:
     return case
 
 
-@pytest.mark.parametrize("name", BROWSERS)
-async def test_the_dashboard_tile_and_the_counts_equal_the_classic_pages(
-    live: Live, name: str
-) -> None:
-    from playwright.async_api import async_playwright
-
-    await notified_world(live)
-    async with async_playwright() as play:
-        browser, _, page, watch = await person(play, name, live.url, "mina", "/app")
-        await page.goto(f"{live.url}/dashboard?range=90d")
-        classic = await page.evaluate(probe("ar4_classic_dashboard"))
-        await page.goto(f"{live.url}/")
-        summary = await page.evaluate(probe("ar4_classic_summary"))
-        await page.goto(f"{live.url}/app/overview?range=90d")
-        await page.locator("ul[aria-label='Key numbers'] li").first.wait_for()
-        await page.get_by_role("table", name="Notified cases").wait_for()
-        await page.wait_for_load_state("networkidle")
-        app = await page.evaluate(probe("ar4_app_dashboard"))
-        assert classic["tile"] == "2"  # the two investigations the notice covers
-        assert app["tile"] == classic["tile"]
-        assert app["attention"] == classic["attention"]
-        assert "(1 case)" in classic["sub"]
-        assert app["sub"] == classic["sub"]
-        assert len(app["rows"]) == len(classic["rows"]) == 1
-        # case, owner told (both pages write IST in 12-hour form), days, alerts since, alerts a
-        # day, network block, suggestions
-        mine, theirs = app["rows"][0], classic["rows"][0]
-        assert mine[0].startswith("Case 1")
-        assert theirs[0].startswith("Case 1")
-        assert re.search(r"\d{1,2}:\d\d [AP]M IST$", mine[1]), mine[1]
-        assert mine[1:] == theirs[1:]
-        # Home's two numbers are the classic Inbox's summary line
-        await page.goto(f"{live.url}/app")
-        totals = page.get_by_test_id("totals")
-        await totals.get_by_role("link", name=re.compile("^Needs attention")).wait_for()
-        await page.wait_for_function(
-            "() => !document.querySelector(\"[data-testid='totals']\").textContent.includes('…')"
-        )
-        line = await totals.inner_text()
-        assert f"Needs attention: {summary['need attention']}" in line
-        assert f"Notified, still active: {summary['notified, still active']}" in line
-        # the tile's list is the Inbox's known view, and it holds the same investigations
-        await page.goto(f"{live.url}/app/overview?range=90d")
-        await page.locator(
-            "ul[aria-label='Key numbers'] a", has_text="Notified, still active"
-        ).click()
-        await page.wait_for_url(re.compile(r"/app/search\?advanced=1&view=known"))
-        grid = page.get_by_role("grid", name="Investigations")
-        await grid.wait_for()
-        assert int(await grid.get_attribute("aria-rowcount") or "0") - 1 == int(classic["tile"])
-        assert await watch.violations(page) == []
-        await browser.close()
-    assert watch.errors == []
-
-
 # --------------------------------------------------------------------------- accessibility
 
 

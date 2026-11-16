@@ -1,12 +1,10 @@
-"""The switch to ``/app``: with ``web.classic`` set to ``fallback``, a classic page's address leads
-to the same page of the app, and the classic pages are a read-only fallback.
+"""The old addresses: every address ARGUS ever wrote outward (Kibana case links, notices, reports,
+bookmarks) leads to the same thing under ``/app``.
 
 A classic page (GET, HEAD) answers 303 to its page in ``/app``, built from fixed paths and a
-parsed UUID only. The fallback is the browser's choice: ``/classic`` sets a session cookie
-(``argus_classic``) and the classic pages answer as they did until the person opens ``/app``; the
-cookie grants nothing. A classic form (POST) is refused with a plain page pointing to the same
-action in ``/app``. ``/access``, the sign-in, step-up and logout pages and the classic JSON API
-stay. Pure functions: the app's middleware and routes call them."""
+parsed UUID only; the page it leads to checks access. A classic form (POST) is answered 410 with
+a plain page pointing to the same action in ``/app``, and does nothing. Pure functions: the app's
+middleware calls them."""
 
 from __future__ import annotations
 
@@ -16,8 +14,8 @@ from urllib.parse import parse_qsl, urlencode
 
 from pydantic import TypeAdapter, ValidationError
 
-COOKIE = "argus_classic"
 PAGES = {
+    "/classic": "/app",
     "/rules": "/app/rules",
     "/hosts": "/app/hosts",
     "/patterns": "/app/patterns",
@@ -39,11 +37,12 @@ QUERY_MAX = 4096
 _UUID = TypeAdapter(uuid.UUID)
 _SEGMENT = r"([^/]+)"
 _INVESTIGATION = re.compile(rf"/investigations/{_SEGMENT}(/report|/alerts/.+)?", re.DOTALL)
+_CASE = re.compile(rf"/cases/{_SEGMENT}(/report)?")
 _ACTION = re.compile(rf"/investigations/{_SEGMENT}/(?:gold|review|accept|assess)")
 ACTIONS = {"/patterns/review": "/app/patterns", "/proposals/confirm": "/app/proposals"}
 REFUSED = (
-    "The classic pages are read-only now. Reviewing, confirming and asking the AI investigator"
-    " are done in the new app, which shows the exact request before it sends anything."
+    "The classic pages are gone. Reviewing, confirming and asking the AI investigator are done"
+    " in the app, which shows the exact request before it sends anything."
 )
 
 
@@ -72,10 +71,18 @@ def redirect_target(path: str, query: str) -> str | None:
     the classic pages the app covers."""
     if path == "/":
         return _with("/app/inbox", _kept(query, INBOX_KEYS)) if query else "/app"
+    if path == "/inbox":
+        return _with("/app/inbox", _kept(query, INBOX_KEYS))
     if path == "/dashboard":
         return _with("/app/dashboard", _kept(query, DASHBOARD_KEYS))
     if path in PAGES:
         return PAGES[path]
+    case = _CASE.fullmatch(path)
+    if case is not None:
+        case_id = _parsed(case.group(1))
+        if case_id is None:
+            return None
+        return f"/app/incidents/{case_id}?tab=report" if case.group(2) else f"/app/cases/{case_id}"
     found = _INVESTIGATION.fullmatch(path)
     if found is None:
         return None

@@ -78,11 +78,10 @@ reload) are pytest tests: `tests/integration/web/test_app_browser.py`, in Chromi
   request first), `/app/health`, `/app/glossary`, `/app/metrics` (`pages/System.tsx`),
   `/app/tuning`, `/app/gold`. All read routes that `/api/v1` already had. "Your access" stays a
   server page (`/access`): the session route does not carry what it says.
-- `web.classic: fallback` (server setting, off by default) is the switch: a classic address
-  answers 303 to the same page here (`src/argus/web/classic.py`), the classic pages are a
-  read-only fallback at `/classic`. The menu's last entries open those two server pages. Tests:
-  `tests/parity-pages.test.tsx`; the server side `tests/integration/web/test_classic_switch.py`
-  and the browser suite `tests/integration/web/test_app_b4_browser.py` (Chromium and Firefox).
+- The classic pages are gone: a classic address answers 303 to the same page here
+  (`src/argus/web/classic.py`), a classic form address answers 410. The menu opens one server page,
+  "Your access". Tests: `tests/parity-pages.test.tsx`; the server side
+  `tests/integration/web/test_classic_redirects.py`.
 - The access banner (`shell/AccessBanner.tsx`, Q-B4 review): `GET /api/v1/session` carries
   `break_glass` and `unverified` ({since, why}); the shell shows what the classic pages showed on
   every page (an emergency session; ELK sign-in ARGUS cannot confirm). `useSessionWatch` reads the

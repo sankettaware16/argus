@@ -1,4 +1,4 @@
-"""AR4b after the review (D-181) through ``/api/v1`` and the classic dashboard, on the web's own
+"""AR4b after the review (D-181) through ``/api/v1``, on the web's own
 database login: a notice recorded by mistake is withdrawn by a manager (and only a manager, with
 the CSRF token, on a case that is notified); the new destinations a notified device reached are
 listed on the case page; the block list is only counted, never built, for the case page; the
@@ -186,24 +186,20 @@ async def test_an_investigation_of_a_case_that_ended_is_still_known_in_the_api(
 # --------------------------------------------------------------------------- the dashboard
 
 
-async def test_the_dashboards_notified_table_shows_the_reminders_that_are_due(
+async def test_the_dashboards_notified_rows_list_the_reminders_that_are_due(
     world: World,
 ) -> None:
     case = await a_case(world)
     async with world.app() as http:
         csrf = await sign_in(http, "mina")
         await post(http, csrf, f"/cases/{case}/notices", told())
-        quiet = await http.get("/dashboard")
-        assert "none due" in quiet.text
+        quiet = (await http.get(f"{V1}/dashboard")).json()
+        assert quiet["notified"][0]["reminders"] == []
         async with world.runtime.begin() as conn:
             await conn.execute(
                 text("INSERT INTO case_reminders (case_id, kind, why) VALUES (:c, 'notify_again',"
                      " 'Still active 7 days after the owner was told: consider telling the owner"
                      " again.')"), {"c": case},
             )  # fmt: skip
-        board = await http.get("/dashboard")
         api = (await http.get(f"{V1}/dashboard")).json()
-    assert "Suggestions" in board.text
-    assert "consider telling the owner again" in board.text
-    assert "none due" not in board.text
     assert api["notified"][0]["reminders"] == ["notify_again"]

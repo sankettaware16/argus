@@ -669,7 +669,8 @@ def test_the_runtime_grants_match_migration_0003(monkeypatch: pytest.MonkeyPatch
         f"GRANT SELECT, INSERT ({columns}) ON audit_events TO argus_runtime",
     ]
     assert set(roles.RUNTIME_GRANTS) == {
-        "alembic_version", "audit_events",
+        "alembic_version", "audit_events", "admin_changes", "admin_sealed", "admin_state",
+        "user_links", "admin_jobs", "admin_job_secrets",
         "siem_switches", "siem_state", "siem_requests", "siem_live_sessions",
         "alert_records", "collector_cursors", "reconciliation_runs", "coverage_gaps",
         "investigations", "investigation_alerts", "investigation_entities", "entities", "jobs",

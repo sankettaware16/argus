@@ -47,11 +47,11 @@ function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onP
   );
 }
 
-/** More's entries, the classic queues under their own heading. */
+/** More's entries; the classic queues and the administration pages each under their own heading. */
 function MoreList({ onPick }: { onPick?: () => void }) {
   const items = useMoreItems();
   const plain = items.filter((i) => i.group === undefined);
-  const classic = items.filter((i) => i.group === "Classic queues");
+  const groups = ["Classic queues", "Administration"].map((name) => ({ name, items: items.filter((i) => i.group === name) })).filter((g) => g.items.length > 0);
   return (
     <ul className="m-0 flex list-none flex-col gap-0.5 p-0" data-testid="more-list">
       {plain.map((item) => (
@@ -59,18 +59,18 @@ function MoreList({ onPick }: { onPick?: () => void }) {
           <NavLink item={item} onPick={onPick} />
         </li>
       ))}
-      {classic.length > 0 && (
-        <li>
-          <p className="m-0 mt-2 px-2 text-xs font-semibold tracking-wide text-muted uppercase">Classic queues</p>
+      {groups.map((g) => (
+        <li key={g.name}>
+          <p className="m-0 mt-2 px-2 text-xs font-semibold tracking-wide text-muted uppercase">{g.name}</p>
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-            {classic.map((item) => (
+            {g.items.map((item) => (
               <li key={item.label}>
                 <NavLink item={item} onPick={onPick} />
               </li>
             ))}
           </ul>
         </li>
-      )}
+      ))}
     </ul>
   );
 }
@@ -242,7 +242,7 @@ function useGlobalKeys(onHelp: () => void) {
   }, [navigate, onHelp, ownHelp]);
 }
 
-/** The person's name opens: Your access · Classic pages · Keyboard shortcuts · Sign out (§4.1). */
+/** The person's name opens: Your access · Keyboard shortcuts · Sign out (§4.1). */
 function AccountMenu({ phone = false, onPick }: { phone?: boolean; onPick?: () => void }) {
   const session = useSession();
   const { announce } = useAnnounce();
@@ -377,7 +377,7 @@ export function AppShell() {
         <h1 className="text-xl font-semibold">ARGUS cannot start this page</h1>
         <p>Your session could not be read. If you were signed out, the sign-in page opens by itself.</p>
         <p>
-          <a href="/signin?next=/app">Sign in</a> · <a href="/classic">Use the classic pages</a>
+          <a href="/signin?next=/app">Sign in</a>
         </p>
       </main>
     );

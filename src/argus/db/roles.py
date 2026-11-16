@@ -37,6 +37,11 @@ APPROVALS_FUNCTIONS = (
     " timestamptz, text, jsonb)",
     "argus_approval_decide(text, bigint, text, text, timestamptz, jsonb, text, jsonb)",
     "argus_identity_record(bigint, text, text, text, jsonb)",
+    # users and roles in the app (D-327): each checks an administrator's session or a link
+    "argus_user_create(text, text, text, text[], text, timestamptz)",
+    "argus_user_capabilities(text, bigint, text[])",
+    "argus_user_link(text, bigint, text, timestamptz)",
+    "argus_link_use(text, text)",
 )
 # What the runtime login may execute: ARGUS's own closure proposals and
 # re-confirmation requests, which still need a person's approval; the send-time check's moves
@@ -51,6 +56,7 @@ RUNTIME_FUNCTIONS = (
 WEB_FUNCTIONS = APPROVALS_FUNCTIONS
 OWNER_ONLY_FUNCTIONS = (
     "argus_approval_session_user(text)",
+    "argus_admin_session_user(text)",
     "argus_live_check_at(jsonb, bigint, text, text)",
     "argus_chain_append()",
     "argus_chain_flush()",
@@ -1158,6 +1164,15 @@ RUNTIME_GRANTS: dict[str, TableGrant] = {
         update=_RISK_GRAY_COLUMNS,
     ),
     "risk_mode": TableGrant(select=True, insert=("id", "present", "at"), update=("present", "at")),
+    # argus-admin (D-327): applies the app's setting changes and publishes its state
+    "admin_changes": TableGrant(select=True, update=("state", "outcome", "finished_at")),
+    "admin_sealed": TableGrant(select=True),
+    "user_links": TableGrant(select=True),
+    "admin_jobs": TableGrant(select=True, update=("state", "result", "finished_at")),
+    "admin_job_secrets": TableGrant(select=True, delete=True),  # deleted once its job ran
+    "admin_state": TableGrant(
+        select=True, insert=("name", "state", "updated_at"), update=("state", "updated_at")
+    ),
     # ARGUS AI's reading of a presented incident (D-324): written once per version, never changed
     "risk_readings": TableGrant(
         select=True,
@@ -1589,6 +1604,28 @@ API_GRANTS: dict[str, TableGrant] = {
     "risk_mode": TableGrant(select=True),
     "risk_groups": TableGrant(select=True),
     "risk_readings": TableGrant(select=True),  # ARGUS AI's reading in the engine block (D-324)
+    # the app's Settings (D-327): a change is inserted; a sealed key inserted, never read back
+    "admin_changes": TableGrant(
+        select=True,
+        insert=(
+            "batch",
+            "key",
+            "value",
+            "reset",
+            "risk",
+            "created_by",
+            "created_at",
+            "stepped_up_at",
+        ),
+    ),
+    "admin_sealed": TableGrant(insert=("change_id", "sealed")),
+    # who has an unused one-time link (D-327); accounts change through argus_user_* only
+    "user_links": TableGrant(select=True),
+    "admin_jobs": TableGrant(
+        select=True, insert=("kind", "params", "created_by", "created_at", "stepped_up_at")
+    ),
+    "admin_job_secrets": TableGrant(insert=("job_id", "name", "sealed")),
+    "admin_state": TableGrant(select=True),
     "gold_items": TableGrant(select=True),
     "gold_labels": TableGrant(
         select=True, insert=("set_name", "investigation_id", "user_id", "outcome", "note")

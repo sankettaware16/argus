@@ -1,4 +1,4 @@
-"""Q-B4: where a classic page's address leads in the app, and which classic forms are refused
+"""Where a classic page's address leads in the app, and which classic forms are refused
 (``argus.web.classic``): fixed paths and a parsed UUID only, a query kept only where the app reads
 it the same way."""
 
@@ -31,6 +31,12 @@ ID = "54c802b6-fb1a-5614-a6e4-f76c773213d2"
          "/app/inbox?view=all&rule=r-1&sort=urgent"),
         ("/", "view=all&kind=ip&value=10.0.0.1", "/app/inbox?view=all&kind=ip&value=10.0.0.1"),
         ("/", "offset=100", "/app/inbox"),
+        ("/inbox", "", "/app/inbox"),
+        ("/inbox", "view=all&offset=5&x=1", "/app/inbox?view=all"),
+        ("/classic", "", "/app"),
+        (f"/cases/{ID}", "", f"/app/cases/{ID}"),
+        (f"/cases/{ID.upper()}", "version=2", f"/app/cases/{ID}"),
+        (f"/cases/{ID}/report", "version=2", f"/app/incidents/{ID}?tab=report"),
         ("/dashboard", "", "/app/dashboard"),
         ("/dashboard", "range=24h&severity=high&severity=critical&state=unreviewed",
          "/app/dashboard?range=24h&severity=high&severity=critical&state=unreviewed"),
@@ -58,7 +64,8 @@ def test_each_classic_page_leads_to_its_page_in_the_app(path: str, query: str, t
 
 @pytest.mark.parametrize(
     "path",
-    ["/access", "/signin", "/stepup", "/login", "/logout", "/classic", "/go/case/x", "/api/rules",
+    ["/access", "/signin", "/stepup", "/login", "/logout", "/go/case/x", "/api/rules", "/cases",
+     "/cases/not-a-uuid", f"/cases/{ID}/other", "/inbox/x",
      "/api/v1/rules", "/app", "/app/rules", "/static/style.css", "/rules/", "/Rules",
      "/investigations/not-a-uuid", f"/investigations/{ID}/other", f"/investigations/{ID}/",
      "/investigations", "/patterns/review", "//evil.example/x", "/rules/../x"],
@@ -184,21 +191,18 @@ def test_a_classic_form_with_an_id_that_does_not_parse_is_refused_and_points_at_
     assert classic.action_target(f"/investigations/{segment}/{action}") == "/app"
 
 
-def test_every_classic_form_route_of_the_app_is_refused() -> None:
-    """A drift guard: a new classic route that changes something (a form post outside /api and
-    the sign-in family) must be covered by ``action_target``, or this fails."""
+def test_no_classic_form_is_a_route_of_the_app() -> None:
+    """A drift guard: the only form posts outside /api are the sign-in family (with the one-time
+    password link, D-327); a classic form is
+    answered by ``action_target``'s refusal, never by a route that could do the action."""
     engine = create_async_engine("postgresql+psycopg://openapi@127.0.0.1:1/none")  # never used
     app = create_app(engine)
-    own = {"/signin", "/stepup", "/login", "/logout"}
-    forms = [
+    own = {"/signin", "/stepup", "/login", "/logout", "/welcome"}  # /welcome: a one-time link
+    forms = {
         route.path
         for route in app.routes
         if isinstance(route, Route)
         and "POST" in (route.methods or ())
         and not route.path.startswith("/api")
-        and route.path not in own
-    ]
-    assert len(forms) >= 6, forms  # the six classic forms
-    for path in forms:
-        shown = path.replace("{investigation_id}", str(uuid.UUID(ID)))
-        assert classic.action_target(shown) is not None, path
+    }
+    assert forms == own

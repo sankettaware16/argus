@@ -3,66 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ARGUS{% endblock %} · ARGUS Inbox</title>
+  <title>{% block title %}ARGUS{% endblock %} · ARGUS</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body{% if me and classic_fallback %} class="read-only"{% endif %}>
+<body>
   <a class="skip" href="#main">Skip to content</a>
   {% if me %}
-  {% set path = request.url.path %}
-  {% set here = (request.query_params.get("view") or "attention") if path == "/" else path %}
-  {% macro link(here, href, key, title, text) %}<a {% if here == key or (key != "/" and here.startswith(key ~ "/")) %}aria-current="page" {% endif %}href="{{ href }}" title="{{ title }}">{{ text }}</a>{% endmacro %}
-  <div class="shell">
-    <aside class="side">
-      <a class="brand" href="/">ARGUS<span class="brand-sub">alert inbox · {{ organisation().name }}</span></a>
-      <nav aria-label="Main">
-        {{ link(here, "/dashboard", "/dashboard", "Alerts, investigations and incidents at a glance, with filters", "Dashboard") }}
-        <p class="nav-group">Review</p>
-        {{ link(here, "/", "attention", "Start here: follow-ups, changed and severe investigations", "Needs attention") }}
-        {{ link(here, "/?view=open", "open", "Everything nobody has reviewed yet", "Not reviewed") }}
-        {{ link(here, "/?view=reviewed", "reviewed", "Investigations already decided, with who and when", "Reviewed") }}
-        {{ link(here, "/?view=all", "all", "Every investigation", "All") }}
-        <p class="nav-group">Browse</p>
-        {{ link(here, "/rules", "/rules", "Investigations per detection rule", "By rule") }}
-        {{ link(here, "/hosts", "/hosts", "Investigations per host, IP, domain or user", "By host or IP") }}
-        {{ link(here, "/patterns", "/patterns", "Groups of alike investigations to review at once", "Patterns") }}
-        <p class="nav-group">AI</p>
-        {{ link(here, "/proposals", "/proposals", "Outcomes ARGUS proposes, to confirm in one click", "Proposals") }}
-        {{ link(here, "/tuning", "/tuning", "Weekly suggestions to make noisy rules quieter", "Tuning") }}
-        {{ link(here, "/metrics", "/metrics", "How the AI is doing: results, waiting work, cost", "Metrics") }}
-        {{ link(here, "/gold", "/gold", "The answer key that measures how often ARGUS is right", "Gold set") }}
-        <p class="nav-group">System</p>
-        {{ link(here, "/access", "/access", "What you may do in ARGUS, and why", "Your access") }}
-        {{ link(here, "/health", "/health", "Is data arriving; any gaps", "Health") }}
-        {{ link(here, "/glossary", "/glossary", "What every word and page means", "Glossary") }}
-      </nav>
-    </aside>
-    <div class="page">
-      {% if me.mode == "break_glass" %}
-      <p class="banner" role="alert"><strong>Emergency (break-glass) session.</strong> ELK could not be asked, so you can view and review only. Nothing you do is sent to Kibana, and every action is recorded.</p>
-      {% elif me.unverified_since %}
-      <p class="banner" role="status"><strong>ARGUS cannot confirm your access in ELK right now.</strong> You can read{% if me.unverified_why == "outage" %} and review (reviews are saved here, not sent to Kibana){% endif %}; changes that need ELK wait. <a href="/access">Details</a></p>
-      {% endif %}
-      {% if classic_fallback %}
-      <p class="banner" role="status"><strong>Classic pages, read-only.</strong> The new app at <a href="/app">/app</a> does everything these pages do; reviewing, confirming and asking the AI investigator work there only.</p>
-      {% endif %}
-      <header class="top">
-        <a class="costbar" id="costbar" href="/metrics" title="Spend on the paid AI provider; details on Metrics">
-          <span class="cost-label">AI cost</span>
-          <meter id="cost-meter" min="0" max="10" value="0" low="5" high="8" optimum="0" aria-label="AI cost this month against the monthly cap"></meter>
-          <span id="cost-text">see Metrics</span>
-        </a>
-        <script src="/static/cost.js" defer></script>
-        <form class="logout" method="post" action="/logout">
-          <input type="hidden" name="csrf_token" value="{{ me.csrf_token }}">
-          <span>{{ me.display_name }}</span>
-          <button type="submit">Log out</button>
-        </form>
-      </header>
-      <main id="main">
-        {% block main %}{% endblock %}
-      </main>
-    </div>
+  <div class="page">
+    {% if me.mode == "break_glass" %}
+    <p class="banner" role="alert"><strong>Emergency (break-glass) session.</strong> ELK could not be asked, so you can view and review only. Nothing you do is sent to Kibana, and every action is recorded.</p>
+    {% elif me.unverified_since %}
+    <p class="banner" role="status"><strong>ARGUS cannot confirm your access in ELK right now.</strong> You can read{% if me.unverified_why == "outage" %} and review (reviews are saved here, not sent to Kibana){% endif %}; changes that need ELK wait. <a href="/access">Details</a></p>
+    {% endif %}
+    <header class="top">
+      <a class="brand" href="/app">ARGUS<span class="brand-sub">{{ organisation().name }}</span></a>
+      <form class="logout" method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{ me.csrf_token }}">
+        <span>{{ me.display_name }}</span>
+        <button type="submit">Log out</button>
+      </form>
+    </header>
+    <main id="main">
+      {% block main %}{% endblock %}
+    </main>
   </div>
   {% else %}
   <header class="top"><span class="brand">ARGUS</span></header>

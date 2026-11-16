@@ -123,8 +123,8 @@ async def test_a_signed_out_page_goes_to_the_sign_in_page(rig: Rig) -> None:
     rig.clock.advance(minutes=5)
     await http.get("/api/investigations")
     await rig.settle()
-    page = await http.get("/rules")
-    assert (page.status_code, page.headers["location"]) == (303, "/signin?next=%2Frules&why=ended")
+    page = await http.get("/access")
+    assert (page.status_code, page.headers["location"]) == (303, "/signin?next=%2Faccess&why=ended")
 
 
 # --------------------------------------------------------------------------- changes
@@ -255,7 +255,7 @@ async def test_in_an_outage_sessions_read_and_review_for_an_hour_and_nothing_goe
     await rig.settle()
     row = await rig.one("SELECT unverified_since, unverified_why FROM user_sessions")
     assert (row.unverified_since, row.unverified_why) == (rig.clock.now, "outage")
-    banner = (await http.get("/")).text
+    banner = (await http.get("/access")).text
     assert "cannot confirm your access in ELK" in banner
     # the app's banner reads the same from the session answer (Q-B4 review 2)
     session = (await http.get("/api/v1/session")).json()

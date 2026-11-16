@@ -260,12 +260,12 @@ async def test_a_page_after_the_session_ended_says_so(
     async with browser(web_engine, clock) as http:
         await sign_in(http)
         clock.at += timedelta(minutes=31)
-        page = await http.get("/rules")
+        page = await http.get("/access")
         assert (page.status_code, page.headers["location"]) == (
-            303, "/signin?next=%2Frules&why=ended")  # fmt: skip
+            303, "/signin?next=%2Faccess&why=ended")  # fmt: skip
         shown = await http.get(page.headers["location"])
         assert "Your session ended. Sign in again to continue." in shown.text
-        assert 'name="next" value="/rules"' in shown.text
+        assert 'name="next" value="/access"' in shown.text
 
 
 # --------------------------------------------------------------------------- the session
@@ -303,7 +303,7 @@ async def test_background_requests_never_keep_a_session_alive(
         await sign_in(http)
         for minutes in (5, 12, 20, 29):  # the cost bar and the app's polls
             clock.at = NOW + timedelta(minutes=minutes)
-            for path in ("/api/cost", "/api/v1/session", "/api/v1/counts"):
+            for path in ("/api/v1/cost", "/api/v1/session", "/api/v1/counts"):
                 got = await http.get(path, headers=background)
                 assert got.status_code == 200, (path, minutes)
         assert await last_seen(seeded) == [NOW]  # untouched
@@ -334,7 +334,7 @@ async def test_a_session_ends_at_its_absolute_end_however_active(
             assert (await http.get("/api/v1/counts")).status_code == 200, clock.at
         clock.at = NOW + timedelta(hours=8, seconds=1)
         assert (await http.get("/api/v1/counts")).status_code == 401
-        assert (await http.get("/rules")).status_code == 303
+        assert (await http.get("/access")).status_code == 303
     short = WebSettings(session_idle=timedelta(minutes=5), session_absolute=timedelta(minutes=10))
     clock = Clock()
     async with browser(web_engine, clock, short) as http:
@@ -469,13 +469,13 @@ async def test_other_sites_get_no_api_but_may_link_to_pages(
     async with browser(web_engine) as http:
         await sign_in(http)
         site = {"Sec-Fetch-Site": "cross-site"}
-        for path in ("/api/v1/session", "/api/v1/investigations", "/api/rules", "/api/cost"):
+        for path in ("/api/v1/session", "/api/v1/investigations", "/api/rules", "/api/v1/cost"):
             got = await http.get(path, headers=site)
             assert got.status_code == 403, path
         v1 = await http.get("/api/v1/counts", headers={"Sec-Fetch-Site": "same-site"})
         assert v1.json() == {"detail": "the API answers this site's own pages only",
                              "code": "origin"}  # fmt: skip
-        page = await http.get("/rules", headers={**site, "Sec-Fetch-Mode": "navigate"})
+        page = await http.get("/access", headers={**site, "Sec-Fetch-Mode": "navigate"})
         assert page.status_code == 200  # a navigation from elsewhere is a page view
         mine = await http.get("/api/v1/session", headers={"Sec-Fetch-Site": "same-origin"})
         assert mine.status_code == 200
@@ -525,13 +525,13 @@ async def test_permanent_links(seeded: AsyncEngine, web_engine: AsyncEngine) -> 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url=BASE) as http:
         went = await http.get(f"/go/investigation/{inv}")
-        assert (went.status_code, went.headers["location"]) == (303, f"/investigations/{inv}")
+        assert (went.status_code, went.headers["location"]) == (303, f"/app/investigations/{inv}")
         upper = await http.get(f"/go/investigation/{str(inv).upper()}")
-        assert upper.headers["location"] == f"/investigations/{inv}"  # one canonical form
+        assert upper.headers["location"] == f"/app/investigations/{inv}"  # one canonical form
         bounced = await http.get(f"/go/investigation/{inv}",
                                  headers={"Sec-Fetch-Site": "cross-site"})  # fmt: skip
         assert bounced.status_code == 200  # opened again from this site: the cookie comes
-        assert f'content="0;url=/investigations/{inv}"' in bounced.text
+        assert f'content="0;url=/app/investigations/{inv}"' in bounced.text
         assert "<script" not in bounced.text
         assert (await http.get("/go/investigation/not-an-id")).status_code == 404  # a page (F8)
         case = await http.get(f"/go/case/{inv}")  # Q-B3 set the case page: /app/cases/<id>
@@ -559,9 +559,9 @@ async def test_a_signed_out_link_goes_through_sign_in_and_back(
         page = await http.get(link.headers["location"])
         assert page.status_code == 303
         query = parse_qs(urlsplit(page.headers["location"]).query)
-        assert query == {"next": [f"/investigations/{inv}"]}
+        assert query == {"next": [f"/app/investigations/{inv}"]}
         signed = await sign_in(http, next_=query["next"][0])
-        assert signed.headers["location"] == f"/investigations/{inv}"
+        assert signed.headers["location"] == f"/app/investigations/{inv}"
         assert (await http.get(signed.headers["location"])).status_code == 200
 
 

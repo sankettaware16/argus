@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SearchData, SearchErrors, SearchResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
+import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, EndUserSessionsData, EndUserSessionsErrors, EndUserSessionsResponses, GetAdminJobData, GetAdminJobErrors, GetAdminJobResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingChangesData, GetSettingChangesErrors, GetSettingChangesResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, InspectTlsData, InspectTlsErrors, InspectTlsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, ListUsersData, ListUsersErrors, ListUsersResponses, MakeUserLinkData, MakeUserLinkErrors, MakeUserLinkResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SaveSettingsData, SaveSettingsErrors, SaveSettingsResponses, SearchData, SearchErrors, SearchResponses, SetUserAccessData, SetUserAccessErrors, SetUserAccessResponses, SetUserCapabilitiesData, SetUserCapabilitiesErrors, SetUserCapabilitiesResponses, StartSetupData, StartSetupErrors, StartSetupResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,210 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Get Changes
+ *
+ * What became of one save, or the latest fifty changes.
+ */
+export const getSettingChanges = <ThrowOnError extends boolean = false>(options?: Options<GetSettingChangesData, ThrowOnError>): RequestResult<GetSettingChangesResponses, GetSettingChangesErrors, ThrowOnError> => (options?.client ?? client).get<GetSettingChangesResponses, GetSettingChangesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/changes',
+    ...options
+});
+
+/**
+ * Save Settings
+ *
+ * One save: checked here, applied together by argus-admin within seconds.
+ */
+export const saveSettings = <ThrowOnError extends boolean = false>(options: Options<SaveSettingsData, ThrowOnError>): RequestResult<SaveSettingsResponses, SaveSettingsErrors, ThrowOnError> => (options.client ?? client).post<SaveSettingsResponses, SaveSettingsErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/changes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Inspect Tls
+ *
+ * The certificates an address presents, read by argus-admin (nothing is trusted).
+ */
+export const inspectTls = <ThrowOnError extends boolean = false>(options: Options<InspectTlsData, ThrowOnError>): RequestResult<InspectTlsResponses, InspectTlsErrors, ThrowOnError> => (options.client ?? client).post<InspectTlsResponses, InspectTlsErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/inspect-tls',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Start Setup
+ *
+ * The first-time setup: argus-admin runs `argus init` with these answers and keys.
+ */
+export const startSetup = <ThrowOnError extends boolean = false>(options: Options<StartSetupData, ThrowOnError>): RequestResult<StartSetupResponses, StartSetupErrors, ThrowOnError> => (options.client ?? client).post<StartSetupResponses, StartSetupErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/setup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Job
+ *
+ * What became of a job.
+ */
+export const getAdminJob = <ThrowOnError extends boolean = false>(options: Options<GetAdminJobData, ThrowOnError>): RequestResult<GetAdminJobResponses, GetAdminJobErrors, ThrowOnError> => (options.client ?? client).get<GetAdminJobResponses, GetAdminJobErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/{job_id}',
+    ...options
+});
+
+/**
+ * Get Settings
+ *
+ * Every setting the app shows, with its value here and where it is set.
+ */
+export const getSettings = <ThrowOnError extends boolean = false>(options?: Options<GetSettingsData, ThrowOnError>): RequestResult<GetSettingsResponses, GetSettingsErrors, ThrowOnError> => (options?.client ?? client).get<GetSettingsResponses, GetSettingsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/settings',
+    ...options
+});
+
+/**
+ * List Users
+ *
+ * Every person's account, what it may do, and the roles to choose from.
+ */
+export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users',
+    ...options
+});
+
+/**
+ * Create User
+ *
+ * A local account and the one-time link its person opens to set their password.
+ */
+export const createUser = <ThrowOnError extends boolean = false>(options: Options<CreateUserData, ThrowOnError>): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> => (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Access
+ *
+ * Switch an account off (every session ends at once) or on again.
+ */
+export const setUserAccess = <ThrowOnError extends boolean = false>(options: Options<SetUserAccessData, ThrowOnError>): RequestResult<SetUserAccessResponses, SetUserAccessErrors, ThrowOnError> => (options.client ?? client).put<SetUserAccessResponses, SetUserAccessErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users/{user_id}/access',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Capabilities
+ *
+ * Change what an account may do; its open sessions see it at their next request.
+ */
+export const setUserCapabilities = <ThrowOnError extends boolean = false>(options: Options<SetUserCapabilitiesData, ThrowOnError>): RequestResult<SetUserCapabilitiesResponses, SetUserCapabilitiesErrors, ThrowOnError> => (options.client ?? client).put<SetUserCapabilitiesResponses, SetUserCapabilitiesErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users/{user_id}/capabilities',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Make Link
+ *
+ * A new one-time link for this person to set a new password (older links end).
+ */
+export const makeUserLink = <ThrowOnError extends boolean = false>(options: Options<MakeUserLinkData, ThrowOnError>): RequestResult<MakeUserLinkResponses, MakeUserLinkErrors, ThrowOnError> => (options.client ?? client).post<MakeUserLinkResponses, MakeUserLinkErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users/{user_id}/link',
+    ...options
+});
+
+/**
+ * End Sessions
+ *
+ * End every open session of this account (they sign in again).
+ */
+export const endUserSessions = <ThrowOnError extends boolean = false>(options: Options<EndUserSessionsData, ThrowOnError>): RequestResult<EndUserSessionsResponses, EndUserSessionsErrors, ThrowOnError> => (options.client ?? client).post<EndUserSessionsResponses, EndUserSessionsErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/users/{user_id}/sessions/end',
+    ...options
+});
 
 /**
  * List Approvals

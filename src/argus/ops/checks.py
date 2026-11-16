@@ -1276,12 +1276,12 @@ async def notices_check(settings: Settings) -> list[CheckResult]:
 
 
 def _yaml_files(config_file: Path | None) -> list[Path]:
-    """The config file and the YAML files read beside it (local.yaml, site.yaml)."""
+    """The config file and the YAML files read beside it (admin.yaml, local.yaml, site.yaml)."""
     if config_file is None:
         return []
-    from argus.config.settings import LOCAL_FILE, SITE_FILE
+    from argus.config.settings import ADMIN_FILE, LOCAL_FILE, SITE_FILE
 
-    beside = [config_file.parent / name for name in (LOCAL_FILE, SITE_FILE)]
+    beside = [config_file.parent / name for name in (ADMIN_FILE, LOCAL_FILE, SITE_FILE)]
     return [config_file, *(path for path in beside if path != config_file and path.is_file())]
 
 

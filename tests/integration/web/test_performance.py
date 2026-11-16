@@ -137,8 +137,6 @@ async def test_every_read_is_fast_on_30_days(big: AsyncEngine, web_engine: Async
             "rules": ["/api/rules"] * SAMPLES,
             "entities": ["/api/entities"] * SAMPLES,
             "health": ["/api/health"] * SAMPLES,
-            "page: inbox": ["/"] * SAMPLES,
-            "page: detail": [f"/investigations/{i}" for i in sample],
             # /api/v1 (Q-A1; criterion 14's list endpoints)
             "v1 attention": ["/api/v1/investigations"] * SAMPLES,
             "v1 open, paged": [f"/api/v1/investigations?view=open&offset={o}" for o in offsets],

@@ -29,6 +29,137 @@ export type Accepted = {
 };
 
 /**
+ * AccountAccessIn
+ */
+export type AccountAccessIn = {
+    /**
+     * Disabled
+     */
+    disabled: boolean;
+};
+
+/**
+ * AccountLinkOut
+ */
+export type AccountLinkOut = {
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Link
+     */
+    link: string;
+    user: AccountOut;
+};
+
+/**
+ * AccountNewIn
+ */
+export type AccountNewIn = {
+    /**
+     * Capabilities
+     */
+    capabilities?: Array<'view' | 'see_logs' | 'review' | 'answer_gold' | 'manage_cases' | 'reopen' | 'approve' | 'admin'> | null;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Role
+     */
+    role?: 'viewer' | 'analyst' | 'lead' | 'admin' | null;
+    /**
+     * Username
+     */
+    username: string;
+};
+
+/**
+ * AccountOut
+ */
+export type AccountOut = {
+    /**
+     * Break Glass
+     */
+    break_glass: boolean;
+    /**
+     * Capabilities
+     */
+    capabilities: Array<'view' | 'see_logs' | 'review' | 'answer_gold' | 'manage_cases' | 'reopen' | 'approve' | 'admin'>;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Disabled
+     */
+    disabled: boolean;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Last Seen At
+     */
+    last_seen_at: string | null;
+    /**
+     * Link Open
+     */
+    link_open: boolean;
+    /**
+     * Managed In Elk
+     */
+    managed_in_elk: boolean;
+    /**
+     * Open Sessions
+     */
+    open_sessions: number;
+    /**
+     * Role
+     */
+    role: 'viewer' | 'analyst' | 'lead' | 'admin' | 'custom' | 'elk';
+    /**
+     * Username
+     */
+    username: string;
+};
+
+/**
+ * AccountRoleIn
+ *
+ * A role, or a set of capabilities (each brings what it needs); not both.
+ */
+export type AccountRoleIn = {
+    /**
+     * Capabilities
+     */
+    capabilities?: Array<'view' | 'see_logs' | 'review' | 'answer_gold' | 'manage_cases' | 'reopen' | 'approve' | 'admin'> | null;
+    /**
+     * Role
+     */
+    role?: 'viewer' | 'analyst' | 'lead' | 'admin' | null;
+};
+
+/**
+ * AccountsOut
+ */
+export type AccountsOut = {
+    /**
+     * Roles
+     */
+    roles: Array<RoleOut>;
+    /**
+     * Users
+     */
+    users: Array<AccountOut>;
+};
+
+/**
  * Action
  */
 export type Action = {
@@ -334,6 +465,20 @@ export type AppliedOut = {
      * Version
      */
     version: number;
+};
+
+/**
+ * ApplierOut
+ */
+export type ApplierOut = {
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Running
+     */
+    running: boolean;
 };
 
 /**
@@ -3962,6 +4107,16 @@ export type IncidentReportRowOut = {
 };
 
 /**
+ * InspectIn
+ */
+export type InspectIn = {
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
  * InvestigationBrief
  */
 export type InvestigationBrief = {
@@ -4304,6 +4459,38 @@ export type Item = {
      * Values
      */
     values?: Array<Value>;
+};
+
+/**
+ * JobOut
+ */
+export type JobOut = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Finished At
+     */
+    finished_at: string | null;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Kind
+     */
+    kind: 'inspect_tls' | 'setup';
+    /**
+     * Result
+     */
+    result: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * State
+     */
+    state: 'pending' | 'running' | 'done' | 'failed';
 };
 
 /**
@@ -7175,6 +7362,28 @@ export type ReviewedIn = {
 };
 
 /**
+ * RoleOut
+ */
+export type RoleOut = {
+    /**
+     * About
+     */
+    about: string;
+    /**
+     * Capabilities
+     */
+    capabilities: Array<'view' | 'see_logs' | 'review' | 'answer_gold' | 'manage_cases' | 'reopen' | 'approve' | 'admin'>;
+    /**
+     * Key
+     */
+    key: 'viewer' | 'analyst' | 'lead' | 'admin';
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
  * Row
  *
  * A line of the evidence table: a known fact and how it bears on the verdict.
@@ -7428,6 +7637,28 @@ export type SearchOut = {
 };
 
 /**
+ * SectionOut
+ */
+export type SectionOut = {
+    /**
+     * About
+     */
+    about: string;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Settings
+     */
+    settings: Array<SettingOut>;
+};
+
+/**
  * SeenDone
  */
 export type SeenDone = {
@@ -7575,6 +7806,196 @@ export type SessionOut = {
     stepped_up_at: string | null;
     unverified: UnverifiedOut | null;
     user: UserOut;
+};
+
+/**
+ * SettingChangeIn
+ */
+export type SettingChangeIn = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Reset
+     */
+    reset?: boolean;
+    /**
+     * Value
+     */
+    value?: unknown;
+};
+
+/**
+ * SettingChangeOut
+ */
+export type SettingChangeOut = {
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Finished At
+     */
+    finished_at: string | null;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Outcome
+     */
+    outcome: string | null;
+    /**
+     * State
+     */
+    state: 'pending' | 'applying' | 'applied' | 'refused' | 'rolled_back';
+};
+
+/**
+ * SettingChangesIn
+ */
+export type SettingChangesIn = {
+    /**
+     * Changes
+     */
+    changes: Array<SettingChangeIn>;
+    /**
+     * Confirm
+     */
+    confirm?: string | null;
+};
+
+/**
+ * SettingChangesOut
+ */
+export type SettingChangesOut = {
+    /**
+     * Batch
+     */
+    batch: string | null;
+    /**
+     * Changes
+     */
+    changes: Array<SettingChangeOut>;
+};
+
+/**
+ * SettingOut
+ */
+export type SettingOut = {
+    /**
+     * Choices
+     */
+    choices: Array<string>;
+    /**
+     * Default
+     */
+    default: unknown;
+    /**
+     * Editable
+     */
+    editable: boolean;
+    /**
+     * Help
+     */
+    help: string;
+    /**
+     * Homes
+     */
+    homes: Array<string>;
+    /**
+     * In App
+     */
+    in_app: boolean;
+    /**
+     * Is Set
+     */
+    is_set?: boolean | null;
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Kind
+     */
+    kind: 'bool' | 'int' | 'float' | 'text' | 'choice' | 'list' | 'duration' | 'date' | 'path' | 'secret' | 'map';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Maximum
+     */
+    maximum: number | null;
+    /**
+     * Minimum
+     */
+    minimum: number | null;
+    /**
+     * Optional
+     */
+    optional: boolean;
+    /**
+     * Risk
+     */
+    risk: 'normal' | 'sensitive' | 'siem_write';
+    /**
+     * Value
+     */
+    value?: unknown;
+};
+
+/**
+ * SettingsOut
+ */
+export type SettingsOut = {
+    applier: ApplierOut;
+    /**
+     * Confirm Words
+     */
+    confirm_words: string;
+    /**
+     * Problem
+     */
+    problem: string | null;
+    /**
+     * Sections
+     */
+    sections: Array<SectionOut>;
+    /**
+     * Setup Needed
+     */
+    setup_needed: boolean;
+};
+
+/**
+ * SetupIn
+ *
+ * The first-time setup's answers (``argus init``'s names: ``siem.url``, ``siem.trust``,
+ * ``siem.fingerprint``, ``organisation.name`` ...) and its keys, which are sealed at once.
+ */
+export type SetupIn = {
+    /**
+     * Answers
+     */
+    answers: {
+        [key: string]: unknown;
+    };
+    /**
+     * Keys
+     */
+    keys?: {
+        [key: string]: string;
+    };
 };
 
 /**
@@ -8911,6 +9332,548 @@ export type YouOut = {
      */
     why_not: string | null;
 };
+
+export type GetSettingChangesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Batch
+         */
+        batch?: string;
+    };
+    url: '/api/v1/admin/changes';
+};
+
+export type GetSettingChangesErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetSettingChangesError = GetSettingChangesErrors[keyof GetSettingChangesErrors];
+
+export type GetSettingChangesResponses = {
+    /**
+     * Successful Response
+     */
+    200: SettingChangesOut;
+};
+
+export type GetSettingChangesResponse = GetSettingChangesResponses[keyof GetSettingChangesResponses];
+
+export type SaveSettingsData = {
+    body: SettingChangesIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/changes';
+};
+
+export type SaveSettingsErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SaveSettingsError = SaveSettingsErrors[keyof SaveSettingsErrors];
+
+export type SaveSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    202: SettingChangesOut;
+};
+
+export type SaveSettingsResponse = SaveSettingsResponses[keyof SaveSettingsResponses];
+
+export type InspectTlsData = {
+    body: InspectIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/inspect-tls';
+};
+
+export type InspectTlsErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type InspectTlsError = InspectTlsErrors[keyof InspectTlsErrors];
+
+export type InspectTlsResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type InspectTlsResponse = InspectTlsResponses[keyof InspectTlsResponses];
+
+export type StartSetupData = {
+    body: SetupIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/setup';
+};
+
+export type StartSetupErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type StartSetupError = StartSetupErrors[keyof StartSetupErrors];
+
+export type StartSetupResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type StartSetupResponse = StartSetupResponses[keyof StartSetupResponses];
+
+export type GetAdminJobData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/jobs/{job_id}';
+};
+
+export type GetAdminJobErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetAdminJobError = GetAdminJobErrors[keyof GetAdminJobErrors];
+
+export type GetAdminJobResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobOut;
+};
+
+export type GetAdminJobResponse = GetAdminJobResponses[keyof GetAdminJobResponses];
+
+export type GetSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/settings';
+};
+
+export type GetSettingsErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetSettingsError = GetSettingsErrors[keyof GetSettingsErrors];
+
+export type GetSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SettingsOut;
+};
+
+export type GetSettingsResponse = GetSettingsResponses[keyof GetSettingsResponses];
+
+export type ListUsersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users';
+};
+
+export type ListUsersErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ListUsersError = ListUsersErrors[keyof ListUsersErrors];
+
+export type ListUsersResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountsOut;
+};
+
+export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type CreateUserData = {
+    body: AccountNewIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/users';
+};
+
+export type CreateUserErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type CreateUserError = CreateUserErrors[keyof CreateUserErrors];
+
+export type CreateUserResponses = {
+    /**
+     * Successful Response
+     */
+    201: AccountLinkOut;
+};
+
+export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
+
+export type SetUserAccessData = {
+    body: AccountAccessIn;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/users/{user_id}/access';
+};
+
+export type SetUserAccessErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SetUserAccessError = SetUserAccessErrors[keyof SetUserAccessErrors];
+
+export type SetUserAccessResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountOut;
+};
+
+export type SetUserAccessResponse = SetUserAccessResponses[keyof SetUserAccessResponses];
+
+export type SetUserCapabilitiesData = {
+    body: AccountRoleIn;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/users/{user_id}/capabilities';
+};
+
+export type SetUserCapabilitiesErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SetUserCapabilitiesError = SetUserCapabilitiesErrors[keyof SetUserCapabilitiesErrors];
+
+export type SetUserCapabilitiesResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountOut;
+};
+
+export type SetUserCapabilitiesResponse = SetUserCapabilitiesResponses[keyof SetUserCapabilitiesResponses];
+
+export type MakeUserLinkData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/users/{user_id}/link';
+};
+
+export type MakeUserLinkErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type MakeUserLinkError = MakeUserLinkErrors[keyof MakeUserLinkErrors];
+
+export type MakeUserLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountLinkOut;
+};
+
+export type MakeUserLinkResponse = MakeUserLinkResponses[keyof MakeUserLinkResponses];
+
+export type EndUserSessionsData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/users/{user_id}/sessions/end';
+};
+
+export type EndUserSessionsErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * it changed while you looked (conflict), or is not ready yet (not_ready)
+     */
+    409: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type EndUserSessionsError = EndUserSessionsErrors[keyof EndUserSessionsErrors];
+
+export type EndUserSessionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountOut;
+};
+
+export type EndUserSessionsResponse = EndUserSessionsResponses[keyof EndUserSessionsResponses];
 
 export type ListApprovalsData = {
     body?: never;

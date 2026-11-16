@@ -9,6 +9,40 @@ in its own PostgreSQL database on this machine.
 
 > **Upgrading an existing installation?** Follow [upgrading.md](upgrading.md) instead.
 
+## The quick way: two commands, then the browser
+
+```bash
+git clone <ARGUS's repository> argus && cd argus
+./install.sh
+```
+
+`./install.sh` needs [uv](https://docs.astral.sh/uv/) and Docker with compose (section 2). It does
+only what needs this machine: the database, the web's certificate, and two services (the web and
+`argus-admin`). It asks where people open ARGUS (this machine's address) and prints a one-time
+link (valid 72 hours) for the first administrator:
+
+```
+init: done. Open this link within 72 hours to set admin's password and finish the setup
+in the browser:
+
+    https://192.0.2.10:8765/welcome?token=…
+```
+
+Open it, choose your password, and the app's **First-time setup** asks the rest, one screen at a
+time: the SIEM's address (it shows the certificate the SIEM presents for you to compare), the
+read-only API key (section 3 says how to make one), your organisation and time zone, the data
+ARGUS found in your SIEM, the asset map and the AI providers (both optional). It then starts every
+service and shows the first alerts arriving.
+
+After that, everything is in the app: **Settings** (every setting, each with its help; a change
+is checked and applied within seconds, and undone by itself if a service does not start with
+it), **Users and roles** (accounts, roles, one-time password links), and the system's health.
+Keys you paste are sealed at once: the app can never show them again, only replace them. Nothing
+that writes to your SIEM is on until an administrator switches it on and types the confirmation.
+
+The sections below are the complete reference, and the way to install from the terminal only
+(`argus init`, interactive or with an answers file).
+
 **Contents**
 
 0. [Clean setup from zero](#0-clean-setup-from-zero): the whole path on one page, every value and

@@ -198,11 +198,11 @@ async def test_sign_in_and_step_up_in_a_browser(server: str) -> None:  # noqa: F
         page.on("pageerror", lambda e: problems.append(f"page error: {e}"))
         page.on("console", lambda m: problems.append(m.text) if "Content Security" in m.text
                 else None)  # fmt: skip
-        await page.goto(f"{server}/signin?next=/rules")
+        await page.goto(f"{server}/signin?next=/access")
         # the page runs no script: even an injected one is blocked by its policy
         blocked = await page.evaluate("""() => new Promise(done => {
             document.addEventListener('securitypolicyviolation', e => done(e.violatedDirective));
-            const s = document.createElement('script'); s.src = '/static/cost.js';
+            const s = document.createElement('script'); s.src = '/static/blocked.js';
             document.body.appendChild(s); setTimeout(() => done('not blocked'), 3000);
         })""")
         assert blocked.startswith("script-src"), blocked
@@ -213,18 +213,18 @@ async def test_sign_in_and_step_up_in_a_browser(server: str) -> None:  # noqa: F
             serious = [v for v in report.response["violations"]
                        if v["impact"] in ("serious", "critical")]  # fmt: skip
             assert serious == [], (path, serious)
-        await page.goto(f"{server}/signin?next=/rules")
+        await page.goto(f"{server}/signin?next=/access")
         await page.fill("#username", "asha")
         await page.fill("#password", PASSWORD)
-        async with page.expect_navigation(url=f"{server}/rules"):
+        async with page.expect_navigation(url=f"{server}/access"):
             await page.click("button[type=submit]")
-        await page.goto(f"{server}/stepup?next=/proposals")
+        await page.goto(f"{server}/stepup?next=/access")
         report = await axe.run(page)
         serious = [v for v in report.response["violations"]
                    if v["impact"] in ("serious", "critical")]  # fmt: skip
         assert serious == [], ("/stepup", serious)
         await page.fill("#password", PASSWORD)
-        async with page.expect_navigation(url=f"{server}/proposals"):
+        async with page.expect_navigation(url=f"{server}/access"):
             await page.click("button[type=submit]")
         session = await page.request.get(f"{server}/api/v1/session")
         assert (await session.json())["stepped_up_at"] is not None
@@ -258,7 +258,7 @@ async def test_a_link_from_another_site_keeps_the_session(
         await page.goto(f"{server}/signin")
         await page.fill("#username", "asha")
         await page.fill("#password", PASSWORD)
-        async with page.expect_navigation(url=f"{server}/"):
+        async with page.expect_navigation(url=f"{server}/app"):
             await page.click("button[type=submit]")
         await context.route(f"{other_site}/**", kibana)
         await page.goto(f"{other_site}/case")
@@ -266,6 +266,6 @@ async def test_a_link_from_another_site_keeps_the_session(
         await page.wait_for_url(re.compile(r".*/signin.*"))
         await page.goto(f"{other_site}/case")
         await page.click("#deep")
-        await page.wait_for_url(f"{server}/investigations/{inv}")
-        assert await page.locator("#inv").count() == 1  # the investigation, signed in
+        await page.wait_for_url(re.compile(rf".*/app/(investigations|alert-groups)/{inv}"))
+        await page.locator("#main").wait_for()  # the app's page, signed in
         await browser.close()

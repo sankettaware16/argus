@@ -319,21 +319,14 @@ async def test_a_second_notice_answers_the_notify_again_reminder(world: World) -
     assert detail["known"]["reminders"] == []  # told again: nothing waits for a person
 
 
-# --------------------------------------------------------------------------- the classic pages
+# --------------------------------------------------------------------------- the counts
 
 
-async def test_the_inbox_and_the_dashboard_count_new_and_known_apart(world: World) -> None:
+async def test_the_counts_and_the_dashboard_count_new_and_known_apart(world: World) -> None:
     async with world.app() as http:
         csrf = await sign_in(http, "mina")
         counts = (await http.get(f"{V1}/counts")).json()
         assert counts["known"] == 0
-        page = await http.get("/")
-        assert "notified, still active" in page.text
-        known = await http.get("/", params={"view": "known"})
-        assert known.status_code == 200
-        assert "Notified, still active" in known.text
-        board = await http.get("/dashboard")
-        assert "Notified, still active" in board.text
         api = (await http.get(f"{V1}/dashboard")).json()
         assert api["kpis"]["known"] == 0
         assert api["notified"] == []

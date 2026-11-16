@@ -76,10 +76,6 @@ async def agree(http: httpx.AsyncClient) -> None:
         for mine, theirs in zip(same_order["items"], classic, strict=True):
             assert {k: mine[k] for k in SAME} == {k: theirs[k] for k in SAME}
             assert [[k["field"], k["value"]] for k in mine["key_fields"]] == theirs["key"]
-        page = (await http.get("/", params={"view": view})).text
-        shown = list(dict.fromkeys(LINK.findall(page)))
-        v1_default = (await http.get("/api/v1/investigations", params={"view": view})).json()
-        assert [i["id"] for i in v1_default["items"]] == shown, view  # the page's own order
         for sort in SORTS:
             got = (await http.get("/api/v1/investigations",
                                   params={"view": view, "sort": sort})).json()  # fmt: skip
@@ -118,7 +114,7 @@ async def agree(http: httpx.AsyncClient) -> None:
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 @given(ops=st.lists(OP, max_size=8))
-async def test_v1_and_the_classic_pages_agree_on_generated_reviews(
+async def test_v1_and_the_json_api_agree_on_generated_reviews(
     ops: list[tuple[int, str, str | None, bool, bool, str]],
     seeded: AsyncEngine,
     web_engine: AsyncEngine,

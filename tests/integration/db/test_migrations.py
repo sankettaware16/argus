@@ -27,7 +27,7 @@ async def _function_exists(engine: AsyncEngine, name: str) -> bool:
 
 
 def test_single_head() -> None:
-    assert migrate.head_revision() == "0107"
+    assert migrate.head_revision() == "0110"
 
 
 async def test_upgrade_from_empty(empty_engine: AsyncEngine) -> None:

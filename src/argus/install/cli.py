@@ -34,6 +34,14 @@ def init(
     force_site: Annotated[
         bool, typer.Option("--force-site", help="Discover again and rewrite config/site.yaml.")
     ] = False,
+    web_setup: Annotated[
+        bool,
+        typer.Option(
+            "--web-setup",
+            help="Only this machine's part: the database, the web and"
+            " argus-admin; then a link to finish the setup in the browser.",
+        ),
+    ] = False,
     config: Annotated[
         Path | None,
         typer.Option("--config", "-c", help="YAML config file (default: config/argus.yaml)."),
@@ -53,6 +61,7 @@ def init(
         force_trust=force_trust,
         force_key=force_key,
         force_site=force_site,
+        web_setup=web_setup,
     )
     try:
         asker = (

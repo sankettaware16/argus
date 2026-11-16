@@ -43,6 +43,7 @@ MANIFEST: dict[str, tuple[Role, str]] = {
     "argus-worker.service": (Role.RUN, "the context worker (R8)"),
     "argus-web.service": (Role.RUN, "the web (R7, D-104)"),
     "argus-assess.service": (Role.RUN, "the assessments (Phase 2)"),
+    "argus-admin.service": (Role.RUN, "applies the settings changed in the app (P4-H, D-327)"),
     "argus-soak-sample.timer": (Role.CHOICE, "the soak samples (D-092)"),
     "argus-soak-sample.service": (Role.TRIGGERED, "started by argus-soak-sample.timer"),
     "argus-risk.timer": (Role.CHOICE, "the incident engine's pass (P4-F, D-317)"),

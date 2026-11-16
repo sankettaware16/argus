@@ -9,7 +9,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-import httpx
 import pytest
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import text
@@ -27,12 +26,10 @@ from argus.reference.ti import indicators_of
 from argus.report import render
 from argus.report import store as report_store
 from argus.report.model import HIDDEN
-from argus.web import auth
-from argus.web.app import create_app
 from tests.integration.context.conftest import seed
 from tests.integration.context.kit import registry
 from tests.integration.report import scenario
-from tests.integration.report.test_report import PASSWORD, day, every_report
+from tests.integration.report.test_report import day, every_report
 from tests.unit.gateway.fakes import FakeClock, FakeTransport
 
 pytestmark = pytest.mark.integration
@@ -194,34 +191,3 @@ async def test_a_check_never_sent_shows_no_other_investigations_request(
     assert [r.task_key for r in mine] == [task["task_key"]]  # A's request answers A's row
     assert mine[0].indices == ["acme-threat-intel"]
     assert theirs == []  # B's check, never sent, joins nothing
-
-
-async def test_a_value_from_the_logs_is_untrusted_text_on_the_page(
-    app_engine: AsyncEngine,
-    saver: AsyncPostgresSaver,
-    migrated_engine: AsyncEngine,
-    web_engine: AsyncEngine,
-) -> None:
-    hostile = "200\u202e" + "A" * 5000
-    d = await day(app_engine, saver)
-    async with migrated_engine.begin() as conn:  # what a hostile nginx log would have held
-        n = await conn.execute(text(
-            "UPDATE evidence SET snapshot = jsonb_set(snapshot,"
-            " '{rows,0,_source,http,response,status_code}', to_jsonb(CAST(:h AS text)))"
-            " WHERE template = 'web.followups' AND status = 'ok'"), {"h": hostile})  # fmt: skip
-        assert n.rowcount >= 1
-        await auth.add_user(conn, "asha", "Asha", PASSWORD)
-    reports = await every_report(app_engine, d.packs)
-    a, _ = next((a, r) for a, r in reports if any(
-        "\u202e" in v.text for f in r.found.new.new_facts for v in f.values))  # fmt: skip
-    app = create_app(web_engine, clock=lambda: scenario.AGENT_AT)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
-                                 base_url="http://127.0.0.1",
-                                 headers={"Origin": "http://127.0.0.1"}) as http:  # fmt: skip
-        await http.post("/api/login", json={"username": "asha", "password": PASSWORD})
-        page = await http.get(f"/investigations/{a.investigation_id}/report",
-                              params={"assessment": a.id})  # fmt: skip
-    assert page.status_code == 200
-    assert "\u202e" not in page.text  # shown as U+202E, as every other untrusted value
-    assert "U+202E" in page.text
-    assert "A" * 1000 not in page.text  # capped

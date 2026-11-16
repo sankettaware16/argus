@@ -63,3 +63,4 @@ deploy/local-llm/*.env
 # Schemathesis run cache (written by every API test run)
 .schemathesis/
 frontend/node_modules
+config/admin.yaml

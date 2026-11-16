@@ -1,9 +1,9 @@
 /** The shell's menu (docs/p4f-ui-spec.md §4.1): four pages for the daily job, the rest under More,
  * and the person's own entries under their name. Every page is in /app; the entries with an
- * `href` open a server-rendered page ("Your access" and the read-only classic pages). */
+ * `href` open a server-rendered page ("Your access"). */
 export interface NavItem {
   label: string;
-  /** a path inside /app (to), with the search that picks the entry, or a classic page (href) */
+  /** a path inside /app (to), with the search that picks the entry, or a server-rendered page (href) */
   to?: string;
   search?: Record<string, string>;
   href?: string;
@@ -30,10 +30,11 @@ export const MORE: NavItem[] = [
   { label: "Help & glossary", to: "/glossary", hint: "What every word means" },
   { label: "Patterns", to: "/patterns", hint: "Groups of alike alert groups to review at once", group: "Classic queues" },
   { label: "Proposals", to: "/proposals", hint: "Outcomes ARGUS proposes, to confirm", group: "Classic queues" },
-  { label: "Design system", to: "/design", hint: "The app's colours, components and safety checks", admin: true },
+  { label: "Settings", to: "/settings", hint: "Change how ARGUS works: the SIEM, Kibana, AI providers, notices and more", admin: true, group: "Administration" },
+  { label: "Users and roles", to: "/users", hint: "Who may sign in to ARGUS and what they may do", admin: true, group: "Administration" },
+  { label: "Design system", to: "/design", hint: "The app's colours, components and safety checks", admin: true, group: "Administration" },
 ];
 
 export const ACCOUNT: NavItem[] = [
   { label: "Your access", href: "/access", hint: "What you may do in ARGUS, why, and how fresh that is" },
-  { label: "Classic pages", href: "/classic", hint: "The pages ARGUS had before this app, kept for now as a read-only fallback" },
 ];

@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.web import patternsummary, queries, stance
 from tests.integration.web.b3_support import V1, World, make_world, post, sign_in
-from tests.integration.web.conftest import log_in
 from tests.integration.web.test_gold import with_dossiers
 from tests.integration.web.test_queue_ar4 import assess, reading_of
 from tests.integration.web.test_queue_review_ar4 import bulk
@@ -351,24 +350,6 @@ async def test_the_patterns_page_groups_the_newest_and_says_it_is_a_sample(
         page = (await http.get(f"{V1}/patterns")).json()
     assert set(page) == {"groups", "read", "limit", "sampled"}
     assert (page["read"], page["limit"], page["sampled"]) == (12, queries.PATTERN_SAMPLE, False)
-
-
-async def test_the_classic_patterns_page_says_it_is_a_sample_too(
-    client: Any, seeded: AsyncEngine, migrated_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    await with_dossiers(seeded, migrated_engine, 24)
-    await log_in(client)
-    whole = (await client.get("/patterns")).text
-    assert "This is a sample." not in whole  # it read every unreviewed investigation
-    original = queries.patterns_page
-
-    async def small(conn: Any, limit: int = 0) -> queries.PatternsFound:
-        return await original(conn, 9)
-
-    monkeypatch.setattr(queries, "patterns_page", small)
-    page = (await client.get("/patterns")).text
-    assert "This is a sample." in page
-    assert "the 9 newest investigations that are not reviewed yet" in page
 
 
 async def test_the_patterns_page_leaves_known_investigations_out(

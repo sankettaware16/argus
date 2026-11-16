@@ -28,7 +28,6 @@ INSTALL = REPO_ROOT / "deploy" / "systemd" / "install.sh"
 PARAMS = units.UnitParams(Path("/home/alice/argus"), "/home/alice/.local/bin/uv", {
     "WEB_HOST": "0.0.0.0", "WEB_TLS_CERT": "data/tls/web.crt", "WEB_TLS_KEY": "data/tls/web.key",  # noqa: S104 - a unit's text
     "WEB_ALLOWED_HOSTS": "argus.example.org", "WEB_ALLOWED_NETWORKS": "192.0.2.0/24",
-    "WEB_CLASSIC": "fallback",
 })  # fmt: skip
 RENDERED = units.rendered_units(PARAMS)
 
@@ -188,7 +187,8 @@ def test_the_roles_follow_what_the_installation_runs() -> None:
     default = units.roles_for(None)
     assert {n for n, (r, _) in default.items() if r is Role.RUN} == set(units.CORE)
     assert units.CORE == ("argus-collector.service", "argus-worker.service",
-                          "argus-web.service", "argus-assess.service")  # fmt: skip
+                          "argus-web.service", "argus-assess.service",
+                          "argus-admin.service")  # fmt: skip
     assert default["argus-case-team.timer"][0] is Role.CHOICE
     assert default["argus-purge.timer"][0] is Role.OFF
     nothing = units.roles_for(())
@@ -292,16 +292,18 @@ def test_a_made_up_installation_gets_its_own_paths_and_no_one_elses() -> None:
     assert "Environment=ARGUS_WEB__ALLOWED_HOSTS=argus.example.org\n" in web
     assert "ARGUS_WEB__PUBLIC_URL" not in web  # not given: the line is left out ...
     assert "AR8's canary" not in web  # ... and its group's comment with it
-    assert "# AR4 (production step 40)" in web  # a group with a line given keeps its comment
+    assert "# D-104" in web  # a group with a line given keeps its comment
     drill = RENDERED["argus-backup-drill.service"]
     assert "ExecStart=/home/alice/argus/scripts/heavy.sh --mem 2G" in drill
 
 
 def test_a_loopback_web_has_no_network_lines() -> None:
-    params = units.UnitParams(Path("/srv/argus"), "/usr/bin/uv", {"WEB_CLASSIC": "fallback"})
+    params = units.UnitParams(
+        Path("/srv/argus"), "/usr/bin/uv", {"WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
+    )
     web = units.rendered_units(params)["argus-web.service"]
     assert [line for line in web.splitlines() if line.startswith("Environment=")] == [
-        "Environment=ARGUS_WEB__CLASSIC=fallback"
+        "Environment=ARGUS_WEB__PUBLIC_URL=http://127.0.0.1:8765"
     ]
     assert "D-104" not in web
     bare = units.UnitParams(Path("/srv/argus"), "/usr/bin/uv")
@@ -330,7 +332,7 @@ def test_the_settings_give_the_parameters(monkeypatch: pytest.MonkeyPatch) -> No
     )
     params = units.params_of(given)
     assert (params.root, params.uv) == (Path("/srv/argus"), "/usr/bin/uv")
-    assert params.values == {"WEB_CLASSIC": "fallback", "WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
+    assert params.values == {"WEB_PUBLIC_URL": "http://127.0.0.1:8765"}
     monkeypatch.setenv("UV", "/nonexistent/uv")
     monkeypatch.setattr(units.shutil, "which", lambda _name: None)
     with pytest.raises(units.UnitsError, match=r"set units\.uv"):

@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% block title %}Raw alert{% endblock %}
-{% block main %}
-<p><a href="/investigations/{{ investigation_id }}">Back to the investigation</a></p>
-<h1>Raw alert <span class="mono">{{ alert_id | u(80) }}</span></h1>
-<p class="hint">As the SIEM stored it. Characters outside ASCII are shown as \u escapes.</p>
-<pre class="raw" tabindex="0" aria-label="Raw alert JSON">{{ raw | raw }}</pre>
-{% endblock %}

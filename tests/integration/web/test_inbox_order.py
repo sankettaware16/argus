@@ -165,12 +165,12 @@ async def test_reading_a_list_leaves_the_planner_as_it_was(seeded: AsyncEngine) 
             assert await conn.scalar(text("SELECT current_setting('enable_sort')")) == "on"
 
 
-@pytest.mark.parametrize("path", ["/api/v1/investigations", "/api/investigations", "/"])
+@pytest.mark.parametrize("path", ["/api/v1/investigations", "/api/investigations"])
 async def test_lists_page_ten_thousand_deep_at_most(
     seeded: AsyncEngine, path: str, web_engine: AsyncEngine
 ) -> None:
     """Every list answers within criterion 14's 300 ms that deep at the exit's scale
-    (test_scale.py); deeper pages are refused, and the Inbox page offers none."""
+    (test_scale.py); deeper pages are refused."""
     app = create_app(web_engine, clock=lambda: NOW)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE,
                                  headers=SAME_ORIGIN) as http:  # fmt: skip

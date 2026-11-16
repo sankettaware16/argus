@@ -3,11 +3,9 @@ the labelling page and its next-item flow."""
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -115,93 +113,6 @@ async def test_answers_are_appended_and_the_newest_counts(
         None,
     )  # unanswered first
     assert progress == {"items": 3, "answered": 2, "dev_answered": 1, "test_answered": 1}
-
-
-async def test_the_page_and_the_next_item(
-    client: httpx.AsyncClient, seeded: AsyncEngine, migrated_engine: AsyncEngine
-) -> None:
-    records = await with_dossiers(seeded, migrated_engine, 2)
-    async with seeded.begin() as conn:
-        await store.import_set(conn, records)
-    assert (await client.get("/gold")).status_code in (303, 307)  # signed out: to the login
-    await client.post("/login", data={"username": "asha", "password": PASSWORD})
-    listing = (await client.get("/gold")).text
-    assert "<strong>0 of 2 answered</strong>" in listing
-    assert (
-        '<a aria-current="page" href="/gold" title="The answer key that measures how often ARGUS'
-        ' is right">Gold set</a>' in listing
-    )
-    one, two = (r["investigation_id"] for r in records)
-    detail = (await client.get(f"/investigations/{one}")).text
-    assert "<h2>Gold set: your answer</h2>" in detail
-    assert "<strong>Suggested:</strong> Benign: expected activity" in detail
-    csrf = detail.split('name="csrf_token" value="')[1].split('"')[0]
-    expired = await client.post(f"/investigations/{one}/gold",
-                                data={"csrf_token": "x", "outcome": "true_positive"})  # fmt: skip
-    assert expired.status_code == 403
-    missing = await client.post(f"/investigations/{one}/gold", data={"csrf_token": csrf})
-    assert missing.status_code == 422
-    assert "choose an outcome" in missing.text
-    answer = {"csrf_token": csrf, "outcome": "true_positive", "note": "c2"}
-    saved = await client.post(f"/investigations/{one}/gold", data=answer)
-    assert saved.status_code == 303
-    remaining = {one, two} - {one}
-    assert saved.headers["location"] == f"/investigations/{remaining.pop()}?saved=gold"
-    last = await client.post(f"/investigations/{two}/gold",
-                             data={"csrf_token": csrf, "outcome": "inconclusive"})  # fmt: skip
-    assert last.headers["location"] == "/gold"
-    done = (await client.get("/gold")).text
-    assert "<strong>2 of 2 answered</strong>" in done
-    assert "<em>not yet</em>" not in done
-    again = (await client.get(f"/investigations/{one}")).text
-    assert "<strong>Your answer:</strong> True positive — c2" in again
-    other = (await client.get("/api/investigations", params={"view": "all"})).json()
-    plain = next(i["id"] for i in other if i["id"] not in (one, two))
-    assert "Gold set: your answer" not in (await client.get(f"/investigations/{plain}")).text
-    assert json.dumps(records)  # the records stay plain JSON (the manifest's format)
-
-
-async def test_reviewing_can_answer_the_gold_set_and_every_save_is_confirmed(
-    client: httpx.AsyncClient, seeded: AsyncEngine, migrated_engine: AsyncEngine
-) -> None:
-    records = await with_dossiers(seeded, migrated_engine, 2)
-    async with seeded.begin() as conn:
-        await store.import_set(conn, records)
-    await client.post("/login", data={"username": "asha", "password": PASSWORD})
-    one, two = (r["investigation_id"] for r in records)
-    page = (await client.get(f"/investigations/{one}")).text
-    assert "<strong>Your answer:</strong> <em>not given yet</em>" in page
-    assert 'name="also_gold" value="1" checked' in page
-    csrf = page.split('name="csrf_token" value="')[1].split('"')[0]
-    inv = (await client.get("/api/investigations", params={"view": "all"})).json()
-    seen = next(i for i in inv if i["id"] == one)
-    form = {"csrf_token": csrf, "action": "follow_up", "outcome": "inconclusive",
-            "note": "check 2xx", "seen_version": seen["version"], "also_gold": "1"}  # fmt: skip
-    saved = await client.post(f"/investigations/{one}/review", data=form)
-    assert saved.status_code == 303, saved.text[:500]
-    assert saved.headers["location"] == f"/investigations/{one}?saved=follow_up&gold=1"
-    after = (await client.get(saved.headers["location"])).text
-    assert "Saved: marked as needing follow-up. Also saved as your gold-set answer." in after
-    assert "<strong>Your answer:</strong> Inconclusive — check 2xx" in after
-
-    def hidden(html: str, name: str) -> str:
-        return html.split(f'name="{name}" value="')[1].split('"')[0]
-
-    note = {**form, "action": "note", "outcome": "", "note": "only a note",
-            "seen_version": hidden(after, "seen_version"),
-            "seen_review": hidden(after, "seen_review")}  # fmt: skip
-    noted = await client.post(f"/investigations/{one}/review", data=note)
-    assert noted.headers["location"] == f"/investigations/{one}?saved=note"  # no outcome: no answer
-    assert "Saved: note added." in (await client.get(noted.headers["location"])).text
-    gold_page = (await client.get(f"/investigations/{two}")).text
-    csrf = gold_page.split('name="csrf_token" value="')[1].split('"')[0]
-    nxt = await client.post(f"/investigations/{two}/gold",
-                            data={"csrf_token": csrf, "outcome": "benign_expected"})  # fmt: skip
-    assert nxt.headers["location"] == "/gold"  # every item answered
-    async with seeded.connect() as conn:
-        assert (await store.progress(conn))["answered"] == 2
-    unknown = (await client.get(f"/investigations/{one}?saved=<b>x</b>")).text
-    assert "<b>x</b>" not in unknown
 
 
 async def test_any_spans_every_set_and_an_answer_finds_its_set(

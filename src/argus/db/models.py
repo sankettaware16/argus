@@ -4474,3 +4474,153 @@ class RiskMode(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (CheckConstraint("id = 1", name="one_row"),)
+
+
+ADMIN_CHANGE_STATES = ("pending", "applying", "applied", "refused", "rolled_back")
+ADMIN_RISKS = ("normal", "sensitive", "siem_write")
+
+
+class AdminChange(Base):
+    """A setting a person changed in the app (D-327), one row per setting; the rows of one save
+    share ``batch`` and are applied together. ``argus-admin`` writes them to this host's files:
+    ``applied``, ``refused`` (``outcome`` says why, nothing was written) or ``rolled_back`` (the
+    services did not come up again with it). A secret's value is never here: ``admin_sealed``."""
+
+    __tablename__ = "admin_changes"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    batch: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[Any | None] = mapped_column(JSONB)
+    reset: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    risk: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    stepped_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    outcome: Mapped[str | None] = mapped_column(Text)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_one_of("state", ADMIN_CHANGE_STATES), name="state_valid"),
+        CheckConstraint(_one_of("risk", ADMIN_RISKS), name="risk_valid"),
+        CheckConstraint("key ~ '^[a-z_]+(\\.[a-z0-9_]+)+$'", name="key_valid"),
+        CheckConstraint("NOT (reset AND value IS NOT NULL)", name="reset_carries_nothing"),
+        CheckConstraint("outcome IS NULL OR char_length(outcome) <= 600", name="outcome_length"),
+        Index(None, "state", "id"),
+        Index(None, "batch"),
+    )
+
+
+class AdminSealed(Base):
+    """A key a person pasted in the app, sealed with ``argus-admin``'s public key (D-327): the web
+    inserts it and can never read it back; only ``argus-admin`` reads it, to open it."""
+
+    __tablename__ = "admin_sealed"
+
+    change_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("admin_changes.id", ondelete="CASCADE"), primary_key=True
+    )
+    sealed: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    __table_args__ = (CheckConstraint("octet_length(sealed) <= 20000", name="sealed_length"),)
+
+
+class AdminState(Base):
+    """``argus-admin``'s published state, a row each: ``seal`` (its public key), ``snapshot``
+    (where each setting is set on this host and its value, never a secret's), ``heartbeat``."""
+
+    __tablename__ = "admin_state"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    state: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("name IN ('seal', 'snapshot', 'heartbeat')", name="name_valid"),
+        CheckConstraint("jsonb_typeof(state) = 'object'", name="state_is_object"),
+    )
+
+
+USER_LINK_PURPOSES = ("welcome", "reset")
+
+
+class UserLink(Base):
+    """A one-time link that lets a person set their own password (D-327): ``welcome`` for a new
+    account, ``reset`` for a forgotten password. Only its hash is kept; it ends when used, when
+    its time runs out, or when a newer link for the same person is made."""
+
+    __tablename__ = "user_links"
+
+    token_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_one_of("purpose", USER_LINK_PURPOSES), name="purpose_valid"),
+        CheckConstraint("token_hash ~ '^[0-9a-f]{64}$'", name="token_hash_valid"),
+        CheckConstraint("expires_at > created_at", name="expires_after_created"),
+        Index(None, "user_id"),
+    )
+
+
+ADMIN_JOB_KINDS = ("inspect_tls", "setup")
+ADMIN_JOB_STATES = ("pending", "running", "done", "failed")
+
+
+class AdminJob(Base):
+    """A job a person started in the app that ``argus-admin`` runs on this host (D-327):
+    ``inspect_tls`` (the certificates an address presents, trusting none) and ``setup`` (``argus
+    init`` with the first-time setup's answers). ``result`` is what the page shows."""
+
+    __tablename__ = "admin_jobs"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_by: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    stepped_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_one_of("kind", ADMIN_JOB_KINDS), name="kind_valid"),
+        CheckConstraint(_one_of("state", ADMIN_JOB_STATES), name="state_valid"),
+        CheckConstraint("jsonb_typeof(params) = 'object'", name="params_is_object"),
+        CheckConstraint(
+            "result IS NULL OR jsonb_typeof(result) = 'object'", name="result_is_object"
+        ),
+        Index(None, "state", "id"),
+    )
+
+
+class AdminJobSecret(Base):
+    """A key a job needs (the setup's SIEM key), sealed like a setting's (D-327): the web inserts
+    it and never reads it; ``argus-admin`` opens it for the job and deletes it after."""
+
+    __tablename__ = "admin_job_secrets"
+
+    job_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("admin_jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    sealed: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("name ~ '^[a-z_]+(\\.[a-z0-9_]+)+$'", name="name_valid"),
+        CheckConstraint("octet_length(sealed) <= 20000", name="sealed_length"),
+    )

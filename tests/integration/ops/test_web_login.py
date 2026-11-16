@@ -346,6 +346,13 @@ def test_until_the_switch_the_runtime_login_can_still_do_all_the_web_does() -> N
         "case_team_approvals": ({"case_id", "gen", "plan_hash", "report_version",
                                  "approver_user_id", "statement", "signature", "approved_at",
                                  "expires_at"}, set()),
+        # D-327: a person's change in the app's Settings is the web's to record; argus-admin
+        # (the runtime login) only applies it
+        "admin_changes": ({"batch", "key", "value", "reset", "risk", "created_by",
+                           "created_at", "stepped_up_at"}, set()),
+        "admin_sealed": ({"change_id", "sealed"}, set()),
+        "admin_jobs": ({"kind", "params", "created_by", "created_at", "stepped_up_at"}, set()),
+        "admin_job_secrets": ({"job_id", "name", "sealed"}, set()),
     }  # fmt: skip
     for table, grant in roles.API_GRANTS.items():
         runtime = roles.RUNTIME_GRANTS.get(table)
@@ -457,10 +464,13 @@ def test_migration_0021_grants_exactly_the_api_grants(monkeypatch: pytest.Monkey
         privileges, tables = found.groups()
         insert = re.search(r"INSERT \(([^)]*)\)", privileges)
         update = re.search(r"UPDATE \(([^)]*)\)", privileges)
+        some = re.match(r"SELECT \(([^)]*)\)", privileges)  # a column-level read
         for table in (t.strip() for t in tables.split(",")):
             before = granted.get(table, roles.TableGrant())  # a later migration adds to it
             granted[table] = roles.TableGrant(
-                select=before.select or privileges.startswith("SELECT"),
+                select=before.select or (privileges.startswith("SELECT") and not some),
+                select_columns=before.select_columns
+                + (tuple(c.strip() for c in some.group(1).split(",")) if some else ()),
                 insert=before.insert
                 + (tuple(c.strip() for c in insert.group(1).split(",")) if insert else ()),
                 update=before.update
@@ -471,6 +481,7 @@ def test_migration_0021_grants_exactly_the_api_grants(monkeypatch: pytest.Monkey
         before = granted[table]
         granted[table] = roles.TableGrant(
             select=before.select,
+            select_columns=before.select_columns,
             insert=tuple(c for c in before.insert if c not in columns),
             update=before.update,
             delete=before.delete,
@@ -478,7 +489,8 @@ def test_migration_0021_grants_exactly_the_api_grants(monkeypatch: pytest.Monkey
 
     def normal(grants: dict[str, roles.TableGrant]) -> dict[str, tuple[object, ...]]:
         return {
-            t: (g.select, sorted(g.insert), sorted(g.update), g.delete) for t, g in grants.items()
+            t: (g.select, sorted(g.select_columns), sorted(g.insert), sorted(g.update), g.delete)
+            for t, g in grants.items()
         }
 
     assert normal(granted) == normal(roles.API_GRANTS)
