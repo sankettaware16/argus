@@ -39,7 +39,24 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 - **More in Settings:** check the SIEM's and each Kibana key's connection and privileges, upload
   the asset map (imported and the services restarted), and the history of the last fifty changes.
 - **Everyone is told** when the first-time setup is still pending.
+- **The first-time setup can make ARGUS's own access:** an Elastic administrator's login, used
+  once and never stored, makes ARGUS's read-only Elasticsearch and Kibana keys and, if ticked,
+  ARGUS's Kibana case team; the setup also takes the AI and threat-intel keys and the asset map.
+  Pasting read-only keys by hand stays possible.
+- **A new look for the welcome, sign-in and first-time setup pages,** one question per screen.
+- **Costs and usage is live:** 7 or 31 days, tooltips and keyboard reading, providers shown or
+  hidden from the legend, a trend against the previous week, the month's projection against the
+  cap, a refresh every minute.
+- **Services and timers** switched on or off, and services restarted, from System health.
+- **ARGUS's team** (the investigation agents and the Kibana case team) shown as the default pack.
+- **[docs/compatibility.md](docs/compatibility.md):** ARGUS works with any Elastic SIEM on its own,
+  any licence including the free Basic, measured on Basic and on a trial licence.
 - New screenshots of the current app, made from synthetic demo data.
+
+### Changed
+
+- Own domains refuse a public suffix (`in`, `ac.in`, `co.uk`): each entry is a whole domain and
+  covers its subdomains.
 
 ### Removed
 

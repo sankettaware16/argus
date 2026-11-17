@@ -569,6 +569,18 @@ _NOUN = r"^[a-z](?:[A-Za-z0-9 '-]*[A-Za-z0-9])?$"  # one noun phrase, no markup,
 _NOT_A_REGION = frozenset({"localtime", "posixrules", "Factory", "CET", "EET", "MET", "WET"})
 
 
+def _registrable(domains: tuple[str, ...]) -> tuple[str, ...]:
+    from argus.outside import psl
+
+    shared = [d for d in domains if psl.registered_parent(d) is None]
+    if shared:
+        raise ValueError(
+            f"{', '.join(shared)}: a public suffix that every organisation shares, not a domain of"
+            " your own (give the whole domain, e.g. example.ac.in: its subdomains are included)"
+        )
+    return domains
+
+
 def _zone(name: str) -> str:
     if name in _NOT_A_REGION:
         raise ValueError(
@@ -773,8 +785,11 @@ class SiteSettings(_Model):
     own_domains: Annotated[
         tuple[Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9.-]{0,252}$")], ...],
         BeforeValidator(_items),
+        AfterValidator(_registrable),
     ] = ()
-    """Domain suffixes that are the organisation's own (``example.org``)."""
+    """The organisation's own domains (``example.org``, ``example.ac.in``): each covers every
+    name under it (``mail.example.org``). A public suffix every organisation shares (``in``,
+    ``ac.in``, ``co.uk``) is refused: it would make the whole suffix "ours"."""
     incident_id_prefix: str = Field(default="IR", pattern=INCIDENT_PREFIX_PATTERN)
     """The prefix of incident case ids: ``<prefix>-YYYY-MMDD-NN``. Capital letters, digits and
     ``-`` (not at the end), at most 16 characters: the database check allows that."""

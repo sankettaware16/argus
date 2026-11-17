@@ -17,7 +17,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardTitle } from "../components/ui/card";
 import { historyOptions, jobOptions, jobOutcome, jobSettled, settingsOptions } from "../lib/admin";
-import { aiChanges, aiLabels, aiOptions, aiSummary, byKey, callsWords, modelsBySize, providerSettings, purposeSettings, readingSetting, spendWords } from "../lib/ai";
+import { aiChanges, aiLabels, aiOptions, aiSummary, byKey, callsWords, memberStates, modelsBySize, packMembers, providerSettings, purposeSettings, readingSetting, spendWords } from "../lib/ai";
 import { unwrap } from "../lib/call";
 import { buildChanges } from "../lib/settings";
 
@@ -232,6 +232,40 @@ function Agent({ a }: { a: AgentOut }) {
   );
 }
 
+/** ARGUS's own team first: the tested default pack, each member in one line, with its state. */
+function Pack({ ai }: { ai: AiOut }) {
+  const members = packMembers(ai);
+  const specialists = ai.agents.find((a) => a.name === "investigator")?.specialists ?? [];
+  return (
+    <Card aria-label="ARGUS's team" data-testid="ai-pack">
+      <div className="flex flex-wrap items-center gap-2">
+        <CardTitle className="m-0">ARGUS&apos;s team (the default pack)</CardTitle>
+        <Badge tone="ok">Default pack · tested</Badge>
+      </div>
+      <p className="m-0 mt-1 mb-2 max-w-prose text-sm text-muted">The investigation agents (measured against the gold set) and the Kibana case team (run on a real SIEM) that come with ARGUS. They are on by default; what each uses (providers, limits, keys) is set below.</p>
+      <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
+        {members.map((m) => (
+          <li key={m.key} className="flex flex-col gap-1 rounded-card border border-border bg-surface-2 px-3 py-2" data-testid={`pack-${m.key}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold">{m.name}</span>
+              {memberStates(m).map((st) => (
+                <Badge key={st.text} tone={st.tone}>
+                  {st.text}
+                </Badge>
+              ))}
+            </div>
+            <p className="m-0 text-sm">{m.does}</p>
+            {m.key === "investigator" && specialists.length > 0 && <p className="m-0 text-xs text-muted">Its specialists: {specialists.join(", ")}</p>}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0 mt-3 text-sm text-muted" data-testid="pack-later">
+        Your own agents and workflows: coming later.
+      </p>
+    </Card>
+  );
+}
+
 function Team({ ai }: { ai: AiOut }) {
   return (
     <Card aria-label="Case team" data-testid="ai-team">
@@ -299,6 +333,7 @@ function AiView() {
       )}
       <StepUpNote />
       <SaveOutcome state={state} labels={labels} />
+      <Pack ai={ai} />
       <Status ai={ai} />
       <Spending ai={ai} all={all} state={state} />
       <section aria-labelledby="providers-title" className="flex flex-col gap-3">

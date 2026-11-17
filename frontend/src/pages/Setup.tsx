@@ -153,8 +153,6 @@ function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; a
 
 function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, string> }) {
   const id = useId();
-  const [domains, setDomains] = useState(() => textOf(f.own_domains));
-  const [networks, setNetworks] = useState(() => textOf(f.own_networks));
   return (
     <div className="setup-tile grid gap-5 sm:grid-cols-2">
       <div className="sm:col-span-2">
@@ -168,27 +166,18 @@ function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<str
       <Field id={`${id}-kind`} label="What kind of organisation" hint="e.g. university" error={bad.kind}>
         <Input id={`${id}-kind`} value={f.kind} onChange={(e) => set("kind", e.target.value)} />
       </Field>
-      <Field id={`${id}-domains`} label="Your own domains" hint="separated by commas" error={bad.own_domains}>
-        <Input
-          id={`${id}-domains`}
-          value={domains}
-          placeholder="example.edu"
-          onChange={(e) => {
-            setDomains(e.target.value);
-            set("own_domains", listOf(e.target.value));
-          }}
-        />
-      </Field>
-      <Field id={`${id}-networks`} label="Your public networks" hint="optional, e.g. 203.0.113.0/24" error={bad.own_networks}>
-        <Input
-          id={`${id}-networks`}
-          value={networks}
-          onChange={(e) => {
-            setNetworks(e.target.value);
-            set("own_networks", listOf(e.target.value));
-          }}
-        />
-      </Field>
+      <div className="sm:col-span-2">
+        <Field id={`${id}-domains`} label="Your own domains" error={bad.own_domains}>
+          <p className="m-0 mb-2 text-[0.9375rem] text-(--s-muted)">Your domain, e.g. example.edu: every subdomain (mail.example.edu, cs.example.edu) is included. Add a row for each other domain you own.</p>
+          <Rows id={`${id}-domains`} label="Your own domains" items={f.own_domains} placeholder="example.edu" add="Add another domain" onChange={(v) => set("own_domains", v)} />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <Field id={`${id}-networks`} label="Your public networks" hint="optional" error={bad.own_networks}>
+          <p className="m-0 mb-2 text-[0.9375rem] text-(--s-muted)">Your public ranges, e.g. 203.0.113.0/24, one per row. Private ranges (10.x, 172.16–31.x, 192.168.x) are always yours.</p>
+          <Rows id={`${id}-networks`} label="Your public networks" items={f.own_networks} placeholder="203.0.113.0/24" add="Add another range" onChange={(v) => set("own_networks", v)} />
+        </Field>
+      </div>
       <Field id={`${id}-zone`} label="Time zone" hint="times are shown in it" error={bad.timezone}>
         <Input id={`${id}-zone`} value={f.timezone} onChange={(e) => set("timezone", e.target.value)} />
       </Field>
@@ -198,6 +187,31 @@ function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<str
       <Field id={`${id}-prefix`} label="Incident id prefix" hint="ids look like SOC-IR-2026-1027-01" error={bad.incident_id_prefix}>
         <Input id={`${id}-prefix`} value={f.incident_id_prefix} onChange={(e) => set("incident_id_prefix", e.target.value)} />
       </Field>
+      <p className="m-0 text-sm text-(--s-muted) sm:col-span-2">You can change these later in Settings → Organisation and data sources.</p>
+    </div>
+  );
+}
+
+/** A list typed one item per row, with a row added or removed by the person. */
+function Rows({ id, label, items, placeholder, add, onChange }: { id: string; label: string; items: string[]; placeholder: string; add: string; onChange: (items: string[]) => void }) {
+  const rows = items.length === 0 ? [""] : items;
+  return (
+    <div role="group" aria-label={label} className="flex flex-col gap-2">
+      {rows.map((value, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <Input id={i === 0 ? id : undefined} aria-label={`${label}, row ${i + 1}`} value={value} placeholder={placeholder} autoComplete="off" spellCheck={false} onChange={(e) => onChange(rows.map((x, j) => (j === i ? e.target.value : x)))} />
+          {rows.length > 1 && (
+            <button type="button" className="setup-link text-[0.9375rem]" aria-label={`Remove row ${i + 1} of ${label.toLowerCase()}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
+              Remove
+            </button>
+          )}
+        </div>
+      ))}
+      <div>
+        <button type="button" className="setup-link text-[0.9375rem]" onClick={() => onChange([...rows, ""])}>
+          + {add}
+        </button>
+      </div>
     </div>
   );
 }
@@ -286,8 +300,8 @@ function Access({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, s
           <label className="flex items-start gap-3 text-[0.9375rem]">
             <input type="checkbox" className="mt-1 size-5 accent-(--s-accent)" checked={f.provision_team} onChange={(e) => set("provision_team", e.target.checked)} />
             <span>
-              <strong>Also make its Kibana case team</strong>
-              <span className="block text-(--s-muted)">Seven users that write confirmed incidents as Kibana cases, each with its own key. Posting stays off until you switch it on. Needs Kibana.</span>
+              <strong>ARGUS&apos;s own team (recommended)</strong>
+              <span className="block text-(--s-muted)">The tested default pack: seven Kibana users that write confirmed incidents as cases, each with its own key. Posting stays off until you switch it on. Needs Kibana.</span>
             </span>
           </label>
           <p className="m-0 text-sm text-(--s-muted)">The login needs the right to make API keys (manage_api_key or manage_security). It is sealed in this browser, used by argus-admin for this run only, and deleted with it.</p>
@@ -750,6 +764,14 @@ function SetupView() {
           {failure && (
             <p role="alert" className="setup-error" data-testid="run-error">
               {failure.message} {failure.code === "step_up_required" && <><StepUpLink /> Then press the button again; your answers are kept here.</>}
+              {/domain|public suffix/i.test(failure.message) && (
+                <>
+                  {" "}
+                  <button type="button" className="setup-link" onClick={() => { run.reset(); go("organisation"); }}>
+                    Change the domains ›
+                  </button>
+                </>
+              )}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-6">

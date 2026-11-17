@@ -116,6 +116,24 @@ describe("AI and agents", () => {
     expect(within(team).getByRole("link", { name: /Set the keys in Settings/ }).getAttribute("href")).toBe("/app/settings?section=case_team");
   });
 
+  it("shows ARGUS's own team first: the default pack, each member in a line with its state", async () => {
+    serveAi();
+    renderApp("/ai");
+    const pack = await screen.findByTestId("ai-pack");
+    const cards = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+    expect(cards.indexOf("ARGUS's team")).toBeLessThan(cards.indexOf("Status"));
+    expect(within(pack).getByText("Default pack · tested")).toBeTruthy();
+    expect(within(pack).getAllByRole("listitem").map((li) => li.getAttribute("data-testid"))).toEqual(["pack-lead", "pack-investigator", "pack-evidence", "pack-intel", "pack-responder", "pack-hunter", "pack-reporter", "pack-visualiser"]);
+    const investigator = within(pack).getByTestId("pack-investigator");
+    expect(investigator.textContent).toContain("Agent: on");
+    expect(investigator.textContent).toContain("Its specialists: network");
+    expect(within(pack).getByTestId("pack-lead").textContent).toContain("Kibana key: set");
+    expect(within(pack).getByTestId("pack-evidence").textContent).toContain("Kibana key: not set");
+    expect(within(pack).getByTestId("pack-intel").textContent).toContain("Agent: not installed");
+    expect(within(pack).getByTestId("pack-later").textContent).toBe("Your own agents and workflows: coming later.");
+    expect(within(pack).queryByRole("button")).toBeNull();
+  });
+
   it("says the AI is off without a key, and that ARGUS still works", async () => {
     serveAi({ any_key: false });
     renderApp("/ai");

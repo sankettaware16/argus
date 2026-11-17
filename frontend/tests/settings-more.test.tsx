@@ -165,6 +165,26 @@ describe("Settings: help and where a setting is set", () => {
   });
 });
 
+describe("Settings: the organisation's domains", () => {
+  it("says what a domain covers and refuses a shared suffix at the field", async () => {
+    server.use(
+      ...shellHandlers(ADMIN),
+      http.get(`${BASE}/api/v1/admin/settings`, () =>
+        HttpResponse.json({ ...SETTINGS, sections: [{ key: "site", label: "Organisation and data sources", about: "Who runs ARGUS.", settings: [setting({ key: "site.own_domains", label: "Own domains", kind: "list", value: ["example.edu"] })] }] }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp("/settings");
+    const field = await screen.findByTestId("setting-site.own_domains");
+    expect(within(field).getByTestId("setting-hint").textContent).toContain("every subdomain");
+    await user.click(within(field).getByRole("button", { name: "Add an item" }));
+    await user.type(within(field).getByLabelText("Own domains, item 2"), "ac.in");
+    await user.click(screen.getByRole("button", { name: "Save 1 change" }));
+    expect(within(field).getByRole("alert").textContent).toBe("ac.in is shared by every organisation; give your own, e.g. example.ac.in.");
+    expect(sent("POST", "/api/v1/admin/changes")).toEqual([]);
+  });
+});
+
 describe("Settings: a link to a section", () => {
   it("opens the section the address names", async () => {
     serveSettings();

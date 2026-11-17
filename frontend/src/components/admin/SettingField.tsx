@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import type { SettingOut } from "../../client/types.gen";
-import { DURATION_HELP, durationWords, entryList, parseDuration, RISK_NOTE, splitHelp, valueWords, type Draft } from "../../lib/settings";
+import { DURATION_HELP, durationWords, entryList, parseDuration, RISK_NOTE, SETTING_HINTS, splitHelp, valueWords, type Draft } from "../../lib/settings";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Check, Select, TextInput } from "../ui/field";
@@ -119,6 +119,11 @@ export function SettingField({ setting, draft, onChange, error, reset, onReset }
         {note && <Badge tone={s.risk === "siem_write" ? "warn" : "neutral"}>{s.risk === "siem_write" ? "Writes to the SIEM" : "Needs your password"}</Badge>}
       </div>
       {short !== "" && <p className="m-0 max-w-prose text-sm text-muted">{withCode(short)}</p>}
+      {SETTING_HINTS[s.key] && (
+        <p className="m-0 max-w-prose rounded-control bg-info-soft px-2 py-1 text-sm text-info" data-testid="setting-hint">
+          {SETTING_HINTS[s.key]}
+        </p>
+      )}
       {more && (
         <details className="text-sm text-muted">
           <summary className="cursor-pointer">More</summary>

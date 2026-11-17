@@ -6,6 +6,17 @@
  * else (no query key, no log, no address).
  */
 import type { SectionOut, SettingChangeIn, SettingChangeOut, SettingOut } from "../client/types.gen";
+import { domainProblem, networkProblem } from "./setup";
+
+/** A plain hint shown under a setting's own help, for the ones people were unsure of. */
+export const SETTING_HINTS: Readonly<Record<string, string>> = {
+  "site.own_domains": "Your domain, e.g. example.edu: every subdomain (mail.example.edu, cs.example.edu) is included. Add an item for each other domain you own. A suffix every organisation shares (ac.in, co.uk) is refused.",
+  "site.own_networks": "Your public ranges, e.g. 203.0.113.0/24, one per item. Private ranges (10.x, 172.16–31.x, 192.168.x) are always yours.",
+};
+const ITEM_CHECKS: Readonly<Record<string, (item: string) => string | null>> = {
+  "site.own_domains": domainProblem,
+  "site.own_networks": networkProblem,
+};
 
 export type Risk = SettingOut["risk"];
 /** What a control holds: a switch, a list's items, or text (numbers, durations and dates stay text until sent). */
@@ -116,6 +127,9 @@ export function fromDraft(s: SettingOut, draft: Draft): Built {
         if (list.some((x) => !/^-?\d+(\.\d+)?$/.test(x))) return { ok: false, why: "Every item is a number." };
         return { ok: true, value: list.map(Number) };
       }
+      const check = ITEM_CHECKS[s.key];
+      const why = check ? list.map(check).find((x) => x !== null) : undefined;
+      if (why) return { ok: false, why };
       return { ok: true, value: list };
     }
     case "secret":

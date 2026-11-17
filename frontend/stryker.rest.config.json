@@ -34,6 +34,7 @@
     "src/components/cases/WatchBits.tsx",
     "src/components/cases/WritesView.tsx",
     "src/components/charts/DailyBars.tsx",
+    "src/components/charts/MonthLine.tsx",
     "src/components/charts/SplitBar.tsx",
     "src/components/charts/StackedBars.tsx",
     "src/components/chips.tsx",

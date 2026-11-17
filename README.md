@@ -172,8 +172,8 @@ layer, the database, the services): [docs/architecture.md](docs/architecture.md)
 |---|---|---|
 | A Linux machine with systemd | yes | 2 vCPU / 4 GB RAM / 50 GB SSD at least; 4 vCPU / 8 GB / 100 GB recommended; ARGUS uses about 1.2 GB of memory |
 | Docker Engine with compose v2, git, [uv](https://docs.astral.sh/uv/) | yes | uv fetches Python 3.12 itself; Node.js is not needed |
-| Elasticsearch and Kibana **8.x or 9.x** with Kibana Security, over HTTPS | yes | any licence, Basic included |
-| Someone who can create an API key in it, for five minutes | yes | the exact read-only request: [docs/install.md](docs/install.md#32-the-api-keys-argus-asks-for) |
+| Elasticsearch and Kibana **8.x or 9.x** with Kibana Security, over HTTPS | yes | **any licence, the free Basic included**; self-managed tested ([compatibility](docs/compatibility.md)) |
+| An Elastic administrator's login for the setup, once (ARGUS makes its own read-only keys), or one read-only API key made by hand | yes | the login is never stored; the exact request: [docs/install.md](docs/install.md#32-the-api-keys-argus-asks-for) |
 | LLM keys (Groq, OpenRouter, Gemini free; OpenAI paid) | no | without them ARGUS investigates deterministically |
 
 ### Install: one command, then the browser
@@ -407,7 +407,9 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 
 ## TLSOC Ecosystem
 
-ARGUS is one component of the TLSOC Ecosystem, an open-source security operations platform:
+ARGUS stands on its own: any organisation that runs Elastic as its SIEM can use it, with no other
+component of the TLSOC Ecosystem ([docs/compatibility.md](docs/compatibility.md)). It is also one part of the
+TLSOC Ecosystem, an open-source security operations platform:
 
 | Repository | Purpose |
 |---|---|

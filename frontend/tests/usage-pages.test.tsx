@@ -2,7 +2,7 @@
 // like any key (sealed, never shown), on or off by key (Shodan's keyless fallback), its limits and
 // lookups, the Test of one public address; the costs' summary first, the AI's spend a day stacked
 // by provider, the tasks' table and each source's lookups against its daily limit; the menu.
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -152,14 +152,56 @@ describe("Costs and usage", () => {
     serve();
     renderApp("/costs");
     const card = await screen.findByTestId("costs-ai-days");
-    const chart = within(card).getByRole("img", { name: "The AI's spend a day by provider, last 31 days" });
-    expect(chart.querySelectorAll("g > title").length).toBe(31);
+    const chart = within(card).getByRole("img", { name: /^The AI's spend a day by provider, last 31 days/ });
+    expect(chart.querySelectorAll("rect.fill-transparent").length).toBe(31);
     const legend = within(card).getByRole("list", { name: "Legend" });
     expect(within(legend).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["paidcloud$0.42", "freecloud$0.00"]);
-    const titles = [...chart.querySelectorAll("title")].map((t) => t.textContent);
-    expect(titles).toContain(`${daysAgo(1)}: $0.42 spent, paidcloud $0.42`);
     const table = within(card).getByRole("table");
     expect(within(table).getAllByRole("row").length).toBe(3);
+  });
+
+  it("reads a day out on focus and with the arrow keys: its spend and each provider's calls", async () => {
+    serve();
+    const user = userEvent.setup();
+    renderApp("/costs");
+    const card = await screen.findByTestId("costs-ai-days");
+    const chart = within(card).getByRole("img", { name: /^The AI's spend a day by provider/ });
+    act(() => chart.focus());
+    expect(within(card).getByTestId("bar-tip").textContent).toContain("$0.0040 spent");
+    await user.keyboard("{ArrowLeft}");
+    const tip = within(card).getByTestId("bar-tip").textContent ?? "";
+    expect(tip).toContain("$0.42 spent");
+    expect(tip).toContain("paidcloud: $0.42 · 4 calls");
+    expect(tip).toContain("freecloud: $0.00 · 9 calls");
+    await user.keyboard("{Escape}");
+    expect(within(card).queryByTestId("bar-tip")).toBeNull();
+  });
+
+  it("hides and shows a provider from its legend button, and switches to 7 days", async () => {
+    serve();
+    const user = userEvent.setup();
+    renderApp("/costs");
+    const card = await screen.findByTestId("costs-ai-days");
+    const paid = within(card).getByRole("button", { name: /paidcloud/ });
+    expect(paid.getAttribute("aria-pressed")).toBe("true");
+    await user.click(paid);
+    expect(paid.getAttribute("aria-pressed")).toBe("false");
+    const chart = within(card).getByRole("img", { name: /^The AI's spend a day/ });
+    expect(chart.querySelectorAll("rect.fill-accent").length).toBe(0);
+    await user.click(paid);
+    expect(chart.querySelectorAll("rect.fill-accent").length).toBe(2);
+    await user.click(screen.getByRole("button", { name: "7 days" }));
+    expect(within(card).getByRole("heading", { name: "The AI's spend a day, last 7 days" })).toBeTruthy();
+    expect(within(card).getByRole("img", { name: /last 7 days/ }).querySelectorAll("rect.fill-transparent").length).toBe(7);
+  });
+
+  it("says the trend against the previous 7 days, the projection to the month's end, and when it was read", async () => {
+    serve();
+    renderApp("/costs");
+    expect((await screen.findByTestId("costs-trend")).textContent).toContain("nothing the 7 before");
+    expect(screen.getByTestId("costs-projection").textContent).toContain("Projection, not a promise");
+    expect(screen.getByRole("img", { name: /The AI's spend this month/ })).toBeTruthy();
+    expect(screen.getByTestId("costs-updated").textContent).toContain("every minute");
   });
 
   it("lists the tasks this month with their calls and cost", async () => {
@@ -175,7 +217,10 @@ describe("Costs and usage", () => {
     renderApp("/costs");
     const vt = await screen.findByTestId("costs-source-virustotal");
     expect(vt.textContent).toContain("12 today of 400, 140 this month");
-    expect(within(vt).getByRole("img", { name: "VirusTotal: lookups a day, last 31 days" }).textContent).toContain("limit 400 a day");
+    const chart = within(vt).getByRole("img", { name: /^VirusTotal: lookups a day, last 31 days/ });
+    expect(chart.textContent).toContain("limit 400 a day");
+    act(() => chart.focus());
+    expect(within(vt).getByTestId("bar-tip").textContent).toContain("12 lookups of 400 a day");
     expect(screen.getByTestId("costs-source-censys").textContent).toContain("Off: no key");
   });
 

@@ -111,6 +111,33 @@ const DOMAIN = /^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9
 const FINGERPRINT = /^[0-9a-fA-F]{64}$/;
 const EXPIRES = /^(\d{4}-\d{2}-\d{2}|\d{1,4}d)$/;
 
+/** Suffixes every organisation shares (a short list: the server checks the full public suffix list). */
+export const PUBLIC_SUFFIXES = new Set([
+  "com", "org", "net", "edu", "gov", "int", "mil", "info", "io", "co", "biz",
+  "in", "ac.in", "co.in", "edu.in", "org.in", "net.in", "gov.in", "res.in", "ernet.in", "nic.in",
+  "uk", "ac.uk", "co.uk", "org.uk", "gov.uk", "au", "edu.au", "com.au", "org.au", "net.au",
+  "nz", "ac.nz", "co.nz", "jp", "ac.jp", "co.jp", "za", "ac.za", "co.za", "sg", "edu.sg", "com.sg",
+  "kr", "ac.kr", "co.kr", "cn", "edu.cn", "com.cn", "il", "ac.il", "co.il", "de", "fr", "nl", "eu",
+  "us", "ca", "br", "edu.br", "com.br",
+]);
+
+/** Why a domain cannot be one of the organisation's own, or null. */
+export function domainProblem(domain: string): string | null {
+  const d = domain.trim().toLowerCase().replace(/\.$/, "");
+  if (d === "") return null;
+  if (!d.includes(".")) return `Give the whole domain, e.g. example.${PUBLIC_SUFFIXES.has(d) ? d : "ac.in"}.`;
+  if (PUBLIC_SUFFIXES.has(d)) return `${d} is shared by every organisation; give your own, e.g. example.${d}.`;
+  if (!DOMAIN.test(d)) return "A domain looks like example.edu: letters, digits and hyphens between dots.";
+  return null;
+}
+
+/** Why a network cannot be one of the organisation's public ranges, or null. */
+export function networkProblem(network: string): string | null {
+  const n = network.trim();
+  if (n === "") return null;
+  return CIDR.test(n) ? null : "A range is written like 203.0.113.0/24.";
+}
+
 export function validZone(zone: string): boolean {
   try {
     new Intl.DateTimeFormat("en", { timeZone: zone });
@@ -135,9 +162,11 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     if (f.short_name.trim() === "") out.short_name = "Write the security team's name.";
     if (f.kind.trim() === "") out.kind = "Write what kind of organisation it is, e.g. university.";
     const domains = cleaned(f.own_domains);
+    const domainWhy = domains.map(domainProblem).find((x) => x !== null);
     if (domains.length === 0) out.own_domains = "Add at least one domain.";
-    else if (domains.some((d) => !DOMAIN.test(d))) out.own_domains = "Each domain looks like example.org.";
-    if (cleaned(f.own_networks).some((n) => !CIDR.test(n))) out.own_networks = "Each network is written like 203.0.113.0/24.";
+    else if (domainWhy) out.own_domains = domainWhy;
+    const networkWhy = cleaned(f.own_networks).map(networkProblem).find((x) => x !== null);
+    if (networkWhy) out.own_networks = networkWhy;
     if (!validZone(f.timezone)) out.timezone = "A time zone name such as Asia/Kolkata.";
     if (f.incident_id_prefix.trim() === "") out.incident_id_prefix = "Write the prefix of incident ids, e.g. SOC-IR.";
   }

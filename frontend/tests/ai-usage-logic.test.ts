@@ -5,10 +5,10 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { AiDayOut, JobOut, SettingOut } from "../src/client/types.gen";
 import { assetFileProblem, ASSET_MAP_MAX, jobOutcome } from "../src/lib/admin";
-import { aiChanges, aiLabels, aiSummary, byKey, callsWords, modelsBySize, providerSettings, purposeSettings, readingSetting, spendWords } from "../src/lib/ai";
+import { aiChanges, aiLabels, aiSummary, memberStates, packMembers, PACK, byKey, callsWords, modelsBySize, providerSettings, purposeSettings, readingSetting, spendWords } from "../src/lib/ai";
 import { niceCeil } from "../src/lib/chart";
 import { buildChanges } from "../src/lib/settings";
-import { againstCap, aiSeries, dayLimit, lastDay, lastDays, limitWords, providerOrder, sourceSeries, sourceState, taskLabel, usd } from "../src/lib/usage";
+import { againstCap, aiCalls, aiSeries, dayLimit, dayLines, lastDay, lastDays, limitWords, monthToDate, providerOrder, sourceSeries, sourceState, taskLabel, trend, trendWords, usd } from "../src/lib/usage";
 
 function setting(more: Partial<SettingOut> & { key: string }): SettingOut {
   return { label: "On", help: "", kind: "bool", risk: "normal", editable: true, optional: false, choices: [], minimum: null, maximum: null, default: null, value: null, is_set: null, homes: [], in_app: false, ...more };
@@ -155,5 +155,49 @@ describe("the usage series", () => {
     expect(sourceState(false, false).on).toBe(false);
     expect(taskLabel("opinion")).toBe("Second opinions on P1 incidents");
     expect(taskLabel("other")).toBe("other");
+  });
+});
+
+describe("the costs page's movement", () => {
+  const row = (day: string, provider: string, cost: number, calls = 1): AiDayOut => ({ day, provider, calls, ok: calls, cost_usd: cost, tokens: 1 });
+  it("compares the last 7 days with the 7 before", () => {
+    const rows = [row("2026-11-17", "a", 1), row("2026-11-11", "a", 1), row("2026-11-10", "a", 0.5), row("2026-11-04", "a", 0.5), row("2026-11-03", "a", 9)];
+    expect(trend(rows, "2026-11-17")).toEqual({ now: 2, before: 1, percent: 100 });
+    expect(trendWords(trend(rows, "2026-11-17"))).toBe("↑ 100% vs the previous 7 days");
+    expect(trendWords({ now: 1, before: 2, percent: -50 })).toBe("↓ 50% vs the previous 7 days");
+    expect(trendWords({ now: 0, before: 0, percent: null })).toBe("Nothing spent in the last 14 days");
+    expect(trendWords({ now: 1, before: 1, percent: 0 })).toBe("The same as the previous 7 days");
+  });
+  it("runs the month to date and projects its end at the same rate", () => {
+    const m = monthToDate([row("2026-11-01", "a", 1), row("2026-11-03", "a", 2), row("2026-10-31", "a", 50), row("2026-11-10", "a", 1)], "2026-11-10");
+    expect(m.length).toBe(30);
+    expect(m.today).toBe(10);
+    expect(m.cumulative).toEqual([1, 1, 3, 3, 3, 3, 3, 3, 3, 4]);
+    expect(m.projected).toBeCloseTo(12);
+    expect(monthToDate([], "2026-02-01")).toMatchObject({ length: 28, projected: 0 });
+  });
+  it("says each shown provider's spend and calls for a day", () => {
+    const calls = aiCalls([row("2026-11-16", "a", 0.42, 4), row("2026-11-16", "b", 0, 9)]);
+    expect(calls.get("2026-11-16")).toEqual({ a: 4, b: 9 });
+    const point = { at: "2026-11-16T00:00:00", counts: { a: 0.42, b: 0 } };
+    expect(dayLines(point, calls.get("2026-11-16") ?? {}, ["a", "b"])).toEqual(["a: $0.42 · 4 calls", "b: $0.00 · 9 calls"]);
+    expect(dayLines(point, calls.get("2026-11-16") ?? {}, ["b"])).toEqual(["b: $0.00 · 9 calls"]);
+    expect(dayLines({ at: "x", counts: {} }, {}, ["a"])).toEqual(["No AI call"]);
+  });
+});
+
+describe("ARGUS's team, the default pack", () => {
+  const agent = (name: string, more = {}) => ({ name, on: true, problem: null, ...more });
+  it("joins the agents and the case team's users, each member once, in the team's order", () => {
+    const members = packMembers({ agents: [agent("investigator"), agent("responder", { on: false }), agent("reporter", { problem: "pin" })], team: [{ user: "argus-lead", setting: "case_team.lead_api_key", is_set: true }, { user: "argus-responder", setting: "case_team.responder_api_key", is_set: false }] });
+    expect(members.map((m) => m.name)).toEqual(["Lead", "Investigator", "Evidence", "Intel", "Responder", "Hunter", "Reporter", "Visualiser"]);
+    expect(members.every((m) => m.does.endsWith("."))).toBe(true);
+    const by = Object.fromEntries(members.map((m) => [m.key, memberStates(m).map((x) => x.text)]));
+    expect(by.lead).toEqual(["Kibana key: set"]);
+    expect(by.investigator).toEqual(["Agent: on"]);
+    expect(by.intel).toEqual(["Agent: not installed", "Kibana user: not known"]);
+    expect(by.responder).toEqual(["Agent: off in code", "Kibana key: not set"]);
+    expect(by.reporter).toEqual(["Agent: a problem", "Kibana user: not known"]);
+    expect(PACK.filter((p) => p.user !== null)).toHaveLength(7);
   });
 });

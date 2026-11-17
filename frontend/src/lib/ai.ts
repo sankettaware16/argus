@@ -5,7 +5,7 @@
  */
 import { queryOptions } from "@tanstack/react-query";
 import { getAi } from "../client/sdk.gen";
-import type { AiOut, AiProviderOut, SettingOut } from "../client/types.gen";
+import type { AgentOut, AiOut, AiProviderOut, SettingOut, TeamKeyOut } from "../client/types.gen";
 import { unwrap } from "./call";
 import type { ChangeSet } from "./settings";
 
@@ -110,4 +110,44 @@ export function aiLabels(ai: Pick<AiOut, "settings" | "purposes">): Map<string, 
       return [s.key, s.label];
     }),
   );
+}
+
+/** ARGUS's own team, the default pack: the investigation agents and the Kibana case team's users. */
+export const PACK: { key: string; name: string; does: string; agent: string | null; user: string | null }[] = [
+  { key: "lead", name: "Lead", does: "Opens the Kibana case for a confirmed incident and writes ARGUS's verdict last.", agent: null, user: "argus-lead" },
+  { key: "investigator", name: "Investigator", does: "Assesses what the decision engine could not decide, from the evidence it asks for, with its specialists.", agent: "investigator", user: null },
+  { key: "evidence", name: "Evidence", does: "Puts the evidence on the case: the alerts, the devices and the facts behind them.", agent: null, user: "argus-evidence" },
+  { key: "intel", name: "Intel", does: "Reads the threat-intel evidence for the investigator and writes it on the case.", agent: "intel", user: "argus-intel" },
+  { key: "responder", name: "Responder", does: "Ranks the advised actions for a confirmed case and says each in a plain sentence.", agent: "responder", user: "argus-responder" },
+  { key: "hunter", name: "Hunter", does: "Adds the queries that look for the same activity elsewhere.", agent: null, user: "argus-hunter" },
+  { key: "reporter", name: "Reporter", does: "Attaches the incident report to the case and says the daily and weekly figures in a paragraph.", agent: "reporter", user: "argus-reporter" },
+  { key: "visualiser", name: "Visualiser", does: "Adds a one-glance chart of the case.", agent: null, user: "argus-visualiser" },
+];
+
+export interface PackMember {
+  key: string;
+  name: string;
+  does: string;
+  /** the agent's file as argus-admin read it; undefined: this member is no agent; null: not installed */
+  agent?: AgentOut | null;
+  /** the Kibana user's key; undefined: this member is no Kibana user */
+  user?: TeamKeyOut | null;
+}
+
+/** The default pack's members with what this host has of each. */
+export function packMembers(ai: Pick<AiOut, "agents" | "team">): PackMember[] {
+  return PACK.map((p) => {
+    const out: PackMember = { key: p.key, name: p.name, does: p.does };
+    if (p.agent !== null) out.agent = ai.agents.find((a) => a.name === p.agent) ?? null;
+    if (p.user !== null) out.user = ai.team.find((t) => t.user === p.user) ?? null;
+    return out;
+  });
+}
+
+/** A member's state in words: its agent on or off in code, its Kibana user's key. */
+export function memberStates(m: PackMember): { text: string; tone: "ok" | "neutral" | "warn" }[] {
+  const out: { text: string; tone: "ok" | "neutral" | "warn" }[] = [];
+  if (m.agent !== undefined) out.push(m.agent === null ? { text: "Agent: not installed", tone: "warn" } : m.agent.problem ? { text: "Agent: a problem", tone: "warn" } : m.agent.on ? { text: "Agent: on", tone: "ok" } : { text: "Agent: off in code", tone: "neutral" });
+  if (m.user !== undefined) out.push(m.user === null ? { text: "Kibana user: not known", tone: "neutral" } : m.user.is_set ? { text: "Kibana key: set", tone: "ok" } : { text: "Kibana key: not set", tone: "neutral" });
+  return out;
 }

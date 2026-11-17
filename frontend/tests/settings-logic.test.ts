@@ -162,3 +162,15 @@ describe("a list of entries (objects)", () => {
     expect(buildChanges([families], { "site.families": ["x"] }, new Set(["site.families"])).changes).toEqual([]);
   });
 });
+
+describe("the organisation's domains and ranges in Settings", () => {
+  const domains = setting({ key: "site.own_domains", label: "Own domains", kind: "list", value: ["example.edu"] });
+  const ranges = setting({ key: "site.own_networks", label: "Own networks", kind: "list", value: [] });
+  it("refuses a shared suffix or a bare name, and a range without its prefix, before anything is sent", () => {
+    expect(fromDraft(domains, ["example.edu", "ac.in"])).toEqual({ ok: false, why: "ac.in is shared by every organisation; give your own, e.g. example.ac.in." });
+    expect(fromDraft(domains, ["example"])).toEqual({ ok: false, why: "Give the whole domain, e.g. example.ac.in." });
+    expect(fromDraft(domains, ["example.edu", "lab.example.org"])).toEqual({ ok: true, value: ["example.edu", "lab.example.org"] });
+    expect(fromDraft(ranges, ["203.0.113.0"])).toEqual({ ok: false, why: "A range is written like 203.0.113.0/24." });
+    expect(buildChanges([domains], { "site.own_domains": ["co.uk"] }, new Set()).errors["site.own_domains"]).toContain("co.uk");
+  });
+});

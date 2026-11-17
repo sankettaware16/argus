@@ -1,6 +1,6 @@
 // The people dialogs' checks and the setup wizard's answers, exactly as they are sent.
 import { describe, expect, it } from "vitest";
-import { aiKeyName, allProblems, buildSetup, CASE_TEAM_USERS, elasticPlan, emptySetup, plainFingerprint, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm } from "../src/lib/setup";
+import { aiKeyName, allProblems, domainProblem, networkProblem, buildSetup, CASE_TEAM_USERS, elasticPlan, emptySetup, plainFingerprint, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm } from "../src/lib/setup";
 import { EMPTY_PERSON, fullLink, newPersonBody, personProblems, readOnlyWhy, roleBody, roleLabel, usernameProblem } from "../src/lib/users";
 
 describe("a new person", () => {
@@ -211,5 +211,27 @@ describe("the jobs' answers", () => {
     expect(setupOutput({ ok: true, exit: 0, output: ["a", "b"] })).toEqual({ ok: true, lines: ["a", "b"], error: null, after: [] });
     expect(setupOutput({ ok: true, output: [], after: ["Virustotal api key: stored", "asset map: imported"] }).after).toEqual(["Virustotal api key: stored", "asset map: imported"]);
     expect(setupOutput({ error: "boom" }).error).toBe("boom");
+  });
+});
+
+describe("own domains and public ranges", () => {
+  it("refuses a bare name and a suffix every organisation shares, whatever its case", () => {
+    expect(domainProblem("example.ac.in")).toBeNull();
+    expect(domainProblem("Example.EDU")).toBeNull();
+    expect(domainProblem(" ")).toBeNull();
+    expect(domainProblem("example")).toBe("Give the whole domain, e.g. example.ac.in.");
+    expect(domainProblem("in")).toBe("Give the whole domain, e.g. example.in.");
+    expect(domainProblem("ac.in")).toBe("ac.in is shared by every organisation; give your own, e.g. example.ac.in.");
+    expect(domainProblem("CO.UK.")).toBe("co.uk is shared by every organisation; give your own, e.g. example.co.uk.");
+    expect(domainProblem("exa mple.org")).toContain("A domain looks like");
+  });
+  it("takes a range as an address and a prefix", () => {
+    expect(networkProblem("203.0.113.0/24")).toBeNull();
+    expect(networkProblem("2001:db8::/32")).toBeNull();
+    expect(networkProblem("203.0.113.0")).toBe("A range is written like 203.0.113.0/24.");
+  });
+  it("blocks the chapter on the first wrong row", () => {
+    expect(stepProblems("organisation", filled({ own_domains: ["example.edu", "edu"] })).own_domains).toContain("edu");
+    expect(stepProblems("organisation", filled({ own_networks: ["198.51.100.0/24", "x"] })).own_networks).toBeTruthy();
   });
 });

@@ -317,7 +317,7 @@ async function fillOrganisation(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Begin" }));
   await user.type(await screen.findByLabelText(/^Organisation name/), "Example University");
   await user.type(screen.getByLabelText(/^Security team's name/), "CSOC");
-  await user.type(screen.getByLabelText(/^Your own domains/), "example.edu");
+  await user.type(screen.getByRole("textbox", { name: "Your own domains, row 1" }), "example.edu");
   await user.click(screen.getByRole("button", { name: "Continue" }));
 }
 
@@ -390,6 +390,35 @@ describe("First-time setup", () => {
     expect(screen.getByTestId("setup-after").textContent).toContain("asset map: imported");
     expect(screen.getByTestId("setup-output").textContent).toContain("step 2 ok");
     expect(screen.getByRole("link", { name: "Open Today" }).getAttribute("href")).toBe("/app/");
+  });
+
+  it("takes domains and ranges one per row, and refuses a bare name or a shared suffix", async () => {
+    serveSetup();
+    const user = userEvent.setup();
+    renderApp("/setup");
+    await user.click(await screen.findByRole("button", { name: "Begin" }));
+    expect(screen.getByText(/every subdomain \(mail\.example\.edu, cs\.example\.edu\) is included/)).toBeTruthy();
+    expect(screen.getByText(/You can change these later in Settings/)).toBeTruthy();
+    await user.type(screen.getByLabelText(/^Organisation name/), "Example University");
+    await user.type(screen.getByLabelText(/^Security team's name/), "CSOC");
+    const first = screen.getByRole("textbox", { name: "Your own domains, row 1" });
+    await user.type(first, "ac.in");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByText("ac.in is shared by every organisation; give your own, e.g. example.ac.in.")).toBeTruthy();
+    await user.clear(first);
+    await user.type(first, "example");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByText("Give the whole domain, e.g. example.ac.in.")).toBeTruthy();
+    await user.clear(first);
+    await user.type(first, "example.ac.in");
+    await user.click(screen.getByRole("button", { name: "+ Add another domain" }));
+    await user.type(screen.getByRole("textbox", { name: "Your own domains, row 2" }), "example-lab.org");
+    await user.type(screen.getByRole("textbox", { name: "Your public networks, row 1" }), "203.0.113.0");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByText("A range is written like 203.0.113.0/24.")).toBeTruthy();
+    await user.type(screen.getByRole("textbox", { name: "Your public networks, row 1" }), "/24");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Connect your SIEM." })).toBeTruthy();
   });
 
   it("does not leave a chapter that is not filled in, and says what is missing", async () => {

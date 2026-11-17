@@ -8,11 +8,18 @@ import type { AiDayOut, SourceDayOut, SourceLimitOut } from "../client/types.gen
 import { unwrap } from "./call";
 import type { Point } from "./chart";
 
+export const REFRESH_MS = 60_000;
+
 export const usageOptions = queryOptions({
   queryKey: ["admin", "usage"],
   queryFn: () => unwrap(getUsage()),
   staleTime: 60_000,
+  refetchInterval: REFRESH_MS,
 });
+
+/** The ranges the costs page offers (the API keeps 31 days). */
+export const RANGES = [7, 31] as const;
+export type Range = (typeof RANGES)[number];
 
 /** US dollars: two decimals, four under a cent ("$0.0042"), "$0.00" for nothing. */
 export function usd(n: number): string {
@@ -98,4 +105,83 @@ export function sourceState(hasKey: boolean, keyless: boolean | null): { on: boo
   if (hasKey) return { on: true, words: "On" };
   if (keyless) return { on: true, words: "On without a key (InternetDB)" };
   return { on: false, words: "Off: no key" };
+}
+
+/** Each provider's calls a day (for a bar's tooltip), by day then provider. */
+export function aiCalls(rows: readonly AiDayOut[]): Map<string, Record<string, number>> {
+  const out = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    const day = r.day.slice(0, 10);
+    const own = out.get(day) ?? {};
+    own[r.provider] = (own[r.provider] ?? 0) + r.calls;
+    out.set(day, own);
+  }
+  return out;
+}
+
+/** The lines of one day's tooltip: each shown provider's spend and calls, the dearest first. */
+export function dayLines(point: Point, calls: Readonly<Record<string, number>>, order: readonly string[]): string[] {
+  const names = order.filter((p) => (point.counts[p] ?? 0) > 0 || (calls[p] ?? 0) > 0);
+  if (names.length === 0) return ["No AI call"];
+  return names.map((p) => {
+    const n = calls[p] ?? 0;
+    return `${p}: ${usd(point.counts[p] ?? 0)} · ${n} ${n === 1 ? "call" : "calls"}`;
+  });
+}
+
+export interface Trend {
+  now: number;
+  before: number;
+  /** the change in percent, rounded; null when the previous period cost nothing */
+  percent: number | null;
+}
+
+/** The last `days` days' spend (ending with `last`) against the `days` before them. */
+export function trend(rows: readonly AiDayOut[], last: string, days = 7): Trend {
+  const all = lastDays(last, days * 2);
+  const recent = new Set(all.slice(days));
+  const earlier = new Set(all.slice(0, days));
+  let now = 0;
+  let before = 0;
+  for (const r of rows) {
+    const d = r.day.slice(0, 10);
+    if (recent.has(d)) now += r.cost_usd;
+    else if (earlier.has(d)) before += r.cost_usd;
+  }
+  return { now, before, percent: before > 0 ? Math.round(((now - before) / before) * 100) : null };
+}
+
+export function trendWords(t: Trend, days = 7): string {
+  if (t.percent === null) return t.now > 0 ? `${usd(t.now)} in the last ${days} days; nothing the ${days} before` : `Nothing spent in the last ${days * 2} days`;
+  if (t.percent === 0) return `The same as the previous ${days} days`;
+  return `${t.percent > 0 ? "↑" : "↓"} ${Math.abs(t.percent)}% vs the previous ${days} days`;
+}
+
+export interface MonthToDate {
+  /** the month's days, 1 … its length */
+  length: number;
+  /** today's day of the month */
+  today: number;
+  /** the spend so far at the end of each day up to today */
+  cumulative: number[];
+  /** the end of the month at the average rate so far (a projection) */
+  projected: number;
+}
+
+/** The month so far, day by day, and where it ends at the same daily rate. */
+export function monthToDate(rows: readonly AiDayOut[], today: string): MonthToDate {
+  const [y, m, d] = today.split("-").map(Number);
+  const length = new Date(Date.UTC(y ?? 1970, m ?? 1, 0)).getUTCDate();
+  const day = d ?? 1;
+  const daily = new Array<number>(day).fill(0);
+  const prefix = today.slice(0, 8);
+  for (const r of rows) {
+    if (!r.day.startsWith(prefix)) continue;
+    const n = Number(r.day.slice(8, 10));
+    if (n >= 1 && n <= day) daily[n - 1] = (daily[n - 1] ?? 0) + r.cost_usd;
+  }
+  let run = 0;
+  const cumulative = daily.map((v) => (run += v));
+  const spent = cumulative[cumulative.length - 1] ?? 0;
+  return { length, today: day, cumulative, projected: (spent / day) * length };
 }
