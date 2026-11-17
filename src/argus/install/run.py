@@ -418,8 +418,8 @@ class Init:
         port = self.settings().web.port
         base = f"https://{address}:{port}" if address else f"http://127.0.0.1:{port}"
         if self.host.people(self.o.config) > 0:
-            self.say(f"\ninit: done; open {base}/ and sign in (until the setup is done, a card"
-                     " on Today leads to it)")  # fmt: skip
+            self.say(f"\ninit: done; open {base}/ and sign in (the setup opens by itself until it"
+                     " is done)")  # fmt: skip
             return 0
         name = "admin"
         if self.ask.scripted and self.ask.given("web.person"):
@@ -654,11 +654,15 @@ class Init:
     def addresses(self) -> tuple[str, str | None]:
         self.step(4, "the SIEM and Kibana: addresses and trust")
         local = files.read_yaml(self.o.local_file)
-        url = self.value(
-            "siem.url",
-            "The SIEM's Elasticsearch address (https://host:9200)",
-            files.get(local, "siem.url"),
-        )
+        url = (
+            self.value(
+                "siem.url",
+                "The SIEM's Elasticsearch address (https://host:9200)",
+                files.get(local, "siem.url"),
+            )
+            .strip()
+            .rstrip("/")
+        )  # an address copied with its trailing slash is the same address
         _https(url, "siem.url")
         siem_ca = self.o.root / (files.get(local, "siem.ca_file") or SIEM_CA)
         trusted = establish("siem", url, siem_ca, self.ask, self.host.tls, self.say,
@@ -679,6 +683,7 @@ class Init:
             kibana = current  # init never removes configuration
             self.say(f"   Kibana: kept {current} (remove kibana: from config/local.yaml to stop)")
         if kibana is not None:
+            kibana = kibana.strip().rstrip("/")
             _https(kibana, "kibana.url")
             given = files.get(local, "kibana.ca_file")
             target = self.o.root / (given or KIBANA_CA)
@@ -1097,8 +1102,11 @@ class Init:
             default = str(hosts[0])
         elif files.get(local, "units.root") is None:  # a new installation: offer this machine
             default = self.host.local_ip(_host_of(siem_url) or "")
+        quiet = self.o.web_setup and not self.ask.given("web.address")  # ./install.sh asks nothing
         if self.ask.scripted and not self.ask.given("web.address"):
             address = default if isinstance(current, str) or hosts else None
+        elif quiet:
+            address = default
         else:
             address = self.ask.optional(
                 "web.address",
@@ -1111,7 +1119,8 @@ class Init:
                 f"   the web listens on 127.0.0.1:{port} only; from another machine:"
                 f" ssh -L {port}:127.0.0.1:{port} <this machine>, then http://127.0.0.1:{port}/"
             )
-            self.first_person()
+            if not self.o.web_setup:
+                self.first_person()
             return None
         address = address.strip().lower()
         changes: dict[str, Any] = {"units.web.host": "0.0.0.0"}  # noqa: S104 - TLS and allowlists
@@ -1120,10 +1129,14 @@ class Init:
         if webcert.covers(cert, address) and key.is_file():
             self.say(f"   certificate: kept {_relative(cert, self.o.root)} (it names {address})")
         else:
-            ca_cert = self.ask.optional(
-                "web.ca_cert",
-                "Your organisation's CA certificate, to sign the web's certificate so browsers"
-                " trust it (none: a self-signed one, which browsers warn about once)",
+            ca_cert = (
+                None
+                if quiet and not self.ask.given("web.ca_cert")
+                else self.ask.optional(
+                    "web.ca_cert",
+                    "Your organisation's CA certificate, to sign the web's certificate so browsers"
+                    " trust it (none: a self-signed one, which browsers warn about once)",
+                )
             )
             ca = None
             if ca_cert is not None:
@@ -1137,7 +1150,9 @@ class Init:
         changes["units.web.tls_key"] = str(_relative(key, self.o.root))
         changes["units.web.allowed_hosts"] = hosts if address in hosts else [address]
         networks = files.get(local, "units.web.allowed_networks")
-        if not networks:
+        if not networks and quiet and not self.ask.given("web.networks"):
+            networks = _networks_of(address)  # Settings → The web app changes them later
+        elif not networks:
             networks = self.ask.items(
                 "web.networks",
                 "The networks people open it from (CIDR; others are refused)",
@@ -1155,7 +1170,8 @@ class Init:
         written = files.update_yaml(self.o.local_file, changes)
         self.say(f"   {url}: {'written ' + ', '.join(written) if written else 'kept'}")
         self.writer_links(url, changes["units.web.allowed_hosts"])
-        self.first_person()
+        if not self.o.web_setup:  # the setup's administrator comes with the one-time link
+            self.first_person()
         return address
 
     def writer_links(self, url: str, hosts: list[str]) -> None:

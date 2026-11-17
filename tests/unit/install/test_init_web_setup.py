@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from argus.install.answers import ScriptedAnswers
+from argus.install.answers import ScriptedAnswers, TerminalAnswers
 from tests.unit.install.test_run import Run
 
 pytestmark = pytest.mark.unit
@@ -37,4 +37,24 @@ def test_a_second_run_makes_no_second_administrator(tmp_path: Path) -> None:
                               tmp_path / "a.yml")  # fmt: skip
     assert run.go(answers, web_setup=True) == 0, run.text
     assert run.welcomed == []
-    assert "a card on Today leads to it" in run.text
+    assert "the setup opens by itself" in run.text
+
+
+def test_install_sh_asks_nothing_at_the_terminal(tmp_path: Path) -> None:
+    """``./install.sh`` on a fresh machine: this machine's address, a self-signed certificate,
+    the address's networks, no first person; every choice is the browser's (Settings changes
+    them later). A question at the terminal fails the test."""
+    run = Run(tmp_path, compose=True)
+
+    def no_question(question: str, **_kw: object) -> str:
+        raise AssertionError(f"asked at the terminal: {question}")
+
+    terminal = TerminalAnswers(prompt=no_question, confirm=lambda q, default: default)
+    assert run.go(terminal, web_setup=True) == 0, run.text
+    web = run.local()["units"]["web"]
+    assert web["public_url"] == "https://192.0.2.10:8765"  # the fake host's address
+    assert web["allowed_networks"]
+    assert run.people == []  # the administrator comes with the one-time link
+    assert run.welcomed == ["admin"]
+    assert "https://192.0.2.10:8765/welcome?token=tok-123" in run.text
+    assert "argus user add" not in run.text

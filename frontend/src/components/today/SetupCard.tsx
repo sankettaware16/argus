@@ -19,13 +19,13 @@ export function SetupCard() {
       </Card>
     );
   }
-  if (settings.data?.setup_needed !== true) return null;
+  if (settings.data?.setup_needed !== true && session.data?.setup_pending !== true) return null;
   return (
     <Card aria-label="First-time setup" data-testid="setup-card" className="border-info/40 bg-info-soft">
-      <CardTitle>Finish the first-time setup</CardTitle>
-      <p className="m-0 mb-2 max-w-prose text-sm">ARGUS is not connected to your SIEM yet, so it has nothing to watch. It takes a few minutes: your organisation, the SIEM&apos;s address and a read-only key.</p>
-      <Link to="/setup" className="inline-flex min-h-8 items-center rounded-full border border-accent bg-accent px-3 text-sm font-medium text-accent-fg no-underline hover:bg-accent-hover">
-        Start the setup
+      <CardTitle>The setup is not finished</CardTitle>
+      <p className="m-0 mb-2 max-w-prose text-sm">ARGUS is not connected to your SIEM yet, so it has nothing to watch. The setup takes a few minutes: your organisation, the SIEM&apos;s address and ARGUS&apos;s access.</p>
+      <Link to="/setup" className="inline-flex min-h-8 items-center rounded-full border border-accent bg-accent px-4 text-sm font-medium text-accent-fg no-underline hover:bg-accent-hover">
+        Continue the setup
       </Link>
     </Card>
   );

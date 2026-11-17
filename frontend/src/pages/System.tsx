@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { GapOut, HealthOut, MetricsOut } from "../client/types.gen";
 import { ServicesPanel } from "../components/admin/Services";
+import { can, useSession } from "../lib/session";
 import { Loading, Problem } from "../components/Problem";
 import { Time } from "../components/Time";
 import { UntrustedText } from "../components/UntrustedText";
@@ -116,10 +117,18 @@ function HealthBody({ h }: { h: HealthOut }) {
 
 export function Health() {
   const health = useQuery(healthPageOptions);
+  const session = useSession();
+  const pending = session.data?.setup_pending === true;
   return (
     <>
       <h1 className="m-0 text-2xl font-semibold">Health</h1>
       <p className="m-0 max-w-prose text-sm text-muted">Whether data is arriving from the SIEM and any gaps. A gap means unknown, never clean.</p>
+      {pending && (
+        <p role="status" className="m-0 rounded-control border border-info/40 bg-info-soft px-3 py-2 text-sm text-info" data-testid="health-setup">
+          ARGUS is not connected yet: the first-time setup is not finished, so nothing below is read yet, which is expected.{" "}
+          {can(session.data, "admin") ? <Link to="/setup">Finish the setup</Link> : "An administrator still has to finish it."}
+        </p>
+      )}
       {health.isPending && <Loading what="the health" />}
       {health.isError && <Problem error={health.error} what="The health" onRetry={() => void health.refetch()} />}
       {health.data && <HealthBody h={health.data} />}

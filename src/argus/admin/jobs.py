@@ -36,7 +36,12 @@ ASSET_MAP = "assets.map"  # the uploaded asset map's sealed name
 ASSET_MAP_MAX = 5_000_000  # characters
 KIBANA_KEYS = ("reader", "cases", "alerts")
 _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
-ANSWERS = frozenset(n for n in KNOWN if not n.endswith(("_file", "_env")) or n == "llm.keys_file")
+# a CA certificate pasted or uploaded in the setup (PEM text): written for init as <what>.ca_file
+CA_PEMS = {"siem.ca_pem": "siem", "kibana.ca_pem": "kibana"}
+CA_PEM_MAX = 65_536
+ANSWERS = frozenset(
+    n for n in KNOWN if not n.endswith(("_file", "_env")) or n == "llm.keys_file"
+) | frozenset(CA_PEMS)
 _MASK = re.compile(r"(?i)(api[_ ]?key|password|secret|token)(\S*\s*[:=]\s*)\S+")
 
 
@@ -89,6 +94,19 @@ def setup(root: Path, params: Mapping[str, Any], secrets: Mapping[str, str],
             path = folder / name
             files.write_private(path, value + "\n")
             answers[f"{name}_file"] = str(path)
+        for name, what in CA_PEMS.items():
+            pem = answers.pop(name, None)
+            if pem in (None, ""):
+                continue
+            if not isinstance(pem, str) or len(pem) > CA_PEM_MAX or "BEGIN CERTIFICATE" not in pem:
+                raise JobError(f"{what}'s CA certificate: a PEM file (-----BEGIN CERTIFICATE-----)")
+            path = folder / f"{what}-ca.pem"
+            files.write_private(path, pem.strip() + "\n")
+            answers[f"{what}.ca_file"] = str(path)
+            answers[f"{what}.trust"] = "file"
+        for name in ("siem.url", "kibana.url"):
+            if isinstance(answers.get(name), str):
+                answers[name] = answers[name].strip().rstrip("/")
         answers.setdefault("units.install", True)
         answers.setdefault("units.start", True)
         answers.setdefault("database.compose", True)

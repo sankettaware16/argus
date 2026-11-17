@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sankettaware16/argus/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.0-2ea44f" alt="Release v0.3.0"/></a>
+  <a href="https://github.com/sankettaware16/argus/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.1-2ea44f" alt="Release v0.3.1"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"/></a>
   <img src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12"/>
   <img src="https://img.shields.io/badge/Elastic-8.x%20%7C%209.x%2C%20any%20licence-005571?logo=elastic&logoColor=white" alt="Elastic 8.x | 9.x, any licence"/>
@@ -208,7 +208,7 @@ layer, the database, the services): [docs/architecture.md](docs/architecture.md)
 | | Required | Notes |
 |---|---|---|
 | A Linux machine with systemd | yes | 2 vCPU / 4 GB RAM / 50 GB SSD at least; 4 vCPU / 8 GB / 100 GB recommended; ARGUS uses about 1.2 GB of memory |
-| Docker Engine with compose v2, git, [uv](https://docs.astral.sh/uv/) | yes | uv fetches Python 3.12 itself; Node.js is not needed |
+| Docker Engine with compose v2 and git; the account in the `docker` group | yes | `./install.sh` installs uv and Python 3.12 itself; Node.js is not needed |
 | Elasticsearch and Kibana **8.x or 9.x** with Kibana Security, over HTTPS | yes | **any licence, the free Basic included**; self-managed tested ([compatibility](docs/compatibility.md)) |
 | An Elastic administrator's login for the setup, once (ARGUS makes its own read-only keys), or one read-only API key made by hand | yes | the login is never stored; the exact request: [docs/install.md](docs/install.md#32-the-api-keys-argus-asks-for) |
 | LLM keys (Groq, OpenRouter, Gemini free; OpenAI paid) | no | without them ARGUS investigates deterministically |
@@ -221,21 +221,23 @@ cd argus
 ./install.sh
 ```
 
-`./install.sh` installs ARGUS's packages, starts PostgreSQL in Docker with new passwords, makes the
-web's certificate and starts two services: the web app and `argus-admin`, which applies the
-changes people make in the app. It asks one question (the address people open ARGUS at) and ends
-with a one-time link for the first administrator:
+`./install.sh` asks nothing. It installs uv and ARGUS's packages, starts PostgreSQL in Docker with
+new passwords, makes the web's certificate for this machine's address and starts two services:
+the web app and `argus-admin`, which applies the changes people make in the app. It ends with a
+one-time link for the first administrator:
 
 ```
     https://192.0.2.10:8765/welcome?token=…
 ```
 
-Open it, choose a password, sign in, and press **Start the setup** on Today. Four short steps
-ask for your organisation (name, domains, networks, time zone), Elasticsearch's address (ARGUS
-shows the certificate it presents, for you to compare and trust) and a **read-only API key**, and
-optionally Kibana. ARGUS then discovers your log families, Kibana space and threat-intel sources
-(metadata only), writes its configuration and starts every service. The first alerts arrive in
-minutes. Lost the link? Run `./install.sh` again.
+Open it, choose a password and sign in: the first-time setup opens by itself. One question per
+screen: your organisation (name, domains, networks, time zone), Elasticsearch's address (ARGUS
+shows the certificate it presents, for you to compare and trust), then **an Elastic
+administrator's login, used once and never stored, so ARGUS makes its own read-only keys** (or
+read-only keys you paste), Kibana, and optionally your AI and threat-intel keys and asset map.
+ARGUS then discovers your log families, Kibana space and threat-intel sources (metadata only),
+writes its configuration and starts every service. The first incidents arrive in minutes. Lost
+the link? Run `./install.sh` again.
 
 The whole path, including how to make the read-only key and how to install from the terminal
 alone (`uv run argus init`, interactive or with an answers file):

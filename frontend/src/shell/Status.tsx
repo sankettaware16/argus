@@ -4,6 +4,7 @@ import { getCost, getHealth } from "../client/sdk.gen";
 import { Badge, type Tone } from "../components/ui/badge";
 import { BACKGROUND } from "../lib/api";
 import { useCan } from "../components/investigation/actions";
+import { useSession } from "../lib/session";
 import { systemDot, type SystemDot as Dot } from "../lib/system";
 import { clock, sinceWords } from "../lib/when";
 import { useEffect, useId, useRef, useState } from "react";
@@ -71,7 +72,7 @@ function useHealth() {
   });
 }
 
-const DOT_TONE: Record<Dot["state"], string> = { ok: "bg-ok", caution: "bg-warn", problem: "bg-danger" };
+const DOT_TONE: Record<Dot["state"], string> = { ok: "bg-ok", caution: "bg-warn", problem: "bg-danger", setup: "bg-border-strong" };
 
 /** "today 4:10 PM": the banner's time words. */
 function at(d: Date): string {
@@ -86,11 +87,12 @@ function at(d: Date): string {
  */
 export function SystemDot() {
   const health = useHealth();
+  const pending = useSession().data?.setup_pending === true;
   const admin = useCan("admin");
   const [open, setOpen] = useState(false);
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
-  const dot = systemDot(health.data, new Date(), at);
+  const dot = systemDot(health.data, new Date(), at, pending);
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
@@ -110,7 +112,7 @@ export function SystemDot() {
         className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2 text-sm text-text hover:bg-surface-2"
       >
         <span aria-hidden="true" className={`inline-block size-2 rounded-full ${DOT_TONE[dot.state]}`} />
-        <span>{health.isError ? "Not known" : dot.word}</span>
+        <span>{health.isError && !pending ? "Not known" : dot.word}</span>
         <span className="sr-only"> — the system's state</span>
       </button>
       {open && (
@@ -135,7 +137,8 @@ export function SystemDot() {
 /** Today's banner (§4.2): only in the Problem state, in the queue's terms. */
 export function SystemBanner() {
   const health = useHealth();
-  const dot = systemDot(health.data, new Date(), at);
+  const pending = useSession().data?.setup_pending === true;
+  const dot = systemDot(health.data, new Date(), at, pending);
   if (dot.banner === null) return null;
   return (
     <p role="status" data-testid="system-banner" className="m-0 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">

@@ -40,7 +40,9 @@ export interface SetupForm {
   incident_id_prefix: string;
   siem_url: string;
   /** "" until the person chooses */
-  siem_trust: "" | "chain" | "system";
+  siem_trust: "" | "chain" | "system" | "file";
+  /** the CA certificate the person uploaded or pasted (trust "file") */
+  siem_ca: { name: string; pem: string } | null;
   siem_fingerprint: string;
   log_patterns: string[];
   /** how ARGUS gets its keys: "" until the person chooses */
@@ -53,7 +55,8 @@ export interface SetupForm {
   siem_expires: string;
   use_kibana: boolean;
   kibana_url: string;
-  kibana_trust: "same" | "chain" | "system";
+  kibana_trust: "same" | "chain" | "system" | "file";
+  kibana_ca: { name: string; pem: string } | null;
   kibana_fingerprint: string;
   kibana_key: string;
   kibana_expires: string;
@@ -84,6 +87,7 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     incident_id_prefix: "SOC-IR",
     siem_url: "",
     siem_trust: "",
+    siem_ca: null,
     siem_fingerprint: "",
     log_patterns: ["logs-*"],
     access: "",
@@ -95,6 +99,7 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     use_kibana: false,
     kibana_url: "",
     kibana_trust: "same",
+    kibana_ca: null,
     kibana_fingerprint: "",
     kibana_key: "",
     kibana_expires: "90d",
@@ -171,9 +176,13 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     if (f.incident_id_prefix.trim() === "") out.incident_id_prefix = "Write the prefix of incident ids, e.g. SOC-IR.";
   }
   if (step === "siem") {
-    if (!HTTPS.test(f.siem_url.trim())) out.siem_url = "An https:// address with a host and port, e.g. https://siem.example.org:9200.";
+    if (!HTTPS.test(tidyUrl(f.siem_url))) out.siem_url = "An https:// address with a host and port, e.g. https://siem.example.org:9200.";
     if (f.siem_trust === "") out.siem_trust = "Choose how ARGUS trusts the SIEM's certificate.";
     if (f.siem_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.siem_fingerprint))) out.siem_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
+    if (f.siem_trust === "file") {
+      const why = f.siem_ca === null ? "Upload or paste the CA's certificate." : caProblem(f.siem_ca.name, f.siem_ca.pem);
+      if (why) out.siem_ca = why;
+    }
     if (cleaned(f.log_patterns).length === 0) out.log_patterns = "Add at least one index pattern, e.g. logs-*.";
   }
   if (step === "access") {
@@ -197,8 +206,12 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     for (const s of INTEL) if (/[\r\n]/.test(f.intel_keys[s.key].trim())) out[`intel.${s.key}`] = "One line only.";
   }
   if (step === "kibana" && f.use_kibana) {
-    if (!HTTPS.test(f.kibana_url.trim())) out.kibana_url = "An https:// address, e.g. https://siem.example.org:5601.";
+    if (!HTTPS.test(tidyUrl(f.kibana_url))) out.kibana_url = "An https:// address, e.g. https://siem.example.org:5601.";
     if (f.kibana_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.kibana_fingerprint))) out.kibana_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
+    if (f.kibana_trust === "file") {
+      const why = f.kibana_ca === null ? "Upload or paste the CA's certificate." : caProblem(f.kibana_ca.name, f.kibana_ca.pem);
+      if (why) out.kibana_ca = why;
+    }
     if (f.access !== "login") {
       if (/[\r\n]/.test(f.kibana_key.trim())) out.kibana_key = "One line only.";
       if (f.kibana_key.trim() !== "" && !EXPIRES.test(f.kibana_expires.trim())) out.kibana_expires = "A date (2027-03-01) or a number of days (90d).";
@@ -209,6 +222,47 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
 
 export function allProblems(f: SetupForm): Step | null {
   return STEPS.find((s) => Object.keys(stepProblems(s.key, f)).length > 0)?.key ?? null;
+}
+
+/** An address as typed, tidied: spaces and trailing slashes off. */
+export function tidyUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+/** The largest CA certificate file the setup takes. */
+export const CA_MAX = 64 * 1024;
+
+/** Why a CA certificate cannot be used, or null: a .pem/.crt/.cer file (or pasted text) of at
+ * most 64 KB holding a PEM certificate. */
+export function caProblem(name: string, pem: string): string | null {
+  if (name !== "" && !/\.(pem|crt|cer)$/i.test(name)) return "Choose a .pem, .crt or .cer file.";
+  if (pem.length > CA_MAX) return "That is larger than 64 KB: a CA certificate is a few KB.";
+  if (!pem.includes("BEGIN CERTIFICATE")) return "That is not a PEM certificate: it has no BEGIN CERTIFICATE line.";
+  return null;
+}
+
+function trustWords(trust: string, fingerprint: string, ca: { name: string; pem: string } | null): string {
+  if (trust === "chain") return `trust the authority ${fingerprint.trim()}`;
+  if (trust === "system") return "this system already trusts it";
+  if (trust === "file") return ca === null ? "the uploaded CA certificate: not given" : `the uploaded CA certificate${ca.name ? ` (${ca.name})` : " (pasted)"}`;
+  return "not chosen";
+}
+
+/** The issuer of a chain that is one certificate signed by someone else (a server that sends
+ * only its own certificate, not its CA's), or null: then the CA has to be uploaded. */
+export function loneLeafIssuer(seen: Pick<Inspected, "chain" | "error"> | null): string | null {
+  if (seen === null || seen.error !== null || seen.chain.length !== 1) return null;
+  const only = seen.chain[0];
+  return only && !only.self_signed ? only.issuer || "another authority" : null;
+}
+
+/** The chapter a failed run's words point to, for "Back to fix". */
+export function errorChapter(text: string): Step | null {
+  if (/kibana\./i.test(text)) return "kibana";
+  if (/siem\.url|siem\.ca_file|does not verify|\bCA\b|certificate/i.test(text)) return "siem";
+  if (/admin_user|admin_password|manage_api_key|manage_security|api key|api_key/i.test(text)) return "access";
+  if (/own_domains|public suffix|organisation\./i.test(text)) return "organisation";
+  return null;
 }
 
 /** The AI provider key's name as the setup sends it: GROQ_API_KEY → llm.key.groq_api_key. */
@@ -228,14 +282,16 @@ export function buildSetup(f: SetupForm): SetupIn {
     "organisation.timezone": f.timezone.trim(),
     "organisation.timezone_label": f.timezone_label.trim() === "" ? "none" : f.timezone_label.trim(),
     "organisation.incident_id_prefix": f.incident_id_prefix.trim(),
-    "siem.url": f.siem_url.trim(),
-    "siem.trust": f.siem_trust,
+    "siem.url": tidyUrl(f.siem_url),
     "siem.log_patterns": cleaned(f.log_patterns),
     "elastic.admin_user": login ? f.admin_user.trim() : "none",
-    "kibana.url": f.use_kibana ? f.kibana_url.trim() : "none",
+    "kibana.url": f.use_kibana ? tidyUrl(f.kibana_url) : "none",
     "discovery.accept": true,
     "llm.keys_file": "none",
   };
+  // an uploaded CA is sent as its text: the server trusts that file (trust and fingerprint unsent)
+  if (f.siem_trust === "file") answers["siem.ca_pem"] = f.siem_ca?.pem ?? "";
+  else answers["siem.trust"] = f.siem_trust;
   if (f.siem_trust === "chain") answers["siem.fingerprint"] = f.siem_fingerprint.trim();
   const keys: Record<string, string> = {};
   if (login) keys["elastic.admin_password"] = f.admin_password;
@@ -244,7 +300,8 @@ export function buildSetup(f: SetupForm): SetupIn {
     answers["siem.api_key_expires"] = f.siem_expires.trim();
   }
   if (f.use_kibana) {
-    answers["kibana.trust"] = f.kibana_trust;
+    if (f.kibana_trust === "file") answers["kibana.ca_pem"] = f.kibana_ca?.pem ?? "";
+    else answers["kibana.trust"] = f.kibana_trust;
     if (f.kibana_trust === "chain") answers["kibana.fingerprint"] = f.kibana_fingerprint.trim();
     if (f.space.trim() !== "") answers["organisation.space"] = f.space.trim();
     if (login && f.provision_team) answers["case_team.provision"] = true;
@@ -286,8 +343,8 @@ export function reviewLines(f: SetupForm): { label: string; value: string }[] {
     { label: "Own networks", value: cleaned(f.own_networks).join(", ") || "none" },
     { label: "Time zone", value: `${f.timezone.trim()}${f.timezone_label.trim() ? ` (${f.timezone_label.trim()})` : ""}` },
     { label: "Incident id prefix", value: f.incident_id_prefix.trim() },
-    { label: "SIEM address", value: f.siem_url.trim() },
-    { label: "SIEM certificate", value: f.siem_trust === "chain" ? `trust the authority ${f.siem_fingerprint.trim()}` : f.siem_trust === "system" ? "this system already trusts it" : "not chosen" },
+    { label: "SIEM address", value: tidyUrl(f.siem_url) },
+    { label: "SIEM certificate", value: trustWords(f.siem_trust, f.siem_fingerprint, f.siem_ca) },
     { label: "Log index patterns", value: cleaned(f.log_patterns).join(", ") },
     {
       label: "Access",
@@ -300,10 +357,10 @@ export function reviewLines(f: SetupForm): { label: string; value: string }[] {
               : "a pasted read-only key: set, expires " + f.siem_expires.trim()
             : "not chosen",
     },
-    { label: "Kibana", value: f.use_kibana ? f.kibana_url.trim() : "not used" },
+    { label: "Kibana", value: f.use_kibana ? tidyUrl(f.kibana_url) : "not used" },
   ];
   if (f.use_kibana) {
-    lines.push({ label: "Kibana certificate", value: f.kibana_trust === "same" ? "the SIEM's authority" : f.kibana_trust === "chain" ? `trust the authority ${f.kibana_fingerprint.trim()}` : "this system already trusts it" });
+    lines.push({ label: "Kibana certificate", value: f.kibana_trust === "same" ? "the SIEM's authority" : trustWords(f.kibana_trust, f.kibana_fingerprint, f.kibana_ca) });
     if (f.access === "login") lines.push({ label: "Kibana key", value: "made by ARGUS (read-only)" });
     else lines.push({ label: "Kibana key", value: f.kibana_key.trim() === "" ? "none (Kibana stays off)" : "set (read-only), expires " + f.kibana_expires.trim() });
     if (f.access === "login") lines.push({ label: "Case team", value: f.provision_team ? "made now; posting stays off" : "not now (later: Settings → Kibana cases)" });
@@ -355,4 +412,30 @@ export function runChecklist(f: SetupForm): string[] {
   if (extra) out.push("Store the AI and threat-intel keys");
   if (f.asset_map !== null) out.push("Import the asset map");
   return out;
+}
+
+/** The browser session's note that the person left the setup (Exit setup, or it finished): the
+ * app then stops opening it by itself, so there is no loop. */
+export const SETUP_LEFT = "argus.setup.left";
+
+export function setupLeft(): boolean {
+  try {
+    return window.sessionStorage.getItem(SETUP_LEFT) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markSetupLeft(): void {
+  try {
+    window.sessionStorage.setItem(SETUP_LEFT, "1");
+  } catch {
+    // storage refused: the setup opens again next time, which is harmless
+  }
+}
+
+/** Whether the app opens the setup by itself: it is pending, the person may run it, they are not
+ * there yet and have not left it in this browser session. */
+export function opensSetup(pending: boolean, admin: boolean, path: string, left: boolean): boolean {
+  return pending && admin && path !== "/setup" && !left;
 }

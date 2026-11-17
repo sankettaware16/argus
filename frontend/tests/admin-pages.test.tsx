@@ -421,6 +421,43 @@ describe("First-time setup", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Connect your SIEM." })).toBeTruthy();
   });
 
+  it("asks for the CA when the SIEM sends only its own certificate, sends it as text, and goes back to the SIEM when the run names it", async () => {
+    const PEM = "-----BEGIN CERTIFICATE-----\nMIIBexample\n-----END CERTIFICATE-----\n";
+    serveSetup();
+    server.use(
+      http.post(`${BASE}/api/v1/admin/jobs/inspect-tls`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "pending" }), { status: 202 })),
+      http.get(`${BASE}/api/v1/admin/jobs/30`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "done", result: { url: "https://siem.example.org:9200", anchor: null, chain: [{ subject: "CN=elasticsearch", issuer: "CN=Example Lab CA", fingerprint: "11:22", not_after: "2027-01-01T00:00:00+00:00", self_signed: false }] } }))),
+      http.post(`${BASE}/api/v1/admin/jobs/setup`, () => HttpResponse.json(job({ state: "pending" }), { status: 202 })),
+      http.get(`${BASE}/api/v1/admin/jobs/31`, () => HttpResponse.json(job({ state: "done", result: { ok: false, exit: 1, output: ["siem.ca_file: the certificate does not verify"] } }))),
+    );
+    const user = userEvent.setup();
+    renderApp("/setup");
+    await fillOrganisation(user);
+    await user.type(await screen.findByLabelText(/^The SIEM's address/), "  https://siem.example.org:9200/");
+    await user.click(screen.getByRole("button", { name: "Check the certificate" }));
+    expect(sent("POST", "/api/v1/admin/jobs/inspect-tls").map((r) => JSON.parse(r.body) as unknown)).toEqual([{ url: "https://siem.example.org:9200" }]);
+    expect((await screen.findByTestId("lone-leaf")).textContent).toContain("signed by CN=Example Lab CA");
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Upload the CA certificate/ }).getAttribute("aria-checked")).toBe("true"));
+    await user.upload(screen.getByLabelText(/^The CA certificate file/), new File([PEM], "ca.crt"));
+    expect(await screen.findByText("ca.crt")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Paste read-only keys/ }));
+    await user.type(screen.getByLabelText(/^The read-only API key/), "k");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Not now/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    for (let i = 0; i < 3; i++) await user.click(await screen.findByRole("button", { name: "Skip ›" }));
+    await user.click(await screen.findByRole("button", { name: "Run the setup" }));
+    await waitFor(() => expect(sent("POST", "/api/v1/admin/jobs/setup").length).toBe(1));
+    const body = bodyOf("/api/v1/admin/jobs/setup") as { answers: Record<string, unknown> };
+    expect(body.answers["siem.ca_pem"]).toBe(PEM);
+    expect(body.answers["siem.url"]).toBe("https://siem.example.org:9200");
+    expect(body.answers).not.toHaveProperty("siem.trust");
+    expect(body.answers).not.toHaveProperty("siem.fingerprint");
+    await user.click(await screen.findByRole("button", { name: "Back to fix" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Connect your SIEM." })).toBeTruthy();
+  });
+
   it("does not leave a chapter that is not filled in, and says what is missing", async () => {
     serveSetup();
     const user = userEvent.setup();
@@ -485,8 +522,8 @@ describe("Today and the menu", () => {
     server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut({ setup_needed: true }))));
     renderApp("/");
     const card = await screen.findByTestId("setup-card");
-    expect(card.textContent).toContain("Finish the first-time setup");
-    expect(within(card).getByRole("link", { name: "Start the setup" }).getAttribute("href")).toBe("/app/setup");
+    expect(card.textContent).toContain("The setup is not finished");
+    expect(within(card).getByRole("link", { name: "Continue the setup" }).getAttribute("href")).toBe("/app/setup");
   });
 
   it("shows no setup card once ARGUS is set up, or to someone who is not an administrator", async () => {

@@ -49,8 +49,8 @@ export function systemWord(h: HealthOut | undefined, now: Date): SystemWord {
 export const PROBE_STALE_MIN = 60; // the SIEM's health not measured for this long: a Problem
 
 export interface SystemDot {
-  state: "ok" | "caution" | "problem";
-  word: "OK" | "Caution" | "Problem";
+  state: "ok" | "caution" | "problem" | "setup";
+  word: "OK" | "Caution" | "Problem" | "Setting up";
   /** one line per part (the popover): SIEM, ARGUS's reading, Kibana read-back */
   parts: { name: string; words: string }[];
   /** Today's banner, in queue terms; only in the Problem state */
@@ -70,7 +70,9 @@ function span(ms: number): string {
  * A5); Caution when the SIEM is busy, the Kibana read-back is behind, work failed or alerts went
  * unread; OK otherwise. `clock` writes the time of the banner's sentence.
  */
-export function systemDot(h: HealthOut | undefined, now: Date, clock: (d: Date) => string = (d) => d.toISOString()): SystemDot {
+export function systemDot(h: HealthOut | undefined, now: Date, clock: (d: Date) => string = (d) => d.toISOString(), setupPending = false): SystemDot {
+  // before the first-time setup nothing is read yet, and that is expected: no alarm
+  if (setupPending) return { state: "setup", word: "Setting up", parts: [{ name: "SIEM", words: "not connected yet: the first-time setup is not finished" }], banner: null };
   if (h === undefined) return { state: "ok", word: "OK", parts: [], banner: null };
   const probed = parse(h.siem_probed_at);
   const old = probed === null || now.getTime() - probed.getTime() > PROBE_STALE_MIN * 60_000;

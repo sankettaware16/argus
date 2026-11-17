@@ -14,28 +14,28 @@ lives in its own PostgreSQL database on this machine.
 
 ### What you need
 
-- **A Linux machine** (4 cores, 8 GB of memory and 100 GB of disk recommended; section 1)
-  with **Docker and its compose plugin**, **[uv](https://docs.astral.sh/uv/)** and **git**
-  (section 2 shows how to install them). Run ARGUS from an ordinary account, for example `argus`,
-  that is in the `docker` group.
-- **From the SIEM:** Elasticsearch's address, and **a read-only API key** for ARGUS. Section 3.2
-  has the exact request an Elastic administrator runs to make it. Optionally, Kibana's address
-  and a read-only Kibana key, if you want ARGUS to read Kibana cases.
-- About 15 minutes.
+- **A Linux machine** (4 cores, 8 GB of memory and 100 GB of disk recommended; section 1) with
+  **git** and **Docker with its compose plugin**, and an ordinary account in the `docker` group
+  (for example `argus`). `./install.sh` installs everything else itself (uv and Python 3.12) and
+  tells you the exact command if Docker is missing.
+- **From the SIEM:** Elasticsearch's address, and either **an Elastic administrator's login**
+  (used once in the setup; ARGUS makes its own read-only keys) or **a read-only API key** made by
+  hand (section 3.2 has the exact request). Optionally Kibana's address.
+- About 10 minutes.
 
 ### Step 1: on the server
 
 ```bash
-git clone <ARGUS's repository> argus && cd argus
+git clone https://github.com/sankettaware16/argus.git
+cd argus
 ./install.sh
 ```
 
-`./install.sh` installs ARGUS's Python packages, creates the database (in Docker) with new
-passwords of its own, makes the web's certificate and starts two services: the web app and
-`argus-admin`, which applies the changes people make in the app. It asks one question, the
-address people will open ARGUS at (this machine's IP address or name; leave it empty to keep the
-web on this machine only and reach it through an SSH tunnel, section 7.2). It ends with a
-one-time link for the first administrator:
+`./install.sh` asks nothing. It installs uv and ARGUS's Python packages, creates the database
+(in Docker) with new passwords of its own, makes the web's certificate for this machine's
+address, keeps ARGUS's services running after you log out (when the machine allows it), and
+starts two services: the web app and `argus-admin`, which applies the changes people make in the
+app. It ends with a one-time link for the first administrator:
 
 ```
 init: done. Open this link within 72 hours to set admin's password and finish the setup
@@ -52,7 +52,7 @@ prints a new one (the old link stops working).
 1. **Open the link** and choose a password for the account `admin` (10 characters or more).
    Your browser warns about the certificate the first time: ARGUS made it itself
    (section 7.3 shows how to use your own).
-2. **Sign in.** Today shows a card, **Finish the first-time setup**: press **Start the setup**.
+2. **Sign in.** The first-time setup opens by itself.
 3. **Answer the chapters,** one question each (**Skip ›** on the optional ones):
    - **Your organisation:** its name, the security team's name, your own domains and networks
      (so ARGUS can tell inside from outside), the time zone, and the prefix of incident ids.

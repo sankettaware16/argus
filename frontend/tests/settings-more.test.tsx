@@ -212,11 +212,44 @@ describe("Today: the setup is pending", () => {
     expect(screen.queryByTestId("setup-pending")).toBeNull();
   });
 
-  it("keeps leading an administrator to the setup itself", async () => {
-    server.use(...shellHandlers(sessionWith(["view", "admin"], { setup_pending: true })), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json({ ...SETTINGS, setup_needed: true })));
-    renderApp("/");
-    expect(await screen.findByTestId("setup-card")).toBeTruthy();
+  it("opens the setup by itself for an administrator, once: after Exit setup, Today asks to continue it", async () => {
+    window.sessionStorage.clear();
+    server.use(...shellHandlers(sessionWith(["view", "admin"], { setup_pending: true })), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json({ ...SETTINGS, setup_needed: true })), http.get(`${BASE}/api/v1/admin/ai`, () => HttpResponse.json({})));
+    const user = userEvent.setup();
+    const { router } = renderApp("/");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/setup"));
+    expect(router.state.location.search).toEqual({});
+    expect(await screen.findByRole("heading", { level: 1, name: /first.line analyst/ })).toBeTruthy();
+    await user.click(screen.getByRole("link", { name: "Exit setup" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    const card = await screen.findByTestId("setup-card");
+    expect(card.textContent).toContain("The setup is not finished");
+    expect(within(card).getByRole("link", { name: "Continue the setup" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/");
     expect(screen.queryByTestId("setup-pending")).toBeNull();
-    await waitFor(() => expect(sent("GET", "/api/v1/admin/settings").length).toBe(1));
+    window.sessionStorage.clear();
+  });
+
+  it("does not open the setup once it is done, nor for someone who is not an administrator", async () => {
+    window.sessionStorage.clear();
+    server.use(...shellHandlers(sessionWith(["view", "admin"], { setup_pending: false })), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(SETTINGS)));
+    const first = renderApp("/");
+    await screen.findByRole("heading", { level: 1 });
+    expect(first.router.state.location.pathname).toBe("/");
+    first.unmount();
+    server.use(...shellHandlers(sessionWith(["view", "review"], { setup_pending: true })));
+    const second = renderApp("/");
+    expect(await screen.findByTestId("setup-pending")).toBeTruthy();
+    expect(second.router.state.location.pathname).toBe("/");
+  });
+
+  it("while the setup is pending, the header says Setting up, calmly, and no red banner shows", async () => {
+    window.sessionStorage.clear();
+    server.use(...shellHandlers(sessionWith(["view", "review"], { setup_pending: true })), http.get(`${BASE}/api/v1/health`, () => HttpResponse.json({ siem_state: "normal", siem_reasons: [], siem_probed_at: null, live_cursor: null, backfill_cursor: null, open_gaps: [], last_reconciliation: null, alerts: 0, quarantined: 0, investigations: 0, jobs_waiting: 0, jobs_deferred: 0, jobs_failed: 0, dossiers: 0, checkpoint_threads: 0, checkpoint_bytes: 0, kibana_sync: { state: "none", last_cycle_at: null, last_outcome: null, last_reason: null, last_complete_at: null } })));
+    renderApp("/");
+    const dot = await screen.findByTestId("system-dot");
+    await waitFor(() => expect(dot.getAttribute("data-state")).toBe("setup"));
+    expect(dot.textContent).toContain("Setting up");
+    expect(screen.queryByTestId("system-banner")).toBeNull();
   });
 });

@@ -17,6 +17,8 @@ describe("the system dot (§4.2)", () => {
   it("is OK, Caution or Problem by the defined rules, and only Problem has a banner", () => {
     const fresh = { siem_probed_at: "2026-11-06T13:20:00Z" };
     expect(systemDot(health(fresh), NOW)).toMatchObject({ state: "ok", word: "OK", banner: null });
+    // before the first-time setup nothing is read, as expected: a neutral word, no banner
+    expect(systemDot(health({ siem_probed_at: null }), NOW, undefined, true)).toMatchObject({ state: "setup", word: "Setting up", banner: null });
     expect(systemDot(health({ ...fresh, siem_state: "caution" }), NOW)).toMatchObject({ state: "caution", banner: null });
     expect(systemDot(health({ ...fresh, kibana_sync: { state: "late", last_cycle_at: null, last_outcome: null, last_reason: null, last_complete_at: null } }), NOW).state).toBe("caution");
     expect(systemDot(health({ ...fresh, jobs_failed: 1 }), NOW).state).toBe("caution");

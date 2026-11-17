@@ -7,6 +7,24 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-11-17
+
+Fixes from the first installations of 0.3.0 on fresh machines.
+
+### Fixed
+
+- **`./install.sh` asks nothing and needs no preparation:** it installs uv itself when it is
+  missing, says exactly how to fix a missing Docker or a missing `docker` group, keeps the
+  services running after logout where the machine allows it, makes the web's certificate for this
+  machine's address, and ends with the one-time link. It no longer asks for a first account (the
+  link makes the administrator) or points at commands outside the checkout.
+- **The first-time setup opens by itself** after the first sign-in; the header shows "Setting up"
+  instead of a red problem until the SIEM is connected.
+- **A SIEM that sends only its own certificate** (common on self-managed Elastic): the setup
+  recognises it, asks for the CA certificate as an upload or pasted text, and trusts that CA.
+- **An address typed with a trailing slash** (`https://host:9200/`) is accepted.
+- "Back to fix" after a failed setup opens the chapter the error is about.
+
 ## [0.3.0] — 2026-11-17
 
 The first published release: ARGUS as a complete application. Install with one command, then

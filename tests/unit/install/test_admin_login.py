@@ -96,3 +96,9 @@ def test_the_case_team_is_made_when_asked(tmp_path: Path, monkeypatch: pytest.Mo
     seen.clear()
     assert go(run2, admin2) == 0
     assert seen == []  # not asked: no case team
+
+
+def test_an_address_with_a_trailing_slash_is_the_same_address(tmp_path: Path) -> None:
+    run = Run(tmp_path)
+    assert run.go(run.answers(**{"siem.url": "https://es.example.org:9200/"})) == 0, run.text
+    assert run.local()["siem"]["url"] == "https://es.example.org:9200"

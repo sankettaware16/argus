@@ -1,0 +1,1 @@
+import{F as e,N as t}from"./site-YkbtipPq.js";import{T as n,_ as r,m as i}from"./DialogTitle-BJAgi5nm.js";var a=e(t(),1).forwardRef(function(e,t){let{render:a,className:o,style:s,id:c,...l}=e,u=r(),d=i(c);return u.useSyncedValueWithCleanup(`descriptionElementId`,d),n(`p`,e,{ref:t,props:[{id:d},l]})});export{a as t};

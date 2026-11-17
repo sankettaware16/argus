@@ -331,6 +331,7 @@ async def test_a_timer_is_switched_on_and_off_and_a_service_restarted(
     assert services.restarted[-1] == ["argus-worker.service"]
 
 
+PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
 SETUP_STAND_IN = """#!/usr/bin/env bash
 if [ "$1" = init ]; then
   cp "$3" "{out}/answers.yaml"
@@ -355,8 +356,9 @@ async def test_the_setup_carries_every_key_and_the_asset_map(
     await a.start()
     who = await a_person(migrated_engine)
     made = await start(migrated_engine, who, "setup", {"answers": {
-        "siem.url": "https://es.example:9200", "elastic.admin_user": "elastic",
-        "case_team.provision": True}})  # fmt: skip
+        "siem.url": "https://es.example:9200/", "elastic.admin_user": "elastic",
+        "case_team.provision": True,
+        "siem.ca_pem": PEM}})  # fmt: skip
     secrets = {"elastic.admin_password": "admin-pw", "outside.virustotal_api_key": "vt-new",
                "llm.key.groq_api_key": "gsk-setup", "assets.map": "networks: []\n"}  # fmt: skip
     async with migrated_engine.begin() as conn:
@@ -372,6 +374,10 @@ async def test_the_setup_carries_every_key_and_the_asset_map(
     assert (out / "admin.txt").read_text() == "admin-pw\n"
     seen = (out / "answers.yaml").read_text()
     assert "elastic.admin_user: elastic" in seen
+    assert "siem.url: https://es.example:9200\n" in seen  # the trailing slash tidied
+    assert "siem.trust: file" in seen
+    assert "siem.ca_file: " in seen
+    assert "ca_pem" not in seen
     assert "admin-pw" not in seen
     assert "vt-new" not in seen
     assert (out / "map.yaml").read_text() == "networks: []\n"

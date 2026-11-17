@@ -8,6 +8,7 @@ import { useBuildState } from "../lib/build";
 import { cn } from "../lib/cn";
 import { DecidedProvider } from "../lib/decided";
 import { can, signOut, useSession, useSessionWatch } from "../lib/session";
+import { opensSetup, setupLeft } from "../lib/setup";
 import { organisationName } from "../lib/site";
 import { useNeedsYouCount } from "../lib/today";
 import { UndoToast } from "../components/decide/UndoToast";
@@ -360,7 +361,15 @@ function BuildNotice() {
  */
 export function AppShell() {
   const session = useSession();
-  const bare = useRouterState({ select: (st) => st.location.pathname }) === "/setup";
+  const path = useRouterState({ select: (st) => st.location.pathname });
+  const bare = path === "/setup";
+  const navigate = useNavigate();
+  const pending = session.data?.setup_pending === true;
+  const admin = can(session.data, "admin");
+  useEffect(() => {
+    // a new installation: the first-time setup opens by itself, once per browser session
+    if (opensSetup(pending, admin, path, setupLeft())) void navigate({ to: "/setup", replace: true });
+  }, [pending, admin, path, navigate]);
   useSessionWatch();
   const [help, setHelp] = useState(false);
   const openHelp = useCallback(() => setHelp(true), []);

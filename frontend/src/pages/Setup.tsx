@@ -5,7 +5,7 @@
 // in the final request, to be sealed, and are shown nowhere (the review says "set").
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { inspectTls, startSetup } from "../client/sdk.gen";
 import type { AiProviderOut } from "../client/types.gen";
 import { AdminOnly, StepUpLink } from "../components/admin/common";
@@ -14,8 +14,8 @@ import { assetFileProblem, jobOptions, jobSettled, settingsOptions } from "../li
 import { aiOptions } from "../lib/ai";
 import { unwrap } from "../lib/call";
 import { cn } from "../lib/cn";
-import { ApiError, can, useSession } from "../lib/session";
-import { allProblems, buildSetup, elasticPlan, emptySetup, INTEL, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
+import { ApiError, can, sessionQuery, useSession } from "../lib/session";
+import { allProblems, buildSetup, CA_MAX, caProblem, errorChapter, loneLeafIssuer, markSetupLeft, tidyUrl, elasticPlan, emptySetup, INTEL, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
 
 type Set = <K extends keyof SetupForm>(key: K, value: SetupForm[K]) => void;
 type Stage = "intro" | Step | "running";
@@ -62,25 +62,30 @@ function Choices<T extends string>({ label, value, options, onChange }: { label:
 }
 
 /** "Check the certificate": argus-admin reads what the address presents; nothing is trusted yet. */
-function CertificateCheck({ url, onAnchor, name }: { url: string; onAnchor: (anchor: string | null) => void; name: string }) {
+function CertificateCheck({ url: typed, onAnchor, onLeaf, name }: { url: string; onAnchor: (anchor: string | null) => void; onLeaf?: (issuer: string | null) => void; name: string }) {
+  const url = tidyUrl(typed);
   const [asked, setAsked] = useState<{ url: string; id: number } | null>(null);
   const start = useMutation({
     mutationFn: (u: string) => unwrap(inspectTls({ body: { url: u } })),
     onSuccess: (job, u) => setAsked({ url: u, id: job.id }),
   });
-  const current = asked !== null && asked.url === url.trim() ? asked.id : null;
+  const current = asked !== null && asked.url === url ? asked.id : null;
   const job = useQuery(jobOptions(current));
   const seen = job.data !== undefined && jobSettled(job.data) ? readInspected(job.data.result) : null;
   const anchor = seen?.anchor ?? null;
+  const leaf = loneLeafIssuer(seen);
   useEffect(() => {
     onAnchor(anchor);
   }, [anchor, onAnchor]);
+  useEffect(() => {
+    onLeaf?.(leaf);
+  }, [leaf, onLeaf]);
   const failure = start.isError ? (start.error instanceof ApiError ? start.error : null) : null;
   const waiting = start.isPending || (current !== null && !jobSettled(job.data));
   return (
     <div className="flex flex-col gap-3" data-testid={`${name}-check`}>
       <div>
-        <button type="button" className="setup-pill setup-pill-quiet" aria-disabled={waiting || url.trim() === ""} onClick={() => !waiting && url.trim() !== "" && start.mutate(url.trim())}>
+        <button type="button" className="setup-pill setup-pill-quiet" aria-disabled={waiting || url === ""} onClick={() => !waiting && url !== "" && start.mutate(url)}>
           {waiting ? "Checking…" : "Check the certificate"}
         </button>
       </div>
@@ -94,7 +99,7 @@ function CertificateCheck({ url, onAnchor, name }: { url: string; onAnchor: (anc
       {seen && !seen.error && (
         <div className="flex flex-col gap-2 text-[0.9375rem]" data-testid="chain">
           <p className="m-0 text-(--s-muted)">
-            {url.trim()} presented {seen.chain.length === 1 ? "this certificate" : `these ${seen.chain.length} certificates`}. Nothing is trusted yet.
+            {url} presented {seen.chain.length === 1 ? "this certificate" : `these ${seen.chain.length} certificates`}. Nothing is trusted yet.
           </p>
           <ol className="m-0 flex list-none flex-col gap-2 p-0">
             {seen.chain.map((c) => (
@@ -121,8 +126,10 @@ function CertificateCheck({ url, onAnchor, name }: { url: string; onAnchor: (anc
 }
 
 /** Trust the authority the check just showed, or say the system already trusts it. */
-function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; anchor: string | null; fingerprint: string; onTrust: (trust: "chain" | "system" | "same", fingerprint: string) => void; same?: boolean }) {
-  const options: { value: "chain" | "system" | "same"; title: ReactNode; body: ReactNode }[] = [
+type TrustWay = "chain" | "system" | "same" | "file";
+
+function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; anchor: string | null; fingerprint: string; onTrust: (trust: TrustWay, fingerprint: string) => void; same?: boolean }) {
+  const options: { value: TrustWay; title: ReactNode; body: ReactNode }[] = [
     {
       value: "chain",
       title: "Trust this certificate authority",
@@ -135,12 +142,13 @@ function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; a
       ),
     },
     { value: "system", title: "My system already trusts it", body: "It comes from an authority this computer already knows: a public one, or one your organisation installed." },
+    { value: "file", title: "Upload the CA certificate", body: "The certificate of the authority that signed it, as a .pem, .crt or .cer file, or pasted." },
   ];
   if (same) options.unshift({ value: "same", title: "The same authority as the SIEM", body: "Kibana's certificate comes from the authority you trusted for the SIEM." });
   return (
     <Choices
       label="How ARGUS trusts the certificate"
-      value={trust as "chain" | "system" | "same" | ""}
+      value={trust as TrustWay | ""}
       options={options}
       onChange={(v) => {
         if (v === "chain") {
@@ -148,6 +156,54 @@ function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; a
         } else onTrust(v, "");
       }}
     />
+  );
+}
+
+/** The CA certificate, from a file or pasted: read here, checked, sent as text with the answers. */
+function CaUpload({ value, onChange, error, what }: { value: { name: string; pem: string } | null; onChange: (ca: { name: string; pem: string } | null) => void; error?: string; what: string }) {
+  const id = useId();
+  const [refusal, setRefusal] = useState<string | null>(null);
+  async function choose(file: File | undefined) {
+    setRefusal(null);
+    if (file === undefined) return;
+    if (file.size > CA_MAX) return setRefusal("That is larger than 64 KB: a CA certificate is a few KB.");
+    const pem = await file.text();
+    const why = caProblem(file.name, pem);
+    if (why !== null) return setRefusal(why);
+    onChange({ name: file.name, pem });
+  }
+  return (
+    <div className="setup-tile flex flex-col gap-3" data-testid={`${what}-ca`}>
+      {value !== null && value.name !== "" ? (
+        <p className="m-0 flex flex-wrap items-center gap-3">
+          <span className="setup-check" data-state="done" aria-hidden="true">
+            ✓
+          </span>
+          <span>
+            <strong>{value.name}</strong> will be trusted for the {what === "siem" ? "SIEM" : "Kibana"} address.
+          </span>
+          <button type="button" className="setup-link" onClick={() => onChange(null)}>
+            Remove
+          </button>
+        </p>
+      ) : (
+        <>
+          <div>
+            <label htmlFor={`${id}-file`} className="setup-label">
+              The CA certificate file <span className="setup-hint">.pem, .crt or .cer</span>
+            </label>
+            <input id={`${id}-file`} type="file" accept=".pem,.crt,.cer" className="text-[0.9375rem]" onChange={(e) => void choose(e.target.files?.[0])} />
+          </div>
+          <div>
+            <label htmlFor={`${id}-paste`} className="setup-label">
+              Or paste it <span className="setup-hint">the text from -----BEGIN CERTIFICATE----- to the END line</span>
+            </label>
+            <textarea id={`${id}-paste`} rows={4} spellCheck={false} className="setup-input font-mono text-xs" value={value?.pem ?? ""} onChange={(e) => onChange(e.target.value.trim() === "" ? null : { name: "", pem: e.target.value })} />
+          </div>
+        </>
+      )}
+      <Err text={refusal ?? error} />
+    </div>
   );
 }
 
@@ -216,8 +272,26 @@ function Rows({ id, label, items, placeholder, add, onChange }: { id: string; la
   );
 }
 
+/** What to say when a server sends only its own certificate: its CA has to be uploaded. */
+function LeafNote({ issuer, what }: { issuer: string; what: string }) {
+  return (
+    <p role="status" className="m-0 rounded-2xl border border-(--s-line) p-4 text-[0.9375rem]" data-testid="lone-leaf">
+      Your {what} sends only its own certificate, signed by <strong>{issuer}</strong>. Upload that CA&apos;s certificate (on an Elastic server it is often <code>config/certs/ca/ca.crt</code>, or ask your Elastic administrator).
+    </p>
+  );
+}
+
 function Siem({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: Record<string, string>; anchor: string | null; onAnchor: (a: string | null) => void }) {
   const id = useId();
+  const [leaf, setLeaf] = useState<string | null>(null);
+  const trust = f.siem_trust;
+  const onLeaf = useCallback(
+    (issuer: string | null) => {
+      setLeaf(issuer);
+      if (issuer !== null && trust === "") set("siem_trust", "file");
+    },
+    [trust, set],
+  );
   const [patterns, setPatterns] = useState(() => textOf(f.log_patterns));
   return (
     <div className="flex flex-col gap-4">
@@ -228,6 +302,7 @@ function Siem({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: 
             value={f.siem_url}
             autoComplete="off"
             spellCheck={false}
+            onBlur={(e) => set("siem_url", tidyUrl(e.target.value))}
             onChange={(e) => {
               set("siem_url", e.target.value);
               if (f.siem_trust === "chain") {
@@ -237,18 +312,20 @@ function Siem({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: 
             }}
           />
         </Field>
-        <CertificateCheck name="siem" url={f.siem_url} onAnchor={onAnchor} />
+        <CertificateCheck name="siem" url={f.siem_url} onAnchor={onAnchor} onLeaf={onLeaf} />
       </div>
+      {leaf !== null && <LeafNote issuer={leaf} what="SIEM" />}
       <Trust
         trust={f.siem_trust}
         anchor={anchor}
         fingerprint={f.siem_fingerprint}
         onTrust={(t, fp) => {
-          set("siem_trust", t === "system" ? "system" : "chain");
+          set("siem_trust", t === "same" ? "system" : t);
           set("siem_fingerprint", fp);
         }}
       />
       <Err text={bad.siem_trust ?? bad.siem_fingerprint} />
+      {f.siem_trust === "file" && <CaUpload what="siem" value={f.siem_ca} onChange={(ca) => set("siem_ca", ca)} error={bad.siem_ca} />}
       <div className="setup-tile">
         <Field id={`${id}-patterns`} label="Index patterns of your logs" hint="separated by commas, e.g. logs-*" error={bad.log_patterns}>
           <Input
@@ -323,6 +400,7 @@ function Access({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, s
 
 function Kibana({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: Record<string, string>; anchor: string | null; onAnchor: (a: string | null) => void }) {
   const id = useId();
+  const [leaf, setLeaf] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-4">
       <Choices
@@ -338,10 +416,11 @@ function Kibana({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad
         <>
           <div className="setup-tile flex flex-col gap-4">
             <Field id={`${id}-url`} label="Kibana's address" hint="e.g. https://siem.example.org:5601" error={bad.kibana_url}>
-              <Input id={`${id}-url`} value={f.kibana_url} autoComplete="off" spellCheck={false} onChange={(e) => set("kibana_url", e.target.value)} />
+              <Input id={`${id}-url`} value={f.kibana_url} autoComplete="off" spellCheck={false} onBlur={(e) => set("kibana_url", tidyUrl(e.target.value))} onChange={(e) => set("kibana_url", e.target.value)} />
             </Field>
-            <CertificateCheck name="kibana" url={f.kibana_url} onAnchor={onAnchor} />
+            <CertificateCheck name="kibana" url={f.kibana_url} onAnchor={onAnchor} onLeaf={setLeaf} />
           </div>
+          {leaf !== null && <LeafNote issuer={leaf} what="Kibana" />}
           <Trust
             same
             trust={f.kibana_trust}
@@ -353,6 +432,7 @@ function Kibana({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad
             }}
           />
           <Err text={bad.kibana_fingerprint} />
+          {f.kibana_trust === "file" && <CaUpload what="kibana" value={f.kibana_ca} onChange={(ca) => set("kibana_ca", ca)} error={bad.kibana_ca} />}
           <div className="setup-tile grid gap-4 sm:grid-cols-2">
             {f.access !== "login" && (
               <>
@@ -501,12 +581,15 @@ function Review({ f, onJump }: { f: SetupForm; onJump: (s: Step) => void }) {
 }
 
 /** The run: its checklist while argus-admin works, then the finale (or what to fix). */
-function Running({ id, f, onBack }: { id: number; f: SetupForm; onBack: () => void }) {
+function Running({ id, f, onBack }: { id: number; f: SetupForm; onBack: (to: Step | null) => void }) {
   const job = useQuery(jobOptions(id));
   const queries = useQueryClient();
   const done = jobSettled(job.data);
   useEffect(() => {
-    if (done) void queries.invalidateQueries({ queryKey: settingsOptions.queryKey });
+    if (!done) return;
+    void queries.invalidateQueries({ queryKey: settingsOptions.queryKey });
+    void queries.invalidateQueries({ queryKey: sessionQuery.queryKey }); // the setup is no longer pending
+    markSetupLeft();
   }, [done, queries]);
   const out = setupOutput(job.data?.result ?? null);
   const ok = done && job.data?.state === "done" && out.ok;
@@ -575,7 +658,7 @@ function Running({ id, f, onBack }: { id: number; f: SetupForm; onBack: () => vo
       </details>
       {done && (
         <div>
-          <button type="button" className="setup-pill" onClick={onBack}>
+          <button type="button" className="setup-pill" onClick={() => onBack(errorChapter([out.error ?? "", ...out.lines].join("\n")))}>
             Back to fix
           </button>
         </div>
@@ -584,10 +667,11 @@ function Running({ id, f, onBack }: { id: number; f: SetupForm; onBack: () => vo
   );
 }
 
-function Intro({ already, applierDown, onBegin }: { already: boolean; applierDown: boolean; onBegin: () => void }) {
+function Intro({ already, applierDown, onBegin, exit }: { already: boolean; applierDown: boolean; onBegin: () => void; exit: ReactNode }) {
   const [more, setMore] = useState(false);
   return (
-    <section className="cine setup flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center" aria-labelledby="setup-intro">
+    <section className="cine setup relative flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center" aria-labelledby="setup-intro">
+      <div className="absolute inset-x-0 top-0">{exit}</div>
       <div className="setup-chapter flex max-w-3xl flex-col items-center gap-6">
         <p className="m-0 text-sm font-semibold tracking-[0.2em] text-(--s-muted)">ARGUS</p>
         <h1 id="setup-intro" className="setup-h">
@@ -685,7 +769,7 @@ function SetupView() {
   const exit = (
     <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
       <span className="text-sm font-semibold tracking-[0.2em]">ARGUS</span>
-      <Link to="/" className="setup-link text-[0.9375rem]">
+      <Link to="/" className="setup-link text-[0.9375rem]" onClick={markSetupLeft}>
         Exit setup
       </Link>
     </header>
@@ -693,7 +777,7 @@ function SetupView() {
   if (stage === "intro") {
     return (
       <div className="setup">
-        <Intro already={!out.setup_needed} applierDown={!out.applier.running} onBegin={() => setStage("organisation")} />
+        <Intro already={!out.setup_needed} applierDown={!out.applier.running} onBegin={() => setStage("organisation")} exit={exit} />
       </div>
     );
   }
@@ -704,10 +788,11 @@ function SetupView() {
         <Running
           id={job}
           f={form}
-          onBack={() => {
+          onBack={(to) => {
             setJob(null);
             run.reset();
-            setStage("review");
+            setStage(to ?? "review");
+            setShown(to !== null);
           }}
         />
       </div>
