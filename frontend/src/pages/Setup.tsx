@@ -160,7 +160,7 @@ function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; a
 }
 
 /** The CA certificate, from a file or pasted: read here, checked, sent as text with the answers. */
-function CaUpload({ value, onChange, error, what }: { value: { name: string; pem: string } | null; onChange: (ca: { name: string; pem: string } | null) => void; error?: string; what: string }) {
+function CaUpload({ value, onChange, path, onPath, error, what }: { value: { name: string; pem: string } | null; onChange: (ca: { name: string; pem: string } | null) => void; path: string; onPath: (path: string) => void; error?: string; what: string }) {
   const id = useId();
   const [refusal, setRefusal] = useState<string | null>(null);
   async function choose(file: File | undefined) {
@@ -200,6 +200,14 @@ function CaUpload({ value, onChange, error, what }: { value: { name: string; pem
             </label>
             <textarea id={`${id}-paste`} rows={4} spellCheck={false} className="setup-input font-mono text-xs" value={value?.pem ?? ""} onChange={(e) => onChange(e.target.value.trim() === "" ? null : { name: "", pem: e.target.value })} />
           </div>
+          {value === null && (
+            <div>
+              <label htmlFor={`${id}-path`} className="setup-label">
+                Or the path of the file on the ARGUS server <span className="setup-hint">when Elastic runs on this machine</span>
+              </label>
+              <Input id={`${id}-path`} value={path} placeholder="/etc/elasticsearch/certs/ca/ca.crt" autoComplete="off" spellCheck={false} className="font-mono" onChange={(e) => onPath(e.target.value)} />
+            </div>
+          )}
         </>
       )}
       <Err text={refusal ?? error} />
@@ -276,7 +284,7 @@ function Rows({ id, label, items, placeholder, add, onChange }: { id: string; la
 function LeafNote({ issuer, what }: { issuer: string; what: string }) {
   return (
     <p role="status" className="m-0 rounded-2xl border border-(--s-line) p-4 text-[0.9375rem]" data-testid="lone-leaf">
-      Your {what} sends only its own certificate, signed by <strong>{issuer}</strong>. Upload that CA&apos;s certificate (on an Elastic server it is often <code>config/certs/ca/ca.crt</code>, or ask your Elastic administrator).
+      Your {what} sends only its own certificate, signed by <strong>{issuer}</strong>. Upload that CA&apos;s certificate (on an Elastic server it is often <code>config/certs/ca/ca.crt</code>, or ask your Elastic administrator), or give its path on this server if Elastic runs here.
     </p>
   );
 }
@@ -325,7 +333,7 @@ function Siem({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: 
         }}
       />
       <Err text={bad.siem_trust ?? bad.siem_fingerprint} />
-      {f.siem_trust === "file" && <CaUpload what="siem" value={f.siem_ca} onChange={(ca) => set("siem_ca", ca)} error={bad.siem_ca} />}
+      {f.siem_trust === "file" && <CaUpload what="siem" value={f.siem_ca} onChange={(ca) => set("siem_ca", ca)} path={f.siem_ca_path} onPath={(p) => set("siem_ca_path", p)} error={bad.siem_ca} />}
       <div className="setup-tile">
         <Field id={`${id}-patterns`} label="Index patterns of your logs" hint="separated by commas, e.g. logs-*" error={bad.log_patterns}>
           <Input
@@ -432,7 +440,7 @@ function Kibana({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad
             }}
           />
           <Err text={bad.kibana_fingerprint} />
-          {f.kibana_trust === "file" && <CaUpload what="kibana" value={f.kibana_ca} onChange={(ca) => set("kibana_ca", ca)} error={bad.kibana_ca} />}
+          {f.kibana_trust === "file" && <CaUpload what="kibana" value={f.kibana_ca} onChange={(ca) => set("kibana_ca", ca)} path={f.kibana_ca_path} onPath={(p) => set("kibana_ca_path", p)} error={bad.kibana_ca} />}
           <div className="setup-tile grid gap-4 sm:grid-cols-2">
             {f.access !== "login" && (
               <>

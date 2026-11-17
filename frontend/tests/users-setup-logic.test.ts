@@ -274,7 +274,7 @@ describe("a CA certificate uploaded in the setup", () => {
     expect(caProblem("ca.der", PEM)).toBe("Choose a .pem, .crt or .cer file.");
     expect(caProblem("ca.pem", "not a certificate")).toContain("no BEGIN CERTIFICATE");
     expect(caProblem("ca.pem", PEM + "x".repeat(70_000))).toContain("64 KB");
-    expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: null })).siem_ca).toBe("Upload or paste the CA's certificate.");
+    expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: null })).siem_ca).toBe("Upload or paste the CA's certificate, or give its path on this server.");
     expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: { name: "ca.pem", pem: PEM } }))).toEqual({});
   });
   it("is asked for when a server sends one certificate signed by someone else", () => {
@@ -302,5 +302,28 @@ describe("addresses and the run's errors", () => {
     expect(errorChapter("making argus-reader with the administrator's login: the login may not make API keys (manage_api_key or manage_security)")).toBe("access");
     expect(errorChapter("organisation.own_domains: ac.in: a public suffix")).toBe("organisation");
     expect(errorChapter("something else")).toBeNull();
+  });
+});
+
+describe("a CA file on the ARGUS server (Elastic on the same machine)", () => {
+  it("is sent as its path, only when nothing was uploaded or pasted, never with trust or a fingerprint", () => {
+    const path = buildSetup(filled({ siem_trust: "file", siem_ca: null, siem_ca_path: " /etc/elasticsearch/certs/ca/ca.crt ", siem_fingerprint: "" }));
+    expect(path.answers["siem.ca_path"]).toBe("/etc/elasticsearch/certs/ca/ca.crt");
+    expect(path.answers).not.toHaveProperty("siem.ca_pem");
+    expect(path.answers).not.toHaveProperty("siem.trust");
+    expect(path.answers).not.toHaveProperty("siem.fingerprint");
+    const both = buildSetup(filled({ siem_trust: "file", siem_ca: { name: "ca.crt", pem: PEM }, siem_ca_path: "/etc/x/ca.crt" }));
+    expect(both.answers["siem.ca_pem"]).toBe(PEM);
+    expect(both.answers).not.toHaveProperty("siem.ca_path");
+    const kibana = buildSetup(filled({ use_kibana: true, kibana_url: "https://k:5601", kibana_trust: "file", kibana_ca_path: "/etc/kibana/ca.crt" }));
+    expect(kibana.answers["kibana.ca_path"]).toBe("/etc/kibana/ca.crt");
+    expect(kibana.answers).not.toHaveProperty("kibana.trust");
+    expect(buildSetup(filled({ siem_ca_path: "/etc/x/ca.crt" })).answers).not.toHaveProperty("siem.ca_path");
+  });
+  it("must be an absolute path, and the review names it", () => {
+    expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: null, siem_ca_path: "certs/ca.crt" })).siem_ca).toContain("starts with /");
+    expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: null, siem_ca_path: "/etc/x/ca.crt" }))).toEqual({});
+    const said = Object.fromEntries(reviewLines(filled({ siem_trust: "file", siem_ca: null, siem_ca_path: "/etc/x/ca.crt" })).map((l) => [l.label, l.value]));
+    expect(said["SIEM certificate"]).toBe("the CA file /etc/x/ca.crt on this server");
   });
 });

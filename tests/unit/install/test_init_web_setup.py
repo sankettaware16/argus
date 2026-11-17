@@ -21,7 +21,8 @@ def test_the_host_part_starts_the_web_and_admin_and_prints_a_link(tmp_path: Path
     # the answers name no SIEM: a question about it would stop init (does not answer siem.url)
     assert run.go(answers, web_setup=True) == 0, run.text
     assert run.db == ["bootstrap", "upgrade"]
-    assert "enable --now argus-web.service argus-admin.service" in run.systemctl
+    assert "enable argus-web.service argus-admin.service" in run.systemctl
+    assert "restart argus-web.service argus-admin.service" in run.systemctl  # a rerun: new code
     local = run.local()
     assert local["units"]["run"] == ["argus-web.service", "argus-admin.service"]
     assert local["units"]["web"]["public_url"] == "https://192.0.2.10:8765"

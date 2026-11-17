@@ -36,12 +36,35 @@ ASSET_MAP = "assets.map"  # the uploaded asset map's sealed name
 ASSET_MAP_MAX = 5_000_000  # characters
 KIBANA_KEYS = ("reader", "cases", "alerts")
 _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
-# a CA certificate pasted or uploaded in the setup (PEM text): written for init as <what>.ca_file
+# a CA certificate pasted or uploaded in the setup (PEM text), or the path of one on this server
+# (an Elastic stack on the same machine): written for init as <what>.ca_file
 CA_PEMS = {"siem.ca_pem": "siem", "kibana.ca_pem": "kibana"}
+CA_PATHS = {"siem.ca_path": "siem.ca_pem", "kibana.ca_path": "kibana.ca_pem"}
 CA_PEM_MAX = 65_536
-ANSWERS = frozenset(
-    n for n in KNOWN if not n.endswith(("_file", "_env")) or n == "llm.keys_file"
-) | frozenset(CA_PEMS)
+ANSWERS = (
+    frozenset(n for n in KNOWN if not n.endswith(("_file", "_env")) or n == "llm.keys_file")
+    | frozenset(CA_PEMS)
+    | frozenset(CA_PATHS)
+)
+
+
+def ca_from_path(value: object, what: str) -> str:
+    """The PEM text of a CA certificate file on this server: an absolute path to a regular file
+    of at most 64 KB that holds a certificate. Nothing of the file is said in an error."""
+    path = Path(str(value)).expanduser()
+    if not path.is_absolute():
+        raise JobError(f"{what}'s CA certificate: give the whole path, e.g. /etc/ssl/ca.crt")
+    try:
+        if not path.is_file() or path.stat().st_size > CA_PEM_MAX:
+            raise JobError(f"{what}'s CA certificate: {path} is not a certificate file here")
+        text = path.read_text(encoding="ascii")
+    except (OSError, UnicodeDecodeError):
+        raise JobError(f"{what}'s CA certificate: {path} cannot be read by ARGUS") from None
+    if "BEGIN CERTIFICATE" not in text:
+        raise JobError(f"{what}'s CA certificate: {path} holds no PEM certificate")
+    return text
+
+
 _MASK = re.compile(r"(?i)(api[_ ]?key|password|secret|token)(\S*\s*[:=]\s*)\S+")
 
 
@@ -94,6 +117,10 @@ def setup(root: Path, params: Mapping[str, Any], secrets: Mapping[str, str],
             path = folder / name
             files.write_private(path, value + "\n")
             answers[f"{name}_file"] = str(path)
+        for name, pem_name in CA_PATHS.items():
+            where = answers.pop(name, None)
+            if where not in (None, "") and not answers.get(pem_name):
+                answers[pem_name] = ca_from_path(where, CA_PEMS[pem_name])
         for name, what in CA_PEMS.items():
             pem = answers.pop(name, None)
             if pem in (None, ""):

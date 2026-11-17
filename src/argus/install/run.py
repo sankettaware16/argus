@@ -407,9 +407,9 @@ class Init:
             units.apply_install(plan)
         except (units.UnitsError, OSError) as exc:
             raise InitError(f"the units cannot be installed: {exc}") from None
-        if self.host.systemctl(["daemon-reload"]) or self.host.systemctl(
-            ["enable", "--now", *names]
-        ):
+        # restarted, not only started: a rerun after `git pull` must run the new code
+        if (self.host.systemctl(["daemon-reload"]) or self.host.systemctl(["enable", *names])
+                or self.host.systemctl(["restart", *names])):  # fmt: skip
             raise InitError(
                 "the web and argus-admin did not start: systemctl --user status argus-*"
             )

@@ -7,6 +7,16 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-11-17
+
+### Fixed
+
+- **Running `./install.sh` again after `git pull` now restarts the web and `argus-admin`,** so they
+  run the new code at once (before, they kept the version they started with until a reboot).
+- **A CA certificate on the ARGUS server:** when Elastic runs on the same machine, the setup takes
+  the path of its CA file (for example `/opt/<stack>/certs/ca/ca.crt`) beside an upload or pasted
+  text.
+
 ## [0.3.1] — 2026-11-17
 
 Fixes from the first installations of 0.3.0 on fresh machines.

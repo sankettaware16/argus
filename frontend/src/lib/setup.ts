@@ -43,6 +43,8 @@ export interface SetupForm {
   siem_trust: "" | "chain" | "system" | "file";
   /** the CA certificate the person uploaded or pasted (trust "file") */
   siem_ca: { name: string; pem: string } | null;
+  /** or the CA file's absolute path on the ARGUS server (Elastic on the same machine) */
+  siem_ca_path: string;
   siem_fingerprint: string;
   log_patterns: string[];
   /** how ARGUS gets its keys: "" until the person chooses */
@@ -57,6 +59,7 @@ export interface SetupForm {
   kibana_url: string;
   kibana_trust: "same" | "chain" | "system" | "file";
   kibana_ca: { name: string; pem: string } | null;
+  kibana_ca_path: string;
   kibana_fingerprint: string;
   kibana_key: string;
   kibana_expires: string;
@@ -88,6 +91,7 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     siem_url: "",
     siem_trust: "",
     siem_ca: null,
+    siem_ca_path: "",
     siem_fingerprint: "",
     log_patterns: ["logs-*"],
     access: "",
@@ -100,6 +104,7 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     kibana_url: "",
     kibana_trust: "same",
     kibana_ca: null,
+    kibana_ca_path: "",
     kibana_fingerprint: "",
     kibana_key: "",
     kibana_expires: "90d",
@@ -180,7 +185,7 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     if (f.siem_trust === "") out.siem_trust = "Choose how ARGUS trusts the SIEM's certificate.";
     if (f.siem_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.siem_fingerprint))) out.siem_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
     if (f.siem_trust === "file") {
-      const why = f.siem_ca === null ? "Upload or paste the CA's certificate." : caProblem(f.siem_ca.name, f.siem_ca.pem);
+      const why = caGiven(f.siem_ca, f.siem_ca_path);
       if (why) out.siem_ca = why;
     }
     if (cleaned(f.log_patterns).length === 0) out.log_patterns = "Add at least one index pattern, e.g. logs-*.";
@@ -209,7 +214,7 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     if (!HTTPS.test(tidyUrl(f.kibana_url))) out.kibana_url = "An https:// address, e.g. https://siem.example.org:5601.";
     if (f.kibana_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.kibana_fingerprint))) out.kibana_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
     if (f.kibana_trust === "file") {
-      const why = f.kibana_ca === null ? "Upload or paste the CA's certificate." : caProblem(f.kibana_ca.name, f.kibana_ca.pem);
+      const why = caGiven(f.kibana_ca, f.kibana_ca_path);
       if (why) out.kibana_ca = why;
     }
     if (f.access !== "login") {
@@ -241,10 +246,28 @@ export function caProblem(name: string, pem: string): string | null {
   return null;
 }
 
-function trustWords(trust: string, fingerprint: string, ca: { name: string; pem: string } | null): string {
+/** Why the "file" trust has no usable CA: an upload or paste is checked as a certificate, a path
+ * as an absolute path on the server (argus-admin reads and checks the file). */
+export function caGiven(ca: { name: string; pem: string } | null, path: string): string | null {
+  if (ca !== null) return caProblem(ca.name, ca.pem);
+  const p = path.trim();
+  if (p === "") return "Upload or paste the CA's certificate, or give its path on this server.";
+  if (!p.startsWith("/") || /[\r\n]/.test(p)) return "The path of a file on this server starts with /, e.g. /etc/elasticsearch/certs/ca/ca.crt.";
+  return null;
+}
+
+/** The answer an uploaded CA is sent as: its text, else its path on the server (never both). */
+export function caAnswer(what: "siem" | "kibana", ca: { name: string; pem: string } | null, path: string): Record<string, string> {
+  return ca !== null ? { [`${what}.ca_pem`]: ca.pem } : { [`${what}.ca_path`]: path.trim() };
+}
+
+function trustWords(trust: string, fingerprint: string, ca: { name: string; pem: string } | null, path = ""): string {
   if (trust === "chain") return `trust the authority ${fingerprint.trim()}`;
   if (trust === "system") return "this system already trusts it";
-  if (trust === "file") return ca === null ? "the uploaded CA certificate: not given" : `the uploaded CA certificate${ca.name ? ` (${ca.name})` : " (pasted)"}`;
+  if (trust === "file") {
+    if (ca !== null) return `the uploaded CA certificate${ca.name ? ` (${ca.name})` : " (pasted)"}`;
+    return path.trim() !== "" ? `the CA file ${path.trim()} on this server` : "the CA certificate: not given";
+  }
   return "not chosen";
 }
 
@@ -290,7 +313,7 @@ export function buildSetup(f: SetupForm): SetupIn {
     "llm.keys_file": "none",
   };
   // an uploaded CA is sent as its text: the server trusts that file (trust and fingerprint unsent)
-  if (f.siem_trust === "file") answers["siem.ca_pem"] = f.siem_ca?.pem ?? "";
+  if (f.siem_trust === "file") Object.assign(answers, caAnswer("siem", f.siem_ca, f.siem_ca_path));
   else answers["siem.trust"] = f.siem_trust;
   if (f.siem_trust === "chain") answers["siem.fingerprint"] = f.siem_fingerprint.trim();
   const keys: Record<string, string> = {};
@@ -300,7 +323,7 @@ export function buildSetup(f: SetupForm): SetupIn {
     answers["siem.api_key_expires"] = f.siem_expires.trim();
   }
   if (f.use_kibana) {
-    if (f.kibana_trust === "file") answers["kibana.ca_pem"] = f.kibana_ca?.pem ?? "";
+    if (f.kibana_trust === "file") Object.assign(answers, caAnswer("kibana", f.kibana_ca, f.kibana_ca_path));
     else answers["kibana.trust"] = f.kibana_trust;
     if (f.kibana_trust === "chain") answers["kibana.fingerprint"] = f.kibana_fingerprint.trim();
     if (f.space.trim() !== "") answers["organisation.space"] = f.space.trim();
@@ -344,7 +367,7 @@ export function reviewLines(f: SetupForm): { label: string; value: string }[] {
     { label: "Time zone", value: `${f.timezone.trim()}${f.timezone_label.trim() ? ` (${f.timezone_label.trim()})` : ""}` },
     { label: "Incident id prefix", value: f.incident_id_prefix.trim() },
     { label: "SIEM address", value: tidyUrl(f.siem_url) },
-    { label: "SIEM certificate", value: trustWords(f.siem_trust, f.siem_fingerprint, f.siem_ca) },
+    { label: "SIEM certificate", value: trustWords(f.siem_trust, f.siem_fingerprint, f.siem_ca, f.siem_ca_path) },
     { label: "Log index patterns", value: cleaned(f.log_patterns).join(", ") },
     {
       label: "Access",
@@ -360,7 +383,7 @@ export function reviewLines(f: SetupForm): { label: string; value: string }[] {
     { label: "Kibana", value: f.use_kibana ? tidyUrl(f.kibana_url) : "not used" },
   ];
   if (f.use_kibana) {
-    lines.push({ label: "Kibana certificate", value: f.kibana_trust === "same" ? "the SIEM's authority" : trustWords(f.kibana_trust, f.kibana_fingerprint, f.kibana_ca) });
+    lines.push({ label: "Kibana certificate", value: f.kibana_trust === "same" ? "the SIEM's authority" : trustWords(f.kibana_trust, f.kibana_fingerprint, f.kibana_ca, f.kibana_ca_path) });
     if (f.access === "login") lines.push({ label: "Kibana key", value: "made by ARGUS (read-only)" });
     else lines.push({ label: "Kibana key", value: f.kibana_key.trim() === "" ? "none (Kibana stays off)" : "set (read-only), expires " + f.kibana_expires.trim() });
     if (f.access === "login") lines.push({ label: "Case team", value: f.provision_team ? "made now; posting stays off" : "not now (later: Settings → Kibana cases)" });
