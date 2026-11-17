@@ -11,13 +11,13 @@ import { Button } from "../ui/button";
 import { StepUpLink } from "./common";
 
 /** Passed or failed, why it could not run, and what it said (folded). */
-export function JobResult({ outcome, startError, readError, what }: { outcome: JobOutcome; startError: unknown; readError: boolean; what: string }) {
+export function JobResult({ outcome, startError, readError, what, onConfirmed }: { outcome: JobOutcome; startError: unknown; readError: boolean; what: string; onConfirmed?: () => void }) {
   const failure = startError instanceof ApiError ? startError : startError ? null : undefined;
   return (
     <>
       {failure !== undefined && (
         <p role="alert" className="m-0 text-sm text-danger">
-          {failure?.message ?? `The ${what} could not be started.`} {failure?.code === "step_up_required" && <StepUpLink />}
+          {failure?.message ?? `The ${what} could not be started.`} {failure?.code === "step_up_required" && <StepUpLink onConfirmed={onConfirmed} />}
         </p>
       )}
       {readError && (
@@ -129,7 +129,7 @@ export function AssetUpload({ refresh }: { refresh: readonly QueryKey[] }) {
         </Button>
         <OutcomeBadge outcome={outcome} passed="Imported" failed="Not imported" />
       </div>
-      <JobResult outcome={outcome} startError={send.error} readError={job.isError} what="import" />
+      <JobResult outcome={outcome} startError={send.error} readError={job.isError} what="import" onConfirmed={() => file !== null && send.mutate(file.content)} />
     </div>
   );
 }

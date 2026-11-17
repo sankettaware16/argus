@@ -228,7 +228,19 @@ def ti_verdict(name: str, mapped: Mapping[str, Typed]) -> TiVerdict | None:
 # ----------------------------------------------------------------------------- the listing
 
 _DAILY = re.compile(r"^(?P<prefix>.*[-._])(?P<day>\d{4}\.\d{2}\.\d{2})$", re.ASCII)
+# a weekly (Logstash's xxxx.ww: 2026.45) or monthly (2026.11) index: the prefix's numbers above 12
+# say weeks
+_PERIOD = re.compile(r"^(?P<prefix>.*[-._])(?P<year>\d{4})\.(?P<n>\d{2})$", re.ASCII)
 _BACKING_DAY = re.compile(r"(\d{4}\.\d{2}\.\d{2})", re.ASCII)
+
+
+def period_day(year: int, n: int, weekly: bool) -> str | None:
+    """The first day (``YYYY.MM.DD``) of ISO week ``n`` or of month ``n`` of ``year``."""
+    try:
+        first = date.fromisocalendar(year, n, 1) if weekly else date(year, n, 1)
+    except ValueError:
+        return None
+    return first.strftime("%Y.%m.%d")
 
 
 def valid_day(text: str) -> bool:
@@ -246,11 +258,12 @@ class Candidate:
     """A set of indices that could be one family: daily indices of one prefix, one data stream
     or one alias."""
 
-    pattern: str  # the family's pattern: 'prefix-*' (daily) or the exact name
-    kind: str  # "daily", "stream" or "alias"
-    indices: tuple[str, ...] = ()  # the daily indices, oldest first
+    pattern: str  # the family's pattern: 'prefix-*' (dated) or the exact name
+    kind: str  # "daily" (dated indices: by day, week or month), "stream" or "alias"
+    indices: tuple[str, ...] = ()  # the dated indices, oldest first
     backing: tuple[str, ...] = ()  # a data stream's backing indices, oldest first
     time_field: str | None = None  # a data stream's timestamp field, as the listing says it
+    period: str = "day"  # a dated family's: "day", "week" or "month"
 
     @property
     def sample(self) -> str | None:
@@ -266,7 +279,10 @@ class Candidate:
     def days(self) -> tuple[str, ...]:
         """The days (``YYYY.MM.DD``) the family's indices carry, oldest first; a text that is
         no day of the calendar is not one."""
-        if self.kind == "daily":
+        if self.kind == "daily" and self.period != "day":
+            found = {d for i in self.indices if (m := _PERIOD.match(i)) and (d := period_day(
+                int(m["year"]), int(m["n"]), self.period == "week"))}  # fmt: skip
+        elif self.kind == "daily":
             found = {m["day"] for i in self.indices if (m := _DAILY.match(i))}
         else:
             found = {d for b in self.backing for d in _BACKING_DAY.findall(b)}
@@ -307,6 +323,7 @@ def candidates(listing: Mapping[str, Any], skipped: list[str] | None = None) -> 
             )
         )
     daily: dict[str, list[str]] = {}
+    periodic: dict[str, list[str]] = {}
     for index in listing.get("indices") or []:
         name = index.get("name") if isinstance(index, Mapping) else None
         if (
@@ -317,14 +334,30 @@ def candidates(listing: Mapping[str, Any], skipped: list[str] | None = None) -> 
         ):
             continue
         match = _DAILY.match(name)
-        if not match:
+        if match:
+            if not valid_day(match["day"]) or not family_pattern_ok(match["prefix"] + "*"):
+                leave(name)
+                continue
+            daily.setdefault(match["prefix"], []).append(name)
             continue
-        if not valid_day(match["day"]) or not family_pattern_ok(match["prefix"] + "*"):
+        period = _PERIOD.match(name)
+        if period is None:
+            continue
+        if not 1 <= int(period["n"]) <= 53 or not family_pattern_ok(period["prefix"] + "*"):
             leave(name)
             continue
-        daily.setdefault(match["prefix"], []).append(name)
+        periodic.setdefault(period["prefix"], []).append(name)
     for prefix, names in sorted(daily.items()):
         found.append(Candidate(prefix + "*", "daily", indices=tuple(sorted(names))))
+    for prefix, names in sorted(periodic.items()):
+        if prefix in daily:
+            continue  # the same prefix by day: its daily indices stand for the family
+        numbers = [int(m["n"]) for n in names if (m := _PERIOD.match(n))]
+        weekly = any(n > 12 for n in numbers)
+        if not weekly and any(n == 0 for n in numbers):
+            continue
+        found.append(Candidate(prefix + "*", "daily", indices=tuple(sorted(names)),
+                               period="week" if weekly else "month"))  # fmt: skip
     for alias in listing.get("aliases") or []:
         name = alias.get("name") if isinstance(alias, Mapping) else None
         if isinstance(name, str) and not name.startswith("."):

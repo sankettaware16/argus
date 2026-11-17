@@ -581,7 +581,32 @@ def _registrable(domains: tuple[str, ...]) -> tuple[str, ...]:
     return domains
 
 
+# Old IANA names browsers still report (Chrome: Asia/Calcutta) and that newer systems keep only
+# in a legacy package: each is taken as its current name.
+ZONE_ALIASES = {
+    "Asia/Calcutta": "Asia/Kolkata", "Asia/Katmandu": "Asia/Kathmandu",
+    "Asia/Saigon": "Asia/Ho_Chi_Minh", "Asia/Rangoon": "Asia/Yangon", "Asia/Dacca": "Asia/Dhaka",
+    "Asia/Thimbu": "Asia/Thimphu", "Asia/Ulan_Bator": "Asia/Ulaanbaatar",
+    "Asia/Ujung_Pandang": "Asia/Makassar", "Asia/Macao": "Asia/Macau",
+    "Asia/Chongqing": "Asia/Shanghai", "Asia/Chungking": "Asia/Shanghai",
+    "Asia/Harbin": "Asia/Shanghai", "Asia/Tel_Aviv": "Asia/Jerusalem",
+    "Europe/Kiev": "Europe/Kyiv", "Europe/Uzhgorod": "Europe/Kyiv",
+    "Europe/Zaporozhye": "Europe/Kyiv", "Atlantic/Faeroe": "Atlantic/Faroe",
+    "America/Godthab": "America/Nuuk", "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+    "America/Indianapolis": "America/Indiana/Indianapolis",
+    "America/Louisville": "America/Kentucky/Louisville", "Africa/Asmera": "Africa/Asmara",
+    "Pacific/Truk": "Pacific/Chuuk", "Pacific/Ponape": "Pacific/Pohnpei",
+    "Pacific/Enderbury": "Pacific/Kanton", "Australia/Canberra": "Australia/Sydney",
+}  # fmt: skip
+
+
+def canonical_zone(name: str) -> str:
+    """``name`` under its current IANA name (an old alias such as Asia/Calcutta is translated)."""
+    return ZONE_ALIASES.get(name, name)  # never trimmed: a stray newline stays refused
+
+
 def _zone(name: str) -> str:
+    name = canonical_zone(name)
     if name in _NOT_A_REGION:
         raise ValueError(
             f"{name!r} is not a region of the IANA database: name the region, such as"

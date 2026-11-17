@@ -124,7 +124,7 @@ describe("Settings: the asset map's upload", () => {
     await user.upload(await screen.findByLabelText("Upload an asset map"), yaml("networks:\n  - 192.0.2.0/24\n"));
     await user.click(await screen.findByRole("button", { name: "Import assets.yaml" }));
     const upload = screen.getByTestId("asset-upload");
-    expect(within(upload).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fsettings");
+    expect(within(upload).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
     await user.click(screen.getByRole("button", { name: "Import assets.yaml" }));
     expect(await within(upload).findByText("Imported")).toBeTruthy();
     expect(within(upload).getByRole("log").textContent).toContain("imported 12 networks");

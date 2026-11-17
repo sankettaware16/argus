@@ -1,6 +1,6 @@
 // The people dialogs' checks and the setup wizard's answers, exactly as they are sent.
 import { describe, expect, it } from "vitest";
-import { aiKeyName, allProblems, caProblem, errorChapter, loneLeafIssuer, tidyUrl, domainProblem, markSetupLeft, networkProblem, opensSetup, setupLeft, buildSetup, CASE_TEAM_USERS, elasticPlan, emptySetup, plainFingerprint, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm } from "../src/lib/setup";
+import { aiKeyName, allProblems, currentZone, zoneList, caProblem, errorChapter, loneLeafIssuer, tidyUrl, domainProblem, markSetupLeft, networkProblem, opensSetup, setupLeft, buildSetup, CASE_TEAM_USERS, elasticPlan, emptySetup, plainFingerprint, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm } from "../src/lib/setup";
 import { EMPTY_PERSON, fullLink, newPersonBody, personProblems, readOnlyWhy, roleBody, roleLabel, usernameProblem } from "../src/lib/users";
 
 describe("a new person", () => {
@@ -325,5 +325,17 @@ describe("a CA file on the ARGUS server (Elastic on the same machine)", () => {
     expect(stepProblems("siem", filled({ siem_trust: "file", siem_ca: null, siem_ca_path: "/etc/x/ca.crt" }))).toEqual({});
     const said = Object.fromEntries(reviewLines(filled({ siem_trust: "file", siem_ca: null, siem_ca_path: "/etc/x/ca.crt" })).map((l) => [l.label, l.value]));
     expect(said["SIEM certificate"]).toBe("the CA file /etc/x/ca.crt on this server");
+  });
+});
+
+describe("time zone names", () => {
+  it("are shown and sent under their current names, each once", () => {
+    expect(currentZone("Asia/Calcutta")).toBe("Asia/Kolkata");
+    expect(currentZone(" Europe/Kiev ")).toBe("Europe/Kyiv");
+    expect(currentZone("America/Buenos_Aires")).toBe("America/Argentina/Buenos_Aires");
+    expect(currentZone("Europe/Berlin")).toBe("Europe/Berlin");
+    expect(zoneList(["Asia/Kolkata", "Asia/Calcutta", "Europe/Kiev", "Europe/Kyiv", "Asia/Saigon"])).toEqual(["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Europe/Kyiv"]);
+    expect(buildSetup(filled({ timezone: "Asia/Calcutta" })).answers["organisation.timezone"]).toBe("Asia/Kolkata");
+    expect(emptySetup("Asia/Kolkata").timezone).toBe("Asia/Kolkata");
   });
 });

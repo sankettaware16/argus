@@ -1,11 +1,11 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { useNow } from "../../lib/now";
 import { can, sessionQuery, useSession } from "../../lib/session";
 import { parse } from "../../lib/time";
+import { CONFIRMED_PATH, useStepUpWait } from "../../lib/stepup";
 import { Time } from "../Time";
 import { Button } from "../ui/button";
 
@@ -26,13 +26,33 @@ export function AdminOnly({ what, children }: { what: string; children: ReactNod
   return children;
 }
 
-/** The step-up page, in a new tab so nothing typed here is lost; back at this page afterwards. */
-export function StepUpLink({ label = "Confirm your password" }: { label?: string }) {
-  const here = useRouterState({ select: (s) => s.location.pathname });
+/**
+ * The step-up page, in a new tab so nothing typed here is lost. That tab ends on a page that says
+ * to come back; this page meanwhile waits for the confirmation and, with `onConfirmed`, goes on by
+ * itself (else it says to press the button again).
+ */
+export function StepUpLink({ label = "Confirm your password", onConfirmed, className = "text-sm", suffix = " (opens a new tab)" }: { label?: string; onConfirmed?: () => void; className?: string; suffix?: string }) {
+  const wait = useStepUpWait(onConfirmed);
+  if (wait.state === "confirmed") {
+    return (
+      <span role="status" className="text-sm text-ok" data-testid="step-up-confirmed">
+        Password confirmed{onConfirmed ? "." : ": press the button again."}
+      </span>
+    );
+  }
   return (
-    <a href={`/stepup?${new URLSearchParams({ next: `/app${here === "/" ? "" : here}` }).toString()}`} target="_blank" rel="noopener noreferrer" className="text-sm">
-      {label} (opens a new tab)
-    </a>
+    <>
+      <a href={`/stepup?${new URLSearchParams({ next: CONFIRMED_PATH }).toString()}`} target="_blank" rel="noopener noreferrer" className={className} onClick={wait.start}>
+        {label}
+        {suffix}
+      </a>
+      {wait.state === "waiting" && (
+        <span role="status" className="ml-1 text-sm text-muted" data-testid="step-up-waiting">
+          Waiting for the confirmation in the other tab…
+        </span>
+      )}
+      {wait.state === "gave_up" && <span className="ml-1 text-sm text-muted">Confirmed it? Press the button again.</span>}
+    </>
   );
 }
 

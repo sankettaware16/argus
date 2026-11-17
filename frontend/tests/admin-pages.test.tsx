@@ -205,8 +205,33 @@ describe("Settings", () => {
     await user.click(screen.getByRole("button", { name: "Save 1 change" }));
     const error = await screen.findByTestId("save-error");
     const link = within(error).getByRole("link", { name: /Confirm your password/ });
-    expect(link.getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fsettings");
+    expect(link.getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
     expect((screen.getByLabelText("Web port") as HTMLInputElement).value).toBe("9000");
+  });
+
+  it("saves again by itself once the password is confirmed in the other tab", async () => {
+    let confirmed = false;
+    let posts = 0;
+    serveSettings();
+    server.use(
+      http.get(`${BASE}/api/v1/session`, () => HttpResponse.json(confirmed ? { ...ADMIN, step_up_valid_until: "2999-01-01T00:05:00Z" } : ADMIN)),
+      http.post(`${BASE}/api/v1/admin/changes`, () => (++posts === 1 ? HttpResponse.json({ code: "step_up_required", detail: "Confirm your password again (within five minutes) to change this." }, { status: 403 }) : HttpResponse.json({ batch: "b-9", changes: [change(11, "web.port", "pending")] }, { status: 202 }))),
+      http.get(`${BASE}/api/v1/admin/changes`, () => HttpResponse.json({ batch: "b-9", changes: [change(11, "web.port", "pending")] })),
+    );
+    const user = userEvent.setup();
+    renderApp("/settings");
+    const box = await screen.findByLabelText("Web port");
+    await user.clear(box);
+    await user.type(box, "9000");
+    await user.click(screen.getByRole("button", { name: "Save 1 change" }));
+    const link = within(await screen.findByTestId("save-error")).getByRole("link", { name: /Confirm your password/ });
+    link.addEventListener("click", (e) => e.preventDefault()); // the new tab itself is not opened here
+    await user.click(link);
+    expect(await screen.findByTestId("step-up-waiting")).toBeTruthy();
+    confirmed = true;
+    await waitFor(() => expect(sent("POST", "/api/v1/admin/changes").length).toBe(2), { timeout: 5000 });
+    expect(bodyOf("/api/v1/admin/changes", 1)).toEqual({ changes: [{ key: "web.port", value: 9000 }] });
+    await waitFor(() => expect(screen.getByTestId("outcome").textContent).toContain("Waiting for argus-admin"));
   });
 
   it("is for administrators", async () => {
@@ -458,6 +483,46 @@ describe("First-time setup", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Connect your SIEM." })).toBeTruthy();
   });
 
+  it("on Review, offers the password first and runs the setup by itself once it is confirmed in the other tab", async () => {
+    let confirmed = false;
+    serveSetup();
+    server.use(
+      http.get(`${BASE}/api/v1/session`, () => HttpResponse.json(confirmed ? { ...ADMIN, step_up_valid_until: "2999-01-01T00:05:00Z" } : ADMIN)),
+      http.post(`${BASE}/api/v1/admin/jobs/setup`, () => HttpResponse.json(job({ state: "pending" }), { status: 202 })),
+      http.get(`${BASE}/api/v1/admin/jobs/31`, () => HttpResponse.json(job({ state: "running" }))),
+    );
+    const user = userEvent.setup();
+    renderApp("/setup");
+    await fillOrganisation(user);
+    await user.type(await screen.findByLabelText(/^The SIEM's address/), "https://siem.example.org:9200");
+    await user.click(screen.getByRole("radio", { name: /My system already trusts it/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Paste read-only keys/ }));
+    await user.type(screen.getByLabelText(/^The read-only API key/), "k");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Not now/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    for (let i = 0; i < 3; i++) await user.click(await screen.findByRole("button", { name: "Skip ›" }));
+    const ask = within(await screen.findByTestId("review-step-up")).getByRole("link", { name: "Confirm your password (opens a tab)" });
+    expect(ask.className).toContain("setup-pill");
+    expect(ask.getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
+    ask.addEventListener("click", (e) => e.preventDefault());
+    await user.click(ask);
+    expect(sent("POST", "/api/v1/admin/jobs/setup")).toEqual([]);
+    confirmed = true;
+    await waitFor(() => expect(sent("POST", "/api/v1/admin/jobs/setup").length).toBe(1), { timeout: 5000 });
+    expect(await screen.findByTestId("running")).toBeTruthy();
+  });
+
+  it("the step-up tab lands on a page that says to go back, and never opens the setup there", async () => {
+    window.sessionStorage.clear();
+    server.use(...shellHandlers(sessionWith(["view", "admin"], { setup_pending: true })));
+    const { router } = renderApp("/confirmed");
+    expect(await screen.findByRole("heading", { level: 1, name: "Password confirmed." })).toBeTruthy();
+    expect(screen.getByText(/it continues by itself/)).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/confirmed");
+  });
+
   it("does not leave a chapter that is not filled in, and says what is missing", async () => {
     serveSetup();
     const user = userEvent.setup();
@@ -496,7 +561,7 @@ describe("First-time setup", () => {
     expect(screen.queryByTestId("elastic-plan")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Run the setup" }));
     const error = await screen.findByTestId("run-error");
-    expect(within(error).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fsetup");
+    expect(within(error).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
     await user.click(screen.getByRole("button", { name: "Run the setup" }));
     await waitFor(() => expect(screen.getByTestId("setup-output").textContent).toContain("401 from the SIEM"));
     const body = bodyOf("/api/v1/admin/jobs/setup", 1) as { answers: Record<string, unknown>; keys: Record<string, string> };

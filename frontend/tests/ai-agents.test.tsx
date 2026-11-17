@@ -205,7 +205,7 @@ describe("AI and agents", () => {
     await user.type(box, "12.5");
     await user.click(screen.getByRole("button", { name: "Save 1 change" }));
     const error = await screen.findByTestId("save-error");
-    expect(within(error).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fai");
+    expect(within(error).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
     expect(bodyOf("/api/v1/admin/changes")).toEqual({ changes: [{ key: "llm.monthly_cap_usd", value: 12.5 }] });
     expect((screen.getByLabelText("Monthly limit (USD)") as HTMLInputElement).value).toBe("12.5");
   });

@@ -1007,7 +1007,11 @@ class Init:
                     model.model_validate({key: value})
                     return value
                 except ValueError as exc:
-                    reason = str(exc).splitlines()[-1].strip()[:200]
+                    from pydantic import ValidationError
+
+                    found = exc.errors() if isinstance(exc, ValidationError) else []
+                    said = str(found[0]["msg"]) if found else str(exc).splitlines()[-1]
+                    reason = said.removeprefix("Value error, ").strip()[:200]
                     if self.ask.scripted:
                         raise InitError(f"{name}: {reason}", 2) from None
                     self.say(f"   not taken: {reason}")
@@ -1033,9 +1037,11 @@ class Init:
             "own_networks", SiteSettings)  # fmt: skip
         if networks:
             site["own_networks"] = networks
-        site["timezone"] = checked("organisation.timezone", lambda: self.ask.text(
+        from argus.site import canonical_zone
+
+        site["timezone"] = canonical_zone(checked("organisation.timezone", lambda: self.ask.text(
             "organisation.timezone", "The time zone people read times in (IANA: Europe/Berlin)",
-            "UTC"), "timezone", SiteSettings)  # fmt: skip
+            "UTC"), "timezone", SiteSettings))  # fmt: skip
         label = checked("organisation.timezone_label", lambda: self.ask.optional(
             "organisation.timezone_label", "How a time in it is labelled (CET)"),
             "timezone_label", SiteSettings)  # fmt: skip

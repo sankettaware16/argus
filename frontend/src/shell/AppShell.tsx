@@ -362,7 +362,7 @@ function BuildNotice() {
 export function AppShell() {
   const session = useSession();
   const path = useRouterState({ select: (st) => st.location.pathname });
-  const bare = path === "/setup";
+  const bare = path === "/setup" || path === "/confirmed";
   const navigate = useNavigate();
   const pending = session.data?.setup_pending === true;
   const admin = can(session.data, "admin");

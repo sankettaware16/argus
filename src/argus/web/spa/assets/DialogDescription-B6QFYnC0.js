@@ -1,0 +1,1 @@
+import{r as e}from"./jsx-runtime-BkSabwWG.js";import{M as t}from"./site-DBA8qP1a.js";import{T as n,_ as r,m as i}from"./DialogTitle-C-ip1fla.js";var a=e(t(),1).forwardRef(function(e,t){let{render:a,className:o,style:s,id:c,...l}=e,u=r(),d=i(c);return u.useSyncedValueWithCleanup(`descriptionElementId`,d),n(`p`,e,{ref:t,props:[{id:d},l]})});export{a as t};

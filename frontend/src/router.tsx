@@ -42,6 +42,7 @@ const AiAgentsPage = lazy(() => import("./pages/AiAgents").then((m) => ({ defaul
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntel").then((m) => ({ default: m.ThreatIntel })));
 const CostsPage = lazy(() => import("./pages/Costs").then((m) => ({ default: m.Costs })));
 const UsersPage = lazy(() => import("./pages/Users").then((m) => ({ default: m.Users })));
+const ConfirmedPage = lazy(() => import("./pages/Confirmed").then((m) => ({ default: m.Confirmed })));
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.Setup })));
 const InvestigationPageLazy = lazy(() => import("./pages/InvestigationPage").then((m) => ({ default: m.InvestigationPage })));
 
@@ -91,6 +92,7 @@ const threatIntel = admin("/threat-intel", "the threat-intel sources", ThreatInt
 const costs = admin("/costs", "the costs", CostsPage);
 const users = admin("/users", "the people", UsersPage);
 const setup = admin("/setup", "the setup", SetupPage);
+const confirmed = admin("/confirmed", "the page", ConfirmedPage);
 // the old addresses (docs/p4f-ui-spec.md §4.3): redirected, so saved links keep working
 const dashboard = createRoute({
   getParentRoute: () => root,
@@ -334,7 +336,7 @@ const quality = createRoute({
 /** The app's router; tests give it a memory history. */
 export function createAppRouter(history?: RouterHistory) {
   const made = createRouter({
-    routeTree: root.addChildren([home, design, settings, aiAgents, threatIntel, costs, users, setup, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
+    routeTree: root.addChildren([home, design, confirmed, settings, aiAgents, threatIntel, costs, users, setup, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
     basepath: BASE,
     defaultPreload: false,
     scrollRestoration: false,

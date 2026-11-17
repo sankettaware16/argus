@@ -388,7 +388,17 @@ def _space(
             f"{len(found) - len(aliases)} alerts aliases were left out: their space id is not"
             " lowercase letters, digits, _ and -"
         )
-    with_alerts = [a.removeprefix(ALERTS_PREFIX) for a in aliases]
+    # the busiest space first: the one with the most alerts indices (rolled over the most), so a
+    # space holding a test rule's few alerts is not proposed over the one the SOC works in
+    backing = {
+        str(a.get("name")): len(a.get("indices") or [])
+        for a in (inputs.alerts or {}).get("aliases", [])
+        if isinstance(a, Mapping)
+    }
+    with_alerts = [
+        a.removeprefix(ALERTS_PREFIX)
+        for a in sorted(aliases, key=lambda n: (-backing.get(n, 0), n))
+    ]
     spaces = tuple(
         s["id"]
         for s in inputs.spaces or []
@@ -401,7 +411,9 @@ def _space(
         warnings.append(f"no {ALERTS_PREFIX}<space> index exists: no Security alerts yet?")
         return None, "no alerts index was found", aliases, spaces
     if spaces:
-        both = [s for s in spaces if s in with_alerts]
+        count = {a.removeprefix(ALERTS_PREFIX): backing.get(a, 0) for a in aliases}
+        # the busiest first; a tie keeps Kibana's own order of the spaces
+        both = sorted((s for s in spaces if s in with_alerts), key=lambda s: -count.get(s, 0))
         if not both:
             warnings.append(
                 "no Kibana space has a Security alerts index (spaces: " + ", ".join(spaces) + ")"
@@ -411,8 +423,8 @@ def _space(
         why = f"{ALERTS_PREFIX}{chosen} exists and Kibana has the space"
         if len(both) > 1:
             warnings.append(
-                f"{len(both)} spaces have alerts ({', '.join(both)}): {chosen} is proposed; ARGUS"
-                " reads one space"
+                f"{len(both)} spaces have alerts ({', '.join(both)}): {chosen}, the one with the"
+                " most alerts indices, is proposed; ARGUS reads one space (change it in Settings)"
             )
         return chosen, why, aliases, spaces
     chosen = with_alerts[0]

@@ -13,9 +13,11 @@ import { Loading, Problem } from "../components/Problem";
 import { assetFileProblem, jobOptions, jobSettled, settingsOptions } from "../lib/admin";
 import { aiOptions } from "../lib/ai";
 import { unwrap } from "../lib/call";
+import { useNow } from "../lib/now";
+import { parse } from "../lib/time";
 import { cn } from "../lib/cn";
 import { ApiError, can, sessionQuery, useSession } from "../lib/session";
-import { allProblems, buildSetup, CA_MAX, caProblem, errorChapter, loneLeafIssuer, markSetupLeft, tidyUrl, elasticPlan, emptySetup, INTEL, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
+import { allProblems, buildSetup, CA_MAX, currentZone, zoneList, caProblem, errorChapter, loneLeafIssuer, markSetupLeft, tidyUrl, elasticPlan, emptySetup, INTEL, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
 
 type Set = <K extends keyof SetupForm>(key: K, value: SetupForm[K]) => void;
 type Stage = "intro" | Step | "running";
@@ -217,6 +219,7 @@ function CaUpload({ value, onChange, path, onPath, error, what }: { value: { nam
 
 function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, string> }) {
   const id = useId();
+  const [zones] = useState(() => zoneList());
   return (
     <div className="setup-tile grid gap-5 sm:grid-cols-2">
       <div className="sm:col-span-2">
@@ -243,7 +246,12 @@ function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<str
         </Field>
       </div>
       <Field id={`${id}-zone`} label="Time zone" hint="times are shown in it" error={bad.timezone}>
-        <Input id={`${id}-zone`} value={f.timezone} onChange={(e) => set("timezone", e.target.value)} />
+        <Input id={`${id}-zone`} list={`${id}-zones`} value={f.timezone} onBlur={(e) => set("timezone", currentZone(e.target.value))} onChange={(e) => set("timezone", e.target.value)} />
+        <datalist id={`${id}-zones`}>
+          {zones.map((z) => (
+            <option key={z} value={z} />
+          ))}
+        </datalist>
       </Field>
       <Field id={`${id}-label`} label="Short label for it" hint="optional, e.g. IST">
         <Input id={`${id}-label`} value={f.timezone_label} onChange={(e) => set("timezone_label", e.target.value)} />
@@ -761,6 +769,10 @@ function SetupView() {
   const [kibanaAnchor, setKibanaAnchor] = useState<string | null>(null);
   const head = useRef<HTMLHeadingElement>(null);
   const set: Set = (key, value) => setForm((old) => ({ ...old, [key]: value }));
+  const [autoRun, setAutoRun] = useState(false);
+  const until = parse(session.data?.step_up_valid_until);
+  const now = useNow(15_000);
+  const fresh = until !== null && until.getTime() > now;
   const run = useMutation({
     mutationFn: () => unwrap(startSetup({ body: buildSetup(form) })),
     onSuccess: (out) => {
@@ -771,6 +783,13 @@ function SetupView() {
   useEffect(() => {
     if (stage !== "intro" && stage !== "running") head.current?.focus();
   }, [stage]);
+  /** Once the password is confirmed in the other tab: the setup asked for runs by itself. */
+  const runWhenReady = () => {
+    if (stage === "review" && allProblems(form) === null && !run.isPending) {
+      setAutoRun(true);
+      run.mutate();
+    }
+  };
   if (settings.isPending) return <Loading what="the setup" />;
   if (settings.isError) return <Problem error={settings.error} what="The setup" onRetry={() => void settings.refetch()} />;
   const out = settings.data;
@@ -850,13 +869,25 @@ function SetupView() {
           {step === "assets" && <Assets f={form} set={set} />}
           {step === "review" && <Review f={form} onJump={(s) => { go(s); setShown(true); }} />}
           {step === "review" && (
-            <p className="m-0 text-[0.9375rem] text-(--s-muted)">
-              Running the setup needs your password confirmed in the last five minutes. <StepUpLink />
-            </p>
+            <div className="flex flex-col items-start gap-3" data-testid="review-step-up">
+              {fresh ? (
+                <p className="m-0 text-[0.9375rem] text-(--s-muted)">Your password is confirmed: you can run the setup.</p>
+              ) : (
+                <>
+                  <p className="m-0 text-[0.9375rem] text-(--s-muted)">Running the setup needs your password confirmed in the last five minutes. Confirm it in a new tab; this page then runs the setup by itself.</p>
+                  <StepUpLink className="setup-pill setup-pill-quiet" suffix=" (opens a tab)" onConfirmed={runWhenReady} />
+                </>
+              )}
+              {autoRun && (
+                <p role="status" className="m-0 text-[0.9375rem]" data-testid="auto-run">
+                  Password confirmed: running the setup…
+                </p>
+              )}
+            </div>
           )}
           {failure && (
             <p role="alert" className="setup-error" data-testid="run-error">
-              {failure.message} {failure.code === "step_up_required" && <><StepUpLink /> Then press the button again; your answers are kept here.</>}
+              {failure.message} {failure.code === "step_up_required" && <><StepUpLink onConfirmed={runWhenReady} /> The setup then runs by itself; your answers are kept here.</>}
               {/domain|public suffix/i.test(failure.message) && (
                 <>
                   {" "}

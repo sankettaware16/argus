@@ -76,7 +76,7 @@ describe("Services on System health", () => {
     renderApp("/health");
     await user.click(await screen.findByRole("button", { name: "Switch off Deletes old data each night" }));
     const alert = await within(screen.getByTestId("services")).findByText(/Confirm your password again/);
-    expect(within(alert).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fhealth");
+    expect(within(alert).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fconfirmed");
   });
 
   it("asks for the words before it switches on a unit that writes to the SIEM", async () => {

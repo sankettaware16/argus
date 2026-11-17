@@ -7,7 +7,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sankettaware16/argus/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.2-2ea44f" alt="Release v0.3.2"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"/></a>
   <img src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12"/>
   <img src="https://img.shields.io/badge/Elastic-8.x%20%7C%209.x%2C%20any%20licence-005571?logo=elastic&logoColor=white" alt="Elastic 8.x | 9.x, any licence"/>

@@ -116,8 +116,12 @@ export function useSettingsSave(refresh: readonly QueryKey[]) {
     }
   }, [batch, changes.data, queries]);
 
+  const last = useRef<Sent | null>(null);
   const save = useMutation({
-    mutationFn: (v: Sent) => unwrap(saveSettings({ body: { changes: v.sent, confirm: v.confirm } })),
+    mutationFn: (v: Sent) => {
+      last.current = v;
+      return unwrap(saveSettings({ body: { changes: v.sent, confirm: v.confirm } }));
+    },
     onSuccess: (out, v) => {
       setBatch(out.batch);
       const sent = new Set(v.sent.map((c) => c.key));
@@ -165,6 +169,10 @@ export function useSettingsSave(refresh: readonly QueryKey[]) {
     cancelAsking() {
       setAsking(null);
     },
+    /** The save that was refused for the password, sent again once it is confirmed. */
+    retry() {
+      if (last.current !== null && !save.isPending) save.mutate(last.current);
+    },
   };
 }
 
@@ -194,7 +202,7 @@ export function SaveBar({ state, built, onSave }: { state: SettingsSave; built: 
       <span className="text-sm text-muted">{n === 0 ? "Nothing changed here yet." : (note ?? "Only what you changed is sent.")}</span>
       {state.barError && (
         <span role="alert" className="text-sm text-danger" data-testid="save-error">
-          {state.barError.text} {state.barError.stepUp && <StepUpLink />}
+          {state.barError.text} {state.barError.stepUp && <StepUpLink onConfirmed={state.retry} />}
         </span>
       )}
     </div>

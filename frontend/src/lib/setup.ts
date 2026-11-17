@@ -70,12 +70,45 @@ export interface SetupForm {
   asset_map: { name: string; content: string } | null;
 }
 
+/** Old IANA names browsers still report, and their current names (the server translates them
+ * the same way: site.ZONE_ALIASES). */
+export const ZONE_ALIASES: Readonly<Record<string, string>> = {
+  "Asia/Calcutta": "Asia/Kolkata", "Asia/Katmandu": "Asia/Kathmandu", "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Rangoon": "Asia/Yangon", "Asia/Dacca": "Asia/Dhaka", "Asia/Thimbu": "Asia/Thimphu",
+  "Asia/Ulan_Bator": "Asia/Ulaanbaatar", "Asia/Ujung_Pandang": "Asia/Makassar", "Asia/Macao": "Asia/Macau",
+  "Asia/Chongqing": "Asia/Shanghai", "Asia/Chungking": "Asia/Shanghai", "Asia/Harbin": "Asia/Shanghai",
+  "Asia/Tel_Aviv": "Asia/Jerusalem", "Europe/Kiev": "Europe/Kyiv", "Europe/Uzhgorod": "Europe/Kyiv",
+  "Europe/Zaporozhye": "Europe/Kyiv", "Atlantic/Faeroe": "Atlantic/Faroe", "America/Godthab": "America/Nuuk",
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires", "America/Indianapolis": "America/Indiana/Indianapolis",
+  "America/Louisville": "America/Kentucky/Louisville", "Africa/Asmera": "Africa/Asmara", "Pacific/Truk": "Pacific/Chuuk",
+  "Pacific/Ponape": "Pacific/Pohnpei", "Pacific/Enderbury": "Pacific/Kanton", "Australia/Canberra": "Australia/Sydney",
+};
+
+/** A time zone under its current IANA name (Asia/Calcutta → Asia/Kolkata). */
+export function currentZone(name: string): string {
+  const z = name.trim();
+  return ZONE_ALIASES[z] ?? z;
+}
+
 export function browserZone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return currentZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   } catch {
     return "UTC";
   }
+}
+
+/** The zones to choose from: the browser's list under current names, each once, sorted. */
+export function zoneList(names?: readonly string[]): string[] {
+  let all = names;
+  if (all === undefined) {
+    try {
+      all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+    } catch {
+      all = [];
+    }
+  }
+  return [...new Set(all.map(currentZone))].sort();
 }
 
 export function emptySetup(zone: string = browserZone()): SetupForm {
@@ -302,7 +335,7 @@ export function buildSetup(f: SetupForm): SetupIn {
     "organisation.kind": f.kind.trim(),
     "organisation.own_domains": cleaned(f.own_domains),
     "organisation.own_networks": cleaned(f.own_networks),
-    "organisation.timezone": f.timezone.trim(),
+    "organisation.timezone": currentZone(f.timezone),
     "organisation.timezone_label": f.timezone_label.trim() === "" ? "none" : f.timezone_label.trim(),
     "organisation.incident_id_prefix": f.incident_id_prefix.trim(),
     "siem.url": tidyUrl(f.siem_url),
@@ -460,5 +493,5 @@ export function markSetupLeft(): void {
 /** Whether the app opens the setup by itself: it is pending, the person may run it, they are not
  * there yet and have not left it in this browser session. */
 export function opensSetup(pending: boolean, admin: boolean, path: string, left: boolean): boolean {
-  return pending && admin && path !== "/setup" && !left;
+  return pending && admin && path !== "/setup" && path !== "/confirmed" && !left;
 }
