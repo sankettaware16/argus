@@ -2109,6 +2109,27 @@ export type Check = {
 };
 
 /**
+ * CheckIn
+ *
+ * One approved template on one address or domain, about the investigation as the person
+ * saw it (``seen_version``: 409 when it has moved on).
+ */
+export type CheckIn = {
+    /**
+     * Entity
+     */
+    entity: string;
+    /**
+     * Seen Version
+     */
+    seen_version: number;
+    /**
+     * Template
+     */
+    template: string;
+};
+
+/**
  * CheckLimitsOut
  */
 export type CheckLimitsOut = {
@@ -2390,6 +2411,16 @@ export type ConfirmReportIn = {
      * Expected Version
      */
     expected_version: number;
+};
+
+/**
+ * ConnectionCheckIn
+ */
+export type ConnectionCheckIn = {
+    /**
+     * Target
+     */
+    target: string;
 };
 
 /**
@@ -9827,37 +9858,6 @@ export type YouOut = {
     why_not: string | null;
 };
 
-/**
- * CheckIn
- */
-export type ArgusWebV1AdminModelsCheckIn = {
-    /**
-     * Target
-     */
-    target: string;
-};
-
-/**
- * CheckIn
- *
- * One approved template on one address or domain, about the investigation as the person
- * saw it (``seen_version``: 409 when it has moved on).
- */
-export type ArgusWebV1CaseModelsCheckIn = {
-    /**
-     * Entity
-     */
-    entity: string;
-    /**
-     * Seen Version
-     */
-    seen_version: number;
-    /**
-     * Template
-     */
-    template: string;
-};
-
 export type GetAiData = {
     body?: never;
     path?: never;
@@ -10016,7 +10016,7 @@ export type ImportAssetsResponses = {
 export type ImportAssetsResponse = ImportAssetsResponses[keyof ImportAssetsResponses];
 
 export type StartCheckData = {
-    body: ArgusWebV1AdminModelsCheckIn;
+    body: ConnectionCheckIn;
     path?: never;
     query?: never;
     url: '/api/v1/admin/jobs/check';
@@ -13759,7 +13759,7 @@ export type ListChecksResponses = {
 export type ListChecksResponse = ListChecksResponses[keyof ListChecksResponses];
 
 export type RequestCheckData = {
-    body: ArgusWebV1CaseModelsCheckIn;
+    body: CheckIn;
     path: {
         /**
          * Investigation Id

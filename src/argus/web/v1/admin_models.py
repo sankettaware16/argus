@@ -133,7 +133,7 @@ TARGET = (r"^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}"
           r"|outside:(virustotal|shodan|censys))$")  # fmt: skip
 
 
-class CheckIn(In):
+class ConnectionCheckIn(In):
     target: Annotated[str, Field(pattern=TARGET)]
     """``siem``, ``kibana:reader|cases|alerts``, ``llm:<provider>`` or
     ``outside:virustotal|shodan|censys`` (one lookup of a public test address)."""

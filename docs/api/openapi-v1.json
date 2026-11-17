@@ -4198,6 +4198,39 @@
         "title": "Check",
         "type": "object"
       },
+      "CheckIn": {
+        "additionalProperties": false,
+        "description": "One approved template on one address or domain, about the investigation as the person\nsaw it (``seen_version``: 409 when it has moved on).",
+        "properties": {
+          "entity": {
+            "maxLength": 253,
+            "minLength": 1,
+            "pattern": "^[^\\x00]*$",
+            "title": "Entity",
+            "type": "string"
+          },
+          "seen_version": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seen Version",
+            "type": "integer"
+          },
+          "template": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_.]*$",
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template",
+          "entity",
+          "seen_version"
+        ],
+        "title": "CheckIn",
+        "type": "object"
+      },
       "CheckLimitsOut": {
         "additionalProperties": false,
         "properties": {
@@ -4703,6 +4736,21 @@
           "expected_version"
         ],
         "title": "ConfirmReportIn",
+        "type": "object"
+      },
+      "ConnectionCheckIn": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "pattern": "^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}|outside:(virustotal|shodan|censys))$",
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "ConnectionCheckIn",
         "type": "object"
       },
       "ContainIn": {
@@ -18316,54 +18364,6 @@
         ],
         "title": "YouOut",
         "type": "object"
-      },
-      "argus__web__v1__admin_models__CheckIn": {
-        "additionalProperties": false,
-        "properties": {
-          "target": {
-            "pattern": "^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}|outside:(virustotal|shodan|censys))$",
-            "title": "Target",
-            "type": "string"
-          }
-        },
-        "required": [
-          "target"
-        ],
-        "title": "CheckIn",
-        "type": "object"
-      },
-      "argus__web__v1__case_models__CheckIn": {
-        "additionalProperties": false,
-        "description": "One approved template on one address or domain, about the investigation as the person\nsaw it (``seen_version``: 409 when it has moved on).",
-        "properties": {
-          "entity": {
-            "maxLength": 253,
-            "minLength": 1,
-            "pattern": "^[^\\x00]*$",
-            "title": "Entity",
-            "type": "string"
-          },
-          "seen_version": {
-            "maximum": 2147483647.0,
-            "minimum": 0.0,
-            "title": "Seen Version",
-            "type": "integer"
-          },
-          "template": {
-            "maxLength": 64,
-            "minLength": 1,
-            "pattern": "^[a-z][a-z0-9_.]*$",
-            "title": "Template",
-            "type": "string"
-          }
-        },
-        "required": [
-          "template",
-          "entity",
-          "seen_version"
-        ],
-        "title": "CheckIn",
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -18706,7 +18706,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/argus__web__v1__admin_models__CheckIn"
+                "$ref": "#/components/schemas/ConnectionCheckIn"
               }
             }
           },
@@ -26702,7 +26702,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/argus__web__v1__case_models__CheckIn"
+                "$ref": "#/components/schemas/CheckIn"
               }
             }
           },

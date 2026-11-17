@@ -67,8 +67,9 @@ def test_every_operation_is_named_and_documented(built: dict[str, Any]) -> None:
             assert op.get("summary"), (method, path)
             assert op.get("description"), (method, path)
             assert op.get("tags"), (method, path)
-    # P4-F added confirmCase and dismissCase; UI v2 (spec §2.3) its 13 additions; E5 getToday
-    assert len(ids) == len(set(ids)) == 93
+    # P4-F added confirmCase and dismissCase; UI v2 (spec §2.3) its 13 additions; E5 getToday;
+    # D-328/D-329 the AI, usage and services reads and four jobs
+    assert len(ids) == len(set(ids)) == 100
 
 
 def test_every_schema_has_its_own_plain_name(built: dict[str, Any]) -> None:
@@ -114,9 +115,16 @@ def test_changes_need_the_session_and_its_csrf_token(built: dict[str, Any]) -> N
 
 
 def test_no_password_passes_through_the_api(built: dict[str, Any]) -> None:
+    """No person's ARGUS password ever does. The one password the API carries is an Elastic
+    administrator's in the first-time setup (D-330): a sealed key of ``startSetup``, used once by
+    argus-admin and never stored, and said so in its schema."""
     assert not [p for p in built["paths"] if "login" in p or "signin" in p or "stepup" in p]
-    text = repr(built["components"]["schemas"]).lower()
-    assert "password" not in text
+    schemas = dict(built["components"]["schemas"])
+    setup = schemas.pop("SetupIn")
+    assert "password" not in repr(schemas).lower()
+    said = setup["description"].lower()
+    assert "sealed" in said
+    assert "never stored" in said
 
 
 def test_bodies_refuse_unknown_fields(built: dict[str, Any]) -> None:

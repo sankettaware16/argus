@@ -228,7 +228,7 @@ def install(
 
     @router.post("/admin/jobs/check", tags=["admin"], operation_id="startCheck",
                  status_code=202, responses=errors(400, 401, 403, 422))  # fmt: skip
-    async def start_check(body: m.CheckIn, me: AdminChange, conn: Conn) -> m.JobOut:
+    async def start_check(body: m.ConnectionCheckIn, me: AdminChange, conn: Conn) -> m.JobOut:
         """A connection check run by argus-admin: the SIEM's key, a Kibana key or an AI provider
         (`argus siem selftest`, `argus kibana selftest`, `argus llm probe`: no prompt is sent)."""
         return await _job(conn, await _start(conn, me, "check", {"target": body.target}))
