@@ -138,6 +138,33 @@ async def setup_chapters(page: Any, app: str) -> None:
     await page.unroute("**/api/v1/admin/settings")
 
 
+async def report_page(page: Any, pdf_url: str) -> None:
+    """Page 1 of the confirmed incident's report PDF, as the app serves it, rendered with
+    pdftoppm (the image is left as it was when pdftoppm is missing)."""
+    import asyncio
+    import shutil
+    import subprocess
+    import tempfile
+
+    answer = await page.request.get(pdf_url)
+    assert answer.ok, (answer.status, await answer.text())
+    body = await answer.body()
+    tool = shutil.which("pdftoppm")
+    if tool is None:
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "report.pdf"
+        source.write_bytes(body)
+        await asyncio.to_thread(
+            subprocess.run,  # a fixed tool on our own file
+            [tool, "-png", "-r", "110", "-f", "1", "-l", "1", "-singlefile", str(source),
+             str(Path(tmp) / "page")],
+            check=True,
+        )  # fmt: skip
+        shutil.copy(Path(tmp) / "page.png", OUT / "incident-report.png")
+    fit(OUT / "incident-report.png")
+
+
 async def signed_in(play: Any, url: str, scheme: str, scale: int,
                     user: str = "asha") -> tuple[Any, Any, Watch]:  # fmt: skip
     browser, context = await open_context(play, "chromium", viewport=VIEW,
@@ -174,19 +201,24 @@ async def test_the_screenshots(live: Live) -> None:
         "SELECT id FROM investigations WHERE rule_id = 'demo-c2-beacon'"
         " ORDER BY alert_count DESC, id LIMIT 1"
     )
+    confirmed = await live.world.rows(
+        "SELECT id FROM cases WHERE state NOT IN ('suspected', 'closed') ORDER BY number LIMIT 1"
+    )
     errors: list[str] = []
+    # the user's journey: set it up, work the queue, run it from the browser
     async with async_playwright() as play:
         browser, page, watch = await signed_in(play, url, "light", scale)
-        await shoot(page, "today")
         app = f"{url}/app"
+        await setup_chapters(page, app)
+        await visit(page, f"{app}/", "today")
         await visit(page, f"{app}/incidents?view=all", "incidents")
         await visit(page, f"{app}/incidents/{waiting[0].id}", "incident")
         await visit(page, f"{app}/alert-groups/{group[0].id}", "investigation")
+        await report_page(page, f"{url}/api/v1/cases/{confirmed[0].id}/report/files/report.pdf")
         await visit(page, f"{app}/search?q=203.0.113.45", "search")
         await visit(page, f"{app}/reports", "reports")
         await visit(page, f"{app}/settings?section=siem", "settings")
         await visit(page, f"{app}/users", "users")
-        await setup_chapters(page, app)
         await visit(page, f"{app}/ai", "ai-agents")
         await visit(page, f"{app}/threat-intel", "threat-intel")
         await visit(page, f"{app}/costs", "costs")

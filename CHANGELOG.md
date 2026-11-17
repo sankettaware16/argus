@@ -7,6 +7,11 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-17
+
+The first published release: ARGUS as a complete application. Install with one command, then
+set it up and run it entirely from the browser.
+
 ### Added
 
 - **One command, then the browser:** `./install.sh` installs the packages, the database, the

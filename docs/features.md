@@ -5,7 +5,12 @@ incident case your team closes. For each: what it does, whether it is on by defa
 needs, and where to read more. Every capability is deterministic code unless it says it uses a
 model; every request to your SIEM goes through the [Elastic Gateway](architecture.md#the-elastic-gateway).
 
-![Today: the possible incidents that need a person, in priority order](images/screenshots/today.png)
+<table>
+  <tr>
+    <td width="50%"><img src="images/screenshots/setup-start.png" alt="The start of the first-time setup in the browser"/><br/><sub><b>Set it up</b>: the first-time setup, in the browser</sub></td>
+    <td width="50%"><img src="images/screenshots/today.png" alt="Today: the possible incidents that need a person, in priority order"/><br/><sub><b>Then work the queue</b>: Today, what needs a person</sub></td>
+  </tr>
+</table>
 
 **Contents**
 
@@ -238,7 +243,9 @@ migration (`backup.before_migration`). `argus backup check` does a dump and its 
 | **Kill switches** | In the app: **Stop all AI calls** (AI and agents). On the server: `argus siem stop` (all, or one component), `argus llm stop`, `argus kibana resume` after a pause: effective at once, resuming the SIEM needs the database owner. |
 | **Status at a glance** | In the app: System health and the status in the header. On the server: `argus siem status`, `collect status`, `worker status`, `assess status`, `llm status`, `kibana state`, `case team status`, `admin status`. |
 
-![The first-time setup in the browser](images/screenshots/setup.png)
+![The setup's first chapter: your organisation, its domains and time zone](images/screenshots/setup-organisation.png)
+
+![The setup's access chapter: let ARGUS create its own read-only access, or paste keys](images/screenshots/setup.png)
 
 ![Settings: every setting with its help; the SIEM section with its connection check](images/screenshots/settings.png)
 

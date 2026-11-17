@@ -7,13 +7,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sankettaware16/tlsoc"><img src="https://img.shields.io/badge/TLSOC-Ecosystem-4a6edb" alt="TLSOC Ecosystem"/></a>
+  <a href="https://github.com/sankettaware16/argus/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.0-2ea44f" alt="Release v0.3.0"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"/></a>
   <img src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12"/>
-  <img src="https://img.shields.io/badge/Elastic-8.x%20%7C%209.x-005571?logo=elastic&logoColor=white" alt="Elastic 8.x | 9.x"/>
+  <img src="https://img.shields.io/badge/Elastic-8.x%20%7C%209.x%2C%20any%20licence-005571?logo=elastic&logoColor=white" alt="Elastic 8.x | 9.x, any licence"/>
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17"/>
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React 19"/>
   <img src="https://img.shields.io/badge/AI-optional%2C%20free%20tiers%20first-6b7280" alt="AI optional, free tiers first"/>
+  <a href="https://github.com/sankettaware16/tlsoc"><img src="https://img.shields.io/badge/TLSOC-Ecosystem-4a6edb" alt="TLSOC Ecosystem"/></a>
 </p>
 
 <p align="center">
@@ -25,6 +26,11 @@
   <a href="docs/costs.md">Costs</a> •
   <a href="docs/case-team.md">Case Team</a> •
   <a href="#tlsoc-ecosystem">Ecosystem</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/screenshots/setup-start.png" alt="The start of ARGUS's first-time setup: Meet your first-line analyst" width="100%"/><br/>
+  <sub><b>1 · Set up ARGUS from the browser</b>: install with two lines, then the setup walks you through, one question at a time</sub>
 </p>
 
 ---
@@ -52,34 +58,65 @@ budget and backs off when the cluster is busy. It writes nothing to the SIEM unl
 write on yourself, and nothing is closed without a person. It runs with **no AI at all**; with
 AI keys it uses **free providers first** and caps paid use per day and per month.
 
-<p align="center">
-  <img src="docs/images/screenshots/today.png" alt="Today: the possible incidents that need a person, in priority order, each with why ARGUS raised it" width="100%"/><br/>
-  <sub><b>Today</b>: what needs a person, in priority order, each card with why ARGUS raised it and what it checked</sub>
-</p>
+## A short tour
 
-## Screenshots
+The screenshots show a demo installation on made-up data, never a real one, in the order you
+meet them. More in the [Web UI guide](docs/web-ui-guide.md).
+
+### Set it up in minutes
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/incident.png" alt="A possible incident: why ARGUS raised it, what it checked and the other explanations"/><br/><sub><b>Incident</b>: the score's reasons add up; what was checked and ruled out</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/incidents.png" alt="Every incident and possible incident, by priority"/><br/><sub><b>Incidents</b>: one queue, by priority, with who has taken what</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/screenshots/investigation.png" alt="An alert group: the key facts and the five outcomes"/><br/><sub><b>Alert group</b>: the key facts, each with its alerts, and five outcomes</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/incident-report.png" alt="Page 1 of a generated incident report PDF"/><br/><sub><b>Incident report</b>: written by code, every number from a cited fact</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/screenshots/setup.png" alt="The first-time setup in the browser"/><br/><sub><b>First-time setup</b>: in the browser after a two-line install</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/ai-agents.png" alt="AI and agents: providers, keys, spending limits and the agents"/><br/><sub><b>AI and agents</b>: free providers first, paid ones capped, a stop switch</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/screenshots/costs.png" alt="Costs and usage: the AI's spend a day and the threat-intel lookups"/><br/><sub><b>Costs and usage</b>: every dollar and lookup against its limit</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/today-dark.png" alt="Today in dark mode"/><br/><sub><b>Dark mode</b>: follows the system setting</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/setup-organisation.png" alt="The setup's first chapter: your organisation, domains and time zone"/><br/><sub><b>2 · Tell it who you are</b>: your organisation, its domains and time zone</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/setup.png" alt="The setup's access chapter: let ARGUS create its own read-only access, or paste keys"/><br/><sub><b>3 · Let ARGUS set itself up</b>: an administrator's login used once, or read-only keys</sub></td>
   </tr>
 </table>
 
-The screenshots show a demo installation on made-up data, never a real one. More in the
-[Web UI guide](docs/web-ui-guide.md).
+### Work the queue
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/today.png" alt="Today: the possible incidents that need a person, in priority order"/><br/><sub><b>4 · Today</b>: what needs a person, with why ARGUS raised it</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/incidents.png" alt="Every incident and possible incident, by priority"/><br/><sub><b>5 · Incidents</b>: one queue by priority, with who has taken what</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/incident.png" alt="A possible incident: why ARGUS raised it, what it checked and the other explanations"/><br/><sub><b>6 · An incident</b>: the score's reasons add up; what was checked and ruled out</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/investigation.png" alt="An alert group: the key facts, each with its alerts, and the five outcomes"/><br/><sub><b>7 · An alert group</b>: the key facts, each with its alerts, and five outcomes</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/incident-report.png" alt="Page 1 of a generated incident report PDF"/><br/><sub><b>8 · The incident report</b>: written by code, every number from a cited fact</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/search.png" alt="Search: an outside address and the alert groups that name it"/><br/><sub><b>9 · Search</b>: one box for an address, a host, an account or a rule</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/reports.png" alt="Reports: incident reports first, then the daily and weekly summaries"/><br/><sub><b>10 · Reports</b>: incident reports, then daily and weekly summaries</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
+### Run it from the browser
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/settings.png" alt="Settings: every setting with its help, and a connection check"/><br/><sub><b>11 · Settings</b>: every setting with its help, applied for you</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/users.png" alt="Users and roles: who may sign in and what they may do"/><br/><sub><b>12 · Users and roles</b>: people, roles and one-time links</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/ai-agents.png" alt="AI and agents: ARGUS's team, the providers, their keys and spending limits"/><br/><sub><b>13 · AI and agents</b>: ARGUS's tested team; free providers first, paid ones capped</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/threat-intel.png" alt="Threat intel: VirusTotal, Shodan and Censys with their keys, limits and a test"/><br/><sub><b>14 · Threat intel</b>: free keys, their limits and a test</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/costs.png" alt="Costs and usage: the AI's spend a day, the month against its cap, and the lookups"/><br/><sub><b>15 · Costs and usage</b>: every dollar and lookup against its limit</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/system-health.png" alt="System health with ARGUS's services and timers"/><br/><sub><b>16 · System health</b>: is data arriving; the services, on or off</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/today-dark.png" alt="Today in dark mode"/><br/><sub><b>17 · Dark mode</b>: follows the system setting</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/incidents-dark.png" alt="Incidents in dark mode"/><br/><sub><b>18 · Incidents, dark</b>: the same queue at night</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/signin.png" alt="The sign-in page"/><br/><sub><b>19 · Sign in</b>: a page that runs no script</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ## Key Features
 

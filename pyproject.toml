@@ -1,6 +1,6 @@
 [project]
 name = "argus"
-version = "0.2.0"
+version = "0.3.0"
 description = "ARGUS — AI-Guided Investigation & Evidence Orchestration System: a first-line analyst for an Elastic SIEM"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
