@@ -24,15 +24,17 @@ from pydantic import SecretStr, TypeAdapter, ValidationError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from argus.admin import catalogue, homes, jobs, seal
+from argus.admin import ai, catalogue, homes, jobs, outside_check, seal, services
 from argus.admin.catalogue import Entry, Risk
 from argus.config.settings import ADMIN_FILE, ConfigError, Settings, load_settings
 from argus.install import files
+from argus.llm.providers import ADMIN_OVERLAY
 from argus.web.capabilities import Capability
 
 STEP_UP_VALID = timedelta(minutes=10)  # a sensitive change made this soon after the password
 POLL = 2.0  # seconds between looks for a pending save
 HEARTBEAT = timedelta(seconds=30)
+USAGE_EVERY = timedelta(minutes=5)  # the threat-intel sources' use, for the app's cost page
 SETTLE = 6.0  # seconds a restarted service is given before it is checked
 
 
@@ -40,6 +42,7 @@ class Services(Protocol):
     def active(self, unit: str) -> bool: ...
     def restart(self, units: Sequence[str]) -> None: ...
     def render_units(self) -> str | None: ...  # None, or why the units could not be rendered
+    def switch(self, unit: str, on: bool) -> str | None: ...  # None, or why not
 
 
 class Systemd:
@@ -57,6 +60,10 @@ class Systemd:
     def restart(self, units: Sequence[str]) -> None:
         if units:
             self._run("systemctl", "--user", "restart", *units)
+
+    def switch(self, unit: str, on: bool) -> str | None:
+        done = self._run("systemctl", "--user", "enable" if on else "disable", "--now", unit)
+        return None if done.returncode == 0 else (done.stderr or done.stdout).strip()[-300:]
 
     def render_units(self) -> str | None:
         argus = shutil.which("argus") or str(self.root / ".venv" / "bin" / "argus")
@@ -134,6 +141,11 @@ def _field(key: str) -> Any:
 
 def check_value(entry: Entry, value: Any) -> Any:
     """``value`` as the setting's own type takes it (None clears an optional one)."""
+    if entry.section == ai.SECTION and not entry.secret:
+        try:
+            return ai.check(entry, value)
+        except ValueError as exc:
+            raise RefusedError(str(exc)) from None
     if value is None:
         if not entry.optional:
             raise RefusedError(f"{entry.label} cannot be empty")
@@ -177,6 +189,13 @@ def validate_files(root: Path, plan: homes.Plan) -> None:
         except ConfigError as exc:
             lines = str(exc).replace(str(scratch), "").splitlines()
             raise RefusedError("the settings would not load: " + " ".join(lines)[:500]) from None
+        if plan.llm:
+            target = scratch / "config" / ADMIN_OVERLAY
+            files.write_public(target, homes.admin_text(files.read_yaml(target), plan.llm))
+            config, problem = ai.config_of(scratch)
+            if config is None:
+                said = str(problem).replace(str(scratch), "")
+                raise RefusedError("the AI's settings would not load: " + said)
 
 
 class Applier:
@@ -193,6 +212,7 @@ class Applier:
         self.argus = argus or shutil.which("argus") or str(root / ".venv" / "bin" / "argus")
         self.key = seal.load_or_create(root)
         self.beat: datetime | None = None
+        self.used: datetime | None = None
 
     async def publish(self, name: str, state: Mapping[str, Any]) -> None:
         body = json.dumps(catalogue._json(dict(state)))
@@ -209,6 +229,10 @@ class Applier:
         if self.beat is None or now - self.beat >= HEARTBEAT:
             await self.publish("heartbeat", {"at": now.isoformat()})
             self.beat = now
+        if self.used is None or now - self.used >= USAGE_EVERY:
+            await self.publish("usage", await outside_check.usage(self.engine, self.root, now))
+            await self.publish("services", await asyncio.to_thread(self.services_state))
+            self.used = now
         async with self.engine.begin() as conn:
             claimed = [dict(r._mapping) for r in await conn.execute(_CLAIM)]
             ids = [c["id"] for c in claimed]
@@ -230,7 +254,7 @@ class Applier:
                 "refused",
                 "under custody the settings are the custodian's (docs/runbooks/custody.md)",
             )
-        known = catalogue.by_key()
+        known = catalogue.by_key() | ai.entries(ai.snapshot(self.root))
         try:
             plans = [await self._plan(row, known.get(row.key)) for row in rows]
             plan = homes.merged(plans)
@@ -264,10 +288,11 @@ class Applier:
         if entry.risk.value != row.risk:
             raise RefusedError(f"{entry.label}: the save's risk does not match the setting's")
         await self._may(row, entry)
+        own = ai.plan if entry.section == ai.SECTION else homes.plan
         if row.reset:
             if entry.secret:
                 raise RefusedError(f"{entry.label}: a key is replaced, never reset")
-            return homes.plan(self.root, entry, None, reset=True)
+            return own(self.root, entry, None, reset=True)
         value: Any = row.value
         if entry.secret:
             if row.sealed is None:
@@ -281,7 +306,7 @@ class Applier:
         elif row.sealed is not None:
             raise RefusedError(f"{entry.label}: not a key")
         checked = check_value(entry, value)
-        return homes.plan(self.root, entry, _plain(checked))
+        return own(self.root, entry, _plain(checked))
 
     async def _may(self, row: Row, entry: Entry) -> None:
         async with self.engine.connect() as conn:
@@ -326,7 +351,12 @@ class Applier:
             await conn.execute(text("DELETE FROM admin_job_secrets WHERE job_id = :j"),
                                {"j": found.id})  # fmt: skip
         if found.kind == "setup" and state == "done" and result.get("ok"):
-            await self._restart(self._ordered(set(catalogue.SERVICES)))  # all read the setup
+            result["after"] = await self._after_setup(found.id, sealed)
+            again = {"j": found.id, "s": state, "r": json.dumps(result), "at": self.clock()}
+            async with self.engine.begin() as conn:
+                await conn.execute(_JOB_DONE, again)
+        if found.kind in ("setup", "assets") and state == "done" and result.get("ok"):
+            await self._restart(self._ordered(set(catalogue.SERVICES)))  # all read them
             await self.publish("snapshot", snapshot(self.root))
         return True
 
@@ -335,20 +365,136 @@ class Applier:
             raise RefusedError("under custody the setup is the custodian's")
         if found.kind == "inspect_tls":
             return await asyncio.to_thread(jobs.inspect_tls, found.params)
-        # the setup is a sensitive change: an administrator who confirmed their password
+        # every other job is an administrator's; the setup and an asset map also a step-up
         async with self.engine.connect() as conn:
             row = (await conn.execute(_CAN, {"u": found.created_by,
                                              "cap": Capability.ADMIN.value})).first()  # fmt: skip
         if row is None or not row.can:
             raise RefusedError("the person who started it may not change settings (any more)")
+        if found.kind == "check":
+            target = str(found.params.get("target", ""))
+            if target.startswith("outside:"):
+                try:
+                    return await outside_check.check(self.engine, self.root, target[8:],
+                                                     self.clock())  # fmt: skip
+                except ValueError as exc:
+                    raise RefusedError(str(exc)) from None
+            return await asyncio.to_thread(jobs.check, self.root, found.params, self.argus)
+        if found.kind == "llm_switch":
+            return await self._llm_switch(row.username, found.params)
+        if found.kind == "service" and found.params.get("action") == "restart":
+            return await self._service(found.params)
         if found.stepped_up_at is None or found.created_at - found.stepped_up_at > STEP_UP_VALID:
-            raise RefusedError("the setup needs the password confirmed first")
+            raise RefusedError(f"the {_JOB_NAMES.get(found.kind, found.kind)} needs the password"
+                               " confirmed first")  # fmt: skip
         try:
             opened = {name: seal.open_sealed(self.key, value, job_aad(found.id, name))
                       for name, value in sealed.items()}  # fmt: skip
         except seal.SealError:
-            raise RefusedError("a key could not be opened (start the setup again)") from None
+            raise RefusedError("a key could not be opened (start it again)") from None
+        if found.kind == "assets":
+            return await asyncio.to_thread(jobs.assets, self.root, opened, self.argus)
+        if found.kind == "service":
+            return await self._service(found.params)
+        if found.kind != "setup":
+            raise RefusedError(f"not a job argus-admin runs: {found.kind}")
         return await asyncio.to_thread(jobs.setup, self.root, found.params, opened, self.argus)
+
+    async def _service(self, params: Mapping[str, Any]) -> dict[str, Any]:
+        """A service or timer switched on or off (``units.run`` in admin.yaml, then systemctl),
+        or a service restarted; a switch that systemctl refuses puts admin.yaml back."""
+        unit, action = str(params.get("unit", "")), str(params.get("action", ""))
+        try:
+            services.check(unit, action)
+        except ValueError as exc:
+            raise RefusedError(str(exc)) from None
+        if action == "restart":
+            await self._restart([unit])
+            up = self.services.active(unit)
+            await self.publish("services", self.services_state())
+            return {"ok": up, "unit": unit, "action": action,
+                    "output": [f"{unit} {'runs again' if up else 'did not start'}"]}  # fmt: skip
+        try:
+            run = load_settings(self.root / "config" / "argus.yaml",
+                                env_file=self.root / ".env").units.run  # fmt: skip
+        except ConfigError as exc:
+            raise RefusedError(f"the settings do not load: {str(exc)[:200]}") from None
+        plan = homes.Plan(admin={"units.run": services.run_after(run, unit, action == "on")})
+        validate_files(self.root, plan)
+        written = homes.write(self.root, plan)
+        why = self.services.switch(unit, action == "on")
+        if why is not None:
+            homes.restore(self.root, written)
+            raise RefusedError(f"systemd refused: {why}")
+        await self.publish("services", self.services_state())
+        await self.publish("snapshot", snapshot(self.root))
+        said = "switched on and started" if action == "on" else "switched off and stopped"
+        return {"ok": True, "unit": unit, "action": action, "output": [f"{unit} {said}"]}
+
+    def services_state(self) -> dict[str, Any]:
+        try:
+            run = load_settings(self.root / "config" / "argus.yaml",
+                                env_file=self.root / ".env").units.run  # fmt: skip
+        except ConfigError:
+            run = None
+        return {"units": services.listing(run, self.services.active)}
+
+    async def _after_setup(self, job_id: int, sealed: Mapping[str, bytes]) -> list[str]:
+        """What the setup carried besides init's own keys, once init has run: the threat-intel
+        and AI keys written where they live, then the asset map imported. Each line says what
+        became of one; a key that cannot be stored is said, never raised (init is done)."""
+        said: list[str] = []
+        known = catalogue.by_key()
+        for name in sorted(sealed):
+            if name in jobs.SECRETS:
+                continue
+            try:
+                value = seal.open_sealed(self.key, sealed[name], job_aad(job_id, name))
+            except seal.SealError:
+                said.append(f"{name}: could not be opened; add it again in the app")
+                continue
+            try:
+                if name == jobs.ASSET_MAP:
+                    done = await asyncio.to_thread(jobs.assets, self.root, {name: value},
+                                                   self.argus)  # fmt: skip
+                    said.append(
+                        "asset map: "
+                        + (
+                            "imported"
+                            if done["ok"]
+                            else "not imported: " + " ".join(done["output"][-2:])
+                        )
+                    )
+                    continue
+                if (found := jobs.LLM_KEY.match(name)) is not None:
+                    entry = ai.entries(ai.snapshot(self.root)).get(
+                        f"llm.keys.{found.group(1).upper()}"
+                    )
+                    if entry is None:
+                        said.append(f"{name}: no provider uses this key")
+                        continue
+                    plan = ai.plan(self.root, entry, check_value(entry, value))
+                else:
+                    entry = known[name]
+                    plan = homes.plan(self.root, entry, check_value(entry, value))
+                homes.write(self.root, plan)
+                said.append(f"{entry.label}: stored")
+            except (RefusedError, jobs.JobError, OSError) as exc:
+                said.append(f"{name}: not stored ({exc})")
+        await self.publish("snapshot", snapshot(self.root))
+        return said
+
+    async def _llm_switch(self, username: str, params: Mapping[str, Any]) -> dict[str, Any]:
+        """The AI's kill switch, as ``argus llm stop`` and ``resume`` (audited)."""
+        from argus.llm.store import PgLlmStore
+
+        stop = params.get("stop")
+        if not isinstance(stop, bool):
+            raise RefusedError("stop: true or false")
+        changed = await PgLlmStore(self.engine).set_stopped(
+            stop, actor=f"user:{username}", reason="from the app"
+        )
+        return {"ok": True, "stopped": stop, "changed": changed}
 
     async def run(self, stop: asyncio.Event) -> None:
         await self.start()
@@ -356,6 +502,9 @@ class Applier:
             if not await self.once() and not await self.job():
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(stop.wait(), POLL)
+
+
+_JOB_NAMES = {"setup": "setup", "assets": "asset map import", "service": "switch"}
 
 
 def aad(change_id: int) -> bytes:
@@ -402,7 +551,8 @@ def snapshot(root: Path) -> dict[str, Any]:
             if name in unit_env:
                 item["value"] = _unit_value(entry, unit_env[name])
         out[entry.key] = item
-    return {"settings": out, "problem": problem}
+    return {"settings": out, "problem": problem, "llm": ai.snapshot(root),
+            "agents": ai.agents(root)}  # fmt: skip
 
 
 def _unit_value(entry: Entry, raw: str) -> Any:

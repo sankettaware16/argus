@@ -1,17 +1,33 @@
 /**
- * The first-time setup's answers (D-327): what each step asks, what is wrong with it, and the
- * exact answers and keys the setup job receives. The keys stay in the form (component state)
- * and go only in the start request's `keys`; they are never in the answers, a query key or storage.
+ * The first-time setup's answers (D-327, D-330): what each chapter asks, what is wrong with it,
+ * and the exact answers and keys the setup job receives. The keys, the administrator's password
+ * and the asset map stay in the form (component state) and go only in the start request's `keys`
+ * and `asset_map`; they are never in the answers, a query key or storage.
  */
 import type { SetupIn } from "../client/types.gen";
 
-export type Step = "organisation" | "siem" | "kibana" | "review";
-export const STEPS: { key: Step; label: string }[] = [
-  { key: "organisation", label: "Your organisation" },
-  { key: "siem", label: "The SIEM" },
-  { key: "kibana", label: "Kibana" },
-  { key: "review", label: "Review and run" },
+export type Step = "organisation" | "siem" | "access" | "kibana" | "ai" | "intel" | "assets" | "review";
+/** The chapters, each with its headline and the one sentence under it. Optional ones may be skipped. */
+export const STEPS: { key: Step; label: string; title: string; sub: string; optional?: boolean }[] = [
+  { key: "organisation", label: "Your organisation", title: "Tell us who you are.", sub: "Your organisation's name, its domains and its time zone. ARGUS treats your own domains and networks as inside." },
+  { key: "siem", label: "The SIEM", title: "Connect your SIEM.", sub: "Where your Elasticsearch is, and how ARGUS can be sure it is talking to it." },
+  { key: "access", label: "Access", title: "Let ARGUS set itself up.", sub: "ARGUS only ever reads your SIEM. Choose how it gets its read-only keys." },
+  { key: "kibana", label: "Kibana", title: "Add Kibana.", sub: "Optional. With Kibana, ARGUS reads your cases back; it writes nothing until you switch that on." },
+  { key: "ai", label: "AI", title: "Bring your own AI. Or don't.", sub: "ARGUS works without AI. With a key it uses free providers first and caps what the paid ones cost.", optional: true },
+  { key: "intel", label: "Threat intel", title: "Add threat intel.", sub: "Free personal keys for VirusTotal, Shodan or Censys let ARGUS look up public addresses and names.", optional: true },
+  { key: "assets", label: "Asset map", title: "Map your network.", sub: "Which addresses are labs, offices or servers, and who owns them.", optional: true },
+  { key: "review", label: "Review", title: "Ready when you are.", sub: "Check what ARGUS will do, then let it run. It takes a few minutes." },
 ];
+
+export const INTEL = [
+  { key: "virustotal", name: "VirusTotal", gives: "the reputation of a public address or name" },
+  { key: "shodan", name: "Shodan", gives: "what a public server runs" },
+  { key: "censys", name: "Censys", gives: "a public server's services and certificates" },
+] as const;
+export type IntelSource = (typeof INTEL)[number]["key"];
+
+/** The Elastic case team's users (argus case team provision): two roles, one user and key each. */
+export const CASE_TEAM_USERS = ["argus-lead", "argus-evidence", "argus-intel", "argus-responder", "argus-hunter", "argus-reporter", "argus-visualiser"] as const;
 
 export interface SetupForm {
   name: string;
@@ -26,9 +42,15 @@ export interface SetupForm {
   /** "" until the person chooses */
   siem_trust: "" | "chain" | "system";
   siem_fingerprint: string;
+  log_patterns: string[];
+  /** how ARGUS gets its keys: "" until the person chooses */
+  access: "" | "login" | "paste";
+  admin_user: string;
+  admin_password: string;
+  /** with the login: also make the Kibana case team (posting stays off) */
+  provision_team: boolean;
   siem_key: string;
   siem_expires: string;
-  log_patterns: string[];
   use_kibana: boolean;
   kibana_url: string;
   kibana_trust: "same" | "chain" | "system";
@@ -36,6 +58,10 @@ export interface SetupForm {
   kibana_key: string;
   kibana_expires: string;
   space: string;
+  /** an AI provider key by its name (GROQ_API_KEY); empty: not given */
+  ai_keys: Record<string, string>;
+  intel_keys: Record<IntelSource, string>;
+  asset_map: { name: string; content: string } | null;
 }
 
 export function browserZone(): string {
@@ -59,9 +85,13 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     siem_url: "",
     siem_trust: "",
     siem_fingerprint: "",
+    log_patterns: ["logs-*"],
+    access: "",
+    admin_user: "",
+    admin_password: "",
+    provision_team: true,
     siem_key: "",
     siem_expires: "90d",
-    log_patterns: ["logs-*"],
     use_kibana: false,
     kibana_url: "",
     kibana_trust: "same",
@@ -69,6 +99,9 @@ export function emptySetup(zone: string = browserZone()): SetupForm {
     kibana_key: "",
     kibana_expires: "90d",
     space: "",
+    ai_keys: {},
+    intel_keys: { virustotal: "", shodan: "", censys: "" },
+    asset_map: null,
   };
 }
 
@@ -112,16 +145,35 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
     if (!HTTPS.test(f.siem_url.trim())) out.siem_url = "An https:// address with a host and port, e.g. https://siem.example.org:9200.";
     if (f.siem_trust === "") out.siem_trust = "Choose how ARGUS trusts the SIEM's certificate.";
     if (f.siem_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.siem_fingerprint))) out.siem_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
-    if (f.siem_key.trim() === "") out.siem_key = "Paste the read-only API key.";
-    else if (/[\r\n]/.test(f.siem_key.trim())) out.siem_key = "One line only.";
-    if (!EXPIRES.test(f.siem_expires.trim())) out.siem_expires = "A date (2027-03-01) or a number of days (90d).";
     if (cleaned(f.log_patterns).length === 0) out.log_patterns = "Add at least one index pattern, e.g. logs-*.";
+  }
+  if (step === "access") {
+    if (f.access === "") out.access = "Choose how ARGUS gets its access.";
+    if (f.access === "login") {
+      if (f.admin_user.trim() === "") out.admin_user = "Write the administrator's user name.";
+      else if (/\s/.test(f.admin_user.trim())) out.admin_user = "A user name has no spaces.";
+      if (f.admin_password === "") out.admin_password = "Write the administrator's password.";
+      else if (/[\r\n]/.test(f.admin_password)) out.admin_password = "One line only.";
+    }
+    if (f.access === "paste") {
+      if (f.siem_key.trim() === "") out.siem_key = "Paste the read-only API key.";
+      else if (/[\r\n]/.test(f.siem_key.trim())) out.siem_key = "One line only.";
+      if (!EXPIRES.test(f.siem_expires.trim())) out.siem_expires = "A date (2027-03-01) or a number of days (90d).";
+    }
+  }
+  if (step === "ai") {
+    for (const [name, value] of Object.entries(f.ai_keys)) if (/[\r\n]/.test(value.trim())) out[`ai.${name}`] = "One line only.";
+  }
+  if (step === "intel") {
+    for (const s of INTEL) if (/[\r\n]/.test(f.intel_keys[s.key].trim())) out[`intel.${s.key}`] = "One line only.";
   }
   if (step === "kibana" && f.use_kibana) {
     if (!HTTPS.test(f.kibana_url.trim())) out.kibana_url = "An https:// address, e.g. https://siem.example.org:5601.";
     if (f.kibana_trust === "chain" && !FINGERPRINT.test(plainFingerprint(f.kibana_fingerprint))) out.kibana_fingerprint = "Check the certificate first, so the fingerprint can be shown.";
-    if (/[\r\n]/.test(f.kibana_key.trim())) out.kibana_key = "One line only.";
-    if (f.kibana_key.trim() !== "" && !EXPIRES.test(f.kibana_expires.trim())) out.kibana_expires = "A date (2027-03-01) or a number of days (90d).";
+    if (f.access !== "login") {
+      if (/[\r\n]/.test(f.kibana_key.trim())) out.kibana_key = "One line only.";
+      if (f.kibana_key.trim() !== "" && !EXPIRES.test(f.kibana_expires.trim())) out.kibana_expires = "A date (2027-03-01) or a number of days (90d).";
+    }
   }
   return out;
 }
@@ -130,8 +182,14 @@ export function allProblems(f: SetupForm): Step | null {
   return STEPS.find((s) => Object.keys(stepProblems(s.key, f)).length > 0)?.key ?? null;
 }
 
-/** The setup request, exactly as it is sent: answers (no key in them) and the keys. */
+/** The AI provider key's name as the setup sends it: GROQ_API_KEY → llm.key.groq_api_key. */
+export function aiKeyName(name: string): string {
+  return `llm.key.${name.toLowerCase()}`;
+}
+
+/** The setup request, exactly as it is sent: answers (no key in them), the keys, the asset map. */
 export function buildSetup(f: SetupForm): SetupIn {
+  const login = f.access === "login";
   const answers: Record<string, unknown> = {
     "organisation.name": f.name.trim(),
     "organisation.short_name": f.short_name.trim(),
@@ -143,27 +201,53 @@ export function buildSetup(f: SetupForm): SetupIn {
     "organisation.incident_id_prefix": f.incident_id_prefix.trim(),
     "siem.url": f.siem_url.trim(),
     "siem.trust": f.siem_trust,
-    "siem.api_key_expires": f.siem_expires.trim(),
     "siem.log_patterns": cleaned(f.log_patterns),
+    "elastic.admin_user": login ? f.admin_user.trim() : "none",
     "kibana.url": f.use_kibana ? f.kibana_url.trim() : "none",
     "discovery.accept": true,
     "llm.keys_file": "none",
   };
   if (f.siem_trust === "chain") answers["siem.fingerprint"] = f.siem_fingerprint.trim();
-  const keys: Record<string, string> = { "siem.api_key": f.siem_key.trim() };
+  const keys: Record<string, string> = {};
+  if (login) keys["elastic.admin_password"] = f.admin_password;
+  else {
+    keys["siem.api_key"] = f.siem_key.trim();
+    answers["siem.api_key_expires"] = f.siem_expires.trim();
+  }
   if (f.use_kibana) {
     answers["kibana.trust"] = f.kibana_trust;
     if (f.kibana_trust === "chain") answers["kibana.fingerprint"] = f.kibana_fingerprint.trim();
     if (f.space.trim() !== "") answers["organisation.space"] = f.space.trim();
-    if (f.kibana_key.trim() !== "") {
+    if (login && f.provision_team) answers["case_team.provision"] = true;
+    if (!login && f.kibana_key.trim() !== "") {
       keys["kibana.api_key"] = f.kibana_key.trim();
       answers["kibana.api_key_expires"] = f.kibana_expires.trim();
     }
   }
-  return { answers, keys };
+  for (const [name, value] of Object.entries(f.ai_keys)) if (value.trim() !== "") keys[aiKeyName(name)] = value.trim();
+  for (const s of INTEL) if (f.intel_keys[s.key].trim() !== "") keys[`outside.${s.key}_api_key`] = f.intel_keys[s.key].trim();
+  const out: SetupIn = { answers, keys };
+  if (f.asset_map !== null) out.asset_map = f.asset_map.content;
+  return out;
 }
 
-/** One line per answer for the review step: keys as "set", never their value. */
+/** What ARGUS will make in Elastic with the administrator's login (nothing when keys are pasted). */
+export function elasticPlan(f: SetupForm): string[] {
+  if (f.access !== "login") return [];
+  const out = ["An API key argus-reader: reads alerts, your logs and threat intel; valid a year"];
+  if (f.use_kibana) {
+    out.push("An API key argus-kibana-reader: reads Kibana's cases; valid a year");
+    if (f.provision_team) {
+      out.push("Two roles in the Kibana space: argus_case_lead and argus_case_commenter");
+      out.push(`${CASE_TEAM_USERS.length} users for the case team (${CASE_TEAM_USERS.join(", ")}), each with its own key; posting stays off`);
+    }
+  }
+  return out;
+}
+
+const given = (n: number, one: string, many: string) => (n === 0 ? "none" : `${n} ${n === 1 ? one : many}`);
+
+/** One line per answer for the review: keys and passwords as "set", never their value. */
 export function reviewLines(f: SetupForm): { label: string; value: string }[] {
   const lines = [
     { label: "Organisation", value: f.name.trim() },
@@ -175,15 +259,32 @@ export function reviewLines(f: SetupForm): { label: string; value: string }[] {
     { label: "Incident id prefix", value: f.incident_id_prefix.trim() },
     { label: "SIEM address", value: f.siem_url.trim() },
     { label: "SIEM certificate", value: f.siem_trust === "chain" ? `trust the authority ${f.siem_fingerprint.trim()}` : f.siem_trust === "system" ? "this system already trusts it" : "not chosen" },
-    { label: "SIEM key", value: f.siem_key.trim() === "" ? "not set" : "set (read-only), expires " + f.siem_expires.trim() },
     { label: "Log index patterns", value: cleaned(f.log_patterns).join(", ") },
+    {
+      label: "Access",
+      value:
+        f.access === "login"
+          ? `ARGUS makes its own read-only keys with ${f.admin_user.trim()}'s login (used once, never stored)`
+          : f.access === "paste"
+            ? f.siem_key.trim() === ""
+              ? "a pasted read-only key: not set"
+              : "a pasted read-only key: set, expires " + f.siem_expires.trim()
+            : "not chosen",
+    },
     { label: "Kibana", value: f.use_kibana ? f.kibana_url.trim() : "not used" },
   ];
   if (f.use_kibana) {
     lines.push({ label: "Kibana certificate", value: f.kibana_trust === "same" ? "the SIEM's authority" : f.kibana_trust === "chain" ? `trust the authority ${f.kibana_fingerprint.trim()}` : "this system already trusts it" });
-    lines.push({ label: "Kibana key", value: f.kibana_key.trim() === "" ? "none (Kibana stays off)" : "set (read-only), expires " + f.kibana_expires.trim() });
+    if (f.access === "login") lines.push({ label: "Kibana key", value: "made by ARGUS (read-only)" });
+    else lines.push({ label: "Kibana key", value: f.kibana_key.trim() === "" ? "none (Kibana stays off)" : "set (read-only), expires " + f.kibana_expires.trim() });
+    if (f.access === "login") lines.push({ label: "Case team", value: f.provision_team ? "made now; posting stays off" : "not now (later: Settings → Kibana cases)" });
     if (f.space.trim() !== "") lines.push({ label: "Kibana space", value: f.space.trim() });
   }
+  const ai = Object.values(f.ai_keys).filter((v) => v.trim() !== "").length;
+  lines.push({ label: "AI providers", value: ai === 0 ? "none: ARGUS works without them; add keys later in AI and agents" : `${given(ai, "key", "keys")} set` });
+  const intel = INTEL.filter((s) => f.intel_keys[s.key].trim() !== "").map((s) => s.name);
+  lines.push({ label: "Threat intel", value: intel.length === 0 ? "none: add keys later in Threat intel" : `${intel.join(", ")}: key set` });
+  lines.push({ label: "Asset map", value: f.asset_map === null ? "none: upload it later in Settings → Asset map" : `${f.asset_map.name}, imported after the setup` });
   return lines;
 }
 
@@ -207,8 +308,22 @@ export function readInspected(result: Record<string, unknown> | null): Inspected
   };
 }
 
-export function setupOutput(result: Record<string, unknown> | null): { ok: boolean; lines: string[]; error: string | null } {
-  if (result === null) return { ok: false, lines: [], error: null };
+export function setupOutput(result: Record<string, unknown> | null): { ok: boolean; lines: string[]; error: string | null; after: string[] } {
+  if (result === null) return { ok: false, lines: [], error: null, after: [] };
   const lines = Array.isArray(result.output) ? result.output.map(String) : [];
-  return { ok: result.ok === true, lines, error: typeof result.error === "string" ? result.error : null };
+  const after = Array.isArray(result.after) ? result.after.map(String) : [];
+  return { ok: result.ok === true, lines, error: typeof result.error === "string" ? result.error : null, after };
+}
+
+/** What the run does, in order, for its checklist (the login path makes the keys first). */
+export function runChecklist(f: SetupForm): string[] {
+  const out = ["Check the SIEM and its certificate"];
+  out.push(f.access === "login" ? "Make ARGUS's read-only keys" : "Check the read-only key");
+  out.push("Discover your log families" + (f.use_kibana ? " and the Kibana space" : ""));
+  if (f.access === "login" && f.use_kibana && f.provision_team) out.push("Make the Kibana case team");
+  out.push("Write the configuration and start the services");
+  const extra = Object.values(f.ai_keys).some((v) => v.trim() !== "") || INTEL.some((s) => f.intel_keys[s.key].trim() !== "");
+  if (extra) out.push("Store the AI and threat-intel keys");
+  if (f.asset_map !== null) out.push("Import the asset map");
+  return out;
 }

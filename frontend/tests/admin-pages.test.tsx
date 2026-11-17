@@ -43,7 +43,7 @@ function settingsOut(more: Partial<SettingsOut> = {}): SettingsOut {
 }
 const serveSettings = (more: Partial<SettingsOut> = {}) => server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut(more))));
 const change = (id: number, key: string, state: SettingChangesOut["changes"][number]["state"], outcome: string | null = null) => ({ id, key, state, outcome, created_at: "2026-11-16T10:00:00Z", finished_at: state === "pending" ? null : "2026-11-16T10:00:03Z", by: "asha" });
-const bodyOf = (path: string) => JSON.parse(sent("POST", path)[0]?.body ?? "null") as unknown;
+const bodyOf = (path: string, i = 0) => JSON.parse(sent("POST", path)[i]?.body ?? "null") as unknown;
 
 describe("Settings", () => {
   it("lists the sections, reads each setting from its type and marks what is not editable", async () => {
@@ -314,64 +314,98 @@ const job = (more: Partial<JobOut>): JobOut => ({ id: 31, kind: "setup", state: 
 const ANCHOR = "AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89";
 
 async function fillOrganisation(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Begin" }));
   await user.type(await screen.findByLabelText(/^Organisation name/), "Example University");
   await user.type(screen.getByLabelText(/^Security team's name/), "CSOC");
-  await user.type(screen.getByRole("textbox", { name: "Own domains, item 1" }), "example.edu");
-  await user.click(screen.getByRole("button", { name: "Next" }));
+  await user.type(screen.getByLabelText(/^Your own domains/), "example.edu");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
 }
 
+const AI: Partial<Record<string, unknown>> = {
+  providers: [{ name: "freecloud", enabled: true, api: "openai", trust: "cloud", paid: false, models: {}, keys: [{ name: "FREECLOUD_API_KEY", setting: "llm.keys.FREECLOUD_API_KEY", is_set: false }], monthly_cap_usd: null, daily_cap_usd: null, month_usd: 0, today_usd: 0, calls_month: 0, ok_month: 0, alarm: null }],
+};
+const serveSetup = () =>
+  server.use(
+    ...shellHandlers(ADMIN),
+    http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut({ setup_needed: true }))),
+    http.get(`${BASE}/api/v1/admin/ai`, () => HttpResponse.json({ applier: { running: true, last_seen: null }, problem: null, stopped: false, any_key: false, monthly_cap_usd: null, daily_cap_usd: null, month_usd: 0, today_usd: 0, purposes: [], agents: [], readings_on: false, team: [], team_keys_expire: null, settings: [], ...AI })),
+  );
+
 describe("First-time setup", () => {
-  it("walks the four steps and sends exactly the answers and keys, the key only in keys", async () => {
-    server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut({ setup_needed: true }))));
+  it("walks the chapters with the administrator's login and sends exactly the answers and keys", async () => {
+    serveSetup();
     server.use(
       http.post(`${BASE}/api/v1/admin/jobs/inspect-tls`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "pending" }), { status: 202 })),
       http.get(`${BASE}/api/v1/admin/jobs/30`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "done", result: { url: "https://siem.example.org:9200", anchor: ANCHOR, chain: [{ subject: "CN=siem", issuer: "CN=Lab CA", fingerprint: "11:22", not_after: "2027-01-01T00:00:00+00:00", self_signed: false }, { subject: "CN=Lab CA", issuer: "CN=Lab CA", fingerprint: ANCHOR, not_after: "2030-01-01T00:00:00+00:00", self_signed: true }] } }))),
       http.post(`${BASE}/api/v1/admin/jobs/setup`, () => HttpResponse.json(job({ state: "pending" }), { status: 202 })),
     );
     let polls = 0;
-    server.use(http.get(`${BASE}/api/v1/admin/jobs/31`, () => HttpResponse.json(++polls < 2 ? job({ state: "running", result: null }) : job({ state: "done", finished_at: "2026-11-16T10:03:00Z", result: { ok: true, exit: 0, output: ["step 1 ok", "step 2 ok"] } }))));
+    server.use(http.get(`${BASE}/api/v1/admin/jobs/31`, () => HttpResponse.json(++polls < 2 ? job({ state: "running", result: null }) : job({ state: "done", finished_at: "2026-11-16T10:03:00Z", result: { ok: true, exit: 0, output: ["step 1 ok", "step 2 ok"], after: ["Virustotal api key: stored", "asset map: imported"] } }))));
     const user = userEvent.setup();
     renderApp("/setup");
+    expect(await screen.findByRole("heading", { level: 1, name: /first.line analyst/ })).toBeTruthy();
     await fillOrganisation(user);
-    await user.type(await screen.findByLabelText(/^The SIEM's address/), "https://siem.example.org:9200");
+    expect(await screen.findByRole("heading", { level: 1, name: "Connect your SIEM." })).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Setup progress" }).getAttribute("aria-valuenow")).toBe("2");
+    await user.type(screen.getByLabelText(/^The SIEM's address/), "https://siem.example.org:9200");
     await user.click(screen.getByRole("button", { name: "Check the certificate" }));
     expect((await screen.findByTestId("anchor")).textContent).toBe(ANCHOR);
-    expect(screen.getByTestId("chain").textContent).toContain("CN=siem");
-    await user.click(screen.getByLabelText(/Trust this certificate authority/));
-    await user.type(screen.getByLabelText(/^The read-only API key/), "key-ONE");
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(await screen.findByLabelText(/I do not use Kibana/));
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    const review = await screen.findByTestId("review");
+    await user.click(screen.getByRole("radio", { name: /Trust this certificate authority/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Let ARGUS set itself up." })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByText("Choose how ARGUS gets its access.")).toBeTruthy();
+    await user.click(screen.getByRole("radio", { name: /Let ARGUS create its own access/ }));
+    await user.type(screen.getByLabelText(/^Administrator's user name/), "elastic-admin");
+    await user.type(screen.getByLabelText(/^Password/), "admin-pass-1");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Connect Kibana/ }));
+    await user.type(screen.getByLabelText(/^Kibana's address/), "https://siem.example.org:5601");
+    expect(screen.queryByLabelText(/^Kibana's read-only API key/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Bring your own AI. Or don't." })).toBeTruthy();
+    await user.type(screen.getByLabelText(/freecloud/), "ai-key-1");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(await screen.findByLabelText(/VirusTotal/), "vt-key-1");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.upload(await screen.findByLabelText("Choose the asset map file"), new File(["networks: []\n"], "assets.yaml"));
+    expect((await screen.findByTestId("asset-chosen")).textContent).toContain("assets.yaml");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    const plan = await screen.findByTestId("elastic-plan");
+    expect(plan.textContent).toContain("argus-reader");
+    expect(plan.textContent).toContain("argus-kibana-reader");
+    expect(plan.textContent).toContain("argus-visualiser");
+    const review = screen.getByTestId("review");
     expect(review.textContent).toContain("Example University");
-    expect(review.textContent).toContain("set (read-only)");
-    expect(document.body.textContent).not.toContain("key-ONE");
+    expect(review.textContent).toContain("never stored");
+    for (const secret of ["admin-pass-1", "ai-key-1", "vt-key-1"]) expect(document.body.textContent).not.toContain(secret);
     await user.click(screen.getByRole("button", { name: "Run the setup" }));
     await waitFor(() => expect(screen.getByTestId("running")).toBeTruthy());
-    const body = bodyOf("/api/v1/admin/jobs/setup") as { answers: Record<string, unknown>; keys: Record<string, string> };
-    expect(body.keys).toEqual({ "siem.api_key": "key-ONE" });
-    expect(JSON.stringify(body.answers)).not.toContain("key-ONE");
-    expect(body.answers).toMatchObject({ "siem.url": "https://siem.example.org:9200", "siem.trust": "chain", "siem.fingerprint": ANCHOR, "kibana.url": "none", "discovery.accept": true, "llm.keys_file": "none", "organisation.own_domains": ["example.edu"] });
-    await waitFor(() => expect(screen.getByTestId("setup-output").textContent).toContain("step 2 ok"));
-    expect(screen.getByRole("heading", { name: "ARGUS is collecting" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Go to Today" }).getAttribute("href")).toBe("/app/");
+    const body = bodyOf("/api/v1/admin/jobs/setup") as { answers: Record<string, unknown>; keys: Record<string, string>; asset_map: string };
+    expect(body.keys).toEqual({ "elastic.admin_password": "admin-pass-1", "llm.key.freecloud_api_key": "ai-key-1", "outside.virustotal_api_key": "vt-key-1" });
+    expect(body.asset_map).toBe("networks: []\n");
+    expect(JSON.stringify(body.answers)).not.toContain("admin-pass-1");
+    expect(body.answers).toMatchObject({ "siem.url": "https://siem.example.org:9200", "siem.trust": "chain", "siem.fingerprint": ANCHOR, "elastic.admin_user": "elastic-admin", "case_team.provision": true, "kibana.url": "https://siem.example.org:5601", "discovery.accept": true, "llm.keys_file": "none", "organisation.own_domains": ["example.edu"] });
+    expect(await screen.findByRole("heading", { level: 1, name: "ARGUS is ready." })).toBeTruthy();
+    expect(screen.getByTestId("setup-after").textContent).toContain("asset map: imported");
+    expect(screen.getByTestId("setup-output").textContent).toContain("step 2 ok");
+    expect(screen.getByRole("link", { name: "Open Today" }).getAttribute("href")).toBe("/app/");
   });
 
-  it("does not leave a step that is not filled in, and says what is missing", async () => {
-    server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut({ setup_needed: true }))));
+  it("does not leave a chapter that is not filled in, and says what is missing", async () => {
+    serveSetup();
     const user = userEvent.setup();
     renderApp("/setup");
-    await user.click(await screen.findByRole("button", { name: "Next" }));
+    await user.click(await screen.findByRole("button", { name: "Begin" }));
+    await user.click(await screen.findByRole("button", { name: "Continue" }));
     expect(screen.getByText("Write the organisation's name.")).toBeTruthy();
     expect(screen.getByText("Add at least one domain.")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "Your organisation" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Tell us who you are." })).toBeTruthy();
   });
 
-  it("shows what failed with the output and a way back, and asks for the password when needed", async () => {
-    server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut({ setup_needed: true }))));
+  it("pastes keys instead, skips the optional chapters, shows what failed and asks for the password when needed", async () => {
+    serveSetup();
     server.use(
-      http.post(`${BASE}/api/v1/admin/jobs/inspect-tls`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "pending" }), { status: 202 })),
-      http.get(`${BASE}/api/v1/admin/jobs/30`, () => HttpResponse.json(job({ id: 30, kind: "inspect_tls", state: "failed", result: { error: "https://siem.example.org:9200 could not be reached (timed out)" } }))),
       http.post(`${BASE}/api/v1/admin/jobs/setup`, () => HttpResponse.json({ code: "step_up_required", detail: "Confirm your password again (within five minutes) to run the setup." }, { status: 403 }), { once: true }),
       http.post(`${BASE}/api/v1/admin/jobs/setup`, () => HttpResponse.json(job({ state: "pending" }), { status: 202 })),
       http.get(`${BASE}/api/v1/admin/jobs/31`, () => HttpResponse.json(job({ state: "done", result: { ok: false, exit: 1, output: ["siem: 401 from the SIEM"] } }))),
@@ -380,21 +414,40 @@ describe("First-time setup", () => {
     renderApp("/setup");
     await fillOrganisation(user);
     await user.type(await screen.findByLabelText(/^The SIEM's address/), "https://siem.example.org:9200");
-    await user.click(screen.getByRole("button", { name: "Check the certificate" }));
-    expect((await screen.findByText(/could not be reached \(timed out\)/)).textContent).toBeTruthy();
-    await user.click(screen.getByLabelText(/My system already trusts it/));
+    await user.click(screen.getByRole("radio", { name: /My system already trusts it/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Paste read-only keys/ }));
     await user.type(screen.getByLabelText(/^The read-only API key/), "k");
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(await screen.findByLabelText(/I do not use Kibana/));
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(await screen.findByRole("button", { name: "Run the setup" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("radio", { name: /Not now/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(await screen.findByLabelText(/freecloud/), "typed-then-skipped");
+    await user.click(screen.getByRole("button", { name: "Skip ›" }));
+    await user.click(await screen.findByRole("button", { name: "Skip ›" }));
+    await user.click(await screen.findByRole("button", { name: "Skip ›" }));
+    const review = await screen.findByTestId("review");
+    expect(review.textContent).toContain("add keys later in AI and agents");
+    expect(screen.queryByTestId("elastic-plan")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Run the setup" }));
     const error = await screen.findByTestId("run-error");
     expect(within(error).getByRole("link", { name: /Confirm your password/ }).getAttribute("href")).toBe("/stepup?next=%2Fapp%2Fsetup");
     await user.click(screen.getByRole("button", { name: "Run the setup" }));
     await waitFor(() => expect(screen.getByTestId("setup-output").textContent).toContain("401 from the SIEM"));
-    expect(screen.getByText("The setup did not finish")).toBeTruthy();
+    const body = bodyOf("/api/v1/admin/jobs/setup", 1) as { answers: Record<string, unknown>; keys: Record<string, string> };
+    expect(body.keys).toEqual({ "siem.api_key": "k" });
+    expect(body.answers).toMatchObject({ "elastic.admin_user": "none", "kibana.url": "none", "siem.trust": "system" });
+    expect(screen.getByRole("heading", { level: 1, name: "The setup did not finish." })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Back to fix" }));
-    expect((await screen.findByLabelText(/^Organisation name/) as HTMLInputElement).value).toBe("Example University");
+    expect(await screen.findByRole("heading", { level: 1, name: "Ready when you are." })).toBeTruthy();
+  });
+
+  it("says when ARGUS is already connected and offers to run it again", async () => {
+    server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut())), http.get(`${BASE}/api/v1/admin/ai`, () => HttpResponse.json({})));
+    const user = userEvent.setup();
+    renderApp("/setup");
+    expect(await screen.findByRole("heading", { level: 1, name: "ARGUS is connected." })).toBeTruthy();
+    await user.click(screen.getByTestId("already"));
+    expect(await screen.findByRole("heading", { level: 1, name: "Tell us who you are." })).toBeTruthy();
   });
 });
 
@@ -420,7 +473,7 @@ describe("Today and the menu", () => {
     expect(sent("GET", "/api/v1/admin/settings").length).toBe(1);
   });
 
-  it("lists Settings and Users and roles under Administration, for an administrator only", async () => {
+  it("lists Settings, AI and agents and Users and roles under Administration, for an administrator only", async () => {
     const user = userEvent.setup();
     server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut())));
     renderApp("/");
@@ -429,5 +482,6 @@ describe("Today and the menu", () => {
     expect(more.getByText("Administration")).toBeTruthy();
     expect(more.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe("/app/settings");
     expect(more.getByRole("link", { name: "Users and roles" }).getAttribute("href")).toBe("/app/users");
+    expect(more.getByRole("link", { name: "AI and agents" }).getAttribute("href")).toBe("/app/ai");
   });
 });

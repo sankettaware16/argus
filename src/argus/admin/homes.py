@@ -20,6 +20,7 @@ import yaml
 from argus.admin.catalogue import Entry
 from argus.config.settings import ADMIN_FILE
 from argus.install import files
+from argus.llm.providers import ADMIN_OVERLAY
 
 Where = Literal["admin", "env", "credential"]
 REMOVE = object()  # a reset: the setting leaves admin.yaml
@@ -42,9 +43,12 @@ class Plan:
     admin: dict[str, Any] = field(default_factory=dict)  # dotted name -> value or REMOVE
     env: dict[Path, dict[str, str]] = field(default_factory=dict)
     credentials: dict[Path, str] = field(default_factory=dict)
+    llm: dict[str, Any] = field(default_factory=dict)  # llm.admin.yaml's, as ``admin`` (D-328)
 
     def paths(self) -> list[Path]:
-        return [Path("config") / ADMIN_FILE] * bool(self.admin) + [*self.env, *self.credentials]
+        return ([Path("config") / ADMIN_FILE] * bool(self.admin)
+                + [Path("config") / ADMIN_OVERLAY] * bool(self.llm)
+                + [*self.env, *self.credentials])  # fmt: skip
 
 
 def env_name(key: str) -> str:
@@ -142,13 +146,25 @@ def merged(plans: Sequence[Plan]) -> Plan:
     out = Plan()
     for p in plans:
         out.admin.update(p.admin)
+        out.llm.update(p.llm)
         for path, values in p.env.items():
             out.env.setdefault(path, {}).update(values)
         out.credentials.update(p.credentials)
     return out
 
 
-def admin_text(current: Mapping[str, Any], edits: Mapping[str, Any]) -> str:
+ADMIN_HEAD = (
+    "# Settings changed in ARGUS's app (Settings). Written by argus-admin; never in git.\n"
+    "# A name removed here returns to config/local.yaml's value.\n"
+)
+LLM_HEAD = (
+    "# The AI's settings changed in ARGUS's app (AI and agents). Written by argus-admin;\n"
+    "# never in git. A name removed here returns to llm.local.yaml's or llm.yaml's.\n"
+)
+
+
+def admin_text(current: Mapping[str, Any], edits: Mapping[str, Any],
+               head: str = ADMIN_HEAD) -> str:  # fmt: skip
     """``admin.yaml`` with ``edits`` applied (``REMOVE`` drops a name and an emptied section)."""
     data: dict[str, Any] = _copy(current)
     for dotted, value in edits.items():
@@ -156,8 +172,6 @@ def admin_text(current: Mapping[str, Any], edits: Mapping[str, Any]) -> str:
             _drop(data, dotted.split("."))
         else:
             files.put(data, dotted, value)
-    head = ("# Settings changed in ARGUS's app (Settings). Written by argus-admin; never in git.\n"
-            "# A name removed here returns to config/local.yaml's value.\n")  # fmt: skip
     if not data:
         return head
     return head + yaml.safe_dump(data, default_flow_style=False, sort_keys=True, width=100)
@@ -200,7 +214,11 @@ def write(root: Path, p: Plan) -> Written:
     if p.admin:
         path = root / "config" / ADMIN_FILE
         files.write_public(path, admin_text(files.read_yaml(path), p.admin))
+    if p.llm:
+        path = root / "config" / ADMIN_OVERLAY
+        files.write_public(path, admin_text(files.read_yaml(path), p.llm, LLM_HEAD))
     for rel, values in p.env.items():
+        (root / rel).parent.mkdir(mode=0o700, parents=True, exist_ok=True)  # local/ at first
         files.update_env(root / rel, values, replace=frozenset(values))
     for rel, text in p.credentials.items():
         files.write_private(root / rel, text)

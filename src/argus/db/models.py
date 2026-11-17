@@ -1447,7 +1447,9 @@ class OutsideRequest(Base):
     __table_args__ = (
         CheckConstraint("source IN ('virustotal', 'shodan', 'censys')", name="source_valid"),
         CheckConstraint("kind IN ('ip', 'domain', 'url', 'hash')", name="kind_valid"),
-        CheckConstraint("purpose IN ('agent', 'prefetch', 'families')", name="purpose_valid"),
+        CheckConstraint(
+            "purpose IN ('agent', 'prefetch', 'families', 'check')", name="purpose_valid"
+        ),
         CheckConstraint(
             "outcome IN ('reserved', 'ok', 'not_found', 'limited', 'error')", name="outcome_valid"
         ),
@@ -4506,7 +4508,7 @@ class AdminChange(Base):
     __table_args__ = (
         CheckConstraint(_one_of("state", ADMIN_CHANGE_STATES), name="state_valid"),
         CheckConstraint(_one_of("risk", ADMIN_RISKS), name="risk_valid"),
-        CheckConstraint("key ~ '^[a-z_]+(\\.[a-z0-9_]+)+$'", name="key_valid"),
+        CheckConstraint("key ~ '^[a-z_]+(\\.[A-Za-z0-9_-]+)+$'", name="key_valid"),
         CheckConstraint("NOT (reset AND value IS NOT NULL)", name="reset_carries_nothing"),
         CheckConstraint("outcome IS NULL OR char_length(outcome) <= 600", name="outcome_length"),
         Index(None, "state", "id"),
@@ -4539,7 +4541,9 @@ class AdminState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("name IN ('seal', 'snapshot', 'heartbeat')", name="name_valid"),
+        CheckConstraint(
+            "name IN ('seal', 'snapshot', 'heartbeat', 'usage', 'services')", name="name_valid"
+        ),
         CheckConstraint("jsonb_typeof(state) = 'object'", name="state_is_object"),
     )
 
@@ -4574,7 +4578,7 @@ class UserLink(Base):
     )
 
 
-ADMIN_JOB_KINDS = ("inspect_tls", "setup")
+ADMIN_JOB_KINDS = ("inspect_tls", "setup", "check", "assets", "llm_switch", "service")
 ADMIN_JOB_STATES = ("pending", "running", "done", "failed")
 
 
@@ -4622,5 +4626,5 @@ class AdminJobSecret(Base):
 
     __table_args__ = (
         CheckConstraint("name ~ '^[a-z_]+(\\.[a-z0-9_]+)+$'", name="name_valid"),
-        CheckConstraint("octet_length(sealed) <= 20000", name="sealed_length"),
+        CheckConstraint("octet_length(sealed) <= 5300000", name="sealed_length"),
     )

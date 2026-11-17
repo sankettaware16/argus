@@ -107,6 +107,13 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("GET", "/api/v1/admin/changes"): C.ADMIN,
     ("POST", "/api/v1/admin/jobs/inspect-tls"): C.ADMIN,
     ("POST", "/api/v1/admin/jobs/setup"): C.ADMIN,
+    ("POST", "/api/v1/admin/jobs/check"): C.ADMIN,  # D-328, D-329
+    ("POST", "/api/v1/admin/jobs/assets"): C.ADMIN,
+    ("POST", "/api/v1/admin/jobs/llm-switch"): C.ADMIN,
+    ("POST", "/api/v1/admin/jobs/service"): C.ADMIN,
+    ("GET", "/api/v1/admin/ai"): C.ADMIN,
+    ("GET", "/api/v1/admin/usage"): C.ADMIN,
+    ("GET", "/api/v1/admin/services"): C.ADMIN,
     ("GET", "/api/v1/admin/jobs/{job_id}"): C.ADMIN,
     ("POST", "/api/v1/cases/{case_id}/sent"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/actions/{action_id}/done"): C.MANAGE_CASES,

@@ -12,6 +12,9 @@ original deployment, analysts anywhere).
 - [Opening it](#opening-it)
 - [Signing in](#signing-in)
 - [Administration](#administration)
+  - [Settings](#settings) · [AI and agents](#ai-and-agents) · [Threat intel](#threat-intel) ·
+    [Costs and usage](#costs-and-usage) · [Services](#services) ·
+    [First-time setup](#first-time-setup)
 - [Users and capabilities](#users-and-capabilities)
 - [The pages](#the-pages)
 - [How changes are made](#how-changes-are-made)
@@ -43,9 +46,9 @@ The app lives at `/app`; the address `/` and every older page address lead to th
 the app (links in Kibana cases and notices keep working). Light and dark follow the browser's
 system setting. It is tested in current Chromium (Chrome, Edge) and Firefox.
 
-![The Home page: what needs a person today, in order](images/screenshots/inbox.png)
+![Today: the possible incidents that need a person, in priority order](images/screenshots/today.png)
 
-![The same page in dark mode, which follows the system setting](images/screenshots/inbox-dark.png)
+![The same page in dark mode, which follows the system setting](images/screenshots/today-dark.png)
 
 ## Signing in
 
@@ -76,47 +79,155 @@ The sign-in page is `/signin`. People sign in with **local accounts** made in th
 
 ## Administration
 
-Administrators find these under **More → Administration**:
+Administrators find these under **More → Administration**: **Settings**, **AI and agents**,
+**Threat intel**, **Costs and usage**, **Users and roles** ([next section](#users-and-capabilities))
+and the **Design system** (the app's colours and components, for developers). The services are a
+panel on **System health**. Everything after the install is done here: the server is needed only
+for an upgrade, a restore and recovery ([operations.md](operations.md#what-stays-on-the-server)).
 
-- **Settings**: every setting of ARGUS with its help and current value, in sections (the SIEM,
-  Kibana, the web app, sign-in, notices, retention, backups, outside lookups, the incident engine
-  and more). A save is checked again and applied by the service `argus-admin`, which restarts only
-  what reads the setting and shows the result within seconds; if a service does not come back,
-  the change is **rolled back**. Keys and addresses need your password again; anything that lets
-  ARGUS write to the SIEM also needs you to type *let ARGUS write to the SIEM*. Keys are never
-  shown, only replaced. Full reference:
-  [configuration.md](configuration.md#changing-a-setting-in-the-app).
-- **Users and roles**: [next section](#users-and-capabilities).
-- **Design system**: the app's colours and components (for developers).
+Each change is saved as a request that the service `argus-admin` checks again and applies within
+seconds; the page shows what became of it. If `argus-admin` is not running, the page says so and
+your change waits for it. Keys and money limits need your password again (*Confirm your password*
+opens a new tab, valid five minutes); a key is typed once, sealed in the browser's request and
+never shown again, only replaced.
 
-**First-time setup** is not in the menu. Until ARGUS has its SIEM address and key, an
-administrator sees a card on **Today**, *Finish the first-time setup*, whose **Start the setup**
-button opens `/app/setup`. Four steps:
+### Settings
 
-1. **Your organisation**: its name, the security team's name, what kind of organisation, your own
-   domains and public networks, the time zone and a short label for it, the incident id prefix.
-2. **The SIEM**: Elasticsearch's address. *Check the certificate* reads what the address
+Every setting of ARGUS with its help and current value, in sections (the SIEM, Kibana, the web
+app, sign-in, notices, retention, backups, outside lookups, the incident engine and more), and a
+search box over all of them. A save is applied by `argus-admin`, which restarts only what reads
+the setting; if a service does not come back, the change is **rolled back** and the page says
+why. Anything that lets ARGUS write to the SIEM also needs you to type *let ARGUS write to the
+SIEM*. Full reference: [configuration.md](configuration.md#changing-a-setting-in-the-app).
+
+- **Check the connection**: the *SIEM* section has a button that has `argus-admin` try the saved
+  key against the SIEM (the certificate pin, the version, what the key may read); the *Kibana*
+  section has one per Kibana key (read-only, cases, alerts). Nothing is changed. The result is
+  **Passed** or **Failed**, with what the check said under *What it said*.
+- **Upload an asset map**: in the *Asset map* section, choose your asset map file (`.yaml` or
+  `.yml`, at most 5 MB). It is read in the browser, sent sealed with your password confirmed, and
+  imported by `argus-admin`, which deletes its copy afterwards; the page shows **Imported** or
+  **Not imported** with the importer's output. The format: [llm.md](llm.md#10-the-asset-map).
+- **History**: the last entry of the section list. The last fifty changes made in the app, newest
+  first: when, who, which setting, and whether it was applied, refused or rolled back, and why.
+
+![Settings: the SIEM section, with its connection check under the settings](images/screenshots/settings.png)
+
+### AI and agents
+
+ARGUS works without any AI. With a key for at least one provider it uses the AI for readings of
+incidents, second opinions and the AI investigator, **free providers first**, paid ones last and
+capped. The page, top to bottom:
+
+- **Status**: whether the AI is on, this month's and today's spend, and **Stop all AI calls**
+  (no call to any provider until you press **Resume AI calls**; recorded in the audit trail).
+- **Spending**: the monthly and daily limits for the paid providers together (USD).
+- **Providers**: one card each, free or paid, with its models by size, **Use this provider**,
+  each key (*Set* or *Not set*, with **Add key** or **Replace key**), a paid provider's own limits
+  and spend, this month's calls, any alarm, and **Test**: `argus-admin` asks the provider for its
+  list of models with the saved key; no prompt is sent.
+- **AI tasks**: the *ARGUS AI readings* switch, then each task's calls a day, the providers it
+  may use in order, and the model size.
+- **Agents**: what each agent does, its model size, tools, specialists, when it runs, its version
+  and whether it is on. An agent's instructions are fixed and tested against the gold set before
+  it runs: a new version comes with an ARGUS release, not from this page.
+- **Case team**: the Kibana users that write confirmed incidents as cases, whose keys are set,
+  and when they expire; the keys themselves are set in **Settings → Kibana cases**.
+
+![AI and agents: the status, spending limits and providers with their keys](images/screenshots/ai-agents.png)
+
+### Threat intel
+
+VirusTotal (the reputation of a public address or name), Shodan and Censys (what a public server
+runs). Each is **off until it has a key**; their free plans are enough, and ARGUS stays below
+their limits. A card per source shows whether it is on, its limits, today's and this month's
+lookups, **Add key** or **Replace key**, and **Test**, which looks up one public test address
+(never one of yours) within the same limits as ARGUS's own lookups. Without a key ARGUS can still
+ask Shodan's free InternetDB (fewer details): *Use InternetDB when there is no key*. Their other
+settings are in **Settings → Outside sources**.
+
+![Threat intel: each source with its key, limits, lookups and a Test](images/screenshots/threat-intel.png)
+
+### Costs and usage
+
+A read-only page. First the summary: what the AI cost this month and today against its limits,
+and whether AI calls are allowed (with a link to **AI and agents** to stop them or change the
+limits). Then the AI's spend a day for the last 31 days, stacked by provider (**As a table** under
+it), the calls and cost by task this month, and each threat-intel source's lookups a day against
+its daily limit (the dashed line). Amounts are in US dollars; days are UTC.
+
+![Costs and usage: the AI's spend a day, by task, and the threat-intel lookups](images/screenshots/costs.png)
+
+### Services
+
+At the bottom of **More → System health**, administrators see ARGUS's services and timers: what
+each does, whether it is meant to run and whether it runs, when `argus-admin` last looked, and the
+badges *writes to the SIEM* and *deletes data*. **Switch on** and **Switch off** (for the optional
+ones) need your password again; switching on one that writes to the SIEM also needs the typed
+words. **Restart** restarts a service (not `argus-admin` itself, which applies the switch).
+
+![System health with the Services panel](images/screenshots/system-health.png)
+
+### First-time setup
+
+The setup is not in the menu. Until ARGUS has its SIEM address and key, an administrator sees a
+card on **Today**, *Finish the first-time setup*, whose **Start the setup** button opens
+`/app/setup`; anyone else sees a calm card, *ARGUS is not set up yet*: an administrator still has
+to finish it, and nothing is needed from them.
+
+The setup has the whole screen: a start page, then one question per chapter, with a progress bar
+and **Continue**, **‹ Back** and, for the optional chapters, **Skip ›**. **Exit setup** leads back
+to Today; nothing is sent until the last chapter.
+
+1. **Tell us who you are.** The organisation's name, the security team's name, what kind of
+   organisation, your own domains and public networks (separated by commas), the time zone and a
+   short label for it, the incident id prefix.
+2. **Connect your SIEM.** Elasticsearch's address. *Check the certificate* reads what the address
    presents and shows the certificate authority's SHA-256 fingerprint; compare it with what your
    SIEM administrator gives you, then choose *Trust this certificate authority*, or *My system
    already trusts it* for a certificate from an authority this machine already knows. Then the
-   read-only API key (sealed at once), when it expires, and the index patterns of your logs.
-3. **Kibana** (optional): its address and how its certificate is trusted, a read-only key and
-   when it expires, the Kibana space with the Security alerts (found by itself when left empty).
-   ARGUS writes nothing to Kibana until that is switched on in Settings.
-4. **Review and run**: the answers (keys only as "set"), then **Run the setup**, with your
-   password confirmed again.
+   index patterns of your logs.
+3. **Let ARGUS set itself up.** Two ways:
+   - *Let ARGUS create its own access* (recommended): an Elastic administrator's user name and
+     password. ARGUS uses the login once to make its own read-only API keys (`argus-reader`, and
+     with Kibana `argus-kibana-reader`, valid a year) and, if *Also make its Kibana case team* is
+     ticked, the case team's two roles and seven users with a key each (posting stays off). The
+     login needs `manage_api_key` or `manage_security`; it is sealed in the browser, used by
+     `argus-admin` for this run only and never stored.
+   - *Paste read-only keys*: the key you made in Kibana's Dev Tools and when it expires
+     ([install.md](install.md)).
+4. **Add Kibana.** *Connect Kibana* or *Not now*: its address and how its certificate is trusted,
+   with pasted keys its read-only key, and the Kibana space with the Security alerts (found by
+   itself when left empty). ARGUS writes nothing to Kibana until that is switched on in Settings.
+5. **Bring your own AI. Or don't.** (optional) A key for any of the AI providers listed; they are
+   stored after the setup, as on **AI and agents**.
+6. **Add threat intel.** (optional) Keys for VirusTotal, Shodan or Censys, stored as on **Threat
+   intel**.
+7. **Map your network.** (optional) Your asset map file (`.yaml`, at most 5 MB), imported after the
+   setup. ARGUS needs it before it asks an AI or an outside source about anything.
+8. **Ready when you are.** What ARGUS will create in Elastic (with the login), every answer (keys
+   only as "set"), then **Run the setup**, with your password confirmed again.
 
-`argus-admin` then runs the rest of the installation with those answers: it checks the SIEM,
-discovers the log families and the Kibana space, writes the configuration and starts every
-service. The page shows its output as it goes; if it stops, your answers are kept, so fix what it
-names and run it again. The AI providers are not part of the setup: their keys are added on the
-server ([llm.md](llm.md)).
+`argus-admin` then runs the rest of the installation with those answers: it checks the SIEM, makes
+or checks the keys, discovers the log families and the Kibana space, writes the configuration,
+starts every service, stores the AI and threat-intel keys and imports the asset map. The page
+shows a checklist while it works and ends with **ARGUS is ready.**, what became of each extra key
+and the asset map, and **Open Today**. If it stops, your answers are kept: fix what it names and
+run it again.
+
+![The start of the first-time setup](images/screenshots/setup-start.png)
+
+![The first chapter: tell us who you are](images/screenshots/setup-organisation.png)
+
+![The access chapter: let ARGUS create its own access, or paste read-only keys](images/screenshots/setup.png)
 
 ## Users and capabilities
 
 **More → Administration → Users and roles** lists everyone who can sign in, with their role, when
 they were last seen, their open sessions and their status. Each change asks for your password
 again (within five minutes).
+
+![Users and roles: the people who may sign in, their roles and what the roles mean](images/screenshots/users.png)
 
 - **Add a person**: their name, a sign-in name (lower case, 2–32 characters) and a role. ARGUS
   shows a one-time link, valid 72 hours, which you pass on; they choose their own password with it.
@@ -174,7 +285,7 @@ The menu is on the left (on a phone, the four main pages are a bar at the bottom
 
 | Where | Page | What it is |
 |---|---|---|
-| **Main** | Today | What needs a person today, and what ARGUS handled on its own; administrators also see the setup card until the setup is done |
+| **Main** | Today | What needs a person today, and what ARGUS handled on its own; until the setup is done, administrators see the setup card and everyone else a notice that an administrator still has to finish it |
 | | Incidents | Every incident and possible incident, by priority |
 | | Search | One box for an address, a host, an account, a domain, a rule or an incident |
 | | Reports | Incident reports first, then the daily and weekly summaries |
@@ -182,20 +293,16 @@ The menu is on the left (on a phone, the four main pages are a bar at the bottom
 | | Approvals | Closures and merges waiting for a second person |
 | | Rule tuning | Weekly per-rule suggestions to make noisy rules quieter (you apply them in Kibana) |
 | | ARGUS quality | How often ARGUS is right: its results, waiting work and cost, and the gold set |
-| | System health | Whether data is arriving, and any gaps (a gap is *unknown*, never *clean*) |
+| | System health | Whether data is arriving, and any gaps (a gap is *unknown*, never *clean*); for administrators, the [services](#services) |
 | | Help & glossary | Every page and word explained |
 | **More queues** | Patterns | Groups of alike alert groups, to decide at once |
 | | Proposals | Outcomes ARGUS proposes, grouped by what decided them, with an audit sample |
-| **Administration** (admins) | Settings, Users and roles, Design system | [Above](#administration) |
+| **Administration** (admins) | Settings, AI and agents, Threat intel, Costs and usage, Users and roles, Design system | [Above](#administration) |
 | **Account** | Your access | What you may do and why (a server page) |
 
-![The Dashboard: alerts, investigations and incidents at a glance](images/screenshots/dashboard.png)
+![Incidents: every incident and possible incident, by priority](images/screenshots/incidents.png)
 
-![Proposals: outcomes ARGUS proposes, grouped by what decided them, each group with an audit sample](images/screenshots/proposals.png)
-
-![Open cases: confirmed problems across investigations](images/screenshots/cases.png)
-
-![Reports: the daily and weekly reports](images/screenshots/reports.png)
+![Reports: incident reports first, then the daily and weekly summaries](images/screenshots/reports.png)
 
 **Today** lists what needs a person: **Needs you** (possible incidents, by priority, each card
 with **Confirm incident…** and **Not an incident ▾**), **Just decided** (with **Undo** for a
@@ -236,9 +343,9 @@ People, ARGUS, AI or Kibana; **Add a note to this incident**; owner and containm
 about this incident** has Copy link, Copy ID, Copy IR number, Download the report (PDF),
 **Everything on one page** and the raw record.
 
-![A case's page: summary, incident report, timeline, evidence and actions](images/screenshots/case.png)
+![A possible incident's page: the decision bar, why ARGUS raised it and what it checked](images/screenshots/incident.png)
 
-![Page 1 of a case's incident report PDF](images/screenshots/incident-report.png)
+![Page 1 of an incident report PDF](images/screenshots/incident-report.png)
 
 **Search** takes an address, a host, an account, a domain, a rule, an incident number or an IR
 number, and lists the matching incidents and alert groups. An **entity page**
@@ -246,6 +353,8 @@ number, and lists the matching incidents and alert groups. An **entity page**
 incidents whose title names it and its alert groups of the last 5 days; an entity chip on an
 incident opens a side panel with **Open full page**. **▸ Advanced: alert-group filters** opens the
 older alert-group lists (Needs attention, by rule, by host or IP; `/app/inbox` leads there).
+
+![Search: an outside address and the alert groups that name it](images/screenshots/search.png)
 
 **An alert group's page** (`/app/alert-groups/<id>`) is the building block under incidents: one
 rule, one actor, one day. It has a strip of key facts and tabs: **Overview**, **Report** (every
@@ -260,7 +369,7 @@ one click when ARGUS makes a call. **More → More queues** keeps two alert-grou
 **Proposals** (ARGUS's proposed outcomes by group, with an audit sample and **Confirm all**) and
 **Patterns** (alike alert groups to decide at once).
 
-![An investigation's page: the key facts, the verdict and the evidence, with Your review](images/screenshots/investigation.png)
+![An alert group's page: the key facts, each with its alerts, and Your decision](images/screenshots/investigation.png)
 
 The header carries one quiet status (**● OK**, **Caution** or **Problem**) that opens to the
 SIEM, ARGUS's reading, the Kibana read-back and (for an administrator) the AI cost, with a link
@@ -296,8 +405,6 @@ exact changes and confirms their password. A closure for a real incident (*fixed
 verified*, *risk accepted*) needs **two different approvers**. Groups of alike closures are
 approved by a sample first, then the rest, at most 20 at a time. **Reopen** needs a reason but no
 approval.
-
-![The Approvals queue: closures and merges waiting for a second person](images/screenshots/approvals.png)
 
 The web signs each approval with a key. Until it has one, the Approvals queue can be read but no
 decision is recorded (doctor: `web.approval_key_file is not set: the approvals queue can be read,

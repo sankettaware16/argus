@@ -3,7 +3,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { SectionOut, SettingOut } from "../src/client/types.gen";
-import { buildChanges, confirmOk, durationWords, fieldFor, formatDuration, fromDraft, outcomeWords, parseDuration, searchSettings, splitHelp, toDraft, valueWords, worst } from "../src/lib/settings";
+import { buildChanges, confirmOk, entryList, durationWords, fieldFor, formatDuration, fromDraft, outcomeWords, parseDuration, searchSettings, splitHelp, toDraft, valueWords, worst } from "../src/lib/settings";
 
 function setting(more: Partial<SettingOut>): SettingOut {
   return { key: "history.window", label: "History window", help: "How far back.", kind: "duration", risk: "normal", editable: true, optional: false, choices: [], minimum: null, maximum: null, default: 432000, value: 432000, is_set: null, homes: [], in_app: false, ...more };
@@ -149,5 +149,16 @@ describe("words and search", () => {
     const b = setting({ key: "web.port", label: "Web port" });
     expect(fieldFor("History window: must be at least 1h.", [a, b])).toBe("history.window");
     expect(fieldFor("Something else.", [a, b])).toBeNull();
+  });
+});
+
+describe("a list of entries (objects)", () => {
+  const families = setting({ key: "site.families", label: "Families", kind: "list", value: [{ name: "proxy", pattern: "logs-proxy-*" }], in_app: true });
+  it("is known, drafted as readable text and never sent, not even as a reset", () => {
+    expect(entryList(families)).toBe(true);
+    expect(entryList(setting({ kind: "list", value: ["a"] }))).toBe(false);
+    expect(entryList(setting({ kind: "list", value: [] }))).toBe(false);
+    expect(toDraft(families)).toEqual(['{"name":"proxy","pattern":"logs-proxy-*"}']);
+    expect(buildChanges([families], { "site.families": ["x"] }, new Set(["site.families"])).changes).toEqual([]);
   });
 });

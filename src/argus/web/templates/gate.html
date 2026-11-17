@@ -6,7 +6,7 @@
   <title>{% block title %}ARGUS{% endblock %} · ARGUS</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <a class="skip" href="#main">Skip to content</a>
   <header class="top"><span class="brand">ARGUS</span></header>
   <main id="main">

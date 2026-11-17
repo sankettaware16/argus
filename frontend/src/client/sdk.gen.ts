@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, EndUserSessionsData, EndUserSessionsErrors, EndUserSessionsResponses, GetAdminJobData, GetAdminJobErrors, GetAdminJobResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingChangesData, GetSettingChangesErrors, GetSettingChangesResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, InspectTlsData, InspectTlsErrors, InspectTlsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, ListUsersData, ListUsersErrors, ListUsersResponses, MakeUserLinkData, MakeUserLinkErrors, MakeUserLinkResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SaveSettingsData, SaveSettingsErrors, SaveSettingsResponses, SearchData, SearchErrors, SearchResponses, SetUserAccessData, SetUserAccessErrors, SetUserAccessResponses, SetUserCapabilitiesData, SetUserCapabilitiesErrors, SetUserCapabilitiesResponses, StartSetupData, StartSetupErrors, StartSetupResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
+import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, EndUserSessionsData, EndUserSessionsErrors, EndUserSessionsResponses, GetAdminJobData, GetAdminJobErrors, GetAdminJobResponses, GetAiData, GetAiErrors, GetAiResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetServicesData, GetServicesErrors, GetServicesResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingChangesData, GetSettingChangesErrors, GetSettingChangesResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, GetUsageData, GetUsageErrors, GetUsageResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, ImportAssetsData, ImportAssetsErrors, ImportAssetsResponses, InspectTlsData, InspectTlsErrors, InspectTlsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, ListUsersData, ListUsersErrors, ListUsersResponses, MakeUserLinkData, MakeUserLinkErrors, MakeUserLinkResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SaveSettingsData, SaveSettingsErrors, SaveSettingsResponses, SearchData, SearchErrors, SearchResponses, SetUserAccessData, SetUserAccessErrors, SetUserAccessResponses, SetUserCapabilitiesData, SetUserCapabilitiesErrors, SetUserCapabilitiesResponses, StartCheckData, StartCheckErrors, StartCheckResponses, StartSetupData, StartSetupErrors, StartSetupResponses, SwitchLlmData, SwitchLlmErrors, SwitchLlmResponses, SwitchServiceData, SwitchServiceErrors, SwitchServiceResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,21 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Get Ai
+ *
+ * The AI providers, keys, caps and spend, the kill switch, the AI tasks and the agents.
+ */
+export const getAi = <ThrowOnError extends boolean = false>(options?: Options<GetAiData, ThrowOnError>): RequestResult<GetAiResponses, GetAiErrors, ThrowOnError> => (options?.client ?? client).get<GetAiResponses, GetAiErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/ai',
+    ...options
+});
 
 /**
  * Get Changes
@@ -53,6 +68,46 @@ export const saveSettings = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
+ * Import Assets
+ *
+ * An uploaded asset map, sealed at once, imported by argus-admin (`argus assets
+ * import`); the services restart with it. Needs the password confirmed.
+ */
+export const importAssets = <ThrowOnError extends boolean = false>(options: Options<ImportAssetsData, ThrowOnError>): RequestResult<ImportAssetsResponses, ImportAssetsErrors, ThrowOnError> => (options.client ?? client).post<ImportAssetsResponses, ImportAssetsErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/assets',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Start Check
+ *
+ * A connection check run by argus-admin: the SIEM's key, a Kibana key or an AI provider
+ * (`argus siem selftest`, `argus kibana selftest`, `argus llm probe`: no prompt is sent).
+ */
+export const startCheck = <ThrowOnError extends boolean = false>(options: Options<StartCheckData, ThrowOnError>): RequestResult<StartCheckResponses, StartCheckErrors, ThrowOnError> => (options.client ?? client).post<StartCheckResponses, StartCheckErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/check',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Inspect Tls
  *
  * The certificates an address presents, read by argus-admin (nothing is trusted).
@@ -64,6 +119,46 @@ export const inspectTls = <ThrowOnError extends boolean = false>(options: Option
             type: 'apiKey'
         }],
     url: '/api/v1/admin/jobs/inspect-tls',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Switch Llm
+ *
+ * The AI's kill switch (as `argus llm stop` and `resume`), set by argus-admin.
+ */
+export const switchLlm = <ThrowOnError extends boolean = false>(options: Options<SwitchLlmData, ThrowOnError>): RequestResult<SwitchLlmResponses, SwitchLlmErrors, ThrowOnError> => (options.client ?? client).post<SwitchLlmResponses, SwitchLlmErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/llm-switch',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Switch Service
+ *
+ * A service or timer switched on or off, or a service restarted, by argus-admin. A
+ * switch needs the password confirmed; one that lets ARGUS write to the SIEM also the
+ * words typed.
+ */
+export const switchService = <ThrowOnError extends boolean = false>(options: Options<SwitchServiceData, ThrowOnError>): RequestResult<SwitchServiceResponses, SwitchServiceErrors, ThrowOnError> => (options.client ?? client).post<SwitchServiceResponses, SwitchServiceErrors, ThrowOnError>({
+    security: [{ name: 'X-CSRF-Token', type: 'apiKey' }, {
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/jobs/service',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -106,6 +201,21 @@ export const getAdminJob = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
+ * Get Services
+ *
+ * ARGUS's services and timers: what each does, whether it is on and running.
+ */
+export const getServices = <ThrowOnError extends boolean = false>(options?: Options<GetServicesData, ThrowOnError>): RequestResult<GetServicesResponses, GetServicesErrors, ThrowOnError> => (options?.client ?? client).get<GetServicesResponses, GetServicesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/services',
+    ...options
+});
+
+/**
  * Get Settings
  *
  * Every setting the app shows, with its value here and where it is set.
@@ -117,6 +227,21 @@ export const getSettings = <ThrowOnError extends boolean = false>(options?: Opti
             type: 'apiKey'
         }],
     url: '/api/v1/admin/settings',
+    ...options
+});
+
+/**
+ * Get Usage
+ *
+ * Costs and usage: the AI's spend a day and by task, the threat-intel lookups.
+ */
+export const getUsage = <ThrowOnError extends boolean = false>(options?: Options<GetUsageData, ThrowOnError>): RequestResult<GetUsageResponses, GetUsageErrors, ThrowOnError> => (options?.client ?? client).get<GetUsageResponses, GetUsageErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/admin/usage',
     ...options
 });
 

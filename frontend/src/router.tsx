@@ -38,6 +38,9 @@ const MetricsPage = lazy(() => import("./pages/System").then((m) => ({ default: 
 const TuningPage = lazy(() => import("./pages/Tuning").then((m) => ({ default: m.Tuning })));
 const GoldPage = lazy(() => import("./pages/Gold").then((m) => ({ default: m.Gold })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
+const AiAgentsPage = lazy(() => import("./pages/AiAgents").then((m) => ({ default: m.AiAgents })));
+const ThreatIntelPage = lazy(() => import("./pages/ThreatIntel").then((m) => ({ default: m.ThreatIntel })));
+const CostsPage = lazy(() => import("./pages/Costs").then((m) => ({ default: m.Costs })));
 const UsersPage = lazy(() => import("./pages/Users").then((m) => ({ default: m.Users })));
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.Setup })));
 const InvestigationPageLazy = lazy(() => import("./pages/InvestigationPage").then((m) => ({ default: m.InvestigationPage })));
@@ -66,7 +69,26 @@ function admin<P extends string>(path: P, what: string, Page: ComponentType) {
     errorComponent: Failed,
   });
 }
-const settings = admin("/settings", "the settings", SettingsPage);
+const settings = createRoute({
+  getParentRoute: () => root,
+  path: "/settings",
+  validateSearch: (raw: Record<string, unknown>): { section?: string } => {
+    const section = first(raw.section);
+    return section !== undefined && /^[a-z_]{1,40}$/.test(section) ? { section } : {};
+  },
+  component: function SettingsRoute() {
+    const { section } = settings.useSearch();
+    return (
+      <Suspense fallback={<Loading what="the settings" />}>
+        <SettingsPage section={section} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
+const aiAgents = admin("/ai", "the AI settings", AiAgentsPage);
+const threatIntel = admin("/threat-intel", "the threat-intel sources", ThreatIntelPage);
+const costs = admin("/costs", "the costs", CostsPage);
 const users = admin("/users", "the people", UsersPage);
 const setup = admin("/setup", "the setup", SetupPage);
 // the old addresses (docs/p4f-ui-spec.md §4.3): redirected, so saved links keep working
@@ -312,7 +334,7 @@ const quality = createRoute({
 /** The app's router; tests give it a memory history. */
 export function createAppRouter(history?: RouterHistory) {
   const made = createRouter({
-    routeTree: root.addChildren([home, design, settings, users, setup, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
+    routeTree: root.addChildren([home, design, settings, aiAgents, threatIntel, costs, users, setup, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
     basepath: BASE,
     defaultPreload: false,
     scrollRestoration: false,

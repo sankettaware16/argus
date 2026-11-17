@@ -209,6 +209,10 @@ async def test_sign_in_and_step_up_in_a_browser(server: str) -> None:  # noqa: F
         axe = Axe()
         for path in ("/signin", "/signin?why=ended"):
             await page.goto(server + path)
+            # contrast is measured on the page as it rests, not mid-way through its fade-in
+            await page.wait_for_function(
+                "() => document.getAnimations().every(a => a.playState === 'finished')"
+            )
             report = await axe.run(page)
             serious = [v for v in report.response["violations"]
                        if v["impact"] in ("serious", "critical")]  # fmt: skip

@@ -153,6 +153,7 @@ async def test_signing_in_gives_the_session_contract(
         "stepped_up_at": None,
         "step_up_valid_until": None,
         "since": None,
+        "setup_pending": False,  # no argus-admin here (D-328)
     }  # fmt: skip
     assert got.headers["cache-control"] == "no-store"  # the CSRF token is never cached
     assert await audit(seeded, "login") == [("user:asha", "login", "success", None, None)]

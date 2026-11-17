@@ -137,7 +137,7 @@ def build(
 
     @router.get("/session", tags=["session"], operation_id="getSession",
                 responses=errors(401, 403))  # fmt: skip
-    async def get_session(request: Request, me: Session) -> m.SessionOut:
+    async def get_session(request: Request, me: Session, conn: Conn) -> m.SessionOut:
         """Who is signed in, what they may do, the CSRF token for changes, and when the
         session ends. Without a session: 401, and the person signs in at ``/signin``."""
         web = request.app.state.web
@@ -158,6 +158,7 @@ def build(
             idle_timeout_s=int(web.session_idle.total_seconds()), stepped_up_at=stepped,
             step_up_valid_until=None if stepped is None else stepped + STEP_UP_VALID,
             since=me.previous_seen_at, site=site_out(),
+            setup_pending=await admin_routes.setup_pending(conn),
         )  # fmt: skip
 
     @router.delete("/session", tags=["session"], operation_id="endSession", status_code=204,

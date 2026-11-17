@@ -1,39 +1,63 @@
-// First-time setup (D-327): four steps that ask what ARGUS cannot find out itself, then argus-admin
-// runs `argus init` with the answers. Everything typed stays in this component's state; the two
-// keys go only in the final request, to be sealed, and are shown nowhere (the review says "set").
+// First-time setup (D-327, D-330): chapters, one question each, then argus-admin runs `argus init`
+// with the answers. ARGUS may make its own read-only keys with an Elastic administrator's login
+// (used once, sealed, never stored) or take pasted keys; the AI and threat-intel keys and the
+// asset map may come along. Everything typed stays in this component's state; the keys go only
+// in the final request, to be sealed, and are shown nowhere (the review says "set").
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { inspectTls, startSetup } from "../client/sdk.gen";
-import { AdminOnly, Notice, StepUpLink, StepUpNote } from "../components/admin/common";
-import { ListEditor } from "../components/admin/SettingField";
+import type { AiProviderOut } from "../client/types.gen";
+import { AdminOnly, StepUpLink } from "../components/admin/common";
 import { Loading, Problem } from "../components/Problem";
-import { Time } from "../components/Time";
-import { Button } from "../components/ui/button";
-import { Card, CardTitle } from "../components/ui/card";
-import { Field, TextInput } from "../components/ui/field";
-import { jobOptions, jobSettled, settingsOptions } from "../lib/admin";
+import { assetFileProblem, jobOptions, jobSettled, settingsOptions } from "../lib/admin";
+import { aiOptions } from "../lib/ai";
 import { unwrap } from "../lib/call";
 import { cn } from "../lib/cn";
-import { ApiError } from "../lib/session";
-import { allProblems, buildSetup, emptySetup, readInspected, reviewLines, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
+import { ApiError, can, useSession } from "../lib/session";
+import { allProblems, buildSetup, elasticPlan, emptySetup, INTEL, readInspected, reviewLines, runChecklist, setupOutput, stepProblems, STEPS, type SetupForm, type Step } from "../lib/setup";
 
 type Set = <K extends keyof SetupForm>(key: K, value: SetupForm[K]) => void;
+type Stage = "intro" | Step | "running";
+
+const listOf = (text: string) => text.split(",").map((x) => x.trim());
+const textOf = (list: readonly string[]) => list.filter((x) => x.trim() !== "").join(", ");
 
 function Err({ text }: { text?: string }) {
   return text ? (
-    <p role="alert" className="m-0 text-sm text-danger">
+    <p role="alert" className="setup-error">
       {text}
     </p>
   ) : null;
 }
 
-function Radio({ name, value, checked, onChange, children }: { name: string; value: string; checked: boolean; onChange: () => void; children: ReactNode }) {
+function Field({ label, hint, children, error, id }: { label: string; hint?: string; children: ReactNode; error?: string; id: string }) {
   return (
-    <label className="flex items-start gap-2 text-sm">
-      <input type="radio" name={name} value={value} checked={checked} onChange={onChange} className="mt-1 size-4 accent-accent" />
-      <span>{children}</span>
-    </label>
+    <div>
+      <label htmlFor={id} className="setup-label">
+        {label} {hint && <span className="setup-hint">{hint}</span>}
+      </label>
+      {children}
+      <Err text={error} />
+    </div>
+  );
+}
+
+function Input(props: ComponentProps<"input">) {
+  return <input {...props} className={cn("setup-input", props.className)} />;
+}
+
+/** A choice among a few, as big tiles (a radio group). */
+function Choices<T extends string>({ label, value, options, onChange }: { label: string; value: T | ""; options: { value: T; title: ReactNode; body: ReactNode }[]; onChange: (v: T) => void }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid gap-3 sm:grid-cols-2">
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} className="setup-choice" onClick={() => onChange(o.value)}>
+          <span className="text-lg font-semibold">{o.title}</span>
+          <span className="text-[0.9375rem] text-(--s-muted)">{o.body}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -54,41 +78,41 @@ function CertificateCheck({ url, onAnchor, name }: { url: string; onAnchor: (anc
   const failure = start.isError ? (start.error instanceof ApiError ? start.error : null) : null;
   const waiting = start.isPending || (current !== null && !jobSettled(job.data));
   return (
-    <div className="flex flex-col gap-2" data-testid={`${name}-check`}>
+    <div className="flex flex-col gap-3" data-testid={`${name}-check`}>
       <div>
-        <Button aria-disabled={waiting || url.trim() === ""} onClick={() => !waiting && url.trim() !== "" && start.mutate(url.trim())}>
+        <button type="button" className="setup-pill setup-pill-quiet" aria-disabled={waiting || url.trim() === ""} onClick={() => !waiting && url.trim() !== "" && start.mutate(url.trim())}>
           {waiting ? "Checking…" : "Check the certificate"}
-        </Button>
+        </button>
       </div>
       {failure && (
-        <p role="alert" className="m-0 text-sm text-danger">
+        <p role="alert" className="setup-error">
           {failure.message} {failure.code === "step_up_required" && <StepUpLink />}
         </p>
       )}
       {job.isError && <Err text="The check could not be read. Try again." />}
       {seen?.error && <Err text={seen.error} />}
       {seen && !seen.error && (
-        <div className="flex flex-col gap-2 text-sm" data-testid="chain">
-          <p className="m-0 text-muted">
+        <div className="flex flex-col gap-2 text-[0.9375rem]" data-testid="chain">
+          <p className="m-0 text-(--s-muted)">
             {url.trim()} presented {seen.chain.length === 1 ? "this certificate" : `these ${seen.chain.length} certificates`}. Nothing is trusted yet.
           </p>
-          <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+          <ol className="m-0 flex list-none flex-col gap-2 p-0">
             {seen.chain.map((c) => (
-              <li key={c.fingerprint} className="rounded-control border border-border bg-surface-2 p-2">
+              <li key={c.fingerprint} className="rounded-2xl bg-(--s-bg) p-3">
                 <p className="m-0 font-medium">{c.subject}</p>
-                <p className="m-0 text-xs text-muted">
+                <p className="m-0 text-sm text-(--s-muted)">
                   Issued by {c.self_signed ? "itself (self-signed)" : c.issuer}; valid until {c.not_after.slice(0, 10)}
                 </p>
                 <p className="m-0 font-mono text-xs break-all">{c.fingerprint}</p>
               </li>
             ))}
           </ol>
-          <div className="rounded-control border border-info/40 bg-info-soft p-2 text-info">
+          <div className="rounded-2xl border border-(--s-line) p-3">
             <p className="m-0 font-medium">The certificate authority&apos;s fingerprint (SHA-256)</p>
             <p className="m-0 font-mono text-xs break-all" data-testid="anchor">
               {seen.anchor}
             </p>
-            <p className="m-0 mt-1">Ask your SIEM administrator for their authority&apos;s fingerprint and compare. Trust it only if the two are the same.</p>
+            <p className="m-0 mt-1 text-(--s-muted)">Ask your SIEM administrator for their authority&apos;s fingerprint and compare. Trust it only if the two are the same.</p>
           </div>
         </div>
       )}
@@ -96,225 +120,374 @@ function CertificateCheck({ url, onAnchor, name }: { url: string; onAnchor: (anc
   );
 }
 
-let zones: string[] | null = null;
-function zoneNames(): string[] {
-  if (zones === null) {
-    try {
-      zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
-    } catch {
-      zones = [];
-    }
-  }
-  return zones;
+/** Trust the authority the check just showed, or say the system already trusts it. */
+function Trust({ trust, anchor, fingerprint, onTrust, same }: { trust: string; anchor: string | null; fingerprint: string; onTrust: (trust: "chain" | "system" | "same", fingerprint: string) => void; same?: boolean }) {
+  const options: { value: "chain" | "system" | "same"; title: ReactNode; body: ReactNode }[] = [
+    {
+      value: "chain",
+      title: "Trust this certificate authority",
+      body: (
+        <>
+          Only after you compared its fingerprint with your SIEM administrator&apos;s.
+          {anchor === null && trust !== "chain" && <> Check the certificate first.</>}
+          {trust === "chain" && fingerprint !== "" && <span className="mt-1 block font-mono text-xs break-all">{fingerprint}</span>}
+        </>
+      ),
+    },
+    { value: "system", title: "My system already trusts it", body: "It comes from an authority this computer already knows: a public one, or one your organisation installed." },
+  ];
+  if (same) options.unshift({ value: "same", title: "The same authority as the SIEM", body: "Kibana's certificate comes from the authority you trusted for the SIEM." });
+  return (
+    <Choices
+      label="How ARGUS trusts the certificate"
+      value={trust as "chain" | "system" | "same" | ""}
+      options={options}
+      onChange={(v) => {
+        if (v === "chain") {
+          if (anchor !== null) onTrust("chain", anchor);
+        } else onTrust(v, "");
+      }}
+    />
+  );
 }
 
 function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, string> }) {
-  const zones = zoneNames();
+  const id = useId();
+  const [domains, setDomains] = useState(() => textOf(f.own_domains));
+  const [networks, setNetworks] = useState(() => textOf(f.own_networks));
   return (
-    <div className="flex flex-col gap-3">
-      <Field label="Organisation name" hint="e.g. Example University" htmlFor="o-name">
-        <TextInput id="o-name" value={f.name} onChange={(e) => set("name", e.target.value)} />
-        <Err text={bad.name} />
-      </Field>
-      <Field label="Security team's name" hint="shown in the page header and report footers" htmlFor="o-short">
-        <TextInput id="o-short" value={f.short_name} onChange={(e) => set("short_name", e.target.value)} />
-        <Err text={bad.short_name} />
-      </Field>
-      <Field label="What kind of organisation" hint="a lower-case noun, e.g. university" htmlFor="o-kind">
-        <TextInput id="o-kind" value={f.kind} onChange={(e) => set("kind", e.target.value)} className="max-w-xs" />
-        <Err text={bad.kind} />
-      </Field>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Your own domains</span>
-        <p className="m-0 text-sm text-muted">ARGUS treats these as inside. At least one.</p>
-        <ListEditor id="o-domains" label="Own domains" items={f.own_domains} onChange={(d) => set("own_domains", Array.isArray(d) ? d : [])} disabled={false} />
-        <Err text={bad.own_domains} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Your public networks</span>
-        <p className="m-0 text-sm text-muted">Address ranges that belong to you, like 203.0.113.0/24. May be empty.</p>
-        <ListEditor id="o-networks" label="Own networks" items={f.own_networks} onChange={(d) => set("own_networks", Array.isArray(d) ? d : [])} disabled={false} />
-        <Err text={bad.own_networks} />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Time zone" hint="times are shown in it" htmlFor="o-zone">
-          <TextInput id="o-zone" list="zones" value={f.timezone} onChange={(e) => set("timezone", e.target.value)} />
-          <datalist id="zones">
-            {zones.map((z) => (
-              <option key={z} value={z} />
-            ))}
-          </datalist>
-          <Err text={bad.timezone} />
-        </Field>
-        <Field label="Short label for it" hint="e.g. IST; optional" htmlFor="o-label">
-          <TextInput id="o-label" value={f.timezone_label} onChange={(e) => set("timezone_label", e.target.value)} className="max-w-32" />
+    <div className="setup-tile grid gap-5 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <Field id={`${id}-name`} label="Organisation name" hint="e.g. Example University" error={bad.name}>
+          <Input id={`${id}-name`} value={f.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
       </div>
-      <Field label="Incident id prefix" hint="incident ids look like SOC-IR-2026-1027-01" htmlFor="o-prefix">
-        <TextInput id="o-prefix" value={f.incident_id_prefix} onChange={(e) => set("incident_id_prefix", e.target.value)} className="max-w-xs" />
-        <Err text={bad.incident_id_prefix} />
+      <Field id={`${id}-short`} label="Security team's name" hint="in the header and reports" error={bad.short_name}>
+        <Input id={`${id}-short`} value={f.short_name} onChange={(e) => set("short_name", e.target.value)} />
+      </Field>
+      <Field id={`${id}-kind`} label="What kind of organisation" hint="e.g. university" error={bad.kind}>
+        <Input id={`${id}-kind`} value={f.kind} onChange={(e) => set("kind", e.target.value)} />
+      </Field>
+      <Field id={`${id}-domains`} label="Your own domains" hint="separated by commas" error={bad.own_domains}>
+        <Input
+          id={`${id}-domains`}
+          value={domains}
+          placeholder="example.edu"
+          onChange={(e) => {
+            setDomains(e.target.value);
+            set("own_domains", listOf(e.target.value));
+          }}
+        />
+      </Field>
+      <Field id={`${id}-networks`} label="Your public networks" hint="optional, e.g. 203.0.113.0/24" error={bad.own_networks}>
+        <Input
+          id={`${id}-networks`}
+          value={networks}
+          onChange={(e) => {
+            setNetworks(e.target.value);
+            set("own_networks", listOf(e.target.value));
+          }}
+        />
+      </Field>
+      <Field id={`${id}-zone`} label="Time zone" hint="times are shown in it" error={bad.timezone}>
+        <Input id={`${id}-zone`} value={f.timezone} onChange={(e) => set("timezone", e.target.value)} />
+      </Field>
+      <Field id={`${id}-label`} label="Short label for it" hint="optional, e.g. IST">
+        <Input id={`${id}-label`} value={f.timezone_label} onChange={(e) => set("timezone_label", e.target.value)} />
+      </Field>
+      <Field id={`${id}-prefix`} label="Incident id prefix" hint="ids look like SOC-IR-2026-1027-01" error={bad.incident_id_prefix}>
+        <Input id={`${id}-prefix`} value={f.incident_id_prefix} onChange={(e) => set("incident_id_prefix", e.target.value)} />
       </Field>
     </div>
   );
 }
 
 function Siem({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: Record<string, string>; anchor: string | null; onAnchor: (a: string | null) => void }) {
+  const id = useId();
+  const [patterns, setPatterns] = useState(() => textOf(f.log_patterns));
   return (
-    <div className="flex flex-col gap-3">
-      <Field label="The SIEM's address" hint="Elasticsearch, e.g. https://siem.example.org:9200" htmlFor="s-url">
-        <TextInput
-          id="s-url"
-          value={f.siem_url}
-          autoComplete="off"
-          onChange={(e) => {
-            set("siem_url", e.target.value);
-            if (f.siem_trust === "chain") {
-              set("siem_trust", "");
-              set("siem_fingerprint", "");
-            }
-          }}
-        />
-        <Err text={bad.siem_url} />
-      </Field>
-      <CertificateCheck name="siem" url={f.siem_url} onAnchor={onAnchor} />
-      <fieldset className="m-0 flex flex-col gap-2 rounded-control border border-border p-3">
-        <legend className="px-1 text-sm font-medium">How ARGUS trusts the SIEM&apos;s certificate</legend>
-        <TrustChoices
-          group="siem-trust"
-          trust={f.siem_trust}
-          fingerprint={f.siem_fingerprint}
-          anchor={anchor}
-          onTrust={(t, fp) => {
-            set("siem_trust", t === "system" ? "system" : "chain");
-            set("siem_fingerprint", fp);
-          }}
-        />
-        <Err text={bad.siem_trust ?? bad.siem_fingerprint} />
-      </fieldset>
-      <Field label="The read-only API key" hint="stays hidden; it is sealed so only argus-admin can read it" htmlFor="s-key">
-        <TextInput id="s-key" type="password" autoComplete="off" spellCheck={false} value={f.siem_key} onChange={(e) => set("siem_key", e.target.value)} className="max-w-xl" />
-        <Err text={bad.siem_key} />
-      </Field>
-      <Field label="When the key expires" hint="a date like 2027-03-01, or 90d from today" htmlFor="s-exp">
-        <TextInput id="s-exp" value={f.siem_expires} onChange={(e) => set("siem_expires", e.target.value)} className="max-w-48" />
-        <Err text={bad.siem_expires} />
-      </Field>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Index patterns of your logs</span>
-        <p className="m-0 text-sm text-muted">The key&apos;s starting role may read these, for example logs-*.</p>
-        <ListEditor id="s-patterns" label="Log index patterns" items={f.log_patterns} onChange={(d) => set("log_patterns", Array.isArray(d) ? d : [])} disabled={false} />
-        <Err text={bad.log_patterns} />
+    <div className="flex flex-col gap-4">
+      <div className="setup-tile flex flex-col gap-4">
+        <Field id={`${id}-url`} label="The SIEM's address" hint="Elasticsearch, e.g. https://siem.example.org:9200" error={bad.siem_url}>
+          <Input
+            id={`${id}-url`}
+            value={f.siem_url}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => {
+              set("siem_url", e.target.value);
+              if (f.siem_trust === "chain") {
+                set("siem_trust", "");
+                set("siem_fingerprint", "");
+              }
+            }}
+          />
+        </Field>
+        <CertificateCheck name="siem" url={f.siem_url} onAnchor={onAnchor} />
+      </div>
+      <Trust
+        trust={f.siem_trust}
+        anchor={anchor}
+        fingerprint={f.siem_fingerprint}
+        onTrust={(t, fp) => {
+          set("siem_trust", t === "system" ? "system" : "chain");
+          set("siem_fingerprint", fp);
+        }}
+      />
+      <Err text={bad.siem_trust ?? bad.siem_fingerprint} />
+      <div className="setup-tile">
+        <Field id={`${id}-patterns`} label="Index patterns of your logs" hint="separated by commas, e.g. logs-*" error={bad.log_patterns}>
+          <Input
+            id={`${id}-patterns`}
+            value={patterns}
+            onChange={(e) => {
+              setPatterns(e.target.value);
+              set("log_patterns", listOf(e.target.value));
+            }}
+          />
+        </Field>
       </div>
     </div>
   );
 }
 
-/** Trust the authority whose fingerprint the check just showed, or say the system already trusts it. */
-function TrustChoices({ group, trust, fingerprint, anchor, onTrust }: { group: string; trust: string; fingerprint: string; anchor: string | null; onTrust: (trust: "chain" | "system", fingerprint: string) => void }) {
+function Access({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, string> }) {
+  const id = useId();
   return (
-    <>
-      <Radio name={group} value="chain" checked={trust === "chain"} onChange={() => anchor !== null && onTrust("chain", anchor)}>
-        <strong>Trust this certificate authority</strong>
-        <span className="block text-muted">Only after you compared its fingerprint with what your SIEM administrator gave you. ARGUS then trusts that authority alone.</span>
-        {anchor === null && trust !== "chain" && <span className="block text-muted">Check the certificate first, to choose this.</span>}
-        {trust === "chain" && fingerprint !== "" && <span className="block font-mono text-xs break-all">{fingerprint}</span>}
-      </Radio>
-      <Radio name={group} value="system" checked={trust === "system"} onChange={() => onTrust("system", "")}>
-        <strong>My system already trusts it</strong>
-        <span className="block text-muted">The certificate comes from an authority this computer already knows (a public one, or one your organisation installed).</span>
-      </Radio>
-    </>
+    <div className="flex flex-col gap-4">
+      <Choices
+        label="How ARGUS gets its access"
+        value={f.access}
+        onChange={(v) => set("access", v)}
+        options={[
+          {
+            value: "login",
+            title: (
+              <>
+                Let ARGUS create its own access <span className="ml-1 rounded-full bg-(--s-accent) px-2 py-0.5 align-middle text-xs font-medium text-white">Recommended</span>
+              </>
+            ),
+            body: "An Elastic administrator signs in once. ARGUS makes read-only keys for itself and, if you like, its Kibana case team. The login is used once and never stored.",
+          },
+          { value: "paste", title: "Paste read-only keys", body: "You make the keys in Kibana's Dev Tools yourself and paste them here." },
+        ]}
+      />
+      <Err text={bad.access} />
+      {f.access === "login" && (
+        <div className="setup-tile flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id={`${id}-user`} label="Administrator's user name" error={bad.admin_user}>
+              <Input id={`${id}-user`} value={f.admin_user} autoComplete="off" spellCheck={false} onChange={(e) => set("admin_user", e.target.value)} />
+            </Field>
+            <Field id={`${id}-password`} label="Password" hint="used once, never stored" error={bad.admin_password}>
+              <Input id={`${id}-password`} type="password" value={f.admin_password} autoComplete="off" onChange={(e) => set("admin_password", e.target.value)} />
+            </Field>
+          </div>
+          <label className="flex items-start gap-3 text-[0.9375rem]">
+            <input type="checkbox" className="mt-1 size-5 accent-(--s-accent)" checked={f.provision_team} onChange={(e) => set("provision_team", e.target.checked)} />
+            <span>
+              <strong>Also make its Kibana case team</strong>
+              <span className="block text-(--s-muted)">Seven users that write confirmed incidents as Kibana cases, each with its own key. Posting stays off until you switch it on. Needs Kibana.</span>
+            </span>
+          </label>
+          <p className="m-0 text-sm text-(--s-muted)">The login needs the right to make API keys (manage_api_key or manage_security). It is sealed in this browser, used by argus-admin for this run only, and deleted with it.</p>
+        </div>
+      )}
+      {f.access === "paste" && (
+        <div className="setup-tile grid gap-4 sm:grid-cols-[1fr_12rem]">
+          <Field id={`${id}-key`} label="The read-only API key" hint="its encoded form" error={bad.siem_key}>
+            <Input id={`${id}-key`} type="password" autoComplete="off" spellCheck={false} value={f.siem_key} onChange={(e) => set("siem_key", e.target.value)} />
+          </Field>
+          <Field id={`${id}-expires`} label="Expires" hint="a date or 90d" error={bad.siem_expires}>
+            <Input id={`${id}-expires`} value={f.siem_expires} onChange={(e) => set("siem_expires", e.target.value)} />
+          </Field>
+        </div>
+      )}
+    </div>
   );
 }
 
 function Kibana({ f, set, bad, anchor, onAnchor }: { f: SetupForm; set: Set; bad: Record<string, string>; anchor: string | null; onAnchor: (a: string | null) => void }) {
+  const id = useId();
   return (
-    <div className="flex flex-col gap-3">
-      <Radio name="k-use" value="no" checked={!f.use_kibana} onChange={() => set("use_kibana", false)}>
-        <strong>I do not use Kibana with ARGUS</strong>
-        <span className="block text-muted">ARGUS reads Elasticsearch only. It cannot show or read back cases in Kibana.</span>
-      </Radio>
-      <Radio name="k-use" value="yes" checked={f.use_kibana} onChange={() => set("use_kibana", true)}>
-        <strong>Connect Kibana</strong>
-        <span className="block text-muted">ARGUS reads your cases back from it. It writes nothing there until you turn that on in Settings.</span>
-      </Radio>
+    <div className="flex flex-col gap-4">
+      <Choices
+        label="Kibana"
+        value={f.use_kibana ? "yes" : "no"}
+        onChange={(v) => set("use_kibana", v === "yes")}
+        options={[
+          { value: "yes", title: "Connect Kibana", body: "ARGUS reads your cases back from it; it writes nothing there until you switch that on." },
+          { value: "no", title: "Not now", body: "ARGUS reads Elasticsearch only. You can connect Kibana later in Settings." },
+        ]}
+      />
       {f.use_kibana && (
         <>
-          <Field label="Kibana's address" hint="e.g. https://siem.example.org:5601" htmlFor="k-url">
-            <TextInput id="k-url" value={f.kibana_url} autoComplete="off" onChange={(e) => set("kibana_url", e.target.value)} />
-            <Err text={bad.kibana_url} />
-          </Field>
-          <CertificateCheck name="kibana" url={f.kibana_url} onAnchor={onAnchor} />
-          <fieldset className="m-0 flex flex-col gap-2 rounded-control border border-border p-3">
-            <legend className="px-1 text-sm font-medium">How ARGUS trusts Kibana&apos;s certificate</legend>
-            <Radio name="kibana-trust" value="same" checked={f.kibana_trust === "same"} onChange={() => { set("kibana_trust", "same"); set("kibana_fingerprint", ""); }}>
-              <strong>The same authority as the SIEM</strong>
-              <span className="block text-muted">Kibana&apos;s certificate comes from the authority you trusted for the SIEM.</span>
-            </Radio>
-            <TrustChoices
-              group="kibana-trust"
-              trust={f.kibana_trust}
-              fingerprint={f.kibana_fingerprint}
-              anchor={anchor}
-              onTrust={(t, fp) => {
-                set("kibana_trust", t);
-                set("kibana_fingerprint", fp);
-              }}
-            />
-            <Err text={bad.kibana_fingerprint} />
-          </fieldset>
-          <Field label="Kibana's read-only API key" hint="optional; without it Kibana stays off" htmlFor="k-key">
-            <TextInput id="k-key" type="password" autoComplete="off" spellCheck={false} value={f.kibana_key} onChange={(e) => set("kibana_key", e.target.value)} className="max-w-xl" />
-            <Err text={bad.kibana_key} />
-          </Field>
-          {f.kibana_key.trim() !== "" && (
-            <Field label="When that key expires" hint="a date or 90d" htmlFor="k-exp">
-              <TextInput id="k-exp" value={f.kibana_expires} onChange={(e) => set("kibana_expires", e.target.value)} className="max-w-48" />
-              <Err text={bad.kibana_expires} />
+          <div className="setup-tile flex flex-col gap-4">
+            <Field id={`${id}-url`} label="Kibana's address" hint="e.g. https://siem.example.org:5601" error={bad.kibana_url}>
+              <Input id={`${id}-url`} value={f.kibana_url} autoComplete="off" spellCheck={false} onChange={(e) => set("kibana_url", e.target.value)} />
             </Field>
-          )}
-          <Field label="Kibana space with the Security alerts" hint="optional; ARGUS finds it when left empty" htmlFor="k-space">
-            <TextInput id="k-space" value={f.space} onChange={(e) => set("space", e.target.value)} className="max-w-xs" />
-          </Field>
+            <CertificateCheck name="kibana" url={f.kibana_url} onAnchor={onAnchor} />
+          </div>
+          <Trust
+            same
+            trust={f.kibana_trust}
+            anchor={anchor}
+            fingerprint={f.kibana_fingerprint}
+            onTrust={(t, fp) => {
+              set("kibana_trust", t);
+              set("kibana_fingerprint", fp);
+            }}
+          />
+          <Err text={bad.kibana_fingerprint} />
+          <div className="setup-tile grid gap-4 sm:grid-cols-2">
+            {f.access !== "login" && (
+              <>
+                <Field id={`${id}-key`} label="Kibana's read-only API key" hint="optional; without it Kibana stays off" error={bad.kibana_key}>
+                  <Input id={`${id}-key`} type="password" autoComplete="off" spellCheck={false} value={f.kibana_key} onChange={(e) => set("kibana_key", e.target.value)} />
+                </Field>
+                <Field id={`${id}-exp`} label="When that key expires" hint="a date or 90d" error={bad.kibana_expires}>
+                  <Input id={`${id}-exp`} value={f.kibana_expires} onChange={(e) => set("kibana_expires", e.target.value)} />
+                </Field>
+              </>
+            )}
+            <Field id={`${id}-space`} label="Kibana space with the Security alerts" hint="optional; found when empty">
+              <Input id={`${id}-space`} value={f.space} onChange={(e) => set("space", e.target.value)} />
+            </Field>
+          </div>
         </>
       )}
     </div>
   );
 }
 
-function Review({ f, onJump }: { f: SetupForm; onJump: (s: Step) => void }) {
+function Ai({ f, set, bad, providers }: { f: SetupForm; set: Set; bad: Record<string, string>; providers: AiProviderOut[] | null }) {
+  const id = useId();
+  if (providers === null) return <p className="setup-sub">The AI providers could not be read just now. Add their keys after the setup in AI and agents.</p>;
+  const shown = providers.filter((p) => p.keys.length > 0);
+  if (shown.length === 0) return <p className="setup-sub">No AI provider is listed on this server. You can add one later.</p>;
   return (
-    <div className="flex flex-col gap-3">
-      <dl className="m-0 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[12rem_1fr]" data-testid="review">
+    <ul className="setup-tile m-0 flex list-none flex-col divide-y divide-(--s-line) p-0">
+      {shown.map((p) => {
+        const key = p.keys[0]?.name ?? "";
+        return (
+          <li key={p.name} className="grid items-center gap-3 px-6 py-4 sm:grid-cols-[12rem_1fr]">
+            <label htmlFor={`${id}-${p.name}`} className="flex flex-col">
+              <span className="text-lg font-semibold">{p.name}</span>
+              <span className="text-sm text-(--s-muted)">{p.paid ? "Paid, capped by your limits" : "Free"}</span>
+            </label>
+            <div>
+              <Input id={`${id}-${p.name}`} type="password" autoComplete="off" spellCheck={false} placeholder={key} aria-describedby={`${id}-${p.name}-k`} value={f.ai_keys[key] ?? ""} onChange={(e) => set("ai_keys", { ...f.ai_keys, [key]: e.target.value })} />
+              <span id={`${id}-${p.name}-k`} className="sr-only">
+                {key}
+              </span>
+              <Err text={bad[`ai.${key}`]} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Intel({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<string, string> }) {
+  const id = useId();
+  return (
+    <ul className="setup-tile m-0 flex list-none flex-col divide-y divide-(--s-line) p-0">
+      {INTEL.map((s) => (
+        <li key={s.key} className="grid items-center gap-3 px-6 py-4 sm:grid-cols-[12rem_1fr]">
+          <label htmlFor={`${id}-${s.key}`} className="flex flex-col">
+            <span className="text-lg font-semibold">{s.name}</span>
+            <span className="text-sm text-(--s-muted)">{s.gives}</span>
+          </label>
+          <div>
+            <Input id={`${id}-${s.key}`} type="password" autoComplete="off" spellCheck={false} placeholder="Its API key" value={f.intel_keys[s.key]} onChange={(e) => set("intel_keys", { ...f.intel_keys, [s.key]: e.target.value })} />
+            <Err text={bad[`intel.${s.key}`]} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Assets({ f, set }: { f: SetupForm; set: Set }) {
+  const id = useId();
+  const [refusal, setRefusal] = useState<string | null>(null);
+  async function choose(file: File | undefined) {
+    setRefusal(null);
+    if (file === undefined) return;
+    const why = assetFileProblem(file.name, file.size);
+    if (why !== null) return setRefusal(why);
+    const content = await file.text();
+    if (content.trim() === "") return setRefusal("The file is empty.");
+    set("asset_map", { name: file.name, content });
+  }
+  return (
+    <div className="setup-tile flex flex-col gap-4">
+      <p className="m-0 text-[1.0625rem]">Before ARGUS asks an AI or an outside source about anything, it needs to know which addresses are yours and what they are. That is the asset map: a YAML file of your networks, devices and their owners, at most 5 MB.</p>
+      {f.asset_map === null ? (
+        <div>
+          <label htmlFor={id} className="setup-label">
+            Choose the asset map file
+          </label>
+          <input id={id} type="file" accept=".yaml,.yml" className="text-[0.9375rem]" onChange={(e) => void choose(e.target.files?.[0])} />
+        </div>
+      ) : (
+        <p className="m-0 flex flex-wrap items-center gap-3" data-testid="asset-chosen">
+          <span className="setup-check" data-state="done" aria-hidden="true">
+            ✓
+          </span>
+          <span>
+            <strong>{f.asset_map.name}</strong> is ready; it is sent sealed and imported after the setup.
+          </span>
+          <button type="button" className="setup-link" onClick={() => set("asset_map", null)}>
+            Remove
+          </button>
+        </p>
+      )}
+      <Err text={refusal ?? undefined} />
+      <p className="m-0 text-sm text-(--s-muted)">You can also add it, or a newer one, later in Settings → Asset map.</p>
+    </div>
+  );
+}
+
+function Review({ f, onJump }: { f: SetupForm; onJump: (s: Step) => void }) {
+  const plan = elasticPlan(f);
+  const wrong = allProblems(f);
+  return (
+    <div className="flex flex-col gap-4">
+      {plan.length > 0 && (
+        <div className="setup-tile" data-testid="elastic-plan">
+          <h2 className="m-0 mb-2 text-xl font-semibold">ARGUS will create in Elastic</h2>
+          <ul className="m-0 flex flex-col gap-1 pl-5 text-[0.9375rem]">
+            {plan.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="m-0 mt-2 text-sm text-(--s-muted)">Then it forgets the administrator&apos;s login.</p>
+        </div>
+      )}
+      <dl className="setup-tile m-0 grid gap-x-6 gap-y-2 text-[0.9375rem] sm:grid-cols-[12rem_1fr]" data-testid="review">
         {reviewLines(f).map((l) => (
           <div key={l.label} className="contents">
-            <dt className="text-muted">{l.label}</dt>
+            <dt className="text-(--s-muted)">{l.label}</dt>
             <dd className="m-0 break-words">{l.value}</dd>
           </div>
         ))}
-        <div className="contents">
-          <dt className="text-muted">Site discovery</dt>
-          <dd className="m-0">ARGUS looks at your SIEM and writes down what it finds (log families, the Kibana space)</dd>
-        </div>
-        <div className="contents">
-          <dt className="text-muted">AI providers</dt>
-          <dd className="m-0">off: ARGUS works without them (their keys are added on the server, see docs/llm.md)</dd>
-        </div>
       </dl>
-      {allProblems(f) && (
-        <Notice tone="warn" testId="review-problem">
-          Something above is not filled in correctly.{" "}
-          <Button size="sm" onClick={() => onJump(allProblems(f) ?? "organisation")}>
-            Go to it
-          </Button>
-        </Notice>
+      {wrong && (
+        <p role="status" className="setup-error" data-testid="review-problem">
+          Something is not filled in correctly.{" "}
+          <button type="button" className="setup-link" onClick={() => onJump(wrong)}>
+            Go to it ›
+          </button>
+        </p>
       )}
     </div>
   );
 }
 
-/** The setup job: its output as it comes, then "ARGUS is collecting" or what to fix. */
-function Running({ id, onBack }: { id: number; onBack: () => void }) {
+/** The run: its checklist while argus-admin works, then the finale (or what to fix). */
+function Running({ id, f, onBack }: { id: number; f: SetupForm; onBack: () => void }) {
   const job = useQuery(jobOptions(id));
   const queries = useQueryClient();
   const done = jobSettled(job.data);
@@ -323,121 +496,284 @@ function Running({ id, onBack }: { id: number; onBack: () => void }) {
   }, [done, queries]);
   const out = setupOutput(job.data?.result ?? null);
   const ok = done && job.data?.state === "done" && out.ok;
-  return (
-    <Card aria-label="The setup" data-testid="running">
-      <CardTitle>{!done ? "Running the setup…" : ok ? "ARGUS is collecting" : "The setup did not finish"}</CardTitle>
-      {!done && <p className="m-0 mb-2 text-sm text-muted">This takes a few minutes. You can leave this page open; nothing is lost if you close it.</p>}
-      {ok && <p className="m-0 mb-2 text-sm">ARGUS is connected and has started collecting alerts. Its first results appear on Today within a few minutes.</p>}
-      {done && !ok && <p className="m-0 mb-2 text-sm text-danger">{out.error ?? "The setup stopped with an error. What it said is below; your answers are kept, so fix what it names and run it again."}</p>}
-      {job.isError && <Err text="The setup's progress could not be read just now; trying again." />}
-      <pre className="m-0 max-h-80 overflow-auto rounded-control border border-border bg-surface-2 p-2 font-mono text-xs whitespace-pre-wrap" role="log" aria-label="What the setup says" data-testid="setup-output">
-        {out.lines.length > 0 ? out.lines.join("\n") : done ? "No output." : "Waiting for argus-admin to start it…"}
-      </pre>
-      {job.data && <p className="m-0 mt-1 text-xs text-muted">Started <Time value={job.data.created_at} />.</p>}
-      <div className="mt-3 flex gap-2">
-        {ok && (
-          <Link to="/" className="inline-flex min-h-8 items-center rounded-control border border-accent bg-accent px-3 text-sm font-medium text-accent-fg no-underline hover:bg-accent-hover">
-            Go to Today
+  const steps = runChecklist(f);
+  const head = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    head.current?.focus();
+  }, [ok, done]);
+  if (ok) {
+    return (
+      <section className="cine setup flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center" data-testid="running" aria-labelledby="setup-ready">
+        <div className="setup-chapter flex max-w-3xl flex-col items-center gap-6">
+          <h1 id="setup-ready" ref={head} tabIndex={-1} className="setup-h">
+            ARGUS is <span className="setup-grad">ready.</span>
+          </h1>
+          <p className="setup-sub">It is connected and has started collecting alerts. Its first results appear on Today within a few minutes.</p>
+          <Link to="/" className="setup-pill">
+            Open Today
           </Link>
-        )}
-        {done && !ok && <Button onClick={onBack}>Back to fix</Button>}
+          {out.after.length > 0 && (
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-left text-[0.9375rem]" data-testid="setup-after">
+              {out.after.map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <span aria-hidden="true" className="text-(--s-ok)">
+                    ✓
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
+          <details className="w-full max-w-2xl text-left">
+            <summary className="setup-link cursor-pointer">What the setup said ›</summary>
+            <pre className="m-0 mt-2 max-h-72 overflow-auto rounded-2xl bg-(--s-tile) p-3 font-mono text-xs whitespace-pre-wrap" role="log" aria-label="What the setup says" data-testid="setup-output">
+              {out.lines.length > 0 ? out.lines.join("\n") : "No output."}
+            </pre>
+          </details>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-16" data-testid="running" aria-labelledby="setup-run">
+      <div className="setup-chapter flex flex-col gap-4">
+        <h1 id="setup-run" ref={head} tabIndex={-1} className="setup-h">
+          {done ? "The setup did not finish." : "Setting up ARGUS."}
+        </h1>
+        <p className="setup-sub">{done ? (out.error ?? "It stopped with an error. What it said is below; your answers are kept, so fix what it names and run it again.") : "This takes a few minutes. You can leave this page open; nothing is lost if you close it."}</p>
       </div>
-    </Card>
+      <ol className="setup-tile m-0 flex list-none flex-col gap-4 p-6" aria-label="What the setup does" aria-busy={!done}>
+        {steps.map((s, i) => (
+          <li key={s} className="flex items-center gap-4 text-[1.0625rem]">
+            <span className="setup-check" data-state={done ? "failed" : i === 0 ? "working" : "waiting"} aria-hidden="true">
+              {done ? "!" : ""}
+            </span>
+            {s}
+          </li>
+        ))}
+      </ol>
+      {job.isError && <Err text="The setup's progress could not be read just now; trying again." />}
+      <details open={done}>
+        <summary className="setup-link cursor-pointer">What the setup says ›</summary>
+        <pre className="m-0 mt-2 max-h-80 overflow-auto rounded-2xl bg-(--s-tile) p-3 font-mono text-xs whitespace-pre-wrap" role="log" aria-label="What the setup says" data-testid="setup-output">
+          {out.lines.length > 0 ? out.lines.join("\n") : done ? "No output." : "Waiting for argus-admin to start it…"}
+        </pre>
+      </details>
+      {done && (
+        <div>
+          <button type="button" className="setup-pill" onClick={onBack}>
+            Back to fix
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Intro({ already, applierDown, onBegin }: { already: boolean; applierDown: boolean; onBegin: () => void }) {
+  const [more, setMore] = useState(false);
+  return (
+    <section className="cine setup flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center" aria-labelledby="setup-intro">
+      <div className="setup-chapter flex max-w-3xl flex-col items-center gap-6">
+        <p className="m-0 text-sm font-semibold tracking-[0.2em] text-(--s-muted)">ARGUS</p>
+        <h1 id="setup-intro" className="setup-h">
+          {already ? (
+            <>
+              ARGUS is <span className="setup-grad">connected.</span>
+            </>
+          ) : (
+            <>
+              Meet your <span className="setup-grad">first‑line analyst.</span>
+            </>
+          )}
+        </h1>
+        <p className="setup-sub">{already ? "Running the setup again replaces the connection to your SIEM. To change one thing, use Settings." : "It watches every alert of your SIEM, groups and investigates them, and leaves your team a short, explained queue. Setting it up takes a few minutes."}</p>
+        {applierDown && <p className="setup-error">argus-admin is not running: the setup starts when it runs.</p>}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          {already ? (
+            <>
+              <Link to="/" className="setup-pill">
+                Open Today
+              </Link>
+              <button type="button" className="setup-pill setup-pill-quiet" onClick={onBegin} data-testid="already">
+                Run the setup again
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="setup-pill" onClick={onBegin}>
+                Begin
+              </button>
+              <button type="button" className="setup-link" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+                What you need ›
+              </button>
+            </>
+          )}
+        </div>
+        {more && (
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[1.0625rem] text-(--s-muted)">
+            <li>Your SIEM&apos;s address</li>
+            <li>An Elastic administrator&apos;s login, or read-only keys you made</li>
+            <li>Optional: Kibana, AI and threat-intel keys, your asset map</li>
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Progress({ index }: { index: number }) {
+  const steps = STEPS.length;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="setup-progress" role="progressbar" aria-label="Setup progress" aria-valuemin={1} aria-valuemax={steps} aria-valuenow={index + 1} aria-valuetext={`Step ${index + 1} of ${steps}: ${STEPS[index]?.label ?? ""}`}>
+        {/* the width is set through the CSSOM: the policy refuses a style attribute */}
+        <span ref={(el) => el?.style.setProperty("width", `${((index + 1) / steps) * 100}%`)} />
+      </div>
+      <ol className="m-0 flex list-none items-center gap-2 p-0" aria-label="Steps">
+        {STEPS.map((s, i) => (
+          <li key={s.key} className="setup-dot" data-state={i < index ? "done" : i === index ? "current" : "next"} aria-current={i === index ? "step" : undefined}>
+            <span className="sr-only">
+              {i + 1}. {s.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
 function SetupView() {
+  const session = useSession();
   const settings = useQuery(settingsOptions);
+  const ai = useQuery({ ...aiOptions, enabled: can(session.data, "admin") });
   const [form, setForm] = useState<SetupForm>(() => emptySetup());
-  const [step, setStep] = useState<Step>("organisation");
+  const [stage, setStage] = useState<Stage>("intro");
   const [shown, setShown] = useState(false);
-  const [again, setAgain] = useState(false);
   const [job, setJob] = useState<number | null>(null);
   const [siemAnchor, setSiemAnchor] = useState<string | null>(null);
   const [kibanaAnchor, setKibanaAnchor] = useState<string | null>(null);
+  const head = useRef<HTMLHeadingElement>(null);
   const set: Set = (key, value) => setForm((old) => ({ ...old, [key]: value }));
   const run = useMutation({
     mutationFn: () => unwrap(startSetup({ body: buildSetup(form) })),
-    onSuccess: (out) => setJob(out.id),
+    onSuccess: (out) => {
+      setJob(out.id);
+      setStage("running");
+    },
   });
+  useEffect(() => {
+    if (stage !== "intro" && stage !== "running") head.current?.focus();
+  }, [stage]);
   if (settings.isPending) return <Loading what="the setup" />;
   if (settings.isError) return <Problem error={settings.error} what="The setup" onRetry={() => void settings.refetch()} />;
   const out = settings.data;
-  const index = STEPS.findIndex((s) => s.key === step);
-  const bad = shown ? stepProblems(step, form) : {};
-  const failure = run.isError && run.error instanceof ApiError ? run.error : null;
-
-  function next() {
-    setShown(true);
-    if (Object.keys(stepProblems(step, form)).length === 0) {
-      setStep(STEPS[index + 1]?.key ?? step);
-      setShown(false);
-    }
-  }
-  const head = (
-    <div className="flex flex-col gap-1">
-      <h1 className="m-0 text-2xl font-semibold">First-time setup</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">Tell ARGUS about your organisation and connect it to your SIEM. It only reads your SIEM; the keys you give it are read-only.</p>
-    </div>
+  const exit = (
+    <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
+      <span className="text-sm font-semibold tracking-[0.2em]">ARGUS</span>
+      <Link to="/" className="setup-link text-[0.9375rem]">
+        Exit setup
+      </Link>
+    </header>
   );
-  if (!out.setup_needed && !again && job === null) {
+  if (stage === "intro") {
     return (
-      <>
-        {head}
-        <Notice tone="info" testId="already">
-          ARGUS is already connected to a SIEM. To change something, use <Link to="/settings">Settings</Link>. Running the setup again replaces the connection.{" "}
-          <Button size="sm" onClick={() => setAgain(true)}>
-            Run the setup again
-          </Button>
-        </Notice>
-      </>
+      <div className="setup">
+        <Intro already={!out.setup_needed} applierDown={!out.applier.running} onBegin={() => setStage("organisation")} />
+      </div>
     );
   }
+  if (stage === "running" && job !== null) {
+    return (
+      <div className="setup">
+        {exit}
+        <Running
+          id={job}
+          f={form}
+          onBack={() => {
+            setJob(null);
+            run.reset();
+            setStage("review");
+          }}
+        />
+      </div>
+    );
+  }
+  const step = stage as Step;
+  const index = STEPS.findIndex((s) => s.key === step);
+  const chapter = STEPS[index] ?? STEPS[0];
+  const bad = shown ? stepProblems(step, form) : {};
+  const failure = run.isError && run.error instanceof ApiError ? run.error : null;
+  const go = (to: Step) => {
+    setStage(to);
+    setShown(false);
+  };
+  function next() {
+    setShown(true);
+    if (Object.keys(stepProblems(step, form)).length === 0) go(STEPS[index + 1]?.key ?? step);
+  }
+  function skip() {
+    if (step === "ai") set("ai_keys", {});
+    if (step === "intel") set("intel_keys", { virustotal: "", shodan: "", censys: "" });
+    if (step === "assets") set("asset_map", null);
+    go(STEPS[index + 1]?.key ?? step);
+  }
   return (
-    <>
-      {head}
-      {!out.applier.running && <Notice tone="warn" testId="applier-down">argus-admin is not running: the setup starts when it runs.</Notice>}
-      {job !== null ? (
-        <Running id={job} onBack={() => { setJob(null); run.reset(); setStep("organisation"); }} />
-      ) : (
-        <>
-          <ol className="m-0 flex list-none flex-wrap gap-2 p-0 text-sm" aria-label="Steps">
-            {STEPS.map((s, i) => (
-              <li key={s.key} aria-current={s.key === step ? "step" : undefined} className={cn("rounded-full border px-3 py-0.5", s.key === step ? "border-accent bg-accent-soft font-semibold" : "border-border text-muted")}>
-                {i + 1}. {s.label}
-              </li>
-            ))}
-          </ol>
-          <Card aria-label={STEPS[index]?.label}>
-            <CardTitle>{STEPS[index]?.label}</CardTitle>
-            {step === "organisation" && <Organisation f={form} set={set} bad={bad} />}
-            {step === "siem" && <Siem f={form} set={set} bad={bad} anchor={siemAnchor} onAnchor={setSiemAnchor} />}
-            {step === "kibana" && <Kibana f={form} set={set} bad={bad} anchor={kibanaAnchor} onAnchor={setKibanaAnchor} />}
-            {step === "review" && <Review f={form} onJump={(s) => { setStep(s); setShown(true); }} />}
-          </Card>
-          {step === "review" && <StepUpNote />}
-          {failure && (
-            <Notice tone="danger" role="alert" testId="run-error">
-              {failure.message} {failure.code === "step_up_required" && <><StepUpLink /> Then press the button again; your answers are kept here.</>}
-            </Notice>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {index > 0 && (
-              <Button onClick={() => { setStep(STEPS[index - 1]?.key ?? step); setShown(false); }}>Back</Button>
-            )}
-            {step !== "review" ? (
-              <Button variant="primary" onClick={next}>
-                Next
-              </Button>
-            ) : (
-              <Button variant="primary" aria-disabled={run.isPending || allProblems(form) !== null} onClick={() => !run.isPending && allProblems(form) === null && run.mutate()}>
-                {run.isPending ? "Starting…" : "Run the setup"}
-              </Button>
-            )}
+    <div className="setup">
+      {exit}
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pt-4 pb-24">
+        <Progress index={index} />
+        <section key={step} className="setup-chapter flex flex-col gap-8" aria-labelledby="setup-chapter">
+          <div className="flex flex-col gap-3">
+            <p className="m-0 text-sm font-semibold text-(--s-muted)">
+              Step {index + 1} of {STEPS.length}
+              {chapter?.optional ? " · optional" : ""}
+            </p>
+            <h1 id="setup-chapter" ref={head} tabIndex={-1} className="setup-h">
+              {chapter?.title}
+            </h1>
+            <p className="setup-sub">{chapter?.sub}</p>
           </div>
-        </>
-      )}
-    </>
+          {step === "organisation" && <Organisation f={form} set={set} bad={bad} />}
+          {step === "siem" && <Siem f={form} set={set} bad={bad} anchor={siemAnchor} onAnchor={setSiemAnchor} />}
+          {step === "access" && <Access f={form} set={set} bad={bad} />}
+          {step === "kibana" && <Kibana f={form} set={set} bad={bad} anchor={kibanaAnchor} onAnchor={setKibanaAnchor} />}
+          {step === "ai" && <Ai f={form} set={set} bad={bad} providers={ai.isError ? null : (ai.data?.providers ?? [])} />}
+          {step === "intel" && <Intel f={form} set={set} bad={bad} />}
+          {step === "assets" && <Assets f={form} set={set} />}
+          {step === "review" && <Review f={form} onJump={(s) => { go(s); setShown(true); }} />}
+          {step === "review" && (
+            <p className="m-0 text-[0.9375rem] text-(--s-muted)">
+              Running the setup needs your password confirmed in the last five minutes. <StepUpLink />
+            </p>
+          )}
+          {failure && (
+            <p role="alert" className="setup-error" data-testid="run-error">
+              {failure.message} {failure.code === "step_up_required" && <><StepUpLink /> Then press the button again; your answers are kept here.</>}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-6">
+            {step !== "review" ? (
+              <button type="button" className="setup-pill" onClick={next}>
+                Continue
+              </button>
+            ) : (
+              <button type="button" className="setup-pill" aria-disabled={run.isPending || allProblems(form) !== null} onClick={() => !run.isPending && allProblems(form) === null && run.mutate()}>
+                {run.isPending ? "Starting…" : "Run the setup"}
+              </button>
+            )}
+            {chapter?.optional && (
+              <button type="button" className="setup-link" onClick={skip}>
+                Skip ›
+              </button>
+            )}
+            <button type="button" className="setup-link" onClick={() => (index > 0 ? go(STEPS[index - 1]?.key ?? step) : setStage("intro"))}>
+              ‹ Back
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 

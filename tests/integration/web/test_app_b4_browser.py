@@ -176,15 +176,15 @@ async def test_signing_in_leads_to_the_app_whose_status_word_reads_the_siem(
         await page.fill("#password", PASSWORD)
         async with page.expect_navigation(url=re.compile(re.escape(server) + r"/app/?$")):
             await page.click("button[type=submit]")
-        assert await heading_of(page) == "Home"
-        # one quiet System word (P4-F U8); it opens to the SIEM's state, and the AI cost is there
-        # only for an admin (asha is not one)
-        status = page.get_by_test_id("system-status")
-        await status.locator("summary").click()
-        siem = status.get_by_role("link", name=re.compile("SIEM"))
-        await siem.first.wait_for()  # its own request; Home's queue reads can finish first
-        assert await siem.count() == 1
-        assert await status.get_by_role("link", name=re.compile("AI cost")).count() == 0
+        # one quiet system word (UI v2, §4.2); it opens to each part's state, the AI cost only for
+        # an administrator (asha is not one), and a link to System health
+        status = page.get_by_test_id("system-dot")
+        await status.get_by_role("button").click()
+        parts = status.get_by_test_id("system-parts")
+        await parts.wait_for()
+        assert "SIEM" in await parts.inner_text()
+        assert await status.get_by_role("link", name="System health").count() == 1
+        assert "AI cost" not in await status.inner_text()
         assert await watch.violations(page) == []
         await browser.close()
     assert watch.errors == []
@@ -215,7 +215,9 @@ async def test_classic_addresses_lead_to_the_app_and_a_classic_form_is_gone(
         assert await heading_of(page) == "Dashboard"
         assert page.url == f"{server}/app/overview?{SPAN}&severity=high"
         await page.goto(f"{server}/?view=all&kind=ip&value=10.0.0.1")
-        await page.wait_for_url(f"{server}/app/inbox?view=all&kind=ip&value=10.0.0.1")
+        await page.wait_for_url(  # UI v2's place for the old Inbox, the filter kept
+            re.compile(re.escape(f"{server}/app/search?advanced=1&view=all&kind=ip&value=10.0.0.1"))
+        )
         await page.locator("[role=grid]").wait_for()
         await page.goto(f"{server}/investigations/{inv}/report?assessment=1")
         await page.get_by_role("tab", selected=True).wait_for()

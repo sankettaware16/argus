@@ -321,3 +321,48 @@ details.as-table summary { cursor: pointer; color: var(--link); font-size: 0.9re
   .facts { grid-template-columns: minmax(0, 1fr); }
   .facts dd { margin-bottom: 6px; overflow-wrap: anywhere; }
 }
+
+/* D-330: the welcome and sign-in pages, in the product-page style of the first-time setup: a dark
+   hero, a large tight headline, a rounded tile, a pill button. System fonts only. */
+body.cine-page {
+  --cine-text: #f5f5f7; --cine-muted: #a1a1a6; --cine-tile: #1d1d1f; --cine-line: #424245;
+  --cine-accent: #0071e3; --cine-link: #2997ff;
+  min-height: 100vh; color: var(--cine-text);
+  background: radial-gradient(60rem 30rem at 50% -10%, rgba(54, 84, 140, 0.55), transparent 70%), #000;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+.cine-page .top { background: transparent; border-bottom: 0; color: var(--cine-text); padding: 18px 24px; }
+.cine-page .brand { font-size: 0.8rem; letter-spacing: 0.2em; }
+.cine-page main { max-width: 40rem; padding: 6vh 20px 64px; }
+.cine-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px;
+  animation: cine-in 560ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.cine-title { font-size: clamp(2.5rem, 7vw, 4.5rem); line-height: 1.05; font-weight: 650;
+  letter-spacing: -0.022em; margin: 0; }
+.cine-grad { background: linear-gradient(100deg, #f5f5f7 0%, #c7cbd6 38%, #8fb4ff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cine-sub { font-size: clamp(1.0625rem, 2.2vw, 1.3125rem); line-height: 1.4; color: var(--cine-muted);
+  margin: 0; max-width: 32rem; }
+.cine-tile { width: 100%; max-width: 26rem; margin-top: 12px; text-align: left; background: var(--cine-tile);
+  border-radius: 24px; padding: 28px; }
+.cine-tile-title { margin: 0; font-size: 1.25rem; }
+.cine-tile-text { margin: 4px 0 0; color: var(--cine-muted); }
+.cine-page label { margin-top: 16px; font-weight: 600; color: var(--cine-text); }
+.cine-page input { min-height: 48px; margin-top: 6px; padding: 10px 16px; font-size: 1.0625rem;
+  color: var(--cine-text); background: #000; border: 1px solid var(--cine-line); border-radius: 12px; }
+.cine-page input:focus-visible { outline: 3px solid rgba(41, 151, 255, 0.55); outline-offset: 0;
+  border-color: var(--cine-link); }
+.cine-page .pill { display: block; width: 100%; min-height: 48px; margin-top: 24px; border: 0;
+  border-radius: 999px; background: var(--cine-accent); color: #fff; font-size: 1.0625rem; font-weight: 500; }
+.cine-page .pill:hover { background: #0077ed; }
+.cine-page .pill:focus-visible { outline: 3px solid rgba(41, 151, 255, 0.7); outline-offset: 2px; }
+.cine-page .message { background: rgba(255, 255, 255, 0.06); border-left: 3px solid var(--cine-link);
+  border-radius: 8px; color: var(--cine-text); margin: 0 0 8px; }
+.cine-page .hint { color: var(--cine-muted); font-size: 0.875rem; max-width: 26rem; }
+.cine-page a, .cine-link { color: var(--cine-link); text-decoration: none; }
+.cine-page a:hover { text-decoration: underline; }
+.cine-page .skip:focus { background: var(--cine-tile); color: var(--cine-text); }
+@keyframes cine-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cine-hero { animation: none; } }
+@media (max-width: 480px) { .cine-tile { padding: 20px; border-radius: 20px; } }

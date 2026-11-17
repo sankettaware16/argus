@@ -79,8 +79,9 @@ shown again, only replaced, and is never written to `admin.yaml`.
 
 **Not in Settings**, by design: the SIEM load budget, its lanes and health thresholds (set in the
 files after a measurement), the web's own address, port and certificate, the units
-(`units.*`), the database connection, `memory.window`, custody, the AI providers' keys and caps
-(`config/llm.yaml`, `config/llm.local.yaml`). These stay on the server.
+(`units.*`), the database connection, `memory.window`, custody. These stay on the server. The AI
+providers' keys, switches and caps have their own page, **AI and agents**, and the threat-intel
+keys theirs, **Threat intel** (the same settings as Settings → Outside sources).
 
 ## Where every value lives
 
@@ -108,13 +109,13 @@ keys file, or a credential folder, never in YAML.
 | Versions, Kibana feature ids | `site.elastic_versions`, `site.kibana_versions`, `site.kibana_features` | `config/site.yaml` | discovery, you (read-only in the app) | defaults |
 | Quiet hours | `site.quiet_hours` | `config/site.yaml` / `admin.yaml` | Settings | optional (00:00–01:30 UTC) |
 | History depth | `history.window` | `admin.yaml` (or `config/local.yaml`) | Settings → History | optional (`5d`) |
-| The LLM keys file's path | `keys_file` | `config/llm.local.yaml` | you, on the server (or `argus init` step 7) | optional |
-| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ... | your keys file (mode 600) | you, on the server ([llm.md](llm.md#4-where-the-keys-go)) | optional |
-| Cost caps | `daily_cap_usd`, `monthly_cap_usd`, `shares`, `margin` | `config/llm.yaml` | you, in a local commit | optional ($1.50 / $40) |
-| The asset map | the file itself; its path `assets.map_path` (`data/assets/asset_map.yaml`) | the map itself | `argus assets import` on the server; the path in Settings → Asset map | required before any model or outside key |
-| Outside threat-intel keys | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | `.env` | Settings → Outside sources | optional |
+| The LLM keys file's path | `keys_file` | `config/llm.local.yaml`, or `config/llm.admin.yaml` (`local/llm-keys.env`) when the app made it | the app's first key, or `argus init` step 7 | optional |
+| The model keys | `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ... | the keys file (mode 600) | AI and agents ([llm.md](llm.md#4-where-the-keys-go)) | optional |
+| Cost caps, a provider's switch and own caps, an AI task's calls a day | `daily_cap_usd`, `monthly_cap_usd`, `provider_enabled`, `provider_caps`, `purposes` | `config/llm.admin.yaml` (over `llm.yaml`, `llm.local.yaml`) | AI and agents | optional ($1.50 / $40) |
+| The asset map | the file itself; its path `assets.map_path` (`data/assets/asset_map.yaml`) | the map itself | Settings → Asset map → Upload (or `argus assets import` on the server) | required before any model or outside key |
+| Outside threat-intel keys | `ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY`, `..._SHODAN_API_KEY`, `..._CENSYS_API_KEY` | `.env` | Threat intel (or Settings → Outside sources) | optional |
 | Your DNS resolvers | `campaigns.resolvers` | `admin.yaml` (or `config/local.yaml`) | Settings → Campaigns | recommended |
-| The services to run | `units.run` | `config/local.yaml` | `./install.sh` and the setup, then you on the server | yes, once started |
+| The services to run | `units.run` | `config/local.yaml`, or `admin.yaml` once switched in the app | `./install.sh` and the setup, then System health → Services | yes, once started |
 | The web on the network | `units.web.host`, `tls_cert`, `tls_key` | `config/local.yaml` | `./install.sh` (the address question) | optional (loopback by default) |
 | Allowed hosts and networks, the address in permanent links | `web.allowed_hosts`, `web.allowed_networks`, `web.public_url` (each with its `units.web` twin) | `config/local.yaml` / `admin.yaml` | `./install.sh`; Settings → The web app | needed on the network; `public_url` by notices and the case team |
 | The approval key | `web.approval_key_file` (`data/keys/approval-signing.key`) | `config/local.yaml`; the key in `data/keys/` | `argus approvals keygen`, you, on the server | needed to record approvals |
@@ -133,7 +134,8 @@ keys file, or a credential folder, never in YAML.
 | `config/local.yaml` | no | `./install.sh` and the setup, then you on the server | This installation's own values: the SIEM's and Kibana's addresses and CA files, the keys' expiry dates, `units`, and any setting changed by hand. Any section may be in it. |
 | `config/admin.yaml` | no | `argus-admin`, from Settings | The settings changed in the app. Never a secret. Leave it to the app; a reset in Settings removes a value from it. |
 | `config/llm.yaml` | yes | the project | The LLM providers, their models, limits and the cost caps ([llm.md](llm.md)). |
-| `config/llm.local.yaml` | no | you, on the server (or `argus init`) | Laid over `llm.yaml`; may set `keys_file` only. |
+| `config/llm.local.yaml` | no | `argus init`, or you on the server | Laid over `llm.yaml`; may set `keys_file`, the caps, `provider_caps`, `provider_enabled` and `purposes`. |
+| `config/llm.admin.yaml` | no | `argus-admin`, from AI and agents | Laid over both: the AI's settings changed in the app, never a key. A reset in the app removes a value from it. |
 | `config/llm_data_policy.yaml` | yes | the project | What a model may see of a dossier ([llm.md](llm.md#9-the-privacy-layer)). |
 | `config/grouping.yaml` | yes | you, rarely | The group-key fields of rules that declare none ([architecture.md](architecture.md#2-group)). |
 | `.env` | no | `./install.sh`, the setup, `argus-admin` (keys from Settings) | **Secrets**: database passwords, the API keys. Mode 600. Shared with docker compose. |
@@ -200,8 +202,8 @@ The secrets ARGUS reads:
 | `ARGUS_NOTICES__PASSWORD` | Optional: the e-mail relay's login ([below](#notices)) |
 
 The keys among these are replaced in Settings; the database passwords are the installer's. The
-LLM providers' keys are not settings: they live in the keys file named by
-`config/llm.local.yaml` ([llm.md](llm.md)).
+LLM providers' keys are replaced in AI and agents: they live in the keys file
+([llm.md](llm.md#4-where-the-keys-go)).
 
 ## Inspecting and validating
 
@@ -340,7 +342,7 @@ the app: Settings → Retention.
 | `retention.evidence` | `90d` | Evidence snapshots (log rows a query returned), from the investigation's newest review |
 | `retention.quarantine` | `30d` | A quarantined alert's raw `_source` |
 | `retention.app_logs` | `14d` | ARGUS's own logs: they go to the systemd journal; this is reported, the journal's own settings enforce it |
-| `retention.scheduled` | `false` | Whether the scheduled purge (`argus-purge.timer`) may delete. Off until you decide. The timer itself is switched on on the server. |
+| `retention.scheduled` | `false` | Whether the scheduled purge (`argus-purge.timer`) may delete. Off until you decide. The timer itself is switched on in System health → Services. |
 
 Each period is at least `history.window` in effect.
 
@@ -461,7 +463,7 @@ E-mail notices that carry a link, a severity and a count (never a name). Off
 `relay_port` (25), `relay_starttls`, `relay_from`, `recipients`, `web_url`, and `user` /
 `password` if the relay needs a login (the password goes to `.env`). On an older installation
 they may be in `.env` as `ARGUS_NOTICES__...`; Settings then changes them there. The
-`argus-notices.timer` that sends them is switched on on the server
+`argus-notices.timer` that sends them is switched on in System health → Services
 ([operations.md](operations.md#services-and-timers)). See
 [the notices runbook](runbooks/notices.md).
 
@@ -654,13 +656,16 @@ write* changes. The team's users and keys are made on the server (`argus case te
 
 ## The LLM gateway (`config/llm.yaml`)
 
-Not part of the settings above and **not in the app yet**: its own file, laid under
-`config/llm.local.yaml`, edited on the server ([llm.md](llm.md), [costs.md](costs.md)). Restart
-`argus-assess` after a change.
+Not part of the settings above: its own file, with `config/llm.local.yaml` and
+`config/llm.admin.yaml` laid over it in that order. The app's **AI and agents** page changes the
+overlay's keys (the caps, a provider's switch and own caps, an AI task's calls, providers and model
+size); the rest of the file (providers, models, prices, rate limits) is the project's
+([llm.md](llm.md), [costs.md](costs.md)). After a change by hand, restart `argus-web`; the
+assessments read it at their next run.
 
 | Key | Shipped | Meaning |
 |---|---|---|
-| `keys_file` | `null` | The keys file; set it in `config/llm.local.yaml` (the only key that file may set) |
+| `keys_file` | `null` | The keys file; set in `config/llm.local.yaml`, or by the app (`local/llm-keys.env`) |
 | `monthly_cap_usd` / `daily_cap_usd` | `40.0` / `1.50` | Paid spending caps (UTC month, UTC day) |
 | `margin` | `0.8` | The share of each provider's published rate limits ARGUS uses |
 | `shares` | `{high: 1.0, normal: 0.8, low: 0.5}` | The share of each day limit and of both caps a priority may use |

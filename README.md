@@ -44,7 +44,7 @@ SIEM (Elasticsearch and Kibana Security, any licence, Basic included) and **owns
    cannot decide;
 5. it **suggests cases** across investigations and writes each case's **incident report** (a page,
    a PDF and CSVs);
-6. it leaves people a calm **Inbox** to confirm or correct, and, when you switch it on, posts the
+6. it leaves people a calm **Today** page of possible incidents to confirm or dismiss, and, when you switch it on, posts the
    confirmed incident to **Kibana Cases** as a team of seven named Kibana users.
 
 ARGUS reads your SIEM with a **read-only key**, through a gateway that holds it to a daily load
@@ -52,26 +52,33 @@ budget and backs off when the cluster is busy. It writes nothing to the SIEM unl
 write on yourself, and nothing is closed without a person. It runs with **no AI at all**; with
 AI keys it uses **free providers first** and caps paid use per day and per month.
 
-![The ARGUS Inbox: what needs a person today, in order](docs/images/screenshots/inbox.png)
+<p align="center">
+  <img src="docs/images/screenshots/today.png" alt="Today: the possible incidents that need a person, in priority order, each with why ARGUS raised it" width="100%"/><br/>
+  <sub><b>Today</b>: what needs a person, in priority order, each card with why ARGUS raised it and what it checked</sub>
+</p>
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/investigation.png" alt="An investigation: the verdict, the facts behind it and every check ARGUS made"/><br/><sub><b>Investigation</b>: the verdict in a few lines, every fact with its query</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/case.png" alt="A case: summary, incident report, timeline, evidence and actions"/><br/><sub><b>Case</b>: one real problem across hosts, rules and days</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/incident.png" alt="A possible incident: why ARGUS raised it, what it checked and the other explanations"/><br/><sub><b>Incident</b>: the score's reasons add up; what was checked and ruled out</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/incidents.png" alt="Every incident and possible incident, by priority"/><br/><sub><b>Incidents</b>: one queue, by priority, with who has taken what</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/dashboard.png" alt="The dashboard: alerts, investigations and incidents at a glance"/><br/><sub><b>Dashboard</b>: alerts, investigations and incidents at a glance</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/investigation.png" alt="An alert group: the key facts and the five outcomes"/><br/><sub><b>Alert group</b>: the key facts, each with its alerts, and five outcomes</sub></td>
     <td width="50%"><img src="docs/images/screenshots/incident-report.png" alt="Page 1 of a generated incident report PDF"/><br/><sub><b>Incident report</b>: written by code, every number from a cited fact</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/inbox-dark.png" alt="The Inbox in dark mode"/><br/><sub><b>Dark mode</b>: follows the system setting</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/proposals.png" alt="Proposals grouped by what decided them, with an audit sample"/><br/><sub><b>Proposals</b>: confirm a whole group after checking its sample</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/setup.png" alt="The first-time setup in the browser"/><br/><sub><b>First-time setup</b>: in the browser after a two-line install</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/ai-agents.png" alt="AI and agents: providers, keys, spending limits and the agents"/><br/><sub><b>AI and agents</b>: free providers first, paid ones capped, a stop switch</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/costs.png" alt="Costs and usage: the AI's spend a day and the threat-intel lookups"/><br/><sub><b>Costs and usage</b>: every dollar and lookup against its limit</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/today-dark.png" alt="Today in dark mode"/><br/><sub><b>Dark mode</b>: follows the system setting</sub></td>
   </tr>
 </table>
 
-The screenshots show a demo installation on made-up data. More in the
+The screenshots show a demo installation on made-up data, never a real one. More in the
 [Web UI guide](docs/web-ui-guide.md).
 
 ## Key Features
@@ -118,11 +125,16 @@ The screenshots show a demo installation on made-up data. More in the
 - **Cost-first AI** — no keys means $0; free tiers (Groq, OpenRouter, Google Gemini) first; paid
   fallbacks (OpenAI, then Anthropic) only when no free provider can answer, within daily and
   monthly caps overall and per provider. Measured: about **$0.60 to $1.20 a day**.
-- **Run from the browser** — one command installs it (`./install.sh`); a first-time setup in the
-  app connects your SIEM; **Settings** holds every setting with its help (each change checked,
-  applied by `argus-admin` within seconds, and rolled back by itself if a service does not come
-  back; keys sealed and never shown again); **Users and roles** gives people a role and a
-  one-time link to set their own password. Anything that would write to your SIEM needs an
+- **A complete application, run from the browser** — one command installs it (`./install.sh`); a
+  first-time setup in the app connects your SIEM; **Settings** holds every setting with its help
+  (each change checked, applied by `argus-admin` within seconds, rolled back by itself if a
+  service does not come back), checks the SIEM's and Kibana's keys, takes the asset map as an
+  upload and keeps the history of changes; **Users and roles** gives people a role and a one-time
+  link to set their own password; **AI and agents** takes the AI providers' keys, their switches
+  and spending limits, tests each provider, stops all AI calls at once and shows every agent;
+  **Threat intel** takes and tests the VirusTotal, Shodan and Censys keys; **Costs and usage**
+  charts what the AI cost a day and by task and each source's lookups against its free plan.
+  Keys are sealed and never shown again; anything that would write to your SIEM needs an
   administrator's password and a typed confirmation.
 - **Operable** — `argus doctor` checks every part with the fix for each problem, verified
   backups with a weekly restore drill, a retention purge, systemd units rendered for your machine.
@@ -142,7 +154,7 @@ flowchart LR
   W --> AS["Assessment<br/>decision engine + floor,<br/>optional AI investigator"]
   AS -. "pseudonymised" .-> LLM{{"LLM gateway<br/>free first, capped"}}
   AS --> CS["Cases<br/>incident reports"]
-  CS --> UI["Inbox<br/>reviewers decide"]
+  CS --> UI["Today and Incidents<br/>people decide"]
   UI -- "verdicts teach the engine" --> AS
   CS -. "case team (off by default)" .-> KC["Kibana Cases"]
   DB[("PostgreSQL")] --- C & W & AS & UI
@@ -196,29 +208,34 @@ alone (`uv run argus init`, interactive or with an answers file):
 
 | To… | Go to |
 |---|---|
-| Change a setting: the SIEM, Kibana, outside lookups (VirusTotal, Shodan, Censys), notices, retention, backups, sign-in, the incident engine | **More → Administration → Settings** |
+| Change a setting: the SIEM, Kibana, notices, retention, backups, sign-in, the incident engine; check the SIEM's and Kibana's keys; upload the asset map; see who changed what | **More → Administration → Settings** |
 | Add people, give them a role (Viewer, Analyst, Lead, Administrator), reset a password | **More → Administration → Users and roles** |
+| Add the AI providers' keys (Groq, OpenRouter, Gemini, OpenAI, Anthropic, a model on your network), switch them on or off, set the spending limits, test them, stop all AI calls; see the agents | **More → Administration → AI and agents** |
+| Add and test the threat-intel keys (VirusTotal, Shodan, Censys) | **More → Administration → Threat intel** |
+| See what the AI cost a day and by task, and the threat-intel lookups against their free plans | **More → Administration → Costs and usage** |
 | See whether data is arriving | **More → System health** |
 | Work incidents | **Today**, **Incidents**, **Search**, **Reports** ([guide](docs/web-ui-guide.md)) |
 
-A few jobs stay on the server on purpose: upgrading ([docs/upgrading.md](docs/upgrading.md)),
-the AI providers' keys (below), importing the asset map file, restoring a backup, and recovery
-when the web itself is down (`uv run argus doctor`).
+Only upgrading ([docs/upgrading.md](docs/upgrading.md)), restoring a backup and recovery when the
+web itself is down (`uv run argus doctor`) stay on the server.
 
-### AI keys (optional)
+### AI and threat-intel keys (optional)
 
-ARGUS works without any model. To let its AI investigator help, put the keys in a private file
-and give its path in `config/llm.local.yaml`:
+ARGUS works without any model and without outside lookups: it investigates deterministically.
+To add them:
 
-```bash
-install -m 600 /dev/null ~/llm-keys.env          # then paste NAME=value lines into it:
-# GROQ_API_KEY=...  OPENROUTER_API_KEY=...  GEMINI_API_KEY=...  OPENAI_API_KEY=...  ANTHROPIC_API_KEY=...
-uv run argus assets import asset_map.yaml        # your networks: needed before any key
-uv run argus init                                # step 7: give ~/llm-keys.env
-uv run argus llm probe && uv run argus llm ping
-```
+1. **Settings → Asset map → Upload an asset map** (which addresses and names are yours): ARGUS
+   needs it before any of your data is sent anywhere, so its privacy layer can replace your
+   internal names and addresses with pseudonyms.
+2. **AI and agents**: on a provider's card, **Add key**, paste, confirm your password, then
+   **Test**. Free providers are tried first, paid ones last, under the monthly and daily limits
+   you set on the same page.
+3. **Threat intel**: add the VirusTotal, Shodan or Censys key the same way and **Test** it (one
+   lookup of a public test address, counted under the free plan's limits).
 
-Where to get each key, step by step: [docs/llm.md](docs/llm.md#3-getting-each-key-step-by-step).
+Keys are sealed in the browser's request and only `argus-admin` on the server can open them; the
+app never shows a key again. Where to get each key, step by step:
+[docs/llm.md](docs/llm.md#3-getting-each-key-step-by-step).
 
 ## Usage
 
@@ -317,7 +334,7 @@ uv run argus case team preview 1 --text --requests             # exactly what wo
 ```
 
 Posting is **off** until you switch it on; the first case waits for a person's approval of its
-exact plan in the Inbox, and people answer in Kibana with a `Verdict:` comment that ARGUS reads
+exact plan in Approvals, and people answer in Kibana with a `Verdict:` comment that ARGUS reads
 back. The guide: [docs/case-team.md](docs/case-team.md).
 
 ## Tech Stack
@@ -353,7 +370,7 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 │   ├── cases/            #   suggested cases, the lifecycle, known infections, the watch
 │   ├── incident/         #   incident reports, the PDF, the dashboard, the CSVs
 │   ├── caseteam/         #   the Kibana case team
-│   ├── web/              #   the Inbox and its API (the built app in web/spa/)
+│   ├── web/              #   the app and its API (the built app in web/spa/)
 │   ├── install/          #   argus init
 │   ├── ops/              #   backups, purge, units, doctor checks
 │   └── db/migrations/    #   Alembic migrations

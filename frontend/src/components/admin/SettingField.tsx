@@ -1,6 +1,6 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import type { SettingOut } from "../../client/types.gen";
-import { DURATION_HELP, durationWords, parseDuration, RISK_NOTE, splitHelp, valueWords, type Draft } from "../../lib/settings";
+import { DURATION_HELP, durationWords, entryList, parseDuration, RISK_NOTE, splitHelp, valueWords, type Draft } from "../../lib/settings";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Check, Select, TextInput } from "../ui/field";
@@ -42,6 +42,7 @@ export function Control({ setting, id, draft, onChange, disabled, describedBy }:
       );
     }
     case "list":
+      if (entryList(s)) return <EntryList setting={s} id={id} />;
       return <ListEditor id={id} label={s.label} items={Array.isArray(draft) ? draft : []} onChange={onChange} disabled={disabled} />;
     case "secret":
       return (
@@ -55,6 +56,23 @@ export function Control({ setting, id, draft, onChange, disabled, describedBy }:
     default:
       return <TextInput {...common} value={String(draft)} onChange={(e) => onChange(e.target.value)} className={s.kind === "path" ? "max-w-xl font-mono" : "max-w-xl"} />;
   }
+}
+
+/** A list of entries, each in one line; it is changed in the files, not here. */
+function EntryList({ setting, id }: { setting: SettingOut; id: string }) {
+  const items = Array.isArray(setting.value) ? setting.value : [];
+  return (
+    <div className="flex max-w-3xl flex-col gap-1" id={id} data-testid="entry-list">
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+        {items.map((item, i) => (
+          <li key={i} className="rounded-control border border-border bg-surface-2 px-2 py-1 font-mono text-xs break-all">
+            {typeof item === "object" && item !== null ? JSON.stringify(item) : String(item)}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0 text-sm text-muted">A list of entries: change it in the files (site.yaml or local.yaml).</p>
+    </div>
+  );
 }
 
 export function ListEditor({ id, label, items, onChange, disabled }: { id: string; label: string; items: string[]; onChange: (draft: Draft) => void; disabled: boolean }) {
@@ -79,13 +97,18 @@ export function ListEditor({ id, label, items, onChange, disabled }: { id: strin
   );
 }
 
+/** Help text with its ``names`` (as the settings' docs write them) shown as code. */
+export function withCode(text: string): ReactNode[] {
+  return text.split(/``([^`]+)``/).map((part, i) => (i % 2 === 1 ? <code key={i} className="font-mono text-[0.92em]">{part}</code> : part));
+}
+
 /** One setting: what it is, its help, its control, where it is set, and the risk of changing it. */
 export function SettingField({ setting, draft, onChange, error, reset, onReset }: { setting: SettingOut; draft: Draft; onChange: (draft: Draft) => void; error?: string; reset: boolean; onReset: (on: boolean) => void }) {
   const s = setting;
   const id = useId();
   const { short, more } = splitHelp(s.help);
   const note = RISK_NOTE[s.risk];
-  const canReset = s.in_app && s.kind !== "secret" && s.editable;
+  const canReset = s.in_app && s.kind !== "secret" && s.editable && !entryList(s);
   return (
     <div className="flex flex-col gap-1.5 border-b border-border py-3 last:border-b-0" data-testid={`setting-${s.key}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -95,11 +118,11 @@ export function SettingField({ setting, draft, onChange, error, reset, onReset }
         {s.in_app && <Badge tone="info">Changed in the app</Badge>}
         {note && <Badge tone={s.risk === "siem_write" ? "warn" : "neutral"}>{s.risk === "siem_write" ? "Writes to the SIEM" : "Needs your password"}</Badge>}
       </div>
-      {short !== "" && <p className="m-0 max-w-prose text-sm text-muted">{short}</p>}
+      {short !== "" && <p className="m-0 max-w-prose text-sm text-muted">{withCode(short)}</p>}
       {more && (
         <details className="text-sm text-muted">
           <summary className="cursor-pointer">More</summary>
-          <p className="m-0 mt-1 max-w-prose">{more}</p>
+          <p className="m-0 mt-1 max-w-prose">{withCode(more)}</p>
         </details>
       )}
       {reset ? (
@@ -127,7 +150,7 @@ export function SettingField({ setting, draft, onChange, error, reset, onReset }
       <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted">
         <span>
           {s.key}
-          {s.homes.length > 0 && <> · set in {s.homes.join(", ")}</>}
+          {s.homes.length > 0 && <> · {s.homes.join(", ")}</>}
         </span>
         {canReset && !reset && (
           <Button size="sm" variant="ghost" onClick={() => onReset(true)}>

@@ -453,47 +453,84 @@ def models_of(config: LlmConfig) -> str:
 
 
 LOCAL_OVERLAY = "llm.local.yaml"
-_OVERLAY_KEYS = frozenset({"keys_file", "monthly_cap_usd", "daily_cap_usd", "provider_caps"})
+ADMIN_OVERLAY = "llm.admin.yaml"  # what people changed in the app (D-328): never in git
+_OVERLAY_KEYS = frozenset({"keys_file", "monthly_cap_usd", "daily_cap_usd", "provider_caps",
+                           "provider_enabled", "purposes"})  # fmt: skip
 _PROVIDER_CAPS = frozenset({"monthly_cap_usd", "daily_cap_usd"})
+_PURPOSE_KEYS = frozenset({"calls_per_day", "providers", "tier"})
 
 
 def load_config(path: Path = DEFAULT_PATH) -> LlmConfig:
-    """``path``, with this installation's overlay laid over it when there is one:
-    ``llm.local.yaml`` beside it (``argus init`` writes its ``keys_file``), which may also set this
-    installation's budget: the overall caps and, under ``provider_caps``, a provider's own."""
+    """``path``, with this installation's overlays laid over it, each when there is one:
+    ``llm.local.yaml`` beside it (``argus init`` writes its ``keys_file``), then ``llm.admin.yaml``
+    (the app's, D-328). Each may set the keys file and this installation's budget: the overall
+    caps, under ``provider_caps`` a provider's own, under ``provider_enabled`` its switch, and
+    under ``purposes`` a task's calls a day, providers and tier."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    overlay = path.with_name(LOCAL_OVERLAY)
-    if overlay != path and overlay.is_file() and isinstance(data, dict):
-        extra = yaml.safe_load(overlay.read_text(encoding="utf-8")) or {}
-        if not isinstance(extra, dict) or set(extra) - _OVERLAY_KEYS:
-            raise ValueError(f"{LOCAL_OVERLAY} may set {', '.join(sorted(_OVERLAY_KEYS))} only")
-        caps = extra.pop("provider_caps", None) or {}
-        data = {**data, **extra}
-        if caps:
-            data["providers"] = _with_caps(data.get("providers"), caps)
+    for name in (LOCAL_OVERLAY, ADMIN_OVERLAY):
+        overlay = path.with_name(name)
+        if overlay != path and overlay.is_file() and isinstance(data, dict):
+            data = _overlaid(data, name, yaml.safe_load(overlay.read_text(encoding="utf-8")))
     return LlmConfig.model_validate(data)
 
 
-def _with_caps(providers: Any, caps: Any) -> list[Any]:
-    """The providers with the overlay's own caps set on the ones it names."""
+def _overlaid(data: dict[str, Any], name: str, extra: Any) -> dict[str, Any]:
+    extra = extra or {}
+    if not isinstance(extra, dict) or set(extra) - _OVERLAY_KEYS:
+        raise ValueError(f"{name} may set {', '.join(sorted(_OVERLAY_KEYS))} only")
+    caps = extra.pop("provider_caps", None) or {}
+    switches = extra.pop("provider_enabled", None) or {}
+    purposes = extra.pop("purposes", None) or {}
+    data = {**data, **extra}
+    if caps:
+        data["providers"] = _with_caps(data.get("providers"), caps, name)
+    if switches:
+        if not isinstance(switches, dict) or any(
+            not isinstance(v, bool) for v in switches.values()
+        ):
+            raise ValueError(f"{name}: provider_enabled maps a provider name to true or false")
+        data["providers"] = _with_caps(
+            data.get("providers"), {k: {"enabled": v} for k, v in switches.items()}, name,
+            allowed=frozenset({"enabled"}), field="provider_enabled",
+        )  # fmt: skip
+    if purposes:
+        data["purposes"] = _with_purposes(data.get("purposes") or {}, purposes, name)
+    return data
+
+
+def _with_caps(providers: Any, caps: Any, source: str = LOCAL_OVERLAY,
+               allowed: frozenset[str] = _PROVIDER_CAPS,
+               field: str = "provider_caps") -> list[Any]:  # fmt: skip
+    """The providers with the overlay's own caps (or switch) set on the ones it names."""
     if not isinstance(caps, dict) or not isinstance(providers, list):
-        raise ValueError(f"{LOCAL_OVERLAY}: provider_caps maps a provider's name to its caps")
+        raise ValueError(f"{source}: {field} maps a provider's name to its caps")
     names = {p.get("name") for p in providers if isinstance(p, dict)}
     unknown = sorted(str(n) for n in caps if n not in names)
     if unknown:
-        raise ValueError(
-            f"{LOCAL_OVERLAY}: provider_caps names no such provider: {', '.join(unknown)}"
-        )
+        raise ValueError(f"{source}: {field} names no such provider: {', '.join(unknown)}")
     out = []
     for p in providers:
         own = caps.get(p.get("name")) if isinstance(p, dict) else None
         if own is None:
             out.append(p)
             continue
-        if not isinstance(own, dict) or set(own) - _PROVIDER_CAPS:
-            allowed = ", ".join(sorted(_PROVIDER_CAPS))
-            raise ValueError(f"{LOCAL_OVERLAY}: provider_caps.{p['name']} sets {allowed} only")
+        if not isinstance(own, dict) or set(own) - allowed:
+            raise ValueError(f"{source}: {field}.{p['name']} sets"
+                             f" {', '.join(sorted(allowed))} only")  # fmt: skip
         out.append({**p, **own})
+    return out
+
+
+def _with_purposes(base: Any, purposes: Any, source: str) -> dict[str, Any]:
+    """The tasks' own settings with the overlay's laid over them, field by field."""
+    if not isinstance(base, dict) or not isinstance(purposes, dict):
+        raise ValueError(f"{source}: purposes maps a task to its settings")
+    out = dict(base)
+    for task, own in purposes.items():
+        if not isinstance(own, dict) or set(own) - _PURPOSE_KEYS:
+            raise ValueError(f"{source}: purposes.{task} sets"
+                             f" {', '.join(sorted(_PURPOSE_KEYS))} only")  # fmt: skip
+        out[task] = {**(out.get(task) or {}), **own}
     return out
 
 

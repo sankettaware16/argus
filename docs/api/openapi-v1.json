@@ -429,6 +429,128 @@
         "title": "AddressOut",
         "type": "object"
       },
+      "AgentOut": {
+        "additionalProperties": false,
+        "properties": {
+          "calls_month": {
+            "default": 0,
+            "title": "Calls Month",
+            "type": "integer"
+          },
+          "enabled_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled Version"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "mission": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mission"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "default": false,
+            "title": "On",
+            "type": "boolean"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "specialists": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Specialists",
+            "type": "array"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools",
+            "type": "array"
+          },
+          "triggers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Triggers",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentOut",
+        "type": "object"
+      },
       "AiClaimOut": {
         "additionalProperties": false,
         "description": "One claim of ARGUS AI's reading that passed the checks, and the incident's facts it cites\n(in ARGUS's words, as the model was shown them with the real names put back).",
@@ -450,6 +572,364 @@
           "based_on"
         ],
         "title": "AiClaimOut",
+        "type": "object"
+      },
+      "AiDayOut": {
+        "additionalProperties": false,
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "provider",
+          "calls",
+          "ok",
+          "cost_usd",
+          "tokens"
+        ],
+        "title": "AiDayOut",
+        "type": "object"
+      },
+      "AiKeyOut": {
+        "additionalProperties": false,
+        "properties": {
+          "is_set": {
+            "title": "Is Set",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "setting": {
+            "title": "Setting",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "setting",
+          "is_set"
+        ],
+        "title": "AiKeyOut",
+        "type": "object"
+      },
+      "AiOut": {
+        "additionalProperties": false,
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOut"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "any_key": {
+            "title": "Any Key",
+            "type": "boolean"
+          },
+          "applier": {
+            "$ref": "#/components/schemas/ApplierOut"
+          },
+          "daily_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap Usd"
+          },
+          "month_usd": {
+            "title": "Month Usd",
+            "type": "number"
+          },
+          "monthly_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Cap Usd"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/AiProviderOut"
+            },
+            "title": "Providers",
+            "type": "array"
+          },
+          "purposes": {
+            "items": {
+              "$ref": "#/components/schemas/AiPurposeOut"
+            },
+            "title": "Purposes",
+            "type": "array"
+          },
+          "readings_on": {
+            "title": "Readings On",
+            "type": "boolean"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/components/schemas/SettingOut"
+            },
+            "title": "Settings",
+            "type": "array"
+          },
+          "stopped": {
+            "title": "Stopped",
+            "type": "boolean"
+          },
+          "team": {
+            "items": {
+              "$ref": "#/components/schemas/TeamKeyOut"
+            },
+            "title": "Team",
+            "type": "array"
+          },
+          "team_keys_expire": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Keys Expire"
+          },
+          "today_usd": {
+            "title": "Today Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "applier",
+          "problem",
+          "stopped",
+          "any_key",
+          "monthly_cap_usd",
+          "daily_cap_usd",
+          "month_usd",
+          "today_usd",
+          "providers",
+          "purposes",
+          "agents",
+          "readings_on",
+          "team",
+          "team_keys_expire",
+          "settings"
+        ],
+        "title": "AiOut",
+        "type": "object"
+      },
+      "AiProviderOut": {
+        "additionalProperties": false,
+        "properties": {
+          "alarm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alarm"
+          },
+          "api": {
+            "title": "Api",
+            "type": "string"
+          },
+          "calls_month": {
+            "title": "Calls Month",
+            "type": "integer"
+          },
+          "daily_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap Usd"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/AiKeyOut"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "models": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "object"
+          },
+          "month_usd": {
+            "title": "Month Usd",
+            "type": "number"
+          },
+          "monthly_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Cap Usd"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ok_month": {
+            "title": "Ok Month",
+            "type": "integer"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "boolean"
+          },
+          "today_usd": {
+            "title": "Today Usd",
+            "type": "number"
+          },
+          "trust": {
+            "title": "Trust",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "enabled",
+          "api",
+          "trust",
+          "paid",
+          "models",
+          "keys",
+          "monthly_cap_usd",
+          "daily_cap_usd",
+          "month_usd",
+          "today_usd",
+          "calls_month",
+          "ok_month",
+          "alarm"
+        ],
+        "title": "AiProviderOut",
+        "type": "object"
+      },
+      "AiPurposeOut": {
+        "additionalProperties": false,
+        "properties": {
+          "calls_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calls Per Day"
+          },
+          "calls_today": {
+            "title": "Calls Today",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "providers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providers"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          }
+        },
+        "required": [
+          "task",
+          "label",
+          "calls_per_day",
+          "providers",
+          "tier",
+          "calls_today"
+        ],
+        "title": "AiPurposeOut",
         "type": "object"
       },
       "AiReadingOut": {
@@ -542,6 +1022,30 @@
           "claims"
         ],
         "title": "AiSectionOut",
+        "type": "object"
+      },
+      "AiTaskUseOut": {
+        "additionalProperties": false,
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "calls",
+          "cost_usd"
+        ],
+        "title": "AiTaskUseOut",
         "type": "object"
       },
       "AiVerdictOut": {
@@ -1412,6 +1916,22 @@
           "fields"
         ],
         "title": "AssetOut",
+        "type": "object"
+      },
+      "AssetsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 5000000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "AssetsIn",
         "type": "object"
       },
       "AssignIn": {
@@ -3676,39 +4196,6 @@
           "line"
         ],
         "title": "Check",
-        "type": "object"
-      },
-      "CheckIn": {
-        "additionalProperties": false,
-        "description": "One approved template on one address or domain, about the investigation as the person\nsaw it (``seen_version``: 409 when it has moved on).",
-        "properties": {
-          "entity": {
-            "maxLength": 253,
-            "minLength": 1,
-            "pattern": "^[^\\x00]*$",
-            "title": "Entity",
-            "type": "string"
-          },
-          "seen_version": {
-            "maximum": 2147483647.0,
-            "minimum": 0.0,
-            "title": "Seen Version",
-            "type": "integer"
-          },
-          "template": {
-            "maxLength": 64,
-            "minLength": 1,
-            "pattern": "^[a-z][a-z0-9_.]*$",
-            "title": "Template",
-            "type": "string"
-          }
-        },
-        "required": [
-          "template",
-          "entity",
-          "seen_version"
-        ],
-        "title": "CheckIn",
         "type": "object"
       },
       "CheckLimitsOut": {
@@ -8627,7 +9114,11 @@
           "kind": {
             "enum": [
               "inspect_tls",
-              "setup"
+              "setup",
+              "check",
+              "assets",
+              "llm_switch",
+              "service"
             ],
             "title": "Kind",
             "type": "string"
@@ -8964,6 +9455,20 @@
           "notified_at"
         ],
         "title": "KnownRefOut",
+        "type": "object"
+      },
+      "LlmSwitchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "stop": {
+            "title": "Stop",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "stop"
+        ],
+        "title": "LlmSwitchIn",
         "type": "object"
       },
       "MemberReviewIn": {
@@ -14610,6 +15115,128 @@
         "title": "SeriesPoint",
         "type": "object"
       },
+      "ServiceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "on",
+              "off",
+              "restart"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "unit": {
+            "maxLength": 60,
+            "pattern": "^argus-[a-z0-9-]+\\.(service|timer)$",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit",
+          "action"
+        ],
+        "title": "ServiceIn",
+        "type": "object"
+      },
+      "ServiceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "core": {
+            "title": "Core",
+            "type": "boolean"
+          },
+          "deletes": {
+            "title": "Deletes",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "switchable": {
+            "title": "Switchable",
+            "type": "boolean"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "writes_siem": {
+            "title": "Writes Siem",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unit",
+          "label",
+          "core",
+          "switchable",
+          "on",
+          "running",
+          "writes_siem",
+          "deletes"
+        ],
+        "title": "ServiceOut",
+        "type": "object"
+      },
+      "ServicesOut": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "confirm_words": {
+            "title": "Confirm Words",
+            "type": "string"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceOut"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "required": [
+          "units",
+          "at",
+          "confirm_words"
+        ],
+        "title": "ServicesOut",
+        "type": "object"
+      },
       "SessionOut": {
         "additionalProperties": false,
         "description": "Who is signed in, what they may do, and when the session ends. The CSRF token goes in\n``X-CSRF-Token`` on every change; keep it in memory only.",
@@ -14650,6 +15277,11 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "setup_pending": {
+            "default": false,
+            "title": "Setup Pending",
+            "type": "boolean"
           },
           "since": {
             "anyOf": [
@@ -14727,7 +15359,7 @@
         "properties": {
           "key": {
             "maxLength": 120,
-            "pattern": "^[a-z_]+(\\.[a-z0-9_]+)+$",
+            "pattern": "^[a-z_]+(\\.[A-Za-z0-9_-]+)+$",
             "title": "Key",
             "type": "string"
           },
@@ -15047,7 +15679,7 @@
       },
       "SetupIn": {
         "additionalProperties": false,
-        "description": "The first-time setup's answers (``argus init``'s names: ``siem.url``, ``siem.trust``,\n``siem.fingerprint``, ``organisation.name`` ...) and its keys, which are sealed at once.",
+        "description": "The first-time setup's answers (``argus init``'s names: ``siem.url``, ``siem.trust``,\n``siem.fingerprint``, ``organisation.name``, ``elastic.admin_user``, ``case_team.provision``\n...) and its keys, each sealed at once: the SIEM's and Kibana's, an Elastic administrator's\npassword (used once by init to make ARGUS's own keys and users, never stored), the\nthreat-intel keys and the AI providers' (``llm.key.groq_api_key``), and an asset map.",
         "properties": {
           "answers": {
             "additionalProperties": true,
@@ -15055,17 +15687,26 @@
             "title": "Answers",
             "type": "object"
           },
+          "asset_map": {
+            "anyOf": [
+              {
+                "maxLength": 5000000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Map"
+          },
           "keys": {
-            "additionalProperties": {
-              "maxLength": 8192,
-              "type": "string"
-            },
-            "maxProperties": 2,
-            "propertyNames": {
-              "enum": [
-                "siem.api_key",
-                "kibana.api_key"
-              ]
+            "maxProperties": 20,
+            "patternProperties": {
+              "^(siem\\.api_key|kibana\\.api_key|elastic\\.admin_password|outside\\.(virustotal|shodan|censys)_api_key|llm\\.key\\.[a-z][a-z0-9_]{0,63})$": {
+                "maxLength": 8192,
+                "minLength": 1,
+                "type": "string"
+              }
             },
             "title": "Keys",
             "type": "object"
@@ -15449,6 +16090,99 @@
           "organisation_reviewers"
         ],
         "title": "SiteOut",
+        "type": "object"
+      },
+      "SourceDayOut": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "requests"
+        ],
+        "title": "SourceDayOut",
+        "type": "object"
+      },
+      "SourceLimitOut": {
+        "additionalProperties": false,
+        "properties": {
+          "maximum": {
+            "title": "Maximum",
+            "type": "integer"
+          },
+          "window": {
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window",
+          "maximum"
+        ],
+        "title": "SourceLimitOut",
+        "type": "object"
+      },
+      "SourceUseOut": {
+        "additionalProperties": false,
+        "properties": {
+          "answered_month": {
+            "title": "Answered Month",
+            "type": "integer"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key_set": {
+            "title": "Key Set",
+            "type": "boolean"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/SourceLimitOut"
+            },
+            "title": "Limits",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "today": {
+            "title": "Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "key_set",
+          "enabled",
+          "today",
+          "month",
+          "answered_month",
+          "limits",
+          "days"
+        ],
+        "title": "SourceUseOut",
         "type": "object"
       },
       "SpecialistOut": {
@@ -16160,6 +16894,30 @@
           "needs_approval"
         ],
         "title": "TeamDecisionOut",
+        "type": "object"
+      },
+      "TeamKeyOut": {
+        "additionalProperties": false,
+        "properties": {
+          "is_set": {
+            "title": "Is Set",
+            "type": "boolean"
+          },
+          "setting": {
+            "title": "Setting",
+            "type": "string"
+          },
+          "user": {
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user",
+          "setting",
+          "is_set"
+        ],
+        "title": "TeamKeyOut",
         "type": "object"
       },
       "TeamPostOut": {
@@ -16916,6 +17674,92 @@
         "title": "UnverifiedOut",
         "type": "object"
       },
+      "UsageOut": {
+        "additionalProperties": false,
+        "description": "What ARGUS spent and used: the AI's cost a day by provider (the last 31 days) and by task\nthis month, the caps, and each threat-intel source's lookups against its free plan's limits.",
+        "properties": {
+          "ai_days": {
+            "items": {
+              "$ref": "#/components/schemas/AiDayOut"
+            },
+            "title": "Ai Days",
+            "type": "array"
+          },
+          "ai_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/AiTaskUseOut"
+            },
+            "title": "Ai Tasks",
+            "type": "array"
+          },
+          "daily_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap Usd"
+          },
+          "month_usd": {
+            "title": "Month Usd",
+            "type": "number"
+          },
+          "monthly_cap_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Cap Usd"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceUseOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "sources_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources At"
+          },
+          "stopped": {
+            "title": "Stopped",
+            "type": "boolean"
+          },
+          "today_usd": {
+            "title": "Today Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "monthly_cap_usd",
+          "daily_cap_usd",
+          "month_usd",
+          "today_usd",
+          "stopped",
+          "ai_days",
+          "ai_tasks",
+          "sources",
+          "sources_at"
+        ],
+        "title": "UsageOut",
+        "type": "object"
+      },
       "UserOut": {
         "additionalProperties": false,
         "properties": {
@@ -17472,6 +18316,54 @@
         ],
         "title": "YouOut",
         "type": "object"
+      },
+      "argus__web__v1__admin_models__CheckIn": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "pattern": "^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}|outside:(virustotal|shodan|censys))$",
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "CheckIn",
+        "type": "object"
+      },
+      "argus__web__v1__case_models__CheckIn": {
+        "additionalProperties": false,
+        "description": "One approved template on one address or domain, about the investigation as the person\nsaw it (``seen_version``: 409 when it has moved on).",
+        "properties": {
+          "entity": {
+            "maxLength": 253,
+            "minLength": 1,
+            "pattern": "^[^\\x00]*$",
+            "title": "Entity",
+            "type": "string"
+          },
+          "seen_version": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seen Version",
+            "type": "integer"
+          },
+          "template": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_.]*$",
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template",
+          "entity",
+          "seen_version"
+        ],
+        "title": "CheckIn",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -17496,6 +18388,63 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/ai": {
+      "get": {
+        "description": "The AI providers, keys, caps and spend, the kill switch, the AI tasks and the agents.",
+        "operationId": "getAi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Ai",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/changes": {
       "get": {
         "description": "What became of one save, or the latest fifty changes.",
@@ -17661,6 +18610,182 @@
         ]
       }
     },
+    "/api/v1/admin/jobs/assets": {
+      "post": {
+        "description": "An uploaded asset map, sealed at once, imported by argus-admin (`argus assets\nimport`); the services restart with it. Needs the password confirmed.",
+        "operationId": "importAssets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Import Assets",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/check": {
+      "post": {
+        "description": "A connection check run by argus-admin: the SIEM's key, a Kibana key or an AI provider\n(`argus siem selftest`, `argus kibana selftest`, `argus llm probe`: no prompt is sent).",
+        "operationId": "startCheck",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/argus__web__v1__admin_models__CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Start Check",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/jobs/inspect-tls": {
       "post": {
         "description": "The certificates an address presents, read by argus-admin (nothing is trusted).",
@@ -17744,6 +18869,182 @@
           }
         ],
         "summary": "Inspect Tls",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/llm-switch": {
+      "post": {
+        "description": "The AI's kill switch (as `argus llm stop` and `resume`), set by argus-admin.",
+        "operationId": "switchLlm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmSwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Switch Llm",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/service": {
+      "post": {
+        "description": "A service or timer switched on or off, or a service restarted, by argus-admin. A\nswitch needs the password confirmed; one that lets ARGUS write to the SIEM also the\nwords typed.",
+        "operationId": "switchService",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the body could not be read"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ],
+        "summary": "Switch Service",
         "tags": [
           "admin"
         ]
@@ -17927,6 +19228,63 @@
         ]
       }
     },
+    "/api/v1/admin/services": {
+      "get": {
+        "description": "ARGUS's services and timers: what each does, whether it is on and running.",
+        "operationId": "getServices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Services",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/settings": {
       "get": {
         "description": "Every setting the app shows, with its value here and where it is set.",
@@ -17979,6 +19337,63 @@
           }
         ],
         "summary": "Get Settings",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/usage": {
+      "get": {
+        "description": "Costs and usage: the AI's spend a day and by task, the threat-intel lookups.",
+        "operationId": "getUsage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Usage",
         "tags": [
           "admin"
         ]
@@ -25287,7 +26702,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckIn"
+                "$ref": "#/components/schemas/argus__web__v1__case_models__CheckIn"
               }
             }
           },

@@ -234,6 +234,64 @@ export type AddressOut = {
 };
 
 /**
+ * AgentOut
+ */
+export type AgentOut = {
+    /**
+     * Calls Month
+     */
+    calls_month?: number;
+    /**
+     * Enabled Version
+     */
+    enabled_version?: string | null;
+    /**
+     * Kind
+     */
+    kind?: string | null;
+    /**
+     * Mission
+     */
+    mission?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * On
+     */
+    on?: boolean;
+    /**
+     * Problem
+     */
+    problem?: string | null;
+    /**
+     * Specialists
+     */
+    specialists?: Array<string>;
+    /**
+     * Task
+     */
+    task?: string | null;
+    /**
+     * Tier
+     */
+    tier?: string | null;
+    /**
+     * Tools
+     */
+    tools?: Array<string>;
+    /**
+     * Triggers
+     */
+    triggers?: Array<string>;
+    /**
+     * Version
+     */
+    version?: string | null;
+};
+
+/**
  * AiClaimOut
  *
  * One claim of ARGUS AI's reading that passed the checks, and the incident's facts it cites
@@ -248,6 +306,211 @@ export type AiClaimOut = {
      * Text
      */
     text: string;
+};
+
+/**
+ * AiDayOut
+ */
+export type AiDayOut = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Cost Usd
+     */
+    cost_usd: number;
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Ok
+     */
+    ok: number;
+    /**
+     * Provider
+     */
+    provider: string;
+    /**
+     * Tokens
+     */
+    tokens: number;
+};
+
+/**
+ * AiKeyOut
+ */
+export type AiKeyOut = {
+    /**
+     * Is Set
+     */
+    is_set: boolean;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Setting
+     */
+    setting: string;
+};
+
+/**
+ * AiOut
+ */
+export type AiOut = {
+    /**
+     * Agents
+     */
+    agents: Array<AgentOut>;
+    /**
+     * Any Key
+     */
+    any_key: boolean;
+    applier: ApplierOut;
+    /**
+     * Daily Cap Usd
+     */
+    daily_cap_usd: number | null;
+    /**
+     * Month Usd
+     */
+    month_usd: number;
+    /**
+     * Monthly Cap Usd
+     */
+    monthly_cap_usd: number | null;
+    /**
+     * Problem
+     */
+    problem: string | null;
+    /**
+     * Providers
+     */
+    providers: Array<AiProviderOut>;
+    /**
+     * Purposes
+     */
+    purposes: Array<AiPurposeOut>;
+    /**
+     * Readings On
+     */
+    readings_on: boolean;
+    /**
+     * Settings
+     */
+    settings: Array<SettingOut>;
+    /**
+     * Stopped
+     */
+    stopped: boolean;
+    /**
+     * Team
+     */
+    team: Array<TeamKeyOut>;
+    /**
+     * Team Keys Expire
+     */
+    team_keys_expire: string | null;
+    /**
+     * Today Usd
+     */
+    today_usd: number;
+};
+
+/**
+ * AiProviderOut
+ */
+export type AiProviderOut = {
+    /**
+     * Alarm
+     */
+    alarm: string | null;
+    /**
+     * Api
+     */
+    api: string;
+    /**
+     * Calls Month
+     */
+    calls_month: number;
+    /**
+     * Daily Cap Usd
+     */
+    daily_cap_usd: number | null;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Keys
+     */
+    keys: Array<AiKeyOut>;
+    /**
+     * Models
+     */
+    models: {
+        [key: string]: string;
+    };
+    /**
+     * Month Usd
+     */
+    month_usd: number;
+    /**
+     * Monthly Cap Usd
+     */
+    monthly_cap_usd: number | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Ok Month
+     */
+    ok_month: number;
+    /**
+     * Paid
+     */
+    paid: boolean;
+    /**
+     * Today Usd
+     */
+    today_usd: number;
+    /**
+     * Trust
+     */
+    trust: string;
+};
+
+/**
+ * AiPurposeOut
+ */
+export type AiPurposeOut = {
+    /**
+     * Calls Per Day
+     */
+    calls_per_day: number | null;
+    /**
+     * Calls Today
+     */
+    calls_today: number;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Providers
+     */
+    providers: Array<string> | null;
+    /**
+     * Task
+     */
+    task: string;
+    /**
+     * Tier
+     */
+    tier: string | null;
 };
 
 /**
@@ -304,6 +567,24 @@ export type AiSectionOut = {
      * Title
      */
     title: string;
+};
+
+/**
+ * AiTaskUseOut
+ */
+export type AiTaskUseOut = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Cost Usd
+     */
+    cost_usd: number;
+    /**
+     * Task
+     */
+    task: string;
 };
 
 /**
@@ -720,6 +1001,16 @@ export type AssetOut = {
      * Network
      */
     network: string;
+};
+
+/**
+ * AssetsIn
+ */
+export type AssetsIn = {
+    /**
+     * Content
+     */
+    content: string;
 };
 
 /**
@@ -1815,27 +2106,6 @@ export type Check = {
      * Why
      */
     why?: string | null;
-};
-
-/**
- * CheckIn
- *
- * One approved template on one address or domain, about the investigation as the person
- * saw it (``seen_version``: 409 when it has moved on).
- */
-export type CheckIn = {
-    /**
-     * Entity
-     */
-    entity: string;
-    /**
-     * Seen Version
-     */
-    seen_version: number;
-    /**
-     * Template
-     */
-    template: string;
 };
 
 /**
@@ -4480,7 +4750,7 @@ export type JobOut = {
     /**
      * Kind
      */
-    kind: 'inspect_tls' | 'setup';
+    kind: 'inspect_tls' | 'setup' | 'check' | 'assets' | 'llm_switch' | 'service';
     /**
      * Result
      */
@@ -4640,6 +4910,16 @@ export type KnownRefOut = {
      * Why
      */
     why: string | null;
+};
+
+/**
+ * LlmSwitchIn
+ */
+export type LlmSwitchIn = {
+    /**
+     * Stop
+     */
+    stop: boolean;
 };
 
 /**
@@ -7757,6 +8037,80 @@ export type SeriesPoint = {
 };
 
 /**
+ * ServiceIn
+ */
+export type ServiceIn = {
+    /**
+     * Action
+     */
+    action: 'on' | 'off' | 'restart';
+    /**
+     * Confirm
+     */
+    confirm?: string | null;
+    /**
+     * Unit
+     */
+    unit: string;
+};
+
+/**
+ * ServiceOut
+ */
+export type ServiceOut = {
+    /**
+     * Core
+     */
+    core: boolean;
+    /**
+     * Deletes
+     */
+    deletes: boolean;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * On
+     */
+    on: boolean;
+    /**
+     * Running
+     */
+    running: boolean;
+    /**
+     * Switchable
+     */
+    switchable: boolean;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Writes Siem
+     */
+    writes_siem: boolean;
+};
+
+/**
+ * ServicesOut
+ */
+export type ServicesOut = {
+    /**
+     * At
+     */
+    at: string | null;
+    /**
+     * Confirm Words
+     */
+    confirm_words: string;
+    /**
+     * Units
+     */
+    units: Array<ServiceOut>;
+};
+
+/**
  * SessionOut
  *
  * Who is signed in, what they may do, and when the session ends. The CSRF token goes in
@@ -7791,6 +8145,10 @@ export type SessionOut = {
      * Mode
      */
     mode: 'local' | 'elk';
+    /**
+     * Setup Pending
+     */
+    setup_pending?: boolean;
     /**
      * Since
      */
@@ -7981,7 +8339,10 @@ export type SettingsOut = {
  * SetupIn
  *
  * The first-time setup's answers (``argus init``'s names: ``siem.url``, ``siem.trust``,
- * ``siem.fingerprint``, ``organisation.name`` ...) and its keys, which are sealed at once.
+ * ``siem.fingerprint``, ``organisation.name``, ``elastic.admin_user``, ``case_team.provision``
+ * ...) and its keys, each sealed at once: the SIEM's and Kibana's, an Elastic administrator's
+ * password (used once by init to make ARGUS's own keys and users, never stored), the
+ * threat-intel keys and the AI providers' (``llm.key.groq_api_key``), and an asset map.
  */
 export type SetupIn = {
     /**
@@ -7991,10 +8352,14 @@ export type SetupIn = {
         [key: string]: unknown;
     };
     /**
+     * Asset Map
+     */
+    asset_map?: string | null;
+    /**
      * Keys
      */
     keys?: {
-        [key: string]: string;
+        [key: string]: unknown | string;
     };
 };
 
@@ -8240,6 +8605,72 @@ export type SiteOut = {
      * Timezone Label
      */
     timezone_label: string | null;
+};
+
+/**
+ * SourceDayOut
+ */
+export type SourceDayOut = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Requests
+     */
+    requests: number;
+};
+
+/**
+ * SourceLimitOut
+ */
+export type SourceLimitOut = {
+    /**
+     * Maximum
+     */
+    maximum: number;
+    /**
+     * Window
+     */
+    window: string;
+};
+
+/**
+ * SourceUseOut
+ */
+export type SourceUseOut = {
+    /**
+     * Answered Month
+     */
+    answered_month: number;
+    /**
+     * Days
+     */
+    days: Array<SourceDayOut>;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Key Set
+     */
+    key_set: boolean;
+    /**
+     * Limits
+     */
+    limits: Array<SourceLimitOut>;
+    /**
+     * Month
+     */
+    month: number;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Today
+     */
+    today: number;
 };
 
 /**
@@ -8646,6 +9077,24 @@ export type TeamDecisionOut = {
 };
 
 /**
+ * TeamKeyOut
+ */
+export type TeamKeyOut = {
+    /**
+     * Is Set
+     */
+    is_set: boolean;
+    /**
+     * Setting
+     */
+    setting: string;
+    /**
+     * User
+     */
+    user: string;
+};
+
+/**
  * TeamPostOut
  *
  * Where the post of this case stands in Kibana.
@@ -9030,6 +9479,51 @@ export type UnverifiedOut = {
 };
 
 /**
+ * UsageOut
+ *
+ * What ARGUS spent and used: the AI's cost a day by provider (the last 31 days) and by task
+ * this month, the caps, and each threat-intel source's lookups against its free plan's limits.
+ */
+export type UsageOut = {
+    /**
+     * Ai Days
+     */
+    ai_days: Array<AiDayOut>;
+    /**
+     * Ai Tasks
+     */
+    ai_tasks: Array<AiTaskUseOut>;
+    /**
+     * Daily Cap Usd
+     */
+    daily_cap_usd: number | null;
+    /**
+     * Month Usd
+     */
+    month_usd: number;
+    /**
+     * Monthly Cap Usd
+     */
+    monthly_cap_usd: number | null;
+    /**
+     * Sources
+     */
+    sources: Array<SourceUseOut>;
+    /**
+     * Sources At
+     */
+    sources_at: string | null;
+    /**
+     * Stopped
+     */
+    stopped: boolean;
+    /**
+     * Today Usd
+     */
+    today_usd: number;
+};
+
+/**
  * UserOut
  */
 export type UserOut = {
@@ -9333,6 +9827,70 @@ export type YouOut = {
     why_not: string | null;
 };
 
+/**
+ * CheckIn
+ */
+export type ArgusWebV1AdminModelsCheckIn = {
+    /**
+     * Target
+     */
+    target: string;
+};
+
+/**
+ * CheckIn
+ *
+ * One approved template on one address or domain, about the investigation as the person
+ * saw it (``seen_version``: 409 when it has moved on).
+ */
+export type ArgusWebV1CaseModelsCheckIn = {
+    /**
+     * Entity
+     */
+    entity: string;
+    /**
+     * Seen Version
+     */
+    seen_version: number;
+    /**
+     * Template
+     */
+    template: string;
+};
+
+export type GetAiData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/ai';
+};
+
+export type GetAiErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetAiError = GetAiErrors[keyof GetAiErrors];
+
+export type GetAiResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiOut;
+};
+
+export type GetAiResponse = GetAiResponses[keyof GetAiResponses];
+
 export type GetSettingChangesData = {
     body?: never;
     path?: never;
@@ -9416,6 +9974,88 @@ export type SaveSettingsResponses = {
 
 export type SaveSettingsResponse = SaveSettingsResponses[keyof SaveSettingsResponses];
 
+export type ImportAssetsData = {
+    body: AssetsIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/assets';
+};
+
+export type ImportAssetsErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type ImportAssetsError = ImportAssetsErrors[keyof ImportAssetsErrors];
+
+export type ImportAssetsResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type ImportAssetsResponse = ImportAssetsResponses[keyof ImportAssetsResponses];
+
+export type StartCheckData = {
+    body: ArgusWebV1AdminModelsCheckIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/check';
+};
+
+export type StartCheckErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type StartCheckError = StartCheckErrors[keyof StartCheckErrors];
+
+export type StartCheckResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type StartCheckResponse = StartCheckResponses[keyof StartCheckResponses];
+
 export type InspectTlsData = {
     body: InspectIn;
     path?: never;
@@ -9456,6 +10096,88 @@ export type InspectTlsResponses = {
 };
 
 export type InspectTlsResponse = InspectTlsResponses[keyof InspectTlsResponses];
+
+export type SwitchLlmData = {
+    body: LlmSwitchIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/llm-switch';
+};
+
+export type SwitchLlmErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SwitchLlmError = SwitchLlmErrors[keyof SwitchLlmErrors];
+
+export type SwitchLlmResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type SwitchLlmResponse = SwitchLlmResponses[keyof SwitchLlmResponses];
+
+export type SwitchServiceData = {
+    body: ServiceIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs/service';
+};
+
+export type SwitchServiceErrors = {
+    /**
+     * the body could not be read
+     */
+    400: ErrorOut;
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type SwitchServiceError = SwitchServiceErrors[keyof SwitchServiceErrors];
+
+export type SwitchServiceResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobOut;
+};
+
+export type SwitchServiceResponse = SwitchServiceResponses[keyof SwitchServiceResponses];
 
 export type StartSetupData = {
     body: SetupIn;
@@ -9544,6 +10266,39 @@ export type GetAdminJobResponses = {
 
 export type GetAdminJobResponse = GetAdminJobResponses[keyof GetAdminJobResponses];
 
+export type GetServicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/services';
+};
+
+export type GetServicesErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetServicesError = GetServicesErrors[keyof GetServicesErrors];
+
+export type GetServicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: ServicesOut;
+};
+
+export type GetServicesResponse = GetServicesResponses[keyof GetServicesResponses];
+
 export type GetSettingsData = {
     body?: never;
     path?: never;
@@ -9576,6 +10331,39 @@ export type GetSettingsResponses = {
 };
 
 export type GetSettingsResponse = GetSettingsResponses[keyof GetSettingsResponses];
+
+export type GetUsageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/usage';
+};
+
+export type GetUsageErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetUsageError = GetUsageErrors[keyof GetUsageErrors];
+
+export type GetUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: UsageOut;
+};
+
+export type GetUsageResponse = GetUsageResponses[keyof GetUsageResponses];
 
 export type ListUsersData = {
     body?: never;
@@ -12971,7 +13759,7 @@ export type ListChecksResponses = {
 export type ListChecksResponse = ListChecksResponses[keyof ListChecksResponses];
 
 export type RequestCheckData = {
-    body: CheckIn;
+    body: ArgusWebV1CaseModelsCheckIn;
     path: {
         /**
          * Investigation Id

@@ -26,7 +26,7 @@ import yaml
 
 from argus.config.settings import ConfigError, DatabaseSettings, Settings, load_settings
 from argus.install import files, prereq, roles, webcert
-from argus.install.answers import Asker, InitError
+from argus.install.answers import NONE_WORDS, Asker, InitError
 from argus.install.siem import GatewayReads, SiemReads
 from argus.install.trust import RealTls, Tls, establish, host_port
 from argus.observability.redaction import register_secret
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from argus.ops.case_team_login import TeamLogin
 
 SIEM_KEY = "ARGUS_SIEM__API_KEY"
+KEY_DAYS = 365  # a key init makes with an administrator's login
 KIBANA_KEY = "ARGUS_KIBANA__READER_API_KEY"
 SIEM_CA = Path("data/certs/siem-ca.crt")  # siem.ca_file's default (and Kibana's)
 KIBANA_CA = Path("data/certs/kibana-ca.crt")
@@ -118,6 +119,12 @@ def _doctor(config: Path) -> int:
     except typer.Exit as exc:
         return int(exc.exit_code or 0)
     return 0
+
+
+def _admin_siem(url: str, ca: Path, user: str, password: str, say: Callable[[str], None]) -> Any:
+    from argus.caseteam.provision import HttpSiem
+
+    return HttpSiem(url, ca, user, password, say=say)
 
 
 def _systemctl(argv: list[str]) -> int:
@@ -277,6 +284,10 @@ class Host:
     tls: Tls = field(default_factory=RealTls)
     siem: SiemReads = field(default_factory=GatewayReads)
     unit_dir: Path | None = None  # the user's unit directory by default
+    # the SIEM as an administrator (D-330): ARGUS's own keys and its case team's users
+    admin_siem: Callable[[str, Path, str, str, Callable[[str], None]], Any] = field(
+        default=lambda url, ca, user, password, say: _admin_siem(url, ca, user, password, say)
+    )
     systemctl: Callable[[list[str]], int] = _systemctl
     bootstrap: Callable[[Path], None] = _bootstrap
     upgrade: Callable[[Path], None] = _upgrade
@@ -319,6 +330,7 @@ class Init:
         self.host = host
         self.say = host.say
         self.container = prereq.CONTAINER
+        self._admin: tuple[str, ...] | None = None  # () once asked and declined
 
     # ------------------------------------------------------------------ helpers
 
@@ -352,6 +364,7 @@ class Init:
         siem_url, kibana_url = self.addresses()
         self.keys(kibana_url)
         self.site(siem_url)
+        self.provision_team(kibana_url)
         self.llm()
         address = self.web(siem_url)
         started = self.units()
@@ -685,53 +698,117 @@ class Init:
     def _shares(self, url: str, siem_ca: Path) -> bool:
         return siem_ca.is_file() and self.host.tls.verify(url, siem_ca) is None
 
+    def admin(self) -> tuple[str, str] | None:
+        """An Elastic administrator's login, asked once (D-330): init makes ARGUS's own keys and,
+        when asked to, the case team's users with it. Never stored, written or printed."""
+        if self._admin is None:
+            user = self.ask.optional(
+                "elastic.admin_user",
+                "An Elastic administrator's user name, to make ARGUS's read-only keys now (used"
+                " once, never stored; empty: you paste the keys)",
+            )
+            if user is None or user.strip().lower() in NONE_WORDS:
+                self._admin = ()
+            else:
+                password = self.ask.secret("elastic.admin_password", "Their password (not shown)")
+                assert password is not None
+                register_secret(password)
+                self._admin = (user.strip(), password)
+        return self._admin or None  # type: ignore[return-value]
+
+    def admin_siem(self) -> Any:
+        login = self.admin()
+        settings = self.settings()
+        if login is None or settings.siem.url is None or settings.siem.ca_file is None:
+            return None
+        return self.host.admin_siem(str(settings.siem.url), Path(settings.siem.ca_file),
+                                    login[0], login[1], lambda m: self.say(f"   {m}"))  # fmt: skip
+
+    def make_key(self, siem: Any, name: str, role_name: str, role: dict[str, Any],
+                 purpose: str) -> str:  # fmt: skip
+        """A read-only API key made with the administrator's login: the same request a person
+        would paste (``roles.key_request``), valid for KEY_DAYS."""
+        body = {"name": name, "expiration": f"{KEY_DAYS}d", "role_descriptors": {role_name: role},
+                "metadata": {"application": "argus", "purpose": purpose}}  # fmt: skip
+        answer = siem.call("POST", "/_security/api_key", body)
+        encoded = answer.body.get("encoded") if isinstance(answer.body, dict) else None
+        if not 200 <= answer.status < 300 or not encoded:
+            why = "the login was refused" if answer.status == 401 else f"HTTP {answer.status}"
+            if answer.status == 403:
+                why = "the login may not make API keys (manage_api_key or manage_security)"
+            raise InitError(f"making {name} with the administrator's login: {why}")
+        register_secret(str(encoded))
+        return str(encoded)
+
     def keys(self, kibana_url: str | None) -> None:
-        self.step(5, "the read-only keys (init creates no user, role or key on the SIEM)")
+        self.step(5, "the read-only keys (made with an administrator's login, or pasted)")
         env = files.read_env(self.o.env_file)
         settings = self.settings()
         have_site = self.o.site_file.is_file() and not self.o.force_site
         patterns: list[str] = []
+        changes: dict[str, Any] = {}
+        made_until = datetime.now(UTC).date() + timedelta(days=KEY_DAYS)
         if env.get(SIEM_KEY) and not self.o.force_key:
             self.say("   SIEM key: kept (in .env)")
         else:
             patterns = self.ask.items(
                 "siem.log_patterns",
-                "The index patterns of your logs, for the key's starting role",
+                "The index patterns of your logs, for the starting role",
                 list(roles.STARTING_LOGS),
             )
             names = roles.es_names(settings.site) if have_site else roles.starting_names(patterns)
-            self.say("   The key ARGUS needs (read-only; narrowed after discovery):\n")
-            self.say(_indent(roles.es_request(names)))
-            self.say(_indent(roles.HOW))
-            key = self.api_key("siem.api_key", "Paste the SIEM key (not shown)", "the SIEM key")
-            assert key is not None
+            siem = self.admin_siem()
+            if siem is not None:
+                key = self.make_key(siem, roles.ES_KEY, "argus_reader", roles.es_role(names),
+                                    roles.PURPOSE)  # fmt: skip
+                changes["siem.api_key_expires"] = made_until
+                self.say(f"   SIEM key: made with the administrator's login ({roles.ES_KEY},"
+                         f" read-only, until {made_until})")  # fmt: skip
+            else:
+                self.say("   The key ARGUS needs (read-only; narrowed after discovery):\n")
+                self.say(_indent(roles.es_request(names)))
+                self.say(_indent(roles.HOW))
+                pasted = self.api_key("siem.api_key", "Paste the SIEM key (not shown)",
+                                      "the SIEM key")  # fmt: skip
+                assert pasted is not None
+                key = pasted
             register_secret(key)
             files.update_env(self.o.env_file, {SIEM_KEY: key}, replace=frozenset({SIEM_KEY}))
             self.say("   SIEM key: stored in .env (ARGUS_SIEM__API_KEY)")
-        changes: dict[str, Any] = {}
-        self.expiry("siem.api_key_expires", "When does the SIEM key expire", changes)
+        if "siem.api_key_expires" not in changes:
+            self.expiry("siem.api_key_expires", "When does the SIEM key expire", changes)
         if kibana_url is not None:
+            kibana_key: str | None = None
             if env.get(KIBANA_KEY) and not self.o.force_key:
                 self.say("   Kibana key: kept (in .env)")
                 changes["kibana.enabled"] = True
+            elif (siem := self.admin_siem()) is not None:
+                kibana_key = self.make_key(
+                    siem, roles.KIBANA_KEY, "argus_kibana_reader",
+                    roles.kibana_role(settings.site, every_space=not have_site),
+                    "Kibana Cases read (read-back)",
+                )  # fmt: skip
+                changes["kibana.reader_api_key_expires"] = made_until
+                self.say(f"   Kibana key: made with the administrator's login ({roles.KIBANA_KEY},"
+                         f" Cases read, until {made_until})")  # fmt: skip
             else:
                 self.say("\n   Kibana's read-only key (Cases read; the read-back of cases):\n")
                 self.say(_indent(roles.kibana_request(settings.site, every_space=not have_site)))
                 self.say(_indent(roles.HOW))
-                key = self.api_key("kibana.api_key", "Paste Kibana's key (not shown)",
+                kibana_key = self.api_key("kibana.api_key", "Paste Kibana's key (not shown)",
                                    "Kibana's key", required=False)  # fmt: skip
-                if key is None and env.get(KIBANA_KEY):
+                if kibana_key is None and env.get(KIBANA_KEY):
                     self.say("   Kibana key: kept (in .env)")
                     changes["kibana.enabled"] = True
-                elif key is None:
+                elif kibana_key is None:
                     self.say("   Kibana key: none (Kibana stays off; argus init again to add it)")
-                else:
-                    register_secret(key)
-                    files.update_env(self.o.env_file, {KIBANA_KEY: key},
-                                     replace=frozenset({KIBANA_KEY}))  # fmt: skip
-                    changes["kibana.enabled"] = True
-                    self.say("   Kibana key: stored in .env (ARGUS_KIBANA__READER_API_KEY)")
-            if changes.get("kibana.enabled"):
+            if kibana_key is not None:
+                register_secret(kibana_key)
+                files.update_env(self.o.env_file, {KIBANA_KEY: kibana_key},
+                                 replace=frozenset({KIBANA_KEY}))  # fmt: skip
+                changes["kibana.enabled"] = True
+                self.say("   Kibana key: stored in .env (ARGUS_KIBANA__READER_API_KEY)")
+            if changes.get("kibana.enabled") and "kibana.reader_api_key_expires" not in changes:
                 self.expiry(
                     "kibana.api_key_expires",
                     "When does Kibana's key expire",
@@ -800,6 +877,31 @@ class Init:
             if self.ask.scripted:
                 raise InitError(f"{what}: {problem}", 2)
             self.say(f"   not taken: {problem}")
+
+    def provision_team(self, kibana_url: str | None) -> None:
+        """With the administrator's login and when asked: the Kibana case team's users, roles and
+        keys (``argus case team provision``); posting stays off (D-330)."""
+        if kibana_url is None or not self.ask.given("case_team.provision"):
+            return
+        if not self.ask.confirm("case_team.provision", "Make the Kibana case team's users now",
+                                False):  # fmt: skip
+            return
+        siem = self.admin_siem()
+        if siem is None:
+            self.say("   case team: needs an administrator's login (argus case team provision)")
+            return
+        from argus.caseteam import provision
+
+        settings = self.settings()
+        try:
+            plan = provision.plan_for(settings.site, self.o.root / "local" / "creds-writer")
+            out = provision.apply(plan, siem, say=lambda m: self.say(f"   {m}"))
+        except provision.ProvisionError as exc:
+            raise InitError(f"the case team: {exc}") from None
+        if out.expires is not None:
+            files.update_yaml(self.o.local_file, {"case_team.keys_expire": out.expires})
+        self.say(f"   case team: {len(out.made)} made, {len(out.kept)} kept; posting stays off"
+                 " (Settings → Kibana cases)")  # fmt: skip
 
     def site(self, siem_url: str) -> None:
         self.step(6, "the organisation and its Elastic (config/site.yaml)")

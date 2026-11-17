@@ -64,3 +64,4 @@ deploy/local-llm/*.env
 .schemathesis/
 frontend/node_modules
 config/admin.yaml
+config/llm.admin.yaml

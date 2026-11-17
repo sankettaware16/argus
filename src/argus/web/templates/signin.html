@@ -1,19 +1,23 @@
 {% extends "gate.html" %}
 {% block title %}Sign in{% endblock %}
+{% block body_class %}cine-page{% endblock %}
 {% block main %}
-<section class="card narrow">
-  <h1>Sign in</h1>
-  {% if notice %}<p class="message" role="status">{{ notice }}</p>{% endif %}
-  {% if error %}<p class="message" role="alert">{{ error }}</p>{% endif %}
-  <form method="post" action="/signin">
-    <input type="hidden" name="signin_token" value="{{ signin_token }}">
-    <input type="hidden" name="next" value="{{ next }}">
-    <label for="username">Name</label>
-    <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="507" value="{{ username }}">
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256">
-    <button type="submit">Sign in</button>
-  </form>
+<section class="cine-hero" aria-labelledby="signin-title">
+  <h1 id="signin-title" class="cine-title">Sign in to <span class="cine-grad">ARGUS.</span></h1>
+  <p class="cine-sub">Your first-line analyst has been watching. Here is what needs you.</p>
+  <div class="cine-tile">
+    {% if notice %}<p class="message" role="status">{{ notice }}</p>{% endif %}
+    {% if error %}<p class="message" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="/signin">
+      <input type="hidden" name="signin_token" value="{{ signin_token }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="username">Name</label>
+      <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="507" value="{{ username }}">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256">
+      <button type="submit" class="pill">Sign in</button>
+    </form>
+  </div>
   <p class="hint">This page runs no script. If your browser warns about this site's certificate, stop and tell the ARGUS admin.</p>
 </section>
 {% endblock %}

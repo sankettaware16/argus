@@ -43,9 +43,19 @@ export interface Geometry {
   every: number;
 }
 
-export function geometry(series: readonly Point[], order: readonly string[]): Geometry {
+/** A round number at or above `top` (and `least`), for an axis of small values such as dollars. */
+export function niceCeil(top: number, least = 0.01): number {
+  const t = Math.max(top, least);
+  const power = 10 ** Math.floor(Math.log10(t));
+  const raw = (STEPS.find((m) => t <= m * power) ?? 10) * power;
+  const round = Number(raw.toPrecision(12)); // 0.15000000000000002 reads 0.15, unless that is below t
+  return round >= t ? round : raw;
+}
+
+/** The bars' geometry; `fixedTop` sets the axis' top (else a round count at or above the tallest bar). */
+export function geometry(series: readonly Point[], order: readonly string[], fixedTop?: number): Geometry {
   const totals = series.map((p) => sum(Object.values(p.counts)));
-  const top = niceMax(Math.max(0, ...totals));
+  const top = fixedTop ?? niceMax(Math.max(0, ...totals));
   const n = Math.max(series.length, 1);
   const plotW = W - PAD_L - 8;
   const plotH = H - PAD_B - PAD_T;

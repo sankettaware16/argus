@@ -120,6 +120,9 @@ class SessionOut(Out):
     step_up_valid_until: datetime | None
     since: datetime | None  # when their previous session was last seen ("since your visit")
     site: SiteOut
+    setup_pending: bool = False
+    """The first-time setup is not finished on this host (D-328): an administrator is led to it,
+    anyone else told an administrator still has to finish it."""
 
 
 class KeyField(Out):

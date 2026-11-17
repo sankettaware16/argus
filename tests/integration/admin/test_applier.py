@@ -33,6 +33,7 @@ class FakeServices:
         self.restarted: list[list[str]] = []
         self.rendered = 0
         self.fail: set[str] = set()
+        self.switched: list[tuple[str, bool]] = []
 
     def active(self, unit: str) -> bool:  # a failing unit fails once it is restarted
         restarted = any(unit in units for units in self.restarted)
@@ -43,6 +44,13 @@ class FakeServices:
 
     def render_units(self) -> str | None:
         self.rendered += 1
+        return None
+
+    def switch(self, unit: str, on: bool) -> str | None:
+        self.switched.append((unit, on))
+        if unit in self.fail:
+            return "Unit not found."
+        (self.up.add if on else self.up.discard)(unit)
         return None
 
 

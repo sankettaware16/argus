@@ -25,6 +25,12 @@ KNOWN: dict[str, str] = {
     "siem.api_key_env": "an environment variable holding the read-only API key",
     "siem.api_key_expires": "when the key expires: YYYY-MM-DD, the answer's expiration or 90d",
     "siem.log_patterns": "the index patterns of the logs, for the starting role (default logs-*)",
+    "elastic.admin_user": "an Elastic administrator's user name: init makes ARGUS's read-only keys"
+    " with it (used once, never stored), or none to paste the keys",
+    "elastic.admin_password_file": "a file holding that administrator's password",
+    "elastic.admin_password_env": "an environment variable holding that administrator's password",
+    "case_team.provision": "true: with the administrator's login, also make the Kibana case"
+    " team's users and keys (posting stays off)",
     "kibana.url": "Kibana's address, https://host:5601, or none",
     "kibana.trust": "how Kibana's certificate is trusted: same (the SIEM's CA), file, chain or"
     " system",

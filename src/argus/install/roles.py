@@ -20,7 +20,7 @@ ES_KEY = "argus-reader"
 KIBANA_KEY = "argus-kibana-reader"
 STARTING_LOGS = ("logs-*",)
 STARTING_ALERTS = (".alerts-security.alerts-*", ".internal.alerts-security.alerts-*")
-_PURPOSE = "read-only first-line analyst: alerts, logs, threat intel, node health"
+PURPOSE = "read-only first-line analyst: alerts, logs, threat intel, node health"
 
 
 def es_names(site: SiteSettings) -> list[str]:
@@ -76,7 +76,7 @@ def key_request(name: str, role_name: str, role: dict[str, Any], purpose: str) -
 
 
 def es_request(names: Sequence[str]) -> str:
-    return key_request(ES_KEY, "argus_reader", es_role(names), _PURPOSE)
+    return key_request(ES_KEY, "argus_reader", es_role(names), PURPOSE)
 
 
 def kibana_request(site: SiteSettings, *, every_space: bool = False) -> str:

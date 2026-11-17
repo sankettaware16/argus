@@ -1,163 +1,131 @@
 // Settings (D-327): every setting ARGUS lets an administrator change, as a form made from the
 // setting's own type. A save is rows for argus-admin, which checks them again, writes the files,
 // restarts what reads them and says what happened; this page shows that outcome as it arrives.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { saveSettings } from "../client/sdk.gen";
-import type { SectionOut, SettingChangesOut, SettingOut } from "../client/types.gen";
-import { AdminOnly, Modal, Notice, StepUpLink, StepUpNote } from "../components/admin/common";
+// D-328: the connection checks of the SIEM and Kibana keys, an asset map's upload and the history.
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import type { SectionOut, SettingChangeOut } from "../client/types.gen";
+import { AdminOnly, Notice, StepUpNote } from "../components/admin/common";
+import { AssetUpload, CheckButton } from "../components/admin/jobs";
+import { SaveBar, SaveOutcome, SiemWriteGate, stateTone, useSettingsSave } from "../components/admin/save";
 import { SettingField } from "../components/admin/SettingField";
 import { Loading, Problem } from "../components/Problem";
 import { Time } from "../components/Time";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 import { Card, CardTitle } from "../components/ui/card";
 import { TextInput } from "../components/ui/field";
-import { allSettled, changesOptions, settingsOptions } from "../lib/admin";
-import { unwrap } from "../lib/call";
+import { aiOptions } from "../lib/ai";
+import { historyOptions, settingsOptions } from "../lib/admin";
 import { cn } from "../lib/cn";
-import { ApiError } from "../lib/session";
-import { buildChanges, confirmOk, fieldFor, outcomeWords, RISK_NOTE, searchSettings, toDraft, type Draft } from "../lib/settings";
+import { buildChanges, outcomeWords, searchSettings, toDraft } from "../lib/settings";
 
-const PREFIX = "ARGUS did not accept that: ";
+const HISTORY = "history";
+const REFRESH = [settingsOptions.queryKey, historyOptions.queryKey, aiOptions.queryKey];
+const ASSET_REFRESH = [settingsOptions.queryKey];
 
-function Outcome({ data, sections }: { data: SettingChangesOut; sections: readonly SectionOut[] }) {
-  const labels = new Map(sections.flatMap((s) => s.settings.map((x) => [x.key, x.label] as const)));
-  const done = allSettled(data);
+/** The connection checks a section offers (argus-admin runs them; nothing is changed). */
+export const SECTION_CHECKS: Record<string, { target: string; label: string }[]> = {
+  siem: [{ target: "siem", label: "Check the connection" }],
+  kibana: [
+    { target: "kibana:reader", label: "Check the read-only key" },
+    { target: "kibana:cases", label: "Check the cases key" },
+    { target: "kibana:alerts", label: "Check the alerts key" },
+  ],
+  outside: [
+    { target: "outside:virustotal", label: "Test VirusTotal" },
+    { target: "outside:shodan", label: "Test Shodan" },
+    { target: "outside:censys", label: "Test Censys" },
+  ],
+};
+
+/** The setting's label for a key, from every loaded section (the key itself when it is unknown). */
+export function labelsOf(sections: readonly SectionOut[]): Map<string, string> {
+  return new Map(sections.flatMap((s) => s.settings.map((x) => [x.key, x.label] as const)));
+}
+
+function History({ labels }: { labels: ReadonlyMap<string, string> }) {
+  const history = useQuery(historyOptions);
   return (
-    <Card aria-label="What happened to your changes" data-testid="outcome">
-      <CardTitle>{done ? "Your changes" : "Applying your changes…"}</CardTitle>
-      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
-        {data.changes.map((c) => (
-          <li key={c.id} className="flex flex-wrap items-baseline gap-x-2">
-            <Badge tone={c.state === "applied" ? "ok" : c.state === "refused" || c.state === "rolled_back" ? "danger" : "neutral"}>{c.state.replace("_", " ")}</Badge>
-            <strong>{labels.get(c.key) ?? c.key}</strong>
-            <span className="text-muted">{outcomeWords(c)}</span>
-            {c.finished_at && (
-              <span className="text-xs text-muted">
-                <Time value={c.finished_at} />
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+    <Card aria-label="History" data-testid="history">
+      <CardTitle>History</CardTitle>
+      <p className="m-0 mb-2 max-w-prose text-sm text-muted">The last fifty changes saved in the app, newest first: when, who, which setting and what became of it.</p>
+      {history.isPending && <Loading what="the history" />}
+      {history.isError && <Problem error={history.error} what="The history" onRetry={() => void history.refetch()} />}
+      {history.data && history.data.changes.length === 0 && <p className="m-0 text-sm text-muted">No setting has been changed in the app yet.</p>}
+      {history.data && history.data.changes.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm" aria-label="The last fifty changes">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-muted">
+                <th className="py-1.5 pr-3 font-medium">When</th>
+                <th className="py-1.5 pr-3 font-medium">Who</th>
+                <th className="py-1.5 pr-3 font-medium">Setting</th>
+                <th className="py-1.5 pr-3 font-medium">State</th>
+                <th className="py-1.5 font-medium">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.data.changes.map((c: SettingChangeOut) => (
+                <tr key={c.id} className="border-b border-border align-top last:border-b-0">
+                  <td className="py-1.5 pr-3 whitespace-nowrap">
+                    <Time value={c.created_at} />
+                  </td>
+                  <td className="py-1.5 pr-3">{c.by}</td>
+                  <td className="py-1.5 pr-3">{labels.get(c.key) ?? c.key}</td>
+                  <td className="py-1.5 pr-3">
+                    <Badge tone={stateTone(c.state)}>{c.state.replace("_", " ")}</Badge>
+                  </td>
+                  <td className="py-1.5 text-muted">{outcomeWords(c)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }
 
-function ConfirmSiemWrite({ open, onOpenChange, words, labels, busy, onSend }: { open: boolean; onOpenChange: (o: boolean) => void; words: string; labels: string[]; busy: boolean; onSend: (typed: string) => void }) {
-  return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Let ARGUS write to the SIEM?"
-      description="This change lets ARGUS write to your SIEM (for example cases in Kibana, or changes to an alert). Until now it only read. It needs your password again, and you must type the words below."
-    >
-      <SiemWriteForm words={words} labels={labels} busy={busy} onCancel={() => onOpenChange(false)} onSend={onSend} />
-    </Modal>
-  );
-}
-
-/** Mounted only while the dialog is open, so what was typed is forgotten when it closes. */
-function SiemWriteForm({ words, labels, busy, onCancel, onSend }: { words: string; labels: string[]; busy: boolean; onCancel: () => void; onSend: (typed: string) => void }) {
-  const [typed, setTyped] = useState("");
-  const ok = confirmOk(typed, words);
-  return (
-    <>
-      <ul className="m-0 pl-5 text-sm">
-        {labels.map((l) => (
-          <li key={l}>{l}</li>
-        ))}
-      </ul>
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (ok && !busy) onSend(typed);
-        }}
-      >
-        <label htmlFor="confirm-words" className="text-sm font-medium">
-          Type <q data-testid="confirm-words">{words}</q> to go on
-        </label>
-        <TextInput id="confirm-words" value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} />
-        <div className="flex justify-end gap-2">
-          <Button onClick={onCancel}>Cancel</Button>
-          <Button type="submit" variant="danger" aria-disabled={!ok || busy} disabled={!ok || busy}>
-            {busy ? "Saving…" : "Save the change"}
-          </Button>
-        </div>
-      </form>
-    </>
-  );
-}
-
-function SettingsView() {
-  const queries = useQueryClient();
+function SettingsView({ section: asked }: { section?: string }) {
   const data = useQuery(settingsOptions);
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [resets, setResets] = useState<ReadonlySet<string>>(new Set());
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [barError, setBarError] = useState<{ text: string; stepUp: boolean } | null>(null);
-  const [batch, setBatch] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
-  const changes = useQuery(changesOptions(batch));
-  const refreshed = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (batch !== null && allSettled(changes.data) && refreshed.current !== batch) {
-      refreshed.current = batch;
-      void queries.invalidateQueries({ queryKey: settingsOptions.queryKey });
-    }
-  }, [batch, changes.data, queries]);
+  const state = useSettingsSave(REFRESH);
 
   const sections = data.data?.sections;
-  const section = sections?.find((s) => s.key === picked) ?? sections?.[0];
+  const want = picked ?? asked ?? null;
+  const showHistory = want === HISTORY;
+  const section = sections?.find((s) => s.key === want) ?? sections?.[0];
   const searching = query.trim() !== "";
-  const groups = useMemo(() => (sections === undefined ? [] : searching ? searchSettings(sections, query) : section ? [{ section, settings: section.settings }] : []), [sections, section, query, searching]);
+  const groups = useMemo(() => (sections === undefined || (showHistory && !searching) ? [] : searching ? searchSettings(sections, query) : section ? [{ section, settings: section.settings }] : []), [sections, section, query, searching, showHistory]);
   const shown = useMemo(() => groups.flatMap((g) => g.settings), [groups]);
-  const built = useMemo(() => buildChanges(shown, drafts, resets), [shown, drafts, resets]);
-  const dirtyBySection = useMemo(() => new Map((sections ?? []).map((s) => [s.key, buildChanges(s.settings, drafts, resets).changes.length])), [sections, drafts, resets]);
-  const [lastSent, setLastSent] = useState<SettingOut[]>([]);
-
-  const save = useMutation({
-    mutationFn: (v: { sent: ReturnType<typeof buildChanges>["changes"]; confirm?: string }) => unwrap(saveSettings({ body: { changes: v.sent, confirm: v.confirm } })),
-    onSuccess: (out, v) => {
-      setBatch(out.batch);
-      const keys = new Set(v.sent.map((c) => c.key));
-      setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([k]) => !keys.has(k))));
-      setResets((r) => new Set([...r].filter((k) => !keys.has(k))));
-      setErrors({});
-      setBarError(null);
-      setAsking(false);
-    },
-    onError: (e: unknown) => {
-      setAsking(false);
-      const text = e instanceof ApiError ? e.message : "The change could not be saved.";
-      if (e instanceof ApiError && e.code === "step_up_required") return setBarError({ text, stepUp: true });
-      const field = e instanceof ApiError && e.status === 422 ? fieldFor(text.replace(PREFIX, ""), lastSent) : null;
-      if (field !== null) setErrors({ [field]: text.replace(PREFIX, "") });
-      else setBarError({ text, stepUp: false });
-    },
-  });
+  const built = useMemo(() => buildChanges(shown, state.drafts, state.resets), [shown, state.drafts, state.resets]);
+  const dirtyBySection = useMemo(() => new Map((sections ?? []).map((s) => [s.key, buildChanges(s.settings, state.drafts, state.resets).changes.length])), [sections, state.drafts, state.resets]);
+  const labels = useMemo(() => labelsOf(sections ?? []), [sections]);
 
   if (data.isPending) return <Loading what="the settings" />;
   if (data.isError) return <Problem error={data.error} what="The settings" onRetry={() => void data.refetch()} />;
   const out = data.data;
+  const navButton = (key: string, label: string, about: string, current: boolean, dirty: number) => (
+    <li key={key}>
+      <button
+        type="button"
+        aria-current={current ? "true" : undefined}
+        onClick={() => {
+          setPicked(key);
+          setQuery("");
+        }}
+        className={cn("flex w-full cursor-pointer flex-col items-start rounded-control border-0 bg-transparent px-2 py-1.5 text-left text-sm text-text hover:bg-surface-3", current && "bg-accent-soft")}
+      >
+        <span className={cn("flex w-full items-center justify-between gap-2", current && "font-semibold")}>
+          {label}
+          {dirty > 0 && <Badge tone="warn">{dirty} unsaved</Badge>}
+        </span>
+        <span className="text-xs text-muted">{about}</span>
+      </button>
+    </li>
+  );
 
-  function press() {
-    setErrors(built.errors);
-    setBarError(null);
-    if (Object.keys(built.errors).length > 0 || built.changes.length === 0) return;
-    setLastSent(shown.filter((s) => built.changes.some((c) => c.key === s.key)));
-    if (built.risk === "siem_write") setAsking(true);
-    else save.mutate({ sent: built.changes });
-  }
-
-  const note = RISK_NOTE[built.risk];
-  const nChanges = built.changes.length + Object.keys(built.errors).length;
-  const savedLabels = lastSent.map((s) => s.label);
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -181,8 +149,7 @@ function SettingsView() {
         </Notice>
       )}
       <StepUpNote />
-      {batch !== null && changes.data && <Outcome data={changes.data} sections={out.sections} />}
-      {batch !== null && changes.isError && <Notice tone="warn">ARGUS could not be reached just now; looking again. A change may be restarting ARGUS.</Notice>}
+      <SaveOutcome state={state} labels={labels} />
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor="settings-search" className="sr-only">
           Search the settings
@@ -192,83 +159,48 @@ function SettingsView() {
       <div className="grid gap-4 md:grid-cols-[16rem_1fr]">
         <nav aria-label="Settings sections">
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-            {out.sections.map((s) => {
-              const current = !searching && section?.key === s.key;
-              const dirty = dirtyBySection.get(s.key) ?? 0;
-              return (
-                <li key={s.key}>
-                  <button
-                    type="button"
-                    aria-current={current ? "true" : undefined}
-                    onClick={() => {
-                      setPicked(s.key);
-                      setQuery("");
-                    }}
-                    className={cn("flex w-full cursor-pointer flex-col items-start rounded-control border-0 bg-transparent px-2 py-1.5 text-left text-sm text-text hover:bg-surface-3", current && "bg-accent-soft")}
-                  >
-                    <span className={cn("flex w-full items-center justify-between gap-2", current && "font-semibold")}>
-                      {s.label}
-                      {dirty > 0 && <Badge tone="warn">{dirty} unsaved</Badge>}
-                    </span>
-                    <span className="text-xs text-muted">{s.about}</span>
-                  </button>
-                </li>
-              );
-            })}
+            {out.sections.map((s) => navButton(s.key, s.label, s.about, !searching && !showHistory && section?.key === s.key, dirtyBySection.get(s.key) ?? 0))}
+            {navButton(HISTORY, "History", "The last fifty changes and what became of them", !searching && showHistory, 0)}
           </ul>
         </nav>
         <div className="flex min-w-0 flex-col gap-3">
-          {groups.length === 0 && <p className="m-0 text-sm text-muted">No setting matches that search.</p>}
-          {groups.map((g) => (
-            <Card key={g.section.key} aria-label={g.section.label}>
-              <CardTitle>{g.section.label}</CardTitle>
-              <p className="m-0 mb-1 max-w-prose text-sm text-muted">{g.section.about}</p>
-              {g.settings.map((s) => (
-                <SettingField
-                  key={s.key}
-                  setting={s}
-                  draft={drafts[s.key] ?? toDraft(s)}
-                  onChange={(d) => {
-                    setDrafts((old) => ({ ...old, [s.key]: d }));
-                    setErrors((old) => Object.fromEntries(Object.entries(old).filter(([k]) => k !== s.key)));
-                  }}
-                  error={errors[s.key]}
-                  reset={resets.has(s.key)}
-                  onReset={(on) => setResets((old) => new Set(on ? [...old, s.key] : [...old].filter((k) => k !== s.key)))}
-                />
+          {showHistory && !searching ? (
+            <History labels={labels} />
+          ) : (
+            <>
+              {groups.length === 0 && <p className="m-0 text-sm text-muted">No setting matches that search.</p>}
+              {groups.map((g) => (
+                <Card key={g.section.key} aria-label={g.section.label}>
+                  <CardTitle>{g.section.label}</CardTitle>
+                  <p className="m-0 mb-1 max-w-prose text-sm text-muted">{g.section.about}</p>
+                  {g.settings.map((s) => (
+                    <SettingField key={s.key} setting={s} draft={state.drafts[s.key] ?? toDraft(s)} onChange={(d) => state.edit(s.key, d)} error={state.errors[s.key]} reset={state.resets.has(s.key)} onReset={(on) => state.reset(s.key, on)} />
+                  ))}
+                  {!searching && (SECTION_CHECKS[g.section.key] ?? []).length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-border pt-3" data-testid={`checks-${g.section.key}`}>
+                      <p className="m-0 text-sm text-muted">Check that ARGUS can reach it with the keys saved here. argus-admin runs the check; nothing is changed.</p>
+                      {(SECTION_CHECKS[g.section.key] ?? []).map((c) => (
+                        <CheckButton key={c.target} target={c.target} label={c.label} />
+                      ))}
+                    </div>
+                  )}
+                  {!searching && g.section.key === "assets" && <AssetUpload refresh={ASSET_REFRESH} />}
+                </Card>
               ))}
-            </Card>
-          ))}
-          <div className="sticky bottom-2 flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface px-3 py-2 shadow-card" data-testid="save-bar">
-            <Button variant="primary" aria-disabled={nChanges === 0 || save.isPending} onClick={() => nChanges > 0 && !save.isPending && press()}>
-              {save.isPending ? "Saving…" : nChanges === 0 ? "Save" : `Save ${nChanges} ${nChanges === 1 ? "change" : "changes"}`}
-            </Button>
-            <span className="text-sm text-muted">{nChanges === 0 ? "Nothing changed here yet." : (note ?? "Only what you changed is sent.")}</span>
-            {barError && (
-              <span role="alert" className="text-sm text-danger" data-testid="save-error">
-                {barError.text} {barError.stepUp && <StepUpLink />}
-              </span>
-            )}
-          </div>
+              <SaveBar state={state} built={built} onSave={() => state.press(shown, built)} />
+            </>
+          )}
         </div>
       </div>
-      <ConfirmSiemWrite
-        open={asking}
-        onOpenChange={setAsking}
-        words={out.confirm_words}
-        labels={savedLabels}
-        busy={save.isPending}
-        onSend={(typed) => save.mutate({ sent: built.changes, confirm: typed })}
-      />
+      <SiemWriteGate state={state} words={out.confirm_words} />
     </>
   );
 }
 
-export function Settings() {
+export function Settings({ section }: { section?: string }) {
   return (
     <AdminOnly what="Settings">
-      <SettingsView />
+      <SettingsView section={section} />
     </AdminOnly>
   );
 }
-

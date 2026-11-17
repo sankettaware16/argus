@@ -44,13 +44,18 @@ export function durationWords(seconds: number): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/** A list of entries (objects, such as the log families): shown as it is, changed in the files. */
+export function entryList(s: SettingOut): boolean {
+  return s.kind === "list" && Array.isArray(s.value) && s.value.some((x) => typeof x === "object" && x !== null);
+}
+
 export function toDraft(s: SettingOut): Draft {
   const v = s.value;
   switch (s.kind) {
     case "bool":
       return v === true;
     case "list":
-      return Array.isArray(v) ? v.map((x) => String(x)) : [];
+      return Array.isArray(v) ? v.map((x) => (typeof x === "object" && x !== null ? JSON.stringify(x) : String(x))) : [];
     case "duration":
       return typeof v === "number" ? formatDuration(v) : "";
     case "secret":
@@ -140,7 +145,7 @@ export function worst(a: Risk, b: Risk): Risk {
 export function buildChanges(settings: readonly SettingOut[], drafts: Readonly<Record<string, Draft>>, resets: ReadonlySet<string>): ChangeSet {
   const out: ChangeSet = { changes: [], errors: {}, risk: "normal" };
   for (const s of settings) {
-    if (!s.editable) continue;
+    if (!s.editable || entryList(s)) continue;
     if (resets.has(s.key) && s.in_app && s.kind !== "secret") {
       out.changes.push({ key: s.key, reset: true });
       out.risk = worst(out.risk, s.risk);

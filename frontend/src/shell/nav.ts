@@ -31,6 +31,9 @@ export const MORE: NavItem[] = [
   { label: "Patterns", to: "/patterns", hint: "Groups of alike alert groups to review at once", group: "More queues" },
   { label: "Proposals", to: "/proposals", hint: "Outcomes ARGUS proposes, to confirm", group: "More queues" },
   { label: "Settings", to: "/settings", hint: "Change how ARGUS works: the SIEM, Kibana, outside lookups, notices and more", admin: true, group: "Administration" },
+  { label: "AI and agents", to: "/ai", hint: "The AI providers, their keys and spending limits, and the agents that use them", admin: true, group: "Administration" },
+  { label: "Threat intel", to: "/threat-intel", hint: "VirusTotal, Shodan and Censys: their keys, limits and lookups", admin: true, group: "Administration" },
+  { label: "Costs and usage", to: "/costs", hint: "What the AI cost and the threat-intel lookups, against their limits", admin: true, group: "Administration" },
   { label: "Users and roles", to: "/users", hint: "Who may sign in to ARGUS and what they may do", admin: true, group: "Administration" },
   { label: "Design system", to: "/design", hint: "The app's colours, components and safety checks", admin: true, group: "Administration" },
 ];

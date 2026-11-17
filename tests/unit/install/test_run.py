@@ -413,6 +413,7 @@ def test_a_person_at_the_terminal_is_asked_and_a_bad_value_is_asked_again(
         "trust https://es.example.org:9200": ["chain"],
         "Kibana's address": ["none"],
         "index patterns": ["corp-logs-*"],
+        "administrator's user name": ["none"],  # the person pastes the key
         "Paste the SIEM key": [SIEM_KEY],
         "SIEM key expire": ["2027-03-01"],
         "organisation's name": ["Example Corp"],

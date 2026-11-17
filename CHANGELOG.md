@@ -26,6 +26,20 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
   capabilities; a new person or a forgotten password gets a one-time link to choose a password
   (`/welcome`); switch an account off, end its sessions. The database itself checks the
   administrator's session and recent password confirmation for each of these.
+- **AI and agents in the app:** each AI provider's keys (added in the app, sealed, written to
+  the keys file by `argus-admin`; a new installation gets `local/llm-keys.env`), its on/off switch,
+  a Test (its model list, no prompt), its own and the overall monthly and daily spending limits,
+  each AI task's calls a day, providers and model size, and **Stop all AI calls**. The agents
+  are listed with what each does, its model size, tools, triggers, version and whether it runs.
+  App-made changes land in `config/llm.admin.yaml`.
+- **Threat intel in the app:** VirusTotal, Shodan and Censys keys added and tested (one lookup of
+  a public test address, counted under each free plan's limits), with each plan's limits and use.
+- **Costs and usage:** the AI's spend a day by provider for 31 days and by task this month
+  against the caps; each threat-intel source's lookups a day against its daily limit.
+- **More in Settings:** check the SIEM's and each Kibana key's connection and privileges, upload
+  the asset map (imported and the services restarted), and the history of the last fifty changes.
+- **Everyone is told** when the first-time setup is still pending.
+- New screenshots of the current app, made from synthetic demo data.
 
 ### Removed
 

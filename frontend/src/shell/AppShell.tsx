@@ -360,6 +360,7 @@ function BuildNotice() {
  */
 export function AppShell() {
   const session = useSession();
+  const bare = useRouterState({ select: (st) => st.location.pathname }) === "/setup";
   useSessionWatch();
   const [help, setHelp] = useState(false);
   const openHelp = useCallback(() => setHelp(true), []);
@@ -379,6 +380,14 @@ export function AppShell() {
         <p>
           <a href="/signin?next=/app">Sign in</a>
         </p>
+      </main>
+    );
+  }
+  if (bare) {
+    // the first-time setup has the whole screen: its chapters and their own way back
+    return (
+      <main id="main" tabIndex={-1} className="focus:outline-none">
+        <Outlet />
       </main>
     );
   }

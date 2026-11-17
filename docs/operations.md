@@ -36,7 +36,12 @@ work here:
 | Change a setting: the SIEM's address or key, Kibana, outside lookups (VirusTotal, Shodan, Censys), notices, retention periods, backup counts, sign-in, the incident engine, logging | **More → Administration → Settings** ([configuration.md](configuration.md#changing-a-setting-in-the-app)) |
 | Add a person, change a role, send a new password link, switch an account off, end someone's sessions | **More → Administration → Users and roles** ([web-ui-guide.md](web-ui-guide.md#users-and-capabilities)) |
 | See whether alerts are arriving, the SIEM's state, the Kibana read-back, any coverage gaps | **More → System health**, and the status in the page header |
-| See what the AI investigator did and what it cost | **More → ARGUS quality** |
+| Switch an optional service or timer on or off (the purge, notices, the daily and weekly reports, the Kibana read-back, case team and writer), restart a service | **More → System health → Services** (switching on one that writes to the SIEM asks for the typed confirmation; the purge for your password) |
+| Add or replace the AI providers' keys, switch a provider on or off, set the spending limits, test a provider, stop every AI call at once; see the agents | **More → Administration → AI and agents** ([llm.md](llm.md#4-where-the-keys-go)) |
+| Add and test the threat-intel keys (VirusTotal, Shodan, Censys); see each plan's limits and use | **More → Administration → Threat intel** |
+| See what the AI cost a day and by task, and the threat-intel lookups against their limits | **More → Administration → Costs and usage** ([costs.md](costs.md)) |
+| Upload the asset map; check the SIEM's and Kibana's keys; see the history of changes | **More → Administration → Settings** (Asset map, SIEM, Kibana, History) |
+| See what the AI investigator did and how good it was | **More → ARGUS quality** |
 | Connect ARGUS to its SIEM for the first time | the **Finish the first-time setup** card on **Today** (or `/app/setup`) |
 
 How a change in **Settings** is made:
@@ -54,8 +59,8 @@ How a change in **Settings** is made:
   **rolled back**.
 - A key you paste is sealed the moment it reaches ARGUS; only `argus-admin` can open it. It is
   never shown again, only replaced.
-- Every save is in the audit trail. On the server, `uv run argus admin status` lists the latest
-  changes with who made them, when, and what became of each, and when `argus-admin` was last seen.
+- Every save is in the audit trail, and Settings' **History** lists the last fifty changes with
+  who made them, when, and what became of each (on the server: `uv run argus admin status`).
 
 If `argus-admin` is not running, the Settings page says so and saved changes wait until it runs.
 
@@ -64,14 +69,8 @@ If `argus-admin` is not running, the Settings page says so and saved changes wai
 A short list, by design:
 
 - **Upgrading** to a new version: [upgrading.md](upgrading.md).
-- **The AI providers' keys and cost caps**: `config/llm.local.yaml` and its keys file
-  ([llm.md](llm.md)). They are not in Settings yet.
-- **The asset map file**: copy it to the server and import it with `uv run argus assets import`
-  ([llm.md](llm.md#10-the-asset-map)). Settings holds only its path.
-- **Switching an optional timer on or off** (the purge, notices, the daily and weekly reports, the
-  Kibana writer): `units.run` and `systemctl` ([below](#services-and-timers)).
 - **Backups by hand and restoring one**, and the purge: [below](#backups).
-- **The kill switches**: [below](#kill-switches).
+- **The SIEM's kill switch** (the AI's is in the app): [below](#kill-switches).
 - **The approval signing key** and the ELK sign-in secret
   ([web-ui-guide.md](web-ui-guide.md#approvals)).
 - **The emergency (break-glass) account**: `uv run argus break-glass`.

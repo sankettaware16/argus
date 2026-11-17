@@ -53,32 +53,48 @@ prints a new one (the old link stops working).
    Your browser warns about the certificate the first time: ARGUS made it itself
    (section 7.3 shows how to use your own).
 2. **Sign in.** Today shows a card, **Finish the first-time setup**: press **Start the setup**.
-3. **Answer the four steps:**
+3. **Answer the chapters,** one question each (**Skip ›** on the optional ones):
    - **Your organisation:** its name, the security team's name, your own domains and networks
      (so ARGUS can tell inside from outside), the time zone, and the prefix of incident ids.
    - **The SIEM:** Elasticsearch's address. ARGUS reads the certificate the SIEM presents and
      shows it; compare its fingerprint with the one your Elastic administrator gives you, then
-     trust it by its certificate authority or pin it. Paste the read-only API key and when it
-     expires. The log index patterns are optional: ARGUS finds the log families itself.
-   - **Kibana (optional):** its address, its certificate, a read-only key and the Kibana space
-     with the Security alerts (found by itself when left empty). Without a key, Kibana stays off;
-     you can add it later in Settings.
-   - **Review and run:** check the summary, confirm your password, and press the button.
-4. **Watch it finish.** `argus-admin` checks the SIEM with your answers, discovers which logs
-   and Kibana space your SIEM has, writes the configuration, and starts every service. The page
-   shows its progress. The first alerts arrive in the Inbox within minutes.
+     trust it by its certificate authority or say your system already trusts it. The log index
+     patterns are optional: ARGUS finds the log families itself.
+   - **Access:** either *Let ARGUS create its own access*: an Elastic administrator's user name
+     and password (the login needs `manage_api_key` or `manage_security`), which ARGUS uses once
+     to make its own read-only keys and, if you tick it, the Kibana case team's users (posting
+     stays off), and never stores; or *Paste read-only keys* you made yourself (section 4) and
+     when they expire.
+   - **Kibana (optional):** its address, its certificate, with pasted keys a read-only key, and
+     the Kibana space with the Security alerts (found by itself when left empty).
+   - **AI, threat intel and the asset map (optional):** a key for any AI provider, keys for
+     VirusTotal, Shodan or Censys, and your asset map file; each can also be added later.
+   - **Review and run:** what ARGUS will create in Elastic, the summary, confirm your password,
+     and press the button.
+4. **Watch it finish.** `argus-admin` checks the SIEM with your answers, makes or checks the keys,
+   discovers which logs and Kibana space your SIEM has, writes the configuration, starts every
+   service, then stores the extra keys and imports the asset map. The page shows a checklist and
+   ends with **ARGUS is ready.** The first possible incidents arrive on Today within minutes.
 
-Keys you paste are sealed as soon as they leave the browser: only `argus-admin` can open them,
-and the app can never show them again, only replace them.
+Keys and the administrator's password are sealed as soon as they leave the browser: only
+`argus-admin` can open them, the password is used for that run only, and the app can never show
+a key again, only replace it.
 
 ### After the setup: everything is in the app
 
 | To… | Go to |
 |---|---|
-| Change any setting (the SIEM, Kibana, outside lookups such as VirusTotal, notices, retention, backups, sign-in, the incident engine…) | **More → Administration → Settings** |
+| Change any setting (the SIEM, Kibana, notices, retention, backups, sign-in, the incident engine…), check the SIEM's and Kibana's keys, upload the asset map, see what changed and who changed it | **More → Administration → Settings** |
 | Add people, give them a role, reset a password, switch an account off | **More → Administration → Users and roles** |
+| Add the AI providers' keys (Groq, OpenRouter, Gemini, OpenAI, Anthropic, a model on your own network), switch providers on or off, set the spending limits, test a provider, stop every AI call at once; see the agents and what each does | **More → Administration → AI and agents** |
+| Add the threat-intel keys (VirusTotal, Shodan, Censys), test them, see each free plan's limits and what was used | **More → Administration → Threat intel** |
+| See what the AI cost a day and by task, and each threat-intel source's lookups against its limits | **More → Administration → Costs and usage** |
 | See whether data is arriving, and any gaps | **More → System health** |
 | Work alerts and incidents | **Today**, **Incidents**, **Search** ([web-ui-guide.md](web-ui-guide.md)) |
+
+The AI and the outside lookups are optional: ARGUS investigates deterministically without them.
+Before any of them is asked about your data, ARGUS needs your **asset map** (which addresses and
+names are yours: [llm.md](llm.md#10-the-asset-map)); upload it in Settings → Asset map.
 
 **Settings** shows every setting with its help and its current value, grouped by subject. A
 change is checked, written and applied by `argus-admin` within seconds, and only the services that
@@ -95,15 +111,11 @@ ELK.
 
 ### What still happens on the server
 
-A few things are deliberately not in the app, either because they replace the app itself or
-because they need this machine's files:
+Only a few things are deliberately not in the app, because they replace the app itself or work
+when it is down:
 
-- **Upgrading ARGUS** to a new version: [upgrading.md](upgrading.md).
-- **The AI providers' keys and daily caps** (optional): `config/llm.local.yaml` and its keys
-  file ([llm.md](llm.md)). ARGUS works without them.
-- **The asset map file** (which devices and networks belong to whom): copy it to the server and
-  import it with `uv run argus assets` ([configuration.md](configuration.md)); its path is a
-  setting in the app.
+- **Upgrading ARGUS** to a new version: `git pull` and `./install.sh` again
+  ([upgrading.md](upgrading.md)).
 - **Restoring a backup** (the nightly dumps and the weekly drill run by themselves):
   [operations.md](operations.md).
 - **Recovery when the web itself is down:** `uv run argus doctor`,

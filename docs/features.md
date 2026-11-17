@@ -5,7 +5,7 @@ incident case your team closes. For each: what it does, whether it is on by defa
 needs, and where to read more. Every capability is deterministic code unless it says it uses a
 model; every request to your SIEM goes through the [Elastic Gateway](architecture.md#the-elastic-gateway).
 
-![The ARGUS Inbox: what needs a person today, in order](images/screenshots/inbox.png)
+![Today: the possible incidents that need a person, in priority order](images/screenshots/today.png)
 
 **Contents**
 
@@ -66,7 +66,7 @@ of your log families (`site.families`: `proxy`, `web`, `dns`, `auth`, `mail`, `o
 The result is a **dossier**: every fact with its source and the exact query behind it, every
 signal as "known" or "could not tell, and why". **A missing log is *unknown*, never *clean*.**
 
-![An investigation: the verdict, the facts behind it, and every check ARGUS made](images/screenshots/investigation.png)
+![An alert group: the key facts, each with its alerts, and the five outcomes](images/screenshots/investigation.png)
 
 ### Threat intel
 
@@ -127,8 +127,6 @@ User names are shown only to people with `see_logs` and are **never sent to a mo
 | **Gold set** | Your reviewers answer a fixed sample once; it scores the engine and the AI (`argus gold score`) and gates every change to the AI's prompts. |
 | **Rule tuning** | A weekly per-rule report: alerts a day, investigations, runs that hit the rule's limit, people's labels, the dominant values; with a model, drafted suggestions to make a noisy rule quieter (you apply them in Kibana; ARGUS never edits a rule). |
 
-![Proposals: outcomes ARGUS proposes, grouped by what decided them, with an audit sample](images/screenshots/proposals.png)
-
 ## Cases and incidents
 
 | Capability | What it does |
@@ -141,7 +139,7 @@ User names are shown only to people with `see_logs` and are **never sent to a mo
 | **Recommended actions** | A fixed catalogue (`config/actions.yaml`) of actions per kind of incident, each with an owner and how its "done" can be checked; ARGUS records who was asked and verifies reported "done" from the logs where it can (`argus case actions`). |
 | **Still-active watch** | Once a day, for every open true-positive case: did it alert again, and (with `cases.watch: on`) did the proxy logs show contact? "Contained" needs three quiet days and a person's attestation. Off by default ([runbooks/case-watch.md](runbooks/case-watch.md)). |
 
-![A case: summary, incident report, timeline, evidence and actions](images/screenshots/case.png)
+![A possible incident: why ARGUS raised it, what it checked and the other explanations](images/screenshots/incident.png)
 
 ![Page 1 of an incident report PDF](images/screenshots/incident-report.png)
 
@@ -164,7 +162,7 @@ the item meanwhile nothing is saved. Text from logs, alerts, Kibana or a model i
 text. Details: [web-ui-guide.md](web-ui-guide.md); the reviewers' one-page guide:
 [guide-ta-ra.md](guide-ta-ra.md).
 
-![The dashboard](images/screenshots/dashboard.png)
+![Incidents: every incident and possible incident, by priority](images/screenshots/incidents.png)
 
 ### Accounts, approvals and sign-in
 
@@ -175,7 +173,7 @@ text. Details: [web-ui-guide.md](web-ui-guide.md); the reviewers' one-page guide
 | **Sign in with ELK accounts** | People use their own Elasticsearch/Kibana accounts; each capability is derived from what the account **actually holds** (actions, never role names) and re-checked during the session; superusers and admin accounts are refused. | off (`web.elk_signin`) |
 | **Emergency account** | With ELK sign-in on, a one-time view-and-review account a person switches on at the ARGUS machine while ELK is down (`argus break-glass`, on the server only). | off |
 
-![Approvals waiting for a second person](images/screenshots/approvals.png)
+![Users and roles: who may sign in and what they may do](images/screenshots/users.png)
 
 ### Reports and notices
 
@@ -215,15 +213,21 @@ case it did not create. See [kibana.md](kibana.md).
 
 ## Operating it
 
-Install with one command, then run ARGUS from the web app. The server is left with a short list
-of jobs: upgrades, restoring a backup, the AI providers' keys, the asset map file, the emergency
-account, and recovery when the web itself is down ([operations.md](operations.md#what-stays-on-the-server)).
+Install with one command, then run ARGUS from the web app: settings, people and roles, the AI
+providers and their keys, the threat-intel keys, the asset map, connection checks, costs and the
+kill switches. The server is left with upgrades, restoring a backup, the emergency account, and
+recovery when the web itself is down ([operations.md](operations.md#what-stays-on-the-server)).
 
 | Capability | What it does |
 |---|---|
 | **One-command install** | `./install.sh` (needs uv and Docker with compose): the database with generated passwords, the web's certificate, one question (the address people open ARGUS at), the web and `argus-admin` started, and a one-time link (72 hours) for the first administrator. [install.md](install.md) |
-| **First-time setup** | In the browser, four steps: your organisation; the SIEM (ARGUS reads the certificate it presents and shows the fingerprint to compare; the read-only key, sealed at once); Kibana (optional); review and run. `argus-admin` then runs the rest of the installation, discovery included, and starts every service, showing its progress. |
+| **First-time setup** | In the browser, one question per chapter: your organisation; the SIEM (ARGUS reads the certificate it presents and shows the fingerprint to compare); access, either an Elastic administrator's login that ARGUS uses once to make its own read-only keys and, if asked, the Kibana case team's users (never stored), or pasted read-only keys; Kibana (optional); AI and threat-intel keys and the asset map (each optional); review and run. `argus-admin` then runs the rest of the installation, discovery included, starts every service and stores the extra keys, showing its progress. |
 | **Settings** | Every setting with its help, in sections; a change is checked again and applied by `argus-admin`, which restarts only what reads it and **rolls back** if a service does not come back. Keys and addresses need the password again; anything that lets ARGUS write to the SIEM also needs a typed confirmation. Keys are sealed and never shown again. The SIEM load budget is shown, not changeable. [configuration.md](configuration.md#changing-a-setting-in-the-app) |
+| **AI and agents** | Each AI provider (free first, paid last): its models, its keys (*Set* or not; added in the app, sealed, never shown again), an On switch, a **Test** (the model list, no prompt), its own limits and spend; the overall monthly and daily limits; each AI task's calls a day, providers and model size; **Stop all AI calls** and Resume. The agents: what each does, its model size, tools, triggers, version and whether it runs; the case team's Kibana users and their keys. |
+| **Threat intel** | VirusTotal, Shodan and Censys: each key added and tested in the app (one lookup of a public test address, counted under the free plan's limits like ARGUS's own), each plan's limits, today's and this month's lookups; Shodan's keyless InternetDB as a fallback. |
+| **Costs and usage** | The AI's spend a day for 31 days by provider, by task this month, against the caps; each threat-intel source's lookups a day against its daily limit. |
+| **Connection checks** | From Settings: the SIEM's key (`siem selftest`: TLS pin, version, privileges) and each Kibana key (`kibana selftest`), run by `argus-admin`, the result shown on the page. |
+| **Settings history** | The last fifty changes: when, who, which setting, applied, refused or rolled back and why. |
 | **`argus init`** | The same installation from the terminal, in ten steps, interactive or scripted (`--answers FILE`): prerequisites, `.env` with generated database passwords, PostgreSQL in Docker, the CA pin, the read-only keys (it prints the exact Dev Tools request), the organisation, discovery, the LLM keys, the web, the systemd units, then doctor. Rerun at any time: it keeps what is done. Also used for upgrades. [install.md](install.md) |
 | **Discovery** | `argus discover` proposes your site (log families and their roles, the Kibana space, threat-intel sources, versions, Kibana feature ids) from **metadata only**: index names, aliases, mappings; it never reads a document. [runbooks/discover.md](runbooks/discover.md) |
 | **`argus doctor`** | On the server: every part, offline, each problem with its fix: configuration, database and grants, migrations, site, CA and key expiry, agents, LLM keys, privacy, units, backups, write keys, the web's certificate. |
@@ -231,5 +235,17 @@ account, and recovery when the web itself is down ([operations.md](operations.md
 | **Backups** | A nightly `pg_dump` with fingerprints (21:30 UTC), a weekly **restore drill** into a scratch database comparing every table (Sundays 22:00 UTC), retention of nightly, verified, migration and manual dumps, and optionally a dump before every
 migration (`backup.before_migration`). `argus backup check` does a dump and its drill now. |
 | **Retention** | A purge with a dry-run plan per table (`argus purge plan`), raw alert sources after 30 days, everything after `memory.window` (90 days) unless held. Scheduled deletion is off until you decide. |
-| **Kill switches** | On the server: `argus siem stop` (all, or one component), `argus llm stop`, `argus kibana resume` after a pause: effective at once, resuming needs the database owner. |
+| **Kill switches** | In the app: **Stop all AI calls** (AI and agents). On the server: `argus siem stop` (all, or one component), `argus llm stop`, `argus kibana resume` after a pause: effective at once, resuming the SIEM needs the database owner. |
 | **Status at a glance** | In the app: System health and the status in the header. On the server: `argus siem status`, `collect status`, `worker status`, `assess status`, `llm status`, `kibana state`, `case team status`, `admin status`. |
+
+![The first-time setup in the browser](images/screenshots/setup.png)
+
+![Settings: every setting with its help; the SIEM section with its connection check](images/screenshots/settings.png)
+
+![AI and agents: the providers with their keys and limits, the AI tasks and the agents](images/screenshots/ai-agents.png)
+
+![Threat intel: VirusTotal, Shodan and Censys, each with its key, limits, lookups and a Test](images/screenshots/threat-intel.png)
+
+![Costs and usage: the AI's spend a day by provider, by task, and the threat-intel lookups](images/screenshots/costs.png)
+
+![System health with the Services panel: each service and timer, on or off, running or not](images/screenshots/system-health.png)

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { GapOut, HealthOut, MetricsOut } from "../client/types.gen";
+import { ServicesPanel } from "../components/admin/Services";
 import { Loading, Problem } from "../components/Problem";
 import { Time } from "../components/Time";
 import { UntrustedText } from "../components/UntrustedText";
@@ -122,6 +123,7 @@ export function Health() {
       {health.isPending && <Loading what="the health" />}
       {health.isError && <Problem error={health.error} what="The health" onRetry={() => void health.refetch()} />}
       {health.data && <HealthBody h={health.data} />}
+      <ServicesPanel />
     </>
   );
 }

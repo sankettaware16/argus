@@ -216,6 +216,26 @@ key needs the asset map first ([section 5](#5-before-you-add-a-key)).
 
 ## 4. Where the keys go
 
+### In the app (the usual way)
+
+**More → Administration → AI and agents.** Each provider has a card: its models, whether it is
+free or paid, its keys (*Set* or *Not set*) and an **On** switch. Press **Add key**, paste the
+key and save; the app asks for your password again (a key is a sensitive change). The key is
+sealed in your browser's request with `argus-admin`'s public key, so only `argus-admin` can open
+it; it writes the key into the keys file (below) and the web restarts within seconds. The app
+never shows a key again, it only replaces it. Then press **Test**: it asks the provider for its
+model list (`argus llm probe`: no prompt and no data of yours) and shows *up*, *unauthorized* or
+why not.
+
+On a new installation with no keys file yet, the first key you save creates one,
+`local/llm-keys.env` (mode 600, never in git), and the app records its path in
+`config/llm.admin.yaml`. On an installation with a keys file, the key goes into that file.
+
+The same page sets the spending limits, switches a provider off without removing its key, sets
+each AI task's daily calls and providers, and stops every AI call at once (section 8).
+
+### On the server (the alternative)
+
 **One file, `NAME=value` lines, mode 600, outside the checkout:**
 
 ```bash
@@ -362,8 +382,11 @@ cost, latency, outcome and the request's hash, never its content.
 
 ## 8. Budget and caps
 
-The full explanation, with measured numbers, is in [costs.md](costs.md#how-the-budget-works). In
-short, from `config/llm.yaml`:
+The full explanation, with measured numbers, is in [costs.md](costs.md#how-the-budget-works).
+**In the app**, AI and agents sets the overall monthly and daily limits, each paid provider's own,
+and each AI task's daily calls; **Costs and usage** charts what was spent a day and by task. A
+change made there goes to `config/llm.admin.yaml` (never in git), laid over `llm.yaml` and
+`llm.local.yaml`; a value reset in the app returns to theirs. In short, from `config/llm.yaml`:
 
 | Setting | Shipped | Meaning |
 |---|---|---|
@@ -450,16 +473,28 @@ networks:
 - `site.type` values feed `notified.managed_types` (which machines you manage).
 - No anchors, aliases or duplicate keys; at most 100,000 entries and 16 MB.
 
+**In the app:** Settings → Asset map → **Upload an asset map** (a YAML file of at most 5 MB;
+the app asks for your password again). The file is sealed in the request like a key,
+`argus-admin` imports it exactly as the command below does, and the services restart with it; the
+page shows the result (entries and networks, or the first error).
+
+**On the server** (also for maps larger than 5 MB):
+
 ```bash
 uv run argus assets import ~/secrets/asset_map.yaml   # validates, audits, installs (mode 600)
 uv run argus assets status                            # its size and hash (never its content)
 ```
 
 Error messages name entries by number, never by value. The installed copy is
-`data/assets/asset_map.yaml` (`assets.map_path`). Import it again after every change, then restart
-the services.
+`data/assets/asset_map.yaml` (`assets.map_path`). Import it again after every change (from the
+app, the services restart by themselves; after the command, restart them).
 
 ## 11. Commands
+
+Everything here has a place in the app: **AI and agents** shows the kill switch (Stop all AI
+calls / Resume), each provider's state and its Test (the probe), the caps and this month's spend;
+**Costs and usage** shows the spend a day by provider and by task. The commands are for the
+server:
 
 ```bash
 uv run argus llm status        # kill switch, cost against the caps, today's use, cool-downs, breakers
