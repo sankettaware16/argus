@@ -16,7 +16,7 @@ export function AdminOnly({ what, children }: { what: string; children: ReactNod
   if (!can(session.data, "admin")) {
     return (
       <>
-        <h1 className="m-0 text-2xl font-semibold">{what}</h1>
+        <h1 className="page-h">{what}</h1>
         <p className="m-0 text-sm text-muted" data-testid="admin-only">
           Only an ARGUS administrator can open this page. Ask one to change what you need.
         </p>
@@ -104,7 +104,7 @@ export function Modal({ open, onOpenChange, title, description, children, wide =
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup className={cn("fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-5 text-text shadow-card", wide ? "w-[min(40rem,calc(100vw-2rem))]" : "w-[min(30rem,calc(100vw-2rem))]")}>
+        <Dialog.Popup className={cn("fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-raised p-5 text-text shadow-card", wide ? "w-[min(40rem,calc(100vw-2rem))]" : "w-[min(30rem,calc(100vw-2rem))]")}>
           <Dialog.Title className="m-0 text-lg font-semibold">{title}</Dialog.Title>
           {description && <Dialog.Description className="m-0 text-sm text-muted">{description}</Dialog.Description>}
           {children}

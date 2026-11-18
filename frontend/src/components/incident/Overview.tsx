@@ -1,3 +1,4 @@
+import { briefOf } from "./Brief";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import type { CaseDetail, CaseReportOut, IncidentReport } from "../../client/types.gen";
@@ -35,8 +36,10 @@ function Region({ name, title, aside, children }: { name: string; title?: string
 function WhatHappened({ data, id }: { data: CaseReportOut | undefined; id: string }) {
   const report = (data?.report ?? null) as IncidentReport | null;
   if (report === null) return null;
-  const ai = report.summary.prose.length > 0;
-  const sentences = (ai ? report.summary.prose : report.summary.sentences).slice(0, 3);
+  const brief = briefOf(report);
+  const ai = brief !== null || report.summary.prose.length > 0;
+  // the analyst brief says what is happening; else the summary's first sentences
+  const sentences = brief !== null ? brief.statement : (ai ? report.summary.prose : report.summary.sentences).slice(0, 3);
   if (sentences.length === 0) return null;
   return (
     <Region

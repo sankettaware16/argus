@@ -235,7 +235,7 @@ function Provenance({ report }: { report: Report }) {
       )}
       <details>
         <summary className="cursor-pointer text-sm font-medium">The exact queries and answers (raw)</summary>
-        <div className="mt-1 max-h-96 overflow-auto rounded-control border border-border bg-surface-2 p-2 font-mono text-xs">
+        <div className="mt-1 max-h-96 overflow-auto rounded-control bg-surface-2 p-2 font-mono text-xs">
           <UntrustedText value={JSON.stringify(report.provenance, null, 2)} block limits={{ maxChars: 30_000, maxLines: 800 }} />
         </div>
       </details>

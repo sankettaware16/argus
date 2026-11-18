@@ -137,7 +137,7 @@ function Kpi({ label, value, sub, wrap }: { label: string; value: string; sub: R
       <span className="block text-xs text-muted">{sub}</span>
     </>
   );
-  return <li className="rounded-card border border-border bg-surface p-3 shadow-card">{wrap ? wrap(body) : body}</li>;
+  return <li className="rounded-card bg-surface p-3">{wrap ? wrap(body) : body}</li>;
 }
 
 function Kpis({ d, f }: { d: DashboardOut; f: Filters }) {
@@ -350,7 +350,7 @@ function FilterForm({ d, f }: { d: DashboardOut | undefined; f: Filters }) {
     <form
       key={JSON.stringify(toSearch(f))}
       aria-label="Filters"
-      className="flex flex-col gap-3 rounded-card border border-border bg-surface p-3"
+      className="flex flex-col gap-3 rounded-card bg-surface p-3"
       onSubmit={(e) => {
         e.preventDefault();
         const next = parseFilters(parseSearch(new URLSearchParams(new FormData(e.currentTarget) as unknown as Record<string, string>).toString()));
@@ -456,7 +456,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
   return (
     <>
       <div>
-        <h1 className="m-0 text-2xl font-semibold">Dashboard</h1>
+        <h1 className="page-h">Dashboard</h1>
         <p className="m-0 text-sm text-muted">
           {d ? (
             <>
@@ -471,7 +471,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
       {active.length > 0 && (
         <ul aria-label="Active filters" className="m-0 flex list-none flex-wrap items-center gap-2 p-0 text-sm">
           {active.map((c) => (
-            <li key={`${c.name}:${c.value}`} className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 py-0.5 pr-1 pl-2">
+            <li key={`${c.name}:${c.value}`} className="inline-flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pr-1 pl-2">
               <span>
                 {c.name}: <UntrustedText value={c.value} limits={{ maxChars: 120, maxLines: 1 }} />
               </span>

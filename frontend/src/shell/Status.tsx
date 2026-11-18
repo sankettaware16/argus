@@ -109,14 +109,14 @@ export function SystemDot() {
         aria-controls={open ? id : undefined}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2 text-sm text-text hover:bg-surface-2"
+        className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-3 text-sm text-text hover:bg-surface"
       >
         <span aria-hidden="true" className={`inline-block size-2 rounded-full ${DOT_TONE[dot.state]}`} />
         <span>{health.isError && !pending ? "Not known" : dot.word}</span>
         <span className="sr-only"> — the system's state</span>
       </button>
       {open && (
-        <div id={id} className="absolute right-0 z-30 mt-1 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 rounded-card border border-border bg-surface p-3 shadow-card" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+        <div id={id} className="absolute right-0 z-30 mt-1 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 rounded-card border border-border bg-raised p-3 shadow-card" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
           <ul className="m-0 flex list-none flex-col gap-1 p-0" data-testid="system-parts">
             {dot.parts.map((p) => (
               <li key={p.name}>
@@ -141,7 +141,7 @@ export function SystemBanner() {
   const dot = systemDot(health.data, new Date(), at, pending);
   if (dot.banner === null) return null;
   return (
-    <p role="status" data-testid="system-banner" className="m-0 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
+    <p role="status" data-testid="system-banner" className="m-0 rounded-card bg-danger-soft px-4 py-3 text-sm text-danger">
       <span aria-hidden="true">⚠ </span>
       {dot.banner} <Link to="/health">What ARGUS knows</Link>
     </p>

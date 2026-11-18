@@ -1,5 +1,5 @@
-/* ARGUS's design tokens (Q-B1, plan §7.5): calm and neutral, colour only where it carries meaning
-   and always with text, light and dark from the system (DQ25). OKLCH tokens; Tailwind reads them
+/* ARGUS's design tokens (Q-B1, plan §7.5; D-331): calm and neutral, colour only where it carries
+   meaning and always with text, light and dark from the system (DQ25). Tailwind reads them
    through @theme. Everything is in this file: the CSP refuses inline style. */
 @import "tailwindcss";
 
@@ -25,59 +25,67 @@
     U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* One design language for the whole app (D-331), the one the first-time setup introduced: a white
+   page (black in the dark), soft grey tiles without borders, pill buttons, big tight headlines,
+   one blue. `surface` is a tile, `surface-2` and `-3` sit on a tile, `raised` floats over the page
+   (menus, dialogs), `bg` is also a control's fill. Text on every surface is at least 4.5:1. */
 :root {
   color-scheme: light;
-  --bg: oklch(0.982 0.003 250);
-  --surface: oklch(1 0 0);
-  --surface-2: oklch(0.966 0.005 250);
-  --surface-3: oklch(0.936 0.007 250);
-  --border: oklch(0.885 0.008 250);
-  --border-strong: oklch(0.62 0.012 250);
-  --text: oklch(0.24 0.015 255);
-  --text-muted: oklch(0.45 0.015 255);
-  --accent: oklch(0.45 0.09 250);
-  --accent-hover: oklch(0.40 0.09 250);
-  --accent-fg: oklch(0.99 0 0);
-  --accent-soft: oklch(0.94 0.025 250);
-  --focus: oklch(0.52 0.16 255);
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --surface-2: #e8e8ed;
+  --surface-3: #dcdce1;
+  --raised: #ffffff;
+  --border: #d2d2d7;
+  --border-strong: #8e8e93;
+  --text: #1d1d1f;
+  --text-muted: #5f5f64;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-fg: #ffffff;
+  --accent-soft: #e2eefb;
+  --link: #0066cc;
+  --focus: #0071e3;
   /* meaning: each pair (strong text on soft background) is at least 4.5:1 */
   --critical: oklch(0.47 0.16 25);
-  --critical-soft: oklch(0.95 0.03 25);
+  --critical-soft: oklch(0.94 0.035 25);
   --high: oklch(0.49 0.13 50);
-  --high-soft: oklch(0.95 0.035 60);
+  --high-soft: oklch(0.94 0.04 60);
   --medium: oklch(0.47 0.09 85);
-  --medium-soft: oklch(0.95 0.045 90);
+  --medium-soft: oklch(0.94 0.05 90);
   --low: oklch(0.45 0.07 235);
-  --low-soft: oklch(0.95 0.02 235);
+  --low-soft: oklch(0.94 0.025 235);
   --ok: oklch(0.45 0.09 155);
-  --ok-soft: oklch(0.95 0.035 155);
+  --ok-soft: oklch(0.94 0.04 155);
   --warn: oklch(0.48 0.1 70);
-  --warn-soft: oklch(0.95 0.045 80);
+  --warn-soft: oklch(0.94 0.05 80);
   --danger: oklch(0.48 0.17 25);
-  --danger-soft: oklch(0.95 0.03 25);
+  --danger-soft: oklch(0.94 0.035 25);
   --info: oklch(0.45 0.07 250);
-  --info-soft: oklch(0.95 0.02 250);
+  --info-soft: oklch(0.94 0.025 250);
   --marker: oklch(0.42 0.13 330);
   --marker-soft: oklch(0.94 0.035 330);
-  --shadow: 0 1px 2px oklch(0.2 0.02 255 / 0.08), 0 4px 16px oklch(0.2 0.02 255 / 0.06);
+  --shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.08), 0 16px 48px rgb(0 0 0 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: oklch(0.19 0.01 255);
-    --surface: oklch(0.225 0.012 255);
-    --surface-2: oklch(0.255 0.013 255);
-    --surface-3: oklch(0.29 0.014 255);
-    --border: oklch(0.34 0.014 255);
-    --border-strong: oklch(0.58 0.016 255);
-    --text: oklch(0.93 0.008 255);
-    --text-muted: oklch(0.76 0.012 255);
-    --accent: oklch(0.74 0.1 250);
-    --accent-hover: oklch(0.80 0.09 250);
-    --accent-fg: oklch(0.18 0.02 255);
-    --accent-soft: oklch(0.30 0.04 250);
-    --focus: oklch(0.76 0.13 250);
+    --bg: #000000;
+    --surface: #1d1d1f;
+    --surface-2: #2c2c2e;
+    --surface-3: #3a3a3c;
+    --raised: #1d1d1f;
+    --border: #424245;
+    --border-strong: #7c7c80;
+    --text: #f5f5f7;
+    --text-muted: #aeaeb2;
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --accent-fg: #ffffff;
+    --accent-soft: #0d2f55;
+    --link: #2997ff;
+    --focus: #2997ff;
     --critical: oklch(0.80 0.11 25);
     --critical-soft: oklch(0.30 0.06 25);
     --high: oklch(0.82 0.1 55);
@@ -96,7 +104,7 @@
     --info-soft: oklch(0.29 0.03 250);
     --marker: oklch(0.84 0.09 330);
     --marker-soft: oklch(0.30 0.05 330);
-    --shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.3);
+    --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.14), 0 16px 48px rgb(0 0 0 / 0.6);
   }
 }
 
@@ -105,6 +113,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-raised: var(--raised);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
@@ -113,6 +122,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-link: var(--link);
   --color-focus: var(--focus);
   --color-critical: var(--critical);
   --color-critical-soft: var(--critical-soft);
@@ -137,8 +147,8 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", "Inter",
     ui-sans-serif, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  --radius-control: 0.5rem;
-  --radius-card: 0.875rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
 }
 
 @layer base {
@@ -163,12 +173,19 @@
     outline-offset: 2px;
   }
   a {
-    color: var(--accent);
+    color: var(--link);
     text-decoration-line: underline;
-    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    text-decoration-color: color-mix(in oklch, currentColor 45%, transparent);
+    text-underline-offset: 3px;
   }
   a:hover {
-    color: var(--accent-hover);
+    text-decoration-color: currentColor;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.012em;
   }
   code,
   pre,
@@ -182,6 +199,54 @@
 }
 
 @layer components {
+  /* a page's headline: the setup's, at a working page's size */
+  .page-h {
+    margin: 0;
+    font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+    line-height: 1.08;
+    font-weight: 650;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+  /* a headline that is a sentence (an incident's title) */
+  .page-h-long {
+    font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+    line-height: 1.15;
+  }
+  /* a section's heading on a page of sections (Today) */
+  .section-h {
+    margin: 0;
+    font-size: 1.3125rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .page-sub {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    max-width: 44rem;
+    text-wrap: pretty;
+  }
+  /* the header floats over the page it scrolls */
+  .glass {
+    background: color-mix(in oklch, var(--bg) 78%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  /* a page arrives the way a setup chapter does */
+  .page-in {
+    animation: page-in 320ms ease-out both;
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
   /* a visible marker for an invisible or reordering character in untrusted text */
   .ut-mark {
     display: inline-block;
@@ -245,15 +310,15 @@ html:has([data-testid="decision-bar"]) {
 /* The first-time setup (D-330): chapters, one question each, in the product-page style the user
    chose: big tight headlines, rounded tiles, pill buttons. Light on white, dark on black. */
 .setup {
-  --s-bg: #ffffff;
-  --s-tile: #f5f5f7;
-  --s-tile-2: #e8e8ed;
-  --s-text: #1d1d1f;
-  --s-muted: #6e6e73;
-  --s-line: #d2d2d7;
-  --s-accent: #0071e3;
-  --s-accent-hover: #0077ed;
-  --s-accent-text: #0066cc;
+  --s-bg: var(--bg);
+  --s-tile: var(--surface);
+  --s-tile-2: var(--surface-2);
+  --s-text: var(--text);
+  --s-muted: var(--text-muted);
+  --s-line: var(--border);
+  --s-accent: var(--accent);
+  --s-accent-hover: var(--accent-hover);
+  --s-accent-text: var(--link);
   --s-ok: #1d7a3a;
   --s-danger: #c4291c;
   min-height: 100vh;
@@ -262,15 +327,6 @@ html:has([data-testid="decision-bar"]) {
 }
 @media (prefers-color-scheme: dark) {
   .setup {
-    --s-bg: #000000;
-    --s-tile: #1d1d1f;
-    --s-tile-2: #2c2c2e;
-    --s-text: #f5f5f7;
-    --s-muted: #a1a1a6;
-    --s-line: #424245;
-    --s-accent: #0071e3;
-    --s-accent-hover: #0077ed;
-    --s-accent-text: #2997ff;
     --s-ok: #4cd77a;
     --s-danger: #ff6961;
   }
@@ -281,7 +337,7 @@ html:has([data-testid="decision-bar"]) {
   --s-tile: #1d1d1f;
   --s-tile-2: #2c2c2e;
   --s-text: #f5f5f7;
-  --s-muted: #a1a1a6;
+  --s-muted: #aeaeb2;
   --s-line: #424245;
   --s-accent-text: #2997ff;
   --s-ok: #4cd77a;

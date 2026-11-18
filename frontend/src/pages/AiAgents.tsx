@@ -245,7 +245,7 @@ function Pack({ ai }: { ai: AiOut }) {
       <p className="m-0 mt-1 mb-2 max-w-prose text-sm text-muted">The investigation agents (measured against the gold set) and the Kibana case team (run on a real SIEM) that come with ARGUS. They are on by default; what each uses (providers, limits, keys) is set below.</p>
       <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
         {members.map((m) => (
-          <li key={m.key} className="flex flex-col gap-1 rounded-card border border-border bg-surface-2 px-3 py-2" data-testid={`pack-${m.key}`}>
+          <li key={m.key} className="flex flex-col gap-1 rounded-card bg-bg px-4 py-3" data-testid={`pack-${m.key}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">{m.name}</span>
               {memberStates(m).map((st) => (
@@ -312,8 +312,8 @@ function AiView() {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 text-2xl font-semibold">AI and agents</h1>
-        <p className="m-0 max-w-prose text-sm text-muted">Which AI providers ARGUS may ask, their keys and spending limits, and the agents that use them. A change is applied by argus-admin like any setting; the result shows here within a few seconds.</p>
+        <h1 className="page-h">AI and agents</h1>
+        <p className="page-sub">Which AI providers ARGUS may ask, their keys and spending limits, and the agents that use them. A change is applied by argus-admin like any setting; the result shows here within a few seconds.</p>
       </div>
       {!ai.applier.running && (
         <Notice tone="warn" testId="applier-down">

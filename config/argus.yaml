@@ -152,6 +152,12 @@ notified:
 #     is not written again sooner than this after its last report.
 #   prose: let a model word the summary from verified facts, through the LLM gateway and the
 #     citation checks (any refusal leaves the deterministic text).
+#   brief: the analyst brief that opens the report (D-332): a large model says what is
+#     happening, the summary, why it is judged real, the impact and the steps asked for, from the
+#     report's facts with every campus address and account hidden; code checks each line
+#     against the facts it cites. off | confirmed (the cases a person confirmed) | all.
+#     brief_every: a case whose verdict and standing did not change keeps its brief this long
+#     (each brief is a paid call; config/llm.yaml caps the task "brief").
 #   kibana_url, data_views: where the evidence links open (docs/configuration.md).
 incident:
   enabled: true
@@ -159,6 +165,8 @@ incident:
   look: 40
   min_interval: 30m
   prose: false
+  brief: "off"
+  brief_every: 6h
 
 # kibana: the Kibana lane stays off here (kibana.enabled false); only argus-kibana-sync and
 # argus-case-team turn it on, in their own environment files (local/, never .env).
@@ -166,6 +174,10 @@ incident:
 kibana:
   sync:
     enabled: true  # the read-back and the Verdict: comments, where kibana.enabled is true
+    # A person's change of ARGUS's tags or of a case's Sync alerts setting pauses ARGUS's writes
+    # to that case until `argus kibana sync resume-case` (false: a finding only; ARGUS keeps
+    # the case in step, D-333).
+    pause_on_change: true
 
 # case_team: Kibana users (docs/runbooks/kibana-case-team.md) post an incident case.
 # `post: false` writes nothing to the SIEM: the rendering still runs as a dry run

@@ -162,6 +162,66 @@ async def test_the_same_evidence_is_the_same_version_and_a_change_makes_the_next
             await conn.execute(text("UPDATE incident_reports SET writer = 'x'"))
 
 
+async def test_a_brief_is_kept_across_versions_and_a_new_one_is_a_version_of_its_own(
+    app_engine: AsyncEngine, migrated_engine: AsyncEngine, people: dict[str, Person]
+) -> None:
+    """The analyst brief (D-332) through ``run.make``: only for a case its scope takes, stored
+    as a version of its own on the same evidence, handed to the next version's writer, and never
+    replaced by nothing."""
+    from argus.incident import brief
+
+    case, _ = await kit.amadey(migrated_engine, app_engine, people["asha"])
+    one, _ = await kit.write(app_engine, case)
+    assert one.report.brief is None
+    seen: list[m.ReportBrief | None] = []
+    line = m.ReportBriefLine(text="A device reports to flagged servers.", cites=("F1",))
+
+    def writer(sha: str | None) -> run.Briefer:
+        async def write(report: m.IncidentReport, before: m.ReportBrief | None) -> brief.Improved:
+            seen.append(before)
+            if sha is None:  # the model did not answer: the report has no brief of its own
+                return brief.Improved(report, None, "no model answered")
+            made = m.ReportBrief(
+                statement=(line,), points=(line, line), facts={"F1": "A fact."}, facts_sha=sha,
+                by="fake/model-9", at=report.meta.as_at, basis=brief.basis_of(report),
+            )  # fmt: skip
+            return brief.Improved(report.model_copy(update={"brief": made}), made.by, None, True)
+
+        return run.Briefer(write, "confirmed")
+
+    async def write_with(sha: str | None, minutes: int) -> tuple[store.Stored, bool]:
+        now = kit.NOW + timedelta(minutes=minutes)
+        made = await run.make(app_engine, case, run.context_for(kit.settings(), now),
+                              briefer=writer(sha))  # fmt: skip
+        assert made is not None
+        stored, new = await run.write(app_engine, made, "test-key", now)
+        assert stored is not None
+        return stored, new
+
+    two, new = await write_with("a" * 64, 5)
+    assert new
+    assert (two.version, two.content_hash) == (2, one.content_hash)
+    assert m.core_hash(two.report) == m.core_hash(one.report)  # a person's confirm still holds
+    assert two.report.brief is not None
+    assert seen == [None]  # version 1 had no brief to hand on
+    same, new = await write_with("a" * 64, 10)  # the same brief: nothing to store
+    assert not new
+    assert same.id == two.id
+    assert seen[-1] == two.report.brief  # the writer is handed the brief before
+    lost, new = await write_with(None, 15)  # no brief this time: the newest keeps its own
+    assert not new
+    assert lost.id == two.id
+    three, new = await write_with("b" * 64, 20)
+    assert new
+    assert three.version == 3
+    # a case nobody confirmed is not briefed in the ``confirmed`` scope
+    assert (
+        run.Briefer(writer(None).write, "confirmed").wants(type("C", (), {"opened_at": None}))
+        is False
+    )
+    assert run.Briefer(writer(None).write, "all").wants(type("C", (), {"opened_at": None}))
+
+
 async def _versions(engine: AsyncEngine, case: uuid.UUID) -> list[store.Listed]:
     async with engine.connect() as conn:
         return await store.versions(conn, case)

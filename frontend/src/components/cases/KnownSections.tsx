@@ -90,7 +90,7 @@ function ActionPanel({ label, state, children, open, onOpen }: { label: string; 
           </p>
         )}
       </div>
-      {open && state.enabled && <div className="rounded-card border border-border bg-surface-2 p-3">{children}</div>}
+      {open && state.enabled && <div className="rounded-card bg-surface-2 p-3">{children}</div>}
     </li>
   );
 }

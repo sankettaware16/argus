@@ -136,7 +136,7 @@ export function Glance({ data }: { data: CaseReportOut | undefined }) {
   ];
   if (report.timeline.dwell_words) numbers.push(["First to last", report.timeline.dwell_words]);
   return (
-    <section aria-labelledby="glance-h" data-testid="glance" className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+    <section aria-labelledby="glance-h" data-testid="glance" className="flex flex-col gap-3 rounded-card bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="glance-h" className="m-0 text-base font-semibold">
           At a glance

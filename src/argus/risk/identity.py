@@ -21,6 +21,7 @@ it. Pure, except :func:`signin_accounts`, which reads the stored SSO sign-ins.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import re
 from collections import defaultdict
@@ -79,12 +80,60 @@ def address_of(ref: ObjectRef) -> str | None:
     return ref.key[3:].split(DAY_MARK, 1)[0]
 
 
-def device_of(ref: ObjectRef) -> str:
+def device_of(ref: ObjectRef, same: Mapping[ObjectRef, str] | None = None) -> str:
     """The device behind a key: a per-day key and its address's other days are one device (for
-    the device caps and counts)."""
+    the device caps and counts), and so are the addresses ``same`` reads as one device
+    (:func:`same_devices`)."""
+    if same:
+        held = same.get(ref)
+        if held is not None:
+            return held
     if ref.kind == "device" and ref.key.startswith("ip:"):
         return ref.key.split(DAY_MARK, 1)[0]
     return f"{ref.kind}:{ref.key}"
+
+
+SAME = "same:"  # the key of several addresses read as one device: ``same:<account>``
+
+
+class Used(NamedTuple):
+    """One account was the likely user of a device over a span of its activity."""
+
+    device: ObjectRef
+    user: str
+    start: datetime
+    end: datetime
+
+
+def same_devices(used: Iterable[Used]) -> dict[ObjectRef, str]:
+    """The addresses that are most likely **one device that moved** (D-334): each has one likely
+    account, the same one, and no two of them were active at the same time. A dynamic address
+    changes with the network a laptop joins, so the count of addresses is not a count of devices;
+    one account on two addresses at once is two devices, and then none of that account's are
+    joined. Returns device -> ``same:<account>`` for the joined ones (two or more)."""
+    users: dict[ObjectRef, set[str]] = defaultdict(set)
+    spans: dict[ObjectRef, tuple[datetime, datetime]] = {}
+    for u in used:
+        users[u.device].add(u.user)
+        low, high = spans.get(u.device, (u.start, u.end))
+        spans[u.device] = (min(low, u.start), max(high, u.end))
+    by_user: dict[str, list[ObjectRef]] = defaultdict(list)
+    for device, names in users.items():
+        if len(names) == 1:  # two accounts on an address: nobody's own device
+            by_user[next(iter(names))].append(device)
+    out: dict[ObjectRef, str] = {}
+    for user, devices in sorted(by_user.items()):
+        by_address: dict[str, tuple[datetime, datetime]] = {}
+        for d in devices:  # an address's days are one device already
+            low, high = by_address.get(device_of(d), spans[d])
+            by_address[device_of(d)] = (min(low, spans[d][0]), max(high, spans[d][1]))
+        if len(by_address) < 2:
+            continue
+        ordered = sorted(by_address.values())
+        if any(b[0] < a[1] for a, b in itertools.pairwise(ordered)):
+            continue  # active on two addresses at once: more than one device
+        out.update(dict.fromkeys(devices, SAME + user))
+    return out
 
 
 def service_account(name: str) -> bool:
@@ -255,6 +304,87 @@ def sign_ins(
         hour = at.replace(minute=0, second=0, microsecond=0)
         out.setdefault((ref, user, hour), SignIn(ref, user, hour, hour + timedelta(hours=1)))
     return [out[k] for k in sorted(out, key=lambda k: (k[0], k[1], k[2]))]
+
+
+def spans_of(
+    obs: Iterable[tuple[ObjectRef, datetime]], identity: Identity
+) -> dict[ObjectRef, tuple[datetime, datetime]]:
+    """When each address that may be a device that moves was active: not a hub, not a shared
+    role (a lab machine has many users, and one user many lab machines), not an address the asset
+    map says is one device (a /32 or a stated static address is that device, and no other)."""
+    out: dict[ObjectRef, tuple[datetime, datetime]] = {}
+    for ref, at in obs:
+        if address_of(ref) is None:
+            continue
+        if identity.shared(ref) or identity.hub(ref) or identity.one_device(ref):
+            continue
+        low, high = out.get(ref, (at, at))
+        out[ref] = (min(low, at), max(high, at))
+    return out
+
+
+def used_by(
+    spans: Mapping[ObjectRef, tuple[datetime, datetime]],
+    records: Mapping[tuple[str, date], signin_model.DayRecord], rules: signin_model.Rules,
+    now: datetime,
+) -> list[Used]:  # fmt: skip
+    """The one account behind each device over the span of its activity (the sign-ins' ``likely``
+    state, or the only account seen so far while a day is still being read; with the sign-ins'
+    own padding: the reading the incident report gives), never a generic or service account."""
+    by_address: dict[str, dict[date, signin_model.DayRecord]] = defaultdict(dict)
+    for (held, day), record in records.items():
+        by_address[held][day] = record
+    out: list[Used] = []
+    for ref, (first, last) in sorted(spans.items()):
+        address = address_of(ref)
+        if address is None:
+            continue
+        found = attribute.attribute(address, by_address.get(address, {}), first, last, rules,
+                                    now=now)  # fmt: skip
+        # likely: one account in the window (others may have signed in outside it that day);
+        # unknown: a day's sign-ins are not all read yet, and one account is all there is so far
+        if len(found.accounts) != 1 or found.state not in ("likely", "unknown"):
+            continue
+        if found.state == "unknown" and (found.account_count != 1 or found.at_least):
+            continue
+        user = found.accounts[0].user.strip().lower()
+        if user and not service_account(user):
+            out.append(Used(ref, user, first, last))
+    return out
+
+
+async def device_users(
+    conn: AsyncConnection, spans: Mapping[ObjectRef, tuple[datetime, datetime]],
+    rules: signin_model.Rules, now: datetime,
+) -> list[Used]:  # fmt: skip
+    """:func:`used_by` on the stored sign-ins of the addresses and days of ``spans``."""
+    addresses = sorted({a for ref in spans if (a := address_of(ref)) is not None})
+    if not addresses:
+        return []
+    pad = rules.pad
+    first = min(s[0] for s in spans.values()) - pad
+    last = max(s[1] for s in spans.values()) + pad
+    records = await signin_store.records(
+        conn, addresses, signin_model.utc_day(first), signin_model.utc_day(last)
+    )
+    return used_by(spans, records, rules, now)
+
+
+_USED = text(
+    "SELECT device, value, valid_from, valid_to FROM risk_aliases WHERE kind = 'account'"
+    " AND device = ANY(CAST(:d AS text[]))"
+)
+
+
+async def read_same(conn: AsyncConnection, devices: Sequence[str]) -> dict[ObjectRef, str]:
+    """The addresses of ``devices`` (object keys) that are one device, from the accounts the
+    linking pass read behind each (``risk_aliases``)."""
+    if not devices:
+        return {}
+    rows = await conn.execute(_USED, {"d": list(devices)})
+    return same_devices(
+        Used(ObjectRef("device", r.device), str(r.value), r.valid_from, r.valid_to) for r in rows
+    )
 
 
 _DEVICES_A_DAY = text(

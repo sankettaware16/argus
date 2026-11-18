@@ -264,7 +264,7 @@ function ClosureForm({ detail, onDone }: Shared) {
         {guard.hint}
       </div>
       {shown && ready && (
-        <section aria-label="What asking would write" className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3">
+        <section aria-label="What asking would write" className="flex flex-col gap-2 rounded-card bg-surface-2 p-3">
           <h4 className="m-0 text-sm font-semibold">What asking for this closure binds</h4>
           {preview.isPending && <Loading what="the preview" />}
           {preview.isError && <Problem error={preview.error} what="The preview" onRetry={() => void preview.refetch()} />}
@@ -385,7 +385,7 @@ export function MergeForm({ detail, onDone, label = "Merge into case number", hi
         <p className="m-0 text-sm text-muted">A possible incident is merged at once; there is no approval to ask for.</p>
       )}
       {shown && ready && confirmed && (
-        <section aria-label="What asking would write" className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3">
+        <section aria-label="What asking would write" className="flex flex-col gap-2 rounded-card bg-surface-2 p-3">
           <h4 className="m-0 text-sm font-semibold">What asking for this merge binds</h4>
           {preview.isPending && <Loading what="the preview" />}
           {preview.isError && <Problem error={preview.error} what="The preview" onRetry={() => void preview.refetch()} />}
@@ -447,7 +447,7 @@ function Row({ a, active, onOpen, children }: { a: CaseActionStateOut; active: b
           </p>
         )}
       </div>
-      {active && a.enabled && <div className="rounded-card border border-border bg-surface-2 p-3">{children}</div>}
+      {active && a.enabled && <div className="rounded-card bg-surface-2 p-3">{children}</div>}
     </li>
   );
 }

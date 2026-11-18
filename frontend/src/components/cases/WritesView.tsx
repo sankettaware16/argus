@@ -31,7 +31,7 @@ export function WritesView({ payload, hash }: { payload: Record<string, unknown>
       )}
       <details>
         <summary className="cursor-pointer text-sm font-medium">The exact writes (raw)</summary>
-        <pre className="m-0 mt-1 max-h-80 overflow-auto rounded-control border border-border bg-surface-2 p-2 text-xs" tabIndex={0} aria-label="The exact payload">
+        <pre className="m-0 mt-1 max-h-80 overflow-auto rounded-control bg-surface-2 p-2 text-xs" tabIndex={0} aria-label="The exact payload">
           <UntrustedText value={JSON.stringify(payload, null, 2)} block limits={WHOLE} />
         </pre>
       </details>

@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button";
 export function Failed() {
   return (
     <div role="alert" className="flex flex-col gap-2">
-      <h1 className="m-0 text-2xl font-semibold">This page could not be shown</h1>
+      <h1 className="page-h">This page could not be shown</h1>
       <p className="m-0 max-w-prose">
         A part of ARGUS could not be loaded, usually because ARGUS was updated a moment ago. Reload the page; nothing you
         saved is lost. If it happens again, tell an ARGUS admin.

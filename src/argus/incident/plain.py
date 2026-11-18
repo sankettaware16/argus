@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from argus import site
 from argus.incident import model as m
-from argus.incident.words import day_label, ist_moment, times
+from argus.incident.words import WHEN_WORDS, WHO_WORDS, day_label, ist_moment, times
 
 
 def printable(value: object) -> str:
@@ -14,6 +14,24 @@ def printable(value: object) -> str:
         char if char.isprintable() else char.encode("unicode_escape").decode("ascii")
         for char in str(value)
     )
+
+
+def brief_lines(report: m.IncidentReport) -> list[str]:
+    """The analyst brief (a model's words, checked), or why there is none."""
+    b = report.brief
+    if b is None:
+        return [f"no analyst brief: {report.brief_note}", ""] if report.brief_note else []
+    out = [f"ANALYST BRIEF (ARGUS AI, {b.by}, {ist_moment(b.at)}; every line checked)"]
+    out += [f"  {line.text}" for line in b.statement]
+    for title, part in (("Summary", b.points), ("Why it is judged real", b.why),
+                        ("Impact", b.impact)):  # fmt: skip
+        if part:
+            out += [f"  {title}:", *[f"    - {line.text}" for line in part]]
+    if b.actions:
+        out.append("  Actions asked for:")
+        out += [f"    {n}. {a.text} ({WHO_WORDS[a.who]}, {WHEN_WORDS[a.when].lower()})"
+                for n, a in enumerate(b.actions, 1)]  # fmt: skip
+    return [*out, ""]
 
 
 def lines(report: m.IncidentReport) -> list[str]:
@@ -32,8 +50,8 @@ def lines(report: m.IncidentReport) -> list[str]:
         f"still going on: {report.summary.standing_words}",
         f"tags: {', '.join(h.tags)}",
         "",
-        "SUMMARY",
     ]
+    out += [*brief_lines(report), "SUMMARY"]
     out += [f"  {s.text}" for s in (report.summary.prose or report.summary.sentences)]
     if report.summary.notice is not None:
         out.append(f"  {report.summary.notice.line}")
@@ -65,6 +83,8 @@ def lines(report: m.IncidentReport) -> list[str]:
                 f" {ist_moment(a.last_seen)}, {'; '.join(a.browsers) or 'unknown browser'}"
                 for a in d.accounts
             ]
+        if report.users.same is not None:
+            out.append(f"  {report.users.same.text}")
     out += ["", f"INDICATORS ({report.indicators_total})"]
     out += [f"  {i.value} [{i.kind}, {i.role}] {i.evidence}" for i in report.indicators[:25]] or [
         "  none"

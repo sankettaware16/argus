@@ -311,6 +311,8 @@ class ReportUsers(_M):
     devices: tuple[ReportDeviceUsers, ...] = ()
     devices_total: int = 0
     signins: tuple[ReportSignin, ...] = ()
+    # one account behind most of the addresses: probably one device under changing addresses
+    same: ReportSentence | None = None
 
 
 class ReportHypothesis(_M):
@@ -343,6 +345,57 @@ class ReportActions(_M):
     lines: tuple[ReportActionLine, ...] = ()
     close_when: ReportSentence | None = None
     note: str | None = Field(default=None, max_length=400)
+
+
+BriefWho = Literal["owner", "accounts", "network", "soc"]
+BriefWhen = Literal["now", "today", "week", "after"]
+BRIEF_TEXT = 400  # characters of one line of the brief
+
+
+class ReportBriefLine(_M):
+    """One sentence of the analyst brief, in a model's words, with the facts it rests on (ids of
+    ``ReportBrief.facts``). Code checked it before it was kept (:mod:`argus.incident.brief`)."""
+
+    text: str = Field(min_length=1, max_length=BRIEF_TEXT)
+    cites: tuple[str, ...] = Field(min_length=1, max_length=8)
+
+
+class ReportBriefAction(ReportBriefLine):
+    """A step the brief asks for: who takes it and by when. Advice for a person; nothing runs."""
+
+    who: BriefWho
+    when: BriefWhen
+
+
+class ReportBrief(_M):
+    """The analyst brief: what a person writes at the top of a hand-made incident report, in a
+    model's words over the report's own facts. ``statement`` says what is happening, ``points``
+    the summary, ``why`` what makes it real, ``impact`` what is at risk, ``actions`` the steps asked
+    for. ``facts`` holds the cited facts in ARGUS's words; ``facts_sha`` names the facts the model
+    was given, so the same facts keep the same brief. Read from the logs: a person without log
+    access does not see it."""
+
+    statement: tuple[ReportBriefLine, ...] = Field(min_length=1, max_length=2)
+    points: tuple[ReportBriefLine, ...] = Field(min_length=1, max_length=6)
+    why: tuple[ReportBriefLine, ...] = Field(default=(), max_length=6)
+    impact: tuple[ReportBriefLine, ...] = Field(default=(), max_length=4)
+    actions: tuple[ReportBriefAction, ...] = Field(default=(), max_length=8)
+    facts: dict[str, str] = {}
+    facts_sha: str = Field(pattern=r"^[0-9a-f]{64}$")
+    by: str = Field(max_length=200)  # the provider and model
+    at: AwareDatetime  # the report's time when it was written: a later version may keep it
+    # the verdict, whether it is still going on and the case's state when it was written: a
+    # brief is never kept across a change of these
+    basis: str = Field(max_length=200)
+    dropped: int = Field(default=0, ge=0)  # lines the checks took out
+
+    @model_validator(mode="after")
+    def _cited(self) -> ReportBrief:
+        lines = (*self.statement, *self.points, *self.why, *self.impact, *self.actions)
+        missing = sorted({c for line in lines for c in line.cites} - set(self.facts))
+        if missing:
+            raise ValueError(f"the brief cites {missing[0]}, which it does not hold")
+        return self
 
 
 class ReportMeta(_M):
@@ -379,6 +432,8 @@ class IncidentReport(_M):
     out_of_scope: tuple[ReportSentence, ...] = ()
     facts: tuple[ReportFact, ...] = ()
     meta: ReportMeta
+    brief: ReportBrief | None = None  # a model's words over the facts, after the checks
+    brief_note: str | None = Field(default=None, max_length=300)  # why there is no brief
 
     @model_validator(mode="after")
     def _facts_hold(self) -> IncidentReport:
@@ -401,6 +456,8 @@ def sentences_of(report: IncidentReport) -> list[tuple[str, ReportSentence]]:
     if report.actions.close_when is not None:
         out.append(("actions", report.actions.close_when))
     out += [("accounts", d.sentence) for d in report.users.devices]
+    if report.users.same is not None:
+        out.append(("accounts", report.users.same))
     out += [("out_of_scope", s) for s in report.out_of_scope]
     return out
 
@@ -457,6 +514,10 @@ def _default(value: Any) -> Any:
 
 def _hash(report: IncidentReport, *, users: bool, title: bool = True) -> str:
     body = report.model_dump(mode="json")
+    body.pop("brief", None)  # a model's words are not evidence
+    body.pop("brief_note", None)
+    if isinstance(body.get("users"), dict) and body["users"].get("same") is None:
+        body["users"] = {k: v for k, v in body["users"].items() if k != "same"}
     meta = dict(body["meta"])
     meta.pop("as_at", None)
     body["meta"] = meta

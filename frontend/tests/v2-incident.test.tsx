@@ -369,4 +369,41 @@ describe("the page's address", () => {
     expect(draft.body).toContain("Accounts: in the attached PDF");
     act(() => undefined);
   });
+
+  it("with an analyst brief the CISO draft opens with what is happening and ends with numbered steps (D-332)", () => {
+    const line = (text: string) => ({ text, cites: ["F1"] });
+    const brief = {
+      statement: [line("A laptop keeps sending its browser's cookies to 203.0.113.40.")],
+      points: [line("It started on 31 Oct."), line("One account is behind most addresses.")],
+      why: [line("The paths name cookies and history.")],
+      impact: [line("Signed-in sessions may be taken over.")],
+      actions: [
+        { ...line("Block 203.0.113.40 at the proxy."), who: "network" as const, when: "now" as const },
+        { ...line("Change the account's password from a clean device."), who: "accounts" as const, when: "today" as const },
+      ],
+      facts: { F1: "A fact." },
+      facts_sha: "0".repeat(64),
+      by: "anthropic/claude-opus-5-5",
+      at: "2026-10-29T07:30:00Z",
+      basis: "true_positive|ongoing|open",
+      dropped: 0,
+    };
+    const account = (name: string, device: string) => ({ name, device, first_seen: "2026-10-28T00:00:00Z", last_seen: "2026-10-28T01:00:00Z", signins: 1, failed: 0, days: 1, browsers: [] });
+    const device = (ip: string, names: string[]) => ({ device: ip, state: (names.length === 1 ? "likely" : "possible") as "likely" | "possible", sentence: { text: `${ip}: seen.`, cites: ["F1"], by: "code" as const }, accounts: names.map((n) => account(n, ip)), account_count: names.length, at_least: false });
+    const users = { lead: "", devices_total: 3, signins: [], same: { text: "One account, u1, is the probable user on 3 of the 3 addresses with a sign-in.", cites: ["F1"], by: "code" as const }, devices: [device("10.0.0.1", ["u1"]), device("10.0.0.2", ["u1"]), device("10.0.0.3", ["u1", "u2"])] };
+    const data = reportOut({ case_id: P1_ID }, { brief, users });
+    const body = cisoDraft(p1Detail(), data, engineOf(p1Engine()), true).body;
+    expect(body.startsWith("A laptop keeps sending its browser's cookies to 203.0.113.40.\n\nSummary\n- It started on 31 Oct.")).toBe(true);
+    expect(body).toContain("- u1: the only account seen on 2 addresses; one of several on 1 address");
+    expect(body).toContain("- u2: one of several on 1 address");
+    expect(body).toContain("One account, u1, is the probable user on 3 of the 3 addresses with a sign-in.");
+    expect(body).toContain("Why it is judged real\n- The paths name cookies and history.");
+    expect(body).toContain("Risk\n- Signed-in sessions may be taken over.");
+    expect(body).toContain("Requested actions\n1. Block 203.0.113.40 at the proxy. (Network team, immediately)\n2. Change the account's password from a clean device. (Account holders, today)");
+    // without log access the server hides the brief and the accounts: the draft says neither
+    const hidden = cisoDraft(p1Detail(), reportOut({ case_id: P1_ID }, { users }), engineOf(p1Engine()), false).body;
+    expect(hidden).not.toContain("u1");
+    expect(hidden).toContain("Accounts: in the attached PDF");
+    act(() => undefined);
+  });
 });

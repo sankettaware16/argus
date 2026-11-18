@@ -147,7 +147,7 @@ function Buttons({ card, keys, size, onDone, onConflict }: { card: Card; keys?: 
         onDone={(row) => onDone?.(row)}
         onConflict={onConflict}
         checkLink={
-          <Link to="/incidents/$id" params={{ id: target.id }} search={{ tab: "evidence" }} className="text-accent">
+          <Link to="/incidents/$id" params={{ id: target.id }} search={{ tab: "evidence" }} className="text-link">
             Ask ARGUS to check
           </Link>
         }
@@ -209,7 +209,7 @@ export function IncidentCard({
     const waiting = waitingWords(card, now, true);
     const top = topWhy(card.engine, 1).shown[0];
     return (
-      <article {...common} className="flex flex-col gap-1 rounded-card border border-border bg-surface px-3 py-2" onClick={(e) => (e.target as HTMLElement).closest("a,button,[role=menu],form") === null && setExpanded(!expanded)}>
+      <article {...common} className="flex flex-col gap-1 rounded-card bg-surface px-3 py-2" onClick={(e) => (e.target as HTMLElement).closest("a,button,[role=menu],form") === null && setExpanded(!expanded)}>
         <p className="m-0 flex flex-wrap items-center gap-x-2 text-sm">
           <PriorityBadge engine={card.engine} />
           <CertaintyWord value={certainty} />
@@ -242,7 +242,7 @@ export function IncidentCard({
     const unsure = card.engine.checks.find((c) => c.state === "unknown")?.text ?? topWhy(card.engine, 1).shown[0] ?? null;
     const decider = card.engine.alternatives.find((a) => a.state === "fits") ?? card.engine.alternatives.find((a) => a.state === "unknown");
     return (
-      <article {...common} className="flex flex-col gap-1.5 rounded-card border border-border bg-surface p-3">
+      <article {...common} className="flex flex-col gap-1.5 rounded-card bg-surface p-3">
         <h3 className="m-0 flex items-start gap-2 text-base leading-snug font-semibold">
           <PriorityBadge engine={card.engine} className="mt-0.5" />
           <span className="min-w-0">
@@ -269,7 +269,7 @@ export function IncidentCard({
   }
 
   return (
-    <article {...common} className="flex flex-col gap-1.5 rounded-card border border-border bg-surface p-4">
+    <article {...common} className="flex flex-col gap-1.5 rounded-card bg-surface p-4">
       <h3 className="m-0 flex items-start gap-2 text-base leading-snug font-semibold">
         <PriorityBadge engine={card.engine} className="mt-0.5" />
         <span className="min-w-0 text-balance">

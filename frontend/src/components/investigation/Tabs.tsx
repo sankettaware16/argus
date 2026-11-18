@@ -168,7 +168,7 @@ function RawAlert({ id, alertId }: { id: string; alertId: string }) {
   if (raw.isPending) return <Loading what="the raw alert" />;
   if (raw.isError) return <Problem error={raw.error} what="The raw alert" onRetry={() => void raw.refetch()} />;
   return (
-    <div className="max-h-96 overflow-auto rounded-control border border-border bg-surface-2 p-2 font-mono text-xs">
+    <div className="max-h-96 overflow-auto rounded-control bg-surface-2 p-2 font-mono text-xs">
       <UntrustedText value={JSON.stringify(raw.data.raw, null, 2)} block limits={{ maxChars: 40_000, maxLines: 1000 }} />
     </div>
   );

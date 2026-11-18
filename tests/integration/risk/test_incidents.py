@@ -166,6 +166,66 @@ networks:
 """
 
 
+async def test_one_accounts_addresses_never_active_together_are_one_device(
+    migrated_engine: AsyncEngine, app_engine: AsyncEngine
+) -> None:
+    """D-334 through the pass: two addresses fifteen hours apart, the same account behind
+    each: one incident of one device, what was read kept in ``risk_aliases``; without sign-ins
+    they are two incidents of one device each."""
+    from sqlalchemy import text
+
+    from argus.signins import model as signin_model
+
+    await rule(migrated_engine, "r-ioc", "IOC rule", severity="critical",
+               indices=("acme-logs-squid-*",))  # fmt: skip
+    seen = (("10.1.1.2", 5.0, "cdn.c2-example.net"), ("10.1.1.3", 20.0, "other-example.org"))
+    for address, ago, domain in seen:  # nothing they reached is the same: no link joins them
+        await group(migrated_engine, "r-ioc", actor=address, severity="critical",
+                    fields={"url.domain": [domain]}, flags=(OUTSIDE,), hours_ago=ago)  # fmt: skip
+    plain = linked()
+    assert plain.linking is not None
+    with_signins = replace(plain, linking=replace(plain.linking, signins=signin_model.Rules()))
+    report = await run.step(app_engine, with_signins, NOW)  # no sign-in is stored yet
+    assert "incidents (shadow): 2 live, 2 new" in report.incidents
+    assert await scalar(migrated_engine, "SELECT count(*) FROM risk_aliases"
+                                         " WHERE kind = 'account'") == 0  # fmt: skip
+    async with migrated_engine.begin() as conn:
+        for address, ago, _ in seen:
+            at = NOW - timedelta(hours=ago)
+            for day in {(at - timedelta(hours=2)).date(), at.date()}:
+                await conn.execute(
+                    text(
+                        "INSERT INTO signin_sightings (address, day, user_name, first_at,"
+                        " last_at, events, successes, failures, hours, user_agents) VALUES"
+                        " (:a, :d, 'user01', :at, :at, 4, 4, 0, :h, '[]')"
+                    ),
+                    {"a": address, "d": day, "at": at, "h": list(range(24))},
+                )
+                await conn.execute(
+                    text(
+                        "INSERT INTO signin_lookups (address, day, looked_at, complete, accounts)"
+                        " VALUES (:a, :d, :now, true, 1)"
+                    ),
+                    {"a": address, "d": day, "now": NOW},
+                )
+    again = await run.step(app_engine, with_signins, NOW + timedelta(minutes=2))
+    assert "the pass failed" not in again.incidents
+    kept = await all_rows(migrated_engine, "SELECT device, value FROM risk_aliases"
+                                           " WHERE kind = 'account' ORDER BY device")  # fmt: skip
+    assert [(r.device, r.value) for r in kept] == [("ip:10.1.1.2", "user01"),
+                                                   ("ip:10.1.1.3", "user01")]  # fmt: skip
+    live = await all_rows(
+        migrated_engine,
+        "SELECT i.id, i.devices, (SELECT count(*) FROM risk_incident_objects o"
+        " WHERE o.incident_id = i.id) AS objects FROM risk_incidents i"
+        " WHERE i.state <> 'merged' ORDER BY objects DESC",
+    )
+    assert [(r.devices, r.objects) for r in live] == [(1, 2)]
+    reasons = await all_rows(migrated_engine, "SELECT reason FROM risk_links WHERE via = 'account'"
+                                              " AND incident_id = :i", i=live[0].id)  # fmt: skip
+    assert any("most likely one device that moved" in r.reason for r in reasons)
+
+
 def with_identity(unknown: str = "static") -> run.Setup:
     """The pass with the linker on, an asset map (a dynamic pool, a gateway) and a resolver."""
     import ipaddress

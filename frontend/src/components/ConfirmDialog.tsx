@@ -95,7 +95,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
         <AlertDialog.Popup
           initialFocus={cancel}
           finalFocus={finalFocus ? () => finalFocus() ?? true : undefined}
-          className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-5 text-text shadow-card"
+          className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-raised p-5 text-text shadow-card"
         >
           <AlertDialog.Title className="m-0 text-lg font-semibold">{title}</AlertDialog.Title>
           {description && <AlertDialog.Description className="m-0 text-sm text-muted">{description}</AlertDialog.Description>}

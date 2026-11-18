@@ -234,8 +234,8 @@ function UsersView() {
     <>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <h1 className="m-0 text-2xl font-semibold">Users and roles</h1>
-          <p className="m-0 max-w-prose text-sm text-muted">Who may sign in to ARGUS and what they may do. A new person, or someone who forgot their password, gets a one-time link; you never type or see a password.</p>
+          <h1 className="page-h">Users and roles</h1>
+          <p className="page-sub">Who may sign in to ARGUS and what they may do. A new person, or someone who forgot their password, gets a one-time link; you never type or see a password.</p>
         </div>
         <Button variant="primary" onClick={() => setAdding(true)}>
           Add a person

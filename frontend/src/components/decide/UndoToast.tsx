@@ -32,7 +32,7 @@ export function UndoToast() {
       onMouseLeave={() => setHeld((h) => ({ ...h, hover: false }))}
       onFocus={() => setHeld((h) => ({ ...h, focus: true }))}
       onBlur={() => setHeld((h) => ({ ...h, focus: false }))}
-      className="fixed right-4 bottom-20 left-4 z-40 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-card border border-border-strong bg-surface px-4 py-3 text-sm text-text shadow-card sm:bottom-4"
+      className="fixed right-4 bottom-20 left-4 z-40 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-card border border-border-strong bg-raised px-4 py-3 text-sm text-text shadow-card sm:bottom-4"
     >
       <p className="m-0 min-w-0 flex-1">{toast.text}</p>
       <div className="flex gap-2">

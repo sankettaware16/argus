@@ -121,8 +121,8 @@ export function Health() {
   const pending = session.data?.setup_pending === true;
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Health</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">Whether data is arriving from the SIEM and any gaps. A gap means unknown, never clean.</p>
+      <h1 className="page-h">Health</h1>
+      <p className="page-sub">Whether data is arriving from the SIEM and any gaps. A gap means unknown, never clean.</p>
       {pending && (
         <p role="status" className="m-0 rounded-control border border-info/40 bg-info-soft px-3 py-2 text-sm text-info" data-testid="health-setup">
           ARGUS is not connected yet: the first-time setup is not finished, so nothing below is read yet, which is expected.{" "}
@@ -207,7 +207,7 @@ export function Glossary() {
   const terms = useQuery(glossaryOptions);
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Glossary</h1>
+      <h1 className="page-h">Glossary</h1>
       <Section title="The pages" rows={PAGES} />
       <Section title="ARGUS's assessment of an investigation" rows={assessment()} />
       <Section title="The full report" rows={REPORT} />
@@ -318,8 +318,8 @@ export function Metrics() {
   const metrics = useQuery(metricsOptions);
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Metrics</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">How ARGUS&apos;s assessments and its connection to AI models are doing.</p>
+      <h1 className="page-h">Metrics</h1>
+      <p className="page-sub">How ARGUS&apos;s assessments and its connection to AI models are doing.</p>
       {metrics.isPending && <Loading what="the metrics" />}
       {metrics.isError && <Problem error={metrics.error} what="The metrics" onRetry={() => void metrics.refetch()} />}
       {metrics.data && (

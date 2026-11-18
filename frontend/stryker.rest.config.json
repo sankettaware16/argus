@@ -47,6 +47,7 @@
     "src/components/decide/useOutcome.ts",
     "src/components/incident/AiReading.tsx",
     "src/components/incident/CheckList.tsx",
+    "src/components/incident/Brief.tsx",
     "src/components/incident/Ciso.tsx",
     "src/components/incident/Glance.tsx",
     "src/components/incident/IncidentBar.tsx",
@@ -162,6 +163,7 @@
     "src/shell/AccessBanner.tsx",
     "src/shell/AppShell.tsx",
     "src/shell/Status.tsx",
+    "src/shell/icons.tsx",
     "src/shell/nav.ts"
   ],
   "reporters": [

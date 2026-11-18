@@ -21,7 +21,7 @@ import type { Review } from "./useReview";
 /** The key a choice answers to, drawn beside it (the choice's name stays its own words). */
 function KeyCap({ children }: { children: string }) {
   return (
-    <kbd aria-hidden="true" className="rounded-control border border-border-strong bg-surface px-1 text-xs text-muted">
+    <kbd aria-hidden="true" className="rounded-control border border-border-strong bg-bg px-1 text-xs text-muted">
       {children}
     </kbd>
   );
@@ -43,7 +43,7 @@ export function ReviewPanel({ detail, review, inCard = false }: { detail: Invest
     <AlertDialog.Root open={askReal} onOpenChange={setAskReal}>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-surface p-5 text-text shadow-card">
+        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-raised p-5 text-text shadow-card">
           <AlertDialog.Title className="m-0 text-lg font-semibold">Real: open an incident?</AlertDialog.Title>
           <AlertDialog.Description className="m-0 text-sm">{REAL_SENTENCE}</AlertDialog.Description>
           <div className="flex flex-wrap justify-end gap-2">
@@ -86,7 +86,7 @@ export function ReviewPanel({ detail, review, inCard = false }: { detail: Invest
                 <label
                   key={key}
                   title={OUTCOME_HINTS[key]}
-                  className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-control border border-border-strong bg-surface px-2.5 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
+                  className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-border-strong bg-bg px-3.5 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
                 >
                   <input type="radio" name={`${id}-outcome`} value={key} checked={outcome === key} onChange={() => setOutcome(key)} className="sr-only" />
                   <KeyCap>{String(i + 1)}</KeyCap>

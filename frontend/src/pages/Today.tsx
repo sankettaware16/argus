@@ -39,7 +39,7 @@ function Skeleton() {
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading Today">
       <div className="h-5 w-2/3 rounded bg-surface-3" />
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-40 rounded-card border border-border bg-surface-2" />
+        <div key={i} className="h-40 rounded-card bg-surface-2" />
       ))}
       <div className="h-4 w-1/2 rounded bg-surface-3" />
       <div className="h-4 w-1/3 rounded bg-surface-3" />
@@ -78,7 +78,7 @@ function SimilarRow({ slot }: { slot: Extract<Slot, { kind: "similar" }> }) {
       <span>
         <strong>{slot.cards.length} similar:</strong> {slot.band} · <UntrustedText value={slot.words} limits={{ maxChars: 120, maxLines: 1 }} /> · <UntrustedText value={slot.outcome} limits={{ maxChars: 120, maxLines: 1 }} />
       </span>
-      <Link to="/incidents" search={{ view: "needs-you", together: slot.cards.map((c) => c.id ?? "").filter((x) => x !== "") }} className="inline-flex min-h-8 items-center rounded-control border border-border-strong bg-surface px-3 font-medium text-text no-underline hover:bg-surface-3">
+      <Link to="/incidents" search={{ view: "needs-you", together: slot.cards.map((c) => c.id ?? "").filter((x) => x !== "") }} className="inline-flex min-h-8 items-center rounded-control border border-border-strong bg-bg px-3 font-medium text-text no-underline hover:bg-surface-3">
         Review together
       </Link>
     </div>
@@ -91,7 +91,7 @@ function DecidedRows() {
   if (items.length === 0) return null;
   return (
     <section data-testid="today-decided" aria-labelledby="today-decided-h" className="flex flex-col gap-1">
-      <h2 id="today-decided-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+      <h2 id="today-decided-h" className="section-h">
         Just decided
       </h2>
       <ul className="m-0 flex list-none flex-col p-0">
@@ -142,7 +142,7 @@ function DecidedRow({ d, canUndo, undo }: { d: Decided; canUndo: boolean; undo: 
 function NewActivity({ cards }: { cards: Card[] }) {
   return (
     <section data-testid="today-new-activity" aria-labelledby="today-new-h" className="flex flex-col gap-1">
-      <h2 id="today-new-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+      <h2 id="today-new-h" className="section-h">
         New activity · {cards.length}
       </h2>
       {cards.length === 0 ? (
@@ -180,7 +180,7 @@ function Handled({ data }: { data: TodayData }) {
   const since = parse(h.since);
   return (
     <section data-testid="today-handled" aria-labelledby="today-handled-h" className="flex flex-col gap-2">
-      <h2 id="today-handled-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+      <h2 id="today-handled-h" className="section-h">
         Handled by ARGUS{since ? ` since ${roundWords(since)}` : ""} · {h.count.toLocaleString("en-US")}
       </h2>
       {h.count === 0 ? (
@@ -206,7 +206,7 @@ function Handled({ data }: { data: TodayData }) {
         </div>
       )}
       {h.audits.map((a) => (
-        <article key={a.id} data-testid="today-audit" className="flex flex-col gap-1 rounded-card border border-border bg-surface p-3 text-sm">
+        <article key={a.id} data-testid="today-audit" className="flex flex-col gap-1 rounded-card bg-surface p-3 text-sm">
           <p className="m-0" data-testid="audit-facts">
             <UntrustedText value={a.facts.length > 0 ? a.facts.join(" · ") : a.title} limits={{ maxChars: 400, maxLines: 3 }} />
           </p>
@@ -238,7 +238,7 @@ function Approvals() {
   if (!approver || pending.length === 0) return null;
   return (
     <section data-testid="today-approvals" aria-labelledby="today-approvals-h" className="flex flex-col gap-1">
-      <h2 id="today-approvals-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+      <h2 id="today-approvals-h" className="section-h">
         Waiting for your approval · {q.data?.pending_total ?? pending.length}
       </h2>
       <ul className="m-0 flex list-none flex-col p-0">
@@ -338,13 +338,13 @@ export function Today({ data }: { data: TodayData }) {
     window.setTimeout(() => titles.current.filter((t) => t !== null && t.isConnected)[index]?.focus(), 0);
   };
   return (
-    <div className="flex flex-col gap-3 sm:gap-5">
-      <header className="flex flex-col gap-1">
+    <div className="flex flex-col gap-4 sm:gap-7">
+      <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="m-0 text-2xl font-semibold">Today</h1>
+          <h1 className="page-h">Today</h1>
           <span className="text-sm text-muted">{longDay(now)}</span>
         </div>
-        <p className="m-0 text-sm" data-testid="today-summary">
+        <p className="page-sub" data-testid="today-summary">
           {parts.map((p, i) => (
             <span key={i}>
               {i > 0 && " · "}
@@ -363,7 +363,7 @@ export function Today({ data }: { data: TodayData }) {
       <KibanaLine data={data} />
       <section data-testid="today-needs-you" aria-labelledby="today-needs-h" className="flex flex-col gap-2 sm:gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="today-needs-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+          <h2 id="today-needs-h" className="section-h">
             Needs you · {needsYouCount(data)}
           </h2>
           <span className="hidden text-sm text-muted sm:inline">Sorted by priority</span>
@@ -410,7 +410,7 @@ export function Today({ data }: { data: TodayData }) {
       <NewActivity cards={data.new_activity} />
       {data.away && since && now.getTime() - since.getTime() > 24 * HOUR && (
         <section data-testid="today-away" className="flex flex-col gap-1 text-sm">
-          <h2 className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">While you were away</h2>
+          <h2 className="section-h">While you were away</h2>
           {data.away.decided_by_others.length > 0 && <p className="m-0">Decided by others: {data.away.decided_by_others.map((d) => `${d.who} ${d.text}`).join(" · ")}</p>}
           {data.away.went_quiet.length > 0 && <p className="m-0">Went quiet: {data.away.went_quiet.map((c) => `#${c.number}`).join(", ")}</p>}
           {data.away.gaps.map((g, i) => (
@@ -422,7 +422,7 @@ export function Today({ data }: { data: TodayData }) {
       )}
       {gray.length > 0 && (
         <section data-testid="today-gray" aria-labelledby="today-gray-h" className="flex flex-col gap-2">
-          <h2 id="today-gray-h" className="m-0 text-sm font-semibold tracking-wide text-muted uppercase">
+          <h2 id="today-gray-h" className="section-h">
             ARGUS is unsure about these · {gray.length}
           </h2>
           {gray.map((c) => {
@@ -455,7 +455,7 @@ export function TodayOrHome() {
   if (today.isError) {
     return (
       <>
-        <h1 className="m-0 text-2xl font-semibold">Today</h1>
+        <h1 className="page-h">Today</h1>
         <div role="alert" className="flex flex-col items-start gap-2 rounded-control border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger" data-testid="today-error">
           <p className="m-0">Today could not load. Nothing was changed.</p>
           <Button size="sm" onClick={() => void today.refetch()}>

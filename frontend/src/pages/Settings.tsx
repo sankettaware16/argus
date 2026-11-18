@@ -115,7 +115,7 @@ function SettingsView({ section: asked }: { section?: string }) {
           setPicked(key);
           setQuery("");
         }}
-        className={cn("flex w-full cursor-pointer flex-col items-start rounded-control border-0 bg-transparent px-2 py-1.5 text-left text-sm text-text hover:bg-surface-3", current && "bg-accent-soft")}
+        className={cn("flex w-full cursor-pointer flex-col items-start rounded-control border-0 bg-transparent px-3 py-2 text-left text-sm text-text hover:bg-surface", current && "bg-surface")}
       >
         <span className={cn("flex w-full items-center justify-between gap-2", current && "font-semibold")}>
           {label}
@@ -129,8 +129,8 @@ function SettingsView({ section: asked }: { section?: string }) {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 text-2xl font-semibold">Settings</h1>
-        <p className="m-0 max-w-prose text-sm text-muted">Change how ARGUS works. A change is checked again, written to the right file and applied by argus-admin; the result shows here within a few seconds.</p>
+        <h1 className="page-h">Settings</h1>
+        <p className="page-sub">Change how ARGUS works. A change is checked again, written to the right file and applied by argus-admin; the result shows here within a few seconds.</p>
       </div>
       {!out.applier.running && (
         <Notice tone="warn" testId="applier-down">

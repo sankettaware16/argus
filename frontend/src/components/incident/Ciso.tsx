@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import { UntrustedText } from "../UntrustedText";
 import { Button } from "../ui/button";
 import { sendShown } from "../decide/target";
+import { briefOf, statementOf, WHEN, WHO } from "./Brief";
 
 /** The note that records a report sent to the CISO without A14 (§7.3 step 9): the bar reads this exact note. */
 export function cisoNote(version: number): string {
@@ -33,30 +34,63 @@ const MAILTO_MAX = 1800;
 const IR_NUMBER = /\b(?:[A-Z]+-)?IR-\d{4}-\d{4}-\d{2}\b/;
 const IR_IN_TITLE = /\s*(?:\(\s*(?:[A-Z]+-)?IR-\d{4}-\d{4}-\d{2}\s*\)|\b(?:[A-Z]+-)?IR-\d{4}-\d{4}-\d{2}\b)/g;
 
-/** The draft's subject and body (pure; tests/v2-incident.test.tsx). */
+/** How each account relates to the case's addresses: the only one seen on some, one of several on others. */
+export function accountLines(report: IncidentReport): string[] {
+  const alone = new Map<string, number>();
+  const among = new Map<string, number>();
+  for (const d of report.users.devices) {
+    const names = [...new Set(d.accounts.map((a) => a.name).filter((n) => n !== ""))];
+    for (const n of names) (names.length === 1 ? alone : among).set(n, ((names.length === 1 ? alone : among).get(n) ?? 0) + 1);
+  }
+  const all = [...new Set([...alone.keys(), ...among.keys()])].sort((x, y) => (alone.get(y) ?? 0) - (alone.get(x) ?? 0) || x.localeCompare(y));
+  const n = (k: number) => `${k} ${k === 1 ? "address" : "addresses"}`;
+  return all.map((name) => {
+    const a = alone.get(name) ?? 0;
+    const s = among.get(name) ?? 0;
+    const said = [a > 0 ? `the only account seen on ${n(a)}` : "", s > 0 ? `one of several on ${n(s)}` : ""].filter((x) => x !== "").join("; ");
+    return `- ${name}: ${said}`;
+  });
+}
+
+/**
+ * The draft's subject and body (pure; tests/v2-incident.test.tsx). With an analyst brief (D-332)
+ * it reads as the team's hand-written escalation: what is happening, the summary, who, why it is
+ * judged real, the risk and the numbered steps asked for; without one, the report's own summary.
+ */
 export function cisoDraft(detail: CaseDetail, data: CaseReportOut | undefined, engine: Engine | null, seeLogs: boolean): { subject: string; body: string; pdf: string | null } {
   const report = (data?.report ?? null) as IncidentReport | null;
+  const brief = briefOf(report);
   const named = IR_NUMBER.exec(detail.case.title)?.[0] ?? null;
   const ir = detail.incident_id ?? report?.header.incident_id ?? named;
   const title = detail.case.title.replace(IR_IN_TITLE, "").replace(/\s{2,}/g, " ").trim() || detail.case.title;
   const subject = `${teamName()}: ${title}${ir ? ` (${ir})` : ""}`; // one IR number: the case's, never the title's beside it
   const pdf = data?.files.find((f) => f.kind === "pdf" && f.available)?.name ?? null;
   const lines: string[] = [];
-  const summary = report?.summary.sentences.filter((s) => s.by === "code").map((s) => s.text) ?? [];
-  lines.push("Summary", ...(summary.length > 0 ? summary : [detail.case.title]), "");
+  if (brief !== null) {
+    lines.push(statementOf(brief), "", "Summary", ...brief.points.map((p) => `- ${p.text}`), "");
+  } else {
+    const summary = report?.summary.sentences.filter((s) => s.by === "code").map((s) => s.text) ?? [];
+    lines.push("Summary", ...(summary.length > 0 ? summary : [detail.case.title]), "");
+  }
   const assets = report?.assets.slice(0, 25) ?? [];
   if (assets.length > 0) {
     lines.push("Devices", ...assets.map((a) => `- ${a.value}${a.label ? ` (${a.label})` : ""}`));
     if ((report?.assets_total ?? 0) > assets.length) lines.push(`- and ${(report?.assets_total ?? 0) - assets.length} more, in the attached PDF`);
+    if (seeLogs && report?.users.same) lines.push(report.users.same.text);
     lines.push("");
   }
-  const first = parse(engine?.first_seen ?? detail.case.first_alert_at);
-  const last = parse(engine?.last_seen ?? detail.case.last_alert_at);
+  const first = parse(report?.header.first_alert_at ?? engine?.first_seen ?? detail.case.first_alert_at);
+  const last = parse(report?.header.last_alert_at ?? engine?.last_seen ?? detail.case.last_alert_at);
   if (first && last) lines.push("Time window", `${dayAndTime(first)} to ${dayAndTime(last)} IST`, "");
   if (seeLogs && report !== null && report.users.devices.some((d) => d.accounts.length > 0)) {
-    const accounts = [...new Set(report.users.devices.flatMap((d) => d.accounts.map((a) => a.name)).filter((a) => a !== ""))];
-    lines.push("Accounts", ...(accounts.length > 0 ? accounts.map((a) => `- ${a}`) : ["Accounts: in the attached PDF"]), "");
+    const accounts = accountLines(report);
+    lines.push("Accounts (from the sign-in logs: a lead, not proof)", ...(accounts.length > 0 ? accounts : ["Accounts: in the attached PDF"]), "");
   } else lines.push("Accounts: in the attached PDF", "");
+  if (brief !== null) {
+    if (brief.why.length > 0) lines.push("Why it is judged real", ...brief.why.map((p) => `- ${p.text}`), "");
+    if (brief.impact.length > 0) lines.push("Risk", ...brief.impact.map((p) => `- ${p.text}`), "");
+    if (brief.actions.length > 0) lines.push("Requested actions", ...brief.actions.map((a, i) => `${i + 1}. ${a.text} (${WHO[a.who]}, ${WHEN[a.when].toLowerCase()})`), "");
+  }
   if (pdf) lines.push(`Attached: ${pdf}`);
   return { subject, body: lines.join("\n").trim(), pdf };
 }
@@ -96,13 +130,13 @@ export function CisoDraftDialog({ detail, engine, open, onOpenChange }: { detail
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup data-testid="ciso-draft" className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-5 text-text shadow-card">
+        <Dialog.Popup data-testid="ciso-draft" className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-raised p-5 text-text shadow-card">
           <Dialog.Title className="m-0 text-lg font-semibold">Report incident #{detail.case.number} to the CISO</Dialog.Title>
           <p className="m-0 text-sm">
             <span className="font-semibold">Subject: </span>
             <UntrustedText value={draft.subject} limits={{ maxChars: 300, maxLines: 2 }} />
           </p>
-          <pre className="m-0 max-h-72 overflow-auto rounded-control border border-border bg-surface-2 p-3 text-sm whitespace-pre-wrap" data-testid="ciso-body" tabIndex={0} aria-label="The message">
+          <pre className="m-0 max-h-72 overflow-auto rounded-control bg-surface-2 p-3 text-sm whitespace-pre-wrap" data-testid="ciso-body" tabIndex={0} aria-label="The message">
             <UntrustedText value={draft.body} limits={{ maxChars: 8000, maxLines: 200 }} block />
           </pre>
           <div className="flex flex-wrap gap-2">
@@ -119,6 +153,7 @@ export function CisoDraftDialog({ detail, engine, open, onOpenChange }: { detail
                 Open in mail
               </a>
             )}
+            {mailto.length >= MAILTO_MAX && <span className="self-center text-sm text-muted">Too long for a mail link: copy it into your mail.</span>}
             {pdf && (
               <a href={pdf.url} className="inline-flex min-h-8 items-center rounded-control border border-border-strong px-3 text-sm text-text no-underline hover:bg-surface-2" download>
                 Download the PDF

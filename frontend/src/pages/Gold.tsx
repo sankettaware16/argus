@@ -17,8 +17,8 @@ export function Gold() {
   const gold = useQuery(goldOptions);
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Gold set</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">
+      <h1 className="page-h">Gold set</h1>
+      <p className="page-sub">
         The answer key: real investigations whose correct outcome you confirm. It is used to score how often ARGUS, and later a model, is right. Open one, judge it from its evidence, and choose the correct outcome in its gold box.
       </p>
       {gold.isPending && <Loading what="the gold set" />}

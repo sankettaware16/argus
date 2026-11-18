@@ -90,6 +90,8 @@ def assess_run(
         db = engine_for(settings)
         outside, shared, close_outside = raising.outside_for(settings, privacy, db)
         investigator, close = (None, None)
+        briefer: Any = None  # the analyst brief's writer (``incident.brief``), when on
+        brief_off = settings.incident.brief == "off"
         incident_prose: Any = None  # the summary's prose for the incident reports, when on
         close_prose: Any = None
         prose_off = False  # the gateway could not be built: not tried again this run
@@ -162,8 +164,18 @@ def assess_run(
                         incident_prose, close_prose, prose_off = await _incident_prose(
                             settings, privacy, db
                         )
+                    if briefer is None and not brief_off and _no_model() is None:
+                        briefer, said = incident_run.briefer_for(settings, privacy, db)
+                        brief_off = briefer is None
+                        if said:
+                            typer.echo(said, err=True)
                     wrote = await incident_run.run_pass(
-                        db, settings, now, classifier=classifier, prose_fn=incident_prose
+                        db,
+                        settings,
+                        now,
+                        classifier=classifier,
+                        prose_fn=incident_prose,
+                        briefer=briefer,
                     )
                     for line in wrote.said:
                         typer.echo(line)
@@ -249,6 +261,8 @@ def assess_run(
                 await close()
             if close_prose is not None:
                 await close_prose()
+            if briefer is not None and briefer.close is not None:
+                await briefer.close()
             if reader is not None:
                 await reader[1].aclose()
             if deep is not None:

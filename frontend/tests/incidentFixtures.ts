@@ -94,7 +94,7 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     outsiders_total: 0,
     targets: [],
     targets_total: 0,
-    users: { lead: "", devices: [], devices_total: 0, signins: [] },
+    users: { lead: "", devices: [], devices_total: 0, signins: [], same: null },
     evidence: [
       { id: "E1", fact: "F4", title: "The alerts of the case", source: "ARGUS's stored alerts", status: "ok", count: 35, at: null, query: query({ kind: "alerts", index: ".alerts-security.alerts-acme-soc", template: "alerts", text: 'FROM .alerts-security.alerts-acme-soc | WHERE kibana.alert.rule.name IN ("Rule beacon") | LIMIT 200' }), from_logs: false, asked: [], shows: null, details: [] },
       { id: "E2", fact: "F5", title: "How a host reached a destination", source: "the campus proxy logs (squid)", status: "ok", count: 42, at: "2026-10-25T11:00:00Z", query: query(), from_logs: true, asked: [], shows: null, details: [] },
@@ -117,6 +117,8 @@ export function report(more: Partial<IncidentReport> = {}): IncidentReport {
     out_of_scope: [sentence("ARGUS reads alerts and logs only: it has no endpoint data, so what runs on a device is not known.", "F4")],
     facts,
     meta: { schema_version: "incident-report@1", writer: "incident-writer@1", as_at: "2026-10-29T07:30:00Z", catalogue_version: 1, alerts_read: 35, alerts_total: 35, limits: ["2 more checks of the case are not listed"], carried: ["source.ip", "destination.ip"] },
+    brief: null,
+    brief_note: null,
     ...more,
   };
 }

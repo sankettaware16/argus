@@ -49,7 +49,7 @@ export function IncidentReports() {
         <h2 id="ir-h" className="m-0 text-lg font-semibold">
           Incident reports
         </h2>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} aria-label="Find by IR number, title, address" placeholder="Find by IR number, title, address…" className="min-h-8 w-full max-w-xs rounded-control border border-border-strong bg-surface px-3 text-sm text-text" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} aria-label="Find by IR number, title, address" placeholder="Find by IR number, title, address…" className="min-h-8 w-full max-w-xs rounded-control border border-border-strong bg-bg px-3 text-sm text-text" />
       </div>
       {list.isPending && <Loading what="the incident reports" />}
       {list.isError && <Problem error={list.error} what="The incident reports" onRetry={() => void list.refetch()} />}

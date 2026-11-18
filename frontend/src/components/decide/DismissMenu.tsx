@@ -149,7 +149,7 @@ export function DismissMenu({ target, onDismissed, onConflict, onDuplicate, chec
           role="menu"
           aria-label="Why is it not an incident?"
           onKeyDown={onMenuKey}
-          className="absolute left-0 z-30 mt-1 flex w-[min(26rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-surface p-1 text-text shadow-card"
+          className="absolute left-0 z-30 mt-1 flex w-[min(26rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-raised p-1 text-text shadow-card"
           data-testid="dismiss-menu"
         >
           {reasons.map((r, i) => {
@@ -242,14 +242,14 @@ export function DismissSheet({ target, reason, onCancel, onDismissed, onConflict
           onCancel();
         }
       }}
-      className="absolute left-0 z-30 mt-1 flex w-[min(34rem,calc(100vw-2rem))] flex-col gap-2 rounded-card border border-border bg-surface p-3 text-sm text-text shadow-card"
+      className="absolute left-0 z-30 mt-1 flex w-[min(34rem,calc(100vw-2rem))] flex-col gap-2 rounded-card border border-border bg-raised p-3 text-sm text-text shadow-card"
     >
       <p id={`${id}-say`} className="m-0" data-testid="dismiss-consequence">
         Close #{target.number} as “<UntrustedText value={reason.label} limits={{ maxChars: 80, maxLines: 1 }} />”. <UntrustedText value={dismissSentence(target)} limits={{ maxChars: 400, maxLines: 4 }} />
       </p>
       <label className="flex flex-col gap-1" htmlFor={`${id}-note`}>
         <span className="font-medium">Note (optional)</span>
-        <input ref={field} id={`${id}-note`} value={note} maxLength={NOTE_MAX + 1} onChange={(e) => setNote(e.target.value)} className="min-h-8 rounded-control border border-border-strong bg-surface px-2 text-sm text-text" />
+        <input ref={field} id={`${id}-note`} value={note} maxLength={NOTE_MAX + 1} onChange={(e) => setNote(e.target.value)} className="min-h-8 rounded-control border border-border-strong bg-bg px-2 text-sm text-text" />
       </label>
       <details>
         <summary className="cursor-pointer font-medium">Show the exact request</summary>

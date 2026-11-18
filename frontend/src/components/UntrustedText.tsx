@@ -80,7 +80,7 @@ export function UntrustedText({ value, limits, block = false, className }: Untru
                   {!all && (
                     <button
                       type="button"
-                      className="min-h-6 rounded-control px-1 font-medium text-accent underline underline-offset-2 hover:text-accent-hover"
+                      className="min-h-6 rounded-control px-1 font-medium text-link underline underline-offset-2 hover:text-accent-hover"
                       onClick={() => setAll(true)}
                     >
                       Show all

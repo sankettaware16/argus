@@ -16,8 +16,8 @@ export function Patterns() {
   const page = patterns.data;
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Patterns</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">
+      <h1 className="page-h">Patterns</h1>
+      <p className="page-sub">
         Investigations not reviewed yet, grouped when the same rule found the same things (each step&apos;s outcome, a threat-list hit). Open one, and if it is what you expect, decide for the group. An investigation that changed since this page was shown is left as it is. Where ARGUS recommends closing a group, its
         recommendation is on the group.
       </p>

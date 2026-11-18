@@ -47,7 +47,7 @@ export function PreviewPane({
   const alt = engine ? mergedAlternatives(engine.alternatives) : [];
   const fits = alt.filter((a) => a.state === "fits");
   return (
-    <aside ref={box} aria-label="Preview" data-testid="preview-pane" className="flex max-h-[calc(100vh-6rem)] flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-4 xl:sticky xl:top-4">
+    <aside ref={box} aria-label="Preview" data-testid="preview-pane" className="flex max-h-[calc(100vh-6rem)] flex-col gap-3 overflow-auto rounded-card bg-surface p-4 xl:sticky xl:top-4">
       <div className="flex items-center gap-2">
         {d && <span className="font-semibold tabular-nums">#{d.case.number}</span>}
         <span className="ml-auto flex items-center gap-1">

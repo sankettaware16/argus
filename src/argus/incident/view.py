@@ -17,7 +17,12 @@ def hide_logs(report: m.IncidentReport) -> m.IncidentReport:
     answers = any(a.answered is not None or a.served for a in report.actors) or any(
         t.answered is not None or t.served for t in report.targets
     )
-    if not hidden and not answers and not any(a.kind == "account" for a in report.assets):
+    if (
+        not hidden
+        and not answers
+        and report.brief is None
+        and not any(a.kind == "account" for a in report.assets)
+    ):
         return report
 
     def sentence(s: m.ReportSentence) -> m.ReportSentence:
@@ -76,6 +81,7 @@ def hide_logs(report: m.IncidentReport) -> m.IncidentReport:
                 for d in report.users.devices
             ),
             "signins": (),
+            "same": sentence(report.users.same) if report.users.same else None,
         }
     )  # the accounts are personal data from the logs
     actions = report.actions.model_copy(
@@ -96,6 +102,9 @@ def hide_logs(report: m.IncidentReport) -> m.IncidentReport:
             "assets": assets,
             "users": users,
             "actions": actions,
+            # the brief is a reading of what the logs said
+            "brief": None,
+            "brief_note": m.HIDDEN if report.brief is not None else report.brief_note,
             "out_of_scope": tuple(sentence(s) for s in report.out_of_scope),
         }
     )

@@ -38,6 +38,9 @@ evaluation:
 purposes:
   story: {calls_per_day: 15, tier: medium, providers: [openai, anthropic]}
   opinion: {calls_per_day: 3, tier: large, providers: [openai, anthropic]}
+  # The analyst brief of an incident report (D-332): a large model words what happened, why
+  # it is real, the impact and the steps asked for; code checks every line against the facts.
+  brief: {calls_per_day: 12, tier: large, providers: [anthropic, openai]}
 
 providers:
   - name: groq  # one organisation: both keys share one quota

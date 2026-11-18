@@ -96,8 +96,8 @@ export function Tuning() {
   const tuning = useQuery(tuningOptions);
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Rule tuning</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">
+      <h1 className="page-h">Rule tuning</h1>
+      <p className="page-sub">
         Each rule&apos;s weekly report: how much it fires, how often a run hit its alert limit, and your verdicts. Suggestions are drafted by a model and kept only with evidence from the report (an exception needs at least three benign or false-positive verdicts on that value and none true positive). Apply any of them in Kibana yourself; ARGUS never edits a rule.
       </p>
       {tuning.isPending && <Loading what="the tuning reports" />}

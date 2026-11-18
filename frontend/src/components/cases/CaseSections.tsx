@@ -415,7 +415,7 @@ export function MembersSection({ detail }: { detail: CaseDetail }) {
       <SuggestionsBlock detail={detail} />
       <WatchBlock detail={detail} />
       {detail.lead_investigation_id && lead && leadVersion !== undefined && (
-        <div className="mt-2 rounded-card border border-border bg-surface-2 p-3">
+        <div className="mt-2 rounded-card bg-surface-2 p-3">
           <p className="m-0 mb-2 text-sm text-muted">
             This check is about the lead investigation, <Text value={lead.rule_name ?? "(no rule name)"} max={100} lines={1} />.
           </p>

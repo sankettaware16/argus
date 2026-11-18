@@ -772,7 +772,23 @@ def case_report(
             ctx = run.context_for(settings, now, classifier)
             async with engine.connect() as conn:
                 signal = (await gather.signals(conn, [case_id])).get(case_id)
-            made = await run.make(engine, case_id, ctx)
+            briefer = None
+            if settings.incident.brief != "off":  # the same brief the assessment pass writes
+                try:
+                    privacy = Privacy.build(
+                        load_policy(), privacy_map(settings), settings.site.own_networks
+                    )
+                except (NoAssetMapError, PrivacyConfigError, ValueError):
+                    privacy = None
+                if privacy is not None:
+                    briefer, said = run.briefer_for(settings, privacy, engine)
+                    if said:
+                        typer.echo(said, err=True)
+            try:
+                made = await run.make(engine, case_id, ctx, briefer=briefer)
+            finally:
+                if briefer is not None and briefer.close is not None:
+                    await briefer.close()
             if made is None or signal is None:
                 raise CaseRefused("not_found", f"no case {ref}")
             report, note = made.report, ""

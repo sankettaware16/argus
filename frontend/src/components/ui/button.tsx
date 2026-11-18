@@ -3,16 +3,16 @@ import type { ComponentProps } from "react";
 import { cn } from "../../lib/cn";
 
 export const buttonVariants = cva(
-  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-control border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-55 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+  "inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-55 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
   {
     variants: {
       variant: {
-        primary: "rounded-full border-accent bg-accent px-4 text-accent-fg hover:bg-accent-hover",
-        secondary: "border-border-strong bg-surface text-text hover:bg-surface-2",
-        ghost: "border-transparent bg-transparent text-text hover:bg-surface-2",
-        danger: "border-danger bg-danger text-surface hover:opacity-90",
+        primary: "border-accent bg-accent px-4 text-accent-fg hover:border-accent-hover hover:bg-accent-hover",
+        secondary: "border-transparent bg-surface-2 text-text hover:bg-surface-3",
+        ghost: "border-transparent bg-transparent text-link hover:bg-surface-2",
+        danger: "border-danger bg-danger text-bg hover:opacity-90",
       },
-      size: { sm: "min-h-7 px-2 text-[0.8125rem]", md: "", lg: "min-h-10 px-4 text-base" },
+      size: { sm: "min-h-7 px-3 text-[0.8125rem]", md: "", lg: "min-h-11 px-5 text-base" },
     },
     defaultVariants: { variant: "secondary", size: "md" },
   },

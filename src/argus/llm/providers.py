@@ -48,14 +48,18 @@ HELPER_TASKS = frozenset({"notes", "extract", "triage", "summary"})
 # ARGUS AI's reading of a presented incident (D-324): "story" (tier 2) and "opinion" (tier 3).
 # Text only: they never change the queue.
 READING_TASKS = frozenset({"story", "opinion"})
-TASKS = frozenset({"assess", "evaluate", "ping", "tune"}) | HELPER_TASKS | READING_TASKS
+# The analyst brief of an incident report (D-332, tier 3): text only, checked line by line.
+BRIEF_TASKS = frozenset({"brief"})
+TASKS = (
+    frozenset({"assess", "evaluate", "ping", "tune"}) | HELPER_TASKS | READING_TASKS | BRIEF_TASKS
+)
 EVALUATE = "evaluate"
 PING = "ping"  # the connection test: a fixed text, no site data
 # What a campus provider serves without a promotion: evaluation runs and the connection test.
 UNPROMOTED = frozenset({EVALUATE, PING})
 # Never on a campus provider: verdicts (floor signals, conflicts, true-positive advice) and
 # rule tuning.
-NEVER_ON_CAMPUS = frozenset({"assess", "tune"}) | READING_TASKS
+NEVER_ON_CAMPUS = frozenset({"assess", "tune"}) | READING_TASKS | BRIEF_TASKS
 _DECISION = r"^D-\d{3,}$"
 
 

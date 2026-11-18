@@ -52,7 +52,7 @@ export function AlertGroupDecide({ id, title, onDone, size = "md" }: { id: strin
           Other outcome ▾
         </Button>
         {menu && (
-          <div id={menuId} role="menu" aria-label="Other outcome" className="absolute left-0 z-30 mt-1 flex w-[min(22rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-surface p-1 shadow-card" onKeyDown={(e) => e.key === "Escape" && setMenu(false)}>
+          <div id={menuId} role="menu" aria-label="Other outcome" className="absolute left-0 z-30 mt-1 flex w-[min(22rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-raised p-1 shadow-card" onKeyDown={(e) => e.key === "Escape" && setMenu(false)}>
             {OTHERS.map((o) => (
               <button
                 key={o}

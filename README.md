@@ -22,6 +22,7 @@
   <a href="docs/architecture.md">Architecture</a> •
   <a href="docs/install.md">Installation</a> •
   <a href="docs/llm.md">AI Providers</a> •
+  <a href="docs/privacy.md">Privacy</a> •
   <a href="docs/costs.md">Costs</a> •
   <a href="docs/case-team.md">Case Team</a> •
   <a href="#tlsoc-ecosystem">Ecosystem</a>
@@ -346,8 +347,10 @@ Prices, the budget's rules and how to choose your caps: [docs/costs.md](docs/cos
 The keys live in one `NAME=value` file (mode 600) outside the checkout, which `argus init` records
 in `config/llm.local.yaml`. Before any text leaves, the **privacy layer** replaces your internal
 addresses, host names, user names and domains with per-item pseudonyms, withholds every field the
-data policy does not allow, and a validator checks the exact bytes. Sign-in user names and
-reviewers' notes are never sent. Every provider, key and rule: [docs/llm.md](docs/llm.md); the
+data policy does not allow, and a validator checks the exact bytes. A model never sees one of
+your addresses, hosts or accounts; reviewers' notes are never sent. What leaves your network,
+what never does and the limits, in plain words: [docs/privacy.md](docs/privacy.md). Every
+provider, key and rule: [docs/llm.md](docs/llm.md); the
 agents and how to change them: [docs/agents.md](docs/agents.md).
 
 ## The Case Team
@@ -431,6 +434,7 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 | [Configuration](docs/configuration.md) | Where every value lives, the files and their precedence, the site, every section of `config/argus.yaml`, the load budget |
 | [Architecture](docs/architecture.md) | The pipeline, the Elastic Gateway, the privacy layer, the database, the services, the tech stack |
 | [AI providers and keys](docs/llm.md) | Each provider, how to get its key, where it goes, the routing rules, the caps, the privacy layer, the asset map |
+| [Privacy](docs/privacy.md) | What a cloud model and the outside lookups are sent, what they are never sent, how ARGUS makes sure, and the limits |
 | [Costs](docs/costs.md) | Measured spending, model prices, the budget's rules, choosing caps |
 | [The investigation agents](docs/agents.md) | The investigator and its specialists, their tools, how to change or add one |
 | [The case team](docs/case-team.md) | The seven Kibana users, provisioning, switching posting on, the canary, the read-back |

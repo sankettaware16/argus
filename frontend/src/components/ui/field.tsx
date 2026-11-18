@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../../lib/cn";
 
 const CONTROL =
-  "min-h-8 w-full rounded-control border border-border-strong bg-surface px-2 py-1 text-sm text-text placeholder:text-muted disabled:opacity-55";
+  "min-h-9 w-full rounded-control border border-border-strong bg-bg px-3 py-1.5 text-sm text-text placeholder:text-muted disabled:opacity-55";
 
 /** A labelled form control: the label is always visible and tied to the control. */
 export function Field({ label, hint, htmlFor, children, className }: { label: ReactNode; hint?: ReactNode; htmlFor: string; children: ReactNode; className?: string }) {
@@ -27,7 +27,7 @@ export function TextArea({ className, ...props }: ComponentProps<"textarea">) {
 
 /** The browser's own select: keyboard and screen readers work as people expect. */
 export function Select({ className, ...props }: ComponentProps<"select">) {
-  return <select className={cn(CONTROL, "pr-6", className)} {...props} />;
+  return <select className={cn(CONTROL, "pr-7", className)} {...props} />;
 }
 
 export function Check({ className, children, ...props }: ComponentProps<"input"> & { children: ReactNode }) {

@@ -115,7 +115,7 @@ export function EntityDrawerProvider({ children }: { children: ReactNode }) {
       <Dialog.Root open={open !== null} onOpenChange={(next) => !next && setOpen(null)}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30" />
-          <Dialog.Popup finalFocus={() => from.current ?? true} data-testid="entity-drawer" className="fixed inset-0 z-50 flex flex-col gap-3 overflow-auto border-l border-border bg-surface p-4 text-text shadow-card sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[420px]">
+          <Dialog.Popup finalFocus={() => from.current ?? true} data-testid="entity-drawer" className="fixed inset-0 z-50 flex flex-col gap-3 overflow-auto border-l border-border bg-raised p-4 text-text shadow-card sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[420px]">
             {open && <DrawerBody o={open} onClose={() => setOpen(null)} />}
           </Dialog.Popup>
         </Dialog.Portal>

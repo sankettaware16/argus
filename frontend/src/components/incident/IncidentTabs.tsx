@@ -225,7 +225,7 @@ export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: Re
         {items.length === 0 && <p className="m-0 text-sm text-muted">The incident report has no evidence lines yet.</p>}
         <ul className="m-0 flex list-none flex-col gap-2 p-0" data-testid="evidence-list">
           {items.map(({ line, also }) => (
-            <li key={line.id} className="flex flex-col gap-1 rounded-card border border-border bg-surface p-3 text-sm" data-testid="evidence-item">
+            <li key={line.id} className="flex flex-col gap-1 rounded-card bg-surface p-3 text-sm" data-testid="evidence-item">
               <p className="m-0 font-medium">
                 <span aria-hidden="true" title={line.id} className="mr-1 text-muted">
                   ◆
@@ -305,7 +305,7 @@ export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: Re
 
 function EntityCard({ o, facts, did, note }: { o: EngineObject; facts: string[]; did: string | null; note: string | null }) {
   return (
-    <li className="flex flex-col gap-1 rounded-card border border-border bg-surface p-3 text-sm" data-testid="entity-card" data-role={o.role}>
+    <li className="flex flex-col gap-1 rounded-card bg-surface p-3 text-sm" data-testid="entity-card" data-role={o.role}>
       <p className="m-0">
         <span className="text-muted">{nounFor(o)}</span> <strong className="break-all"><UntrustedText value={o.label} limits={{ maxChars: 120, maxLines: 1 }} /></strong>
       </p>
@@ -407,7 +407,7 @@ export function AlertGroupsTab({ detail }: { detail: CaseDetail }) {
         <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="groups-bulk">
           <label className="flex items-center gap-2">
             Mark the {chosen.size} selected as
-            <select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="min-h-8 rounded-control border border-border-strong bg-surface px-2 text-sm text-text">
+            <select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="min-h-8 rounded-control border border-border-strong bg-bg px-2 text-sm text-text">
               <option value="">Choose…</option>
               {outcomes.map((o) => (
                 <option key={o} value={o}>

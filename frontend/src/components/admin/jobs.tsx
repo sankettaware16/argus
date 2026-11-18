@@ -35,7 +35,7 @@ export function JobResult({ outcome, startError, readError, what, onConfirmed }:
           <summary className="cursor-pointer text-muted">
             What it said ({outcome.lines.length} {outcome.lines.length === 1 ? "line" : "lines"})
           </summary>
-          <pre className="m-0 mt-1 max-h-64 overflow-auto rounded-control border border-border bg-surface-2 p-2 font-mono text-xs whitespace-pre-wrap" role="log" aria-label={`What the ${what} said`}>
+          <pre className="m-0 mt-1 max-h-64 overflow-auto rounded-control bg-surface-2 p-2 font-mono text-xs whitespace-pre-wrap" role="log" aria-label={`What the ${what} said`}>
             {outcome.lines.join("\n")}
           </pre>
         </details>

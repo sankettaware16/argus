@@ -121,8 +121,8 @@ export function Proposals() {
   const proposals = useQuery(proposalsOptions);
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Proposals</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">
+      <h1 className="page-h">Proposals</h1>
+      <p className="page-sub">
         Outcomes ARGUS proposes, waiting for you. They are grouped by what decided them; open the audit sample of a group (chosen at random each day), and if those are right, confirm the group. Nothing is closed in Kibana; a confirmed proposal counts as reviewed here.
       </p>
       {proposals.isPending && <Loading what="the proposals" />}

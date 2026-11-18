@@ -90,6 +90,7 @@ describe("the incident report", () => {
       lead: LEAD,
       devices_total: 1,
       signins: [],
+      same: null,
       devices: [
         {
           device: "10.201.7.11",

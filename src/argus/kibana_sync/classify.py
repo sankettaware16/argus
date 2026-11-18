@@ -144,6 +144,7 @@ def classify_case(
     complete: bool,
     settle: timedelta = timedelta(0),
     team: frozenset[str] = frozenset(),
+    pause_people: bool = True,
 ) -> CaseOutcome:
     """Classify the user actions read since ``mirror.actions_seen`` (in Kibana's order) and
     the case as it is now. ``author`` is the service user, ``team`` the case team's users: all
@@ -151,11 +152,15 @@ def classify_case(
     the case's version was read, so the mirror takes the case's version; otherwise it keeps
     its old version and the next cycle reads on from ``actions_seen``. It is not taken either
     while the actions and the case disagree, or while the case changed within ``settle`` (its
-    user action may not be searchable yet)."""
+    user action may not be searchable yet). ``pause_people`` (``kibana_sync.pause_on_change``):
+    a person's change of ARGUS's tags or of the case's settings, and Sync alerts being on, pause
+    ARGUS's writes to that case until the owner lifts it; false: each is still a finding, and
+    ARGUS keeps writing (D-333). A case ARGUS did not make is never written to, whatever it says."""
     findings: list[Finding] = []
     pause_all = False
     unmanaged = set(mirror.unmanaged)
     paused = mirror.paused_reason
+    held = paused  # a pause a person's change may not replace when ``pause_people`` is off
     counts = dict(mirror.argus_actions)
     stray = dict(mirror.unexplained)
     room = capacity(sent, author)
@@ -267,12 +272,15 @@ def classify_case(
             unmanaged.add(action.type)
             add(Kind.PERSON_EDITED, f"edit:{key}", action, field=action.type)
 
+    if not pause_people:  # the findings above stand; only a pause from before is kept
+        paused = held
     if case.created_by not in argus:
         pause_all = True
         paused = paused or "the case was not made by ARGUS"
         add(Kind.NOT_ARGUS_CASE, f"author:{kid}", created_by=untrusted(case.created_by))
     if case.sync_alerts and paused is None:
-        paused = "Sync alerts is on for the case"
+        if pause_people:
+            paused = "Sync alerts is on for the case"
         add(Kind.SETTINGS_CHANGED, f"sync-on:{kid}:{case.version}", sync_alerts=True)
 
     problem = disagreement(mirror, case, actions, status)

@@ -70,6 +70,7 @@ def config_of(settings: Settings) -> SyncConfig:
         diff_calls=s.diff_calls,
         clock_alarm=s.clock_alarm,
         window=settings.history.window,
+        pause_on_change=s.pause_on_change,
     )
 
 

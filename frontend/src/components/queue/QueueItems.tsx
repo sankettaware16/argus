@@ -45,7 +45,7 @@ function Few({ label, values, total }: { label: string; values: readonly string[
 export function QueueCase({ c }: { c: QueueCaseOut }) {
   const [tone, kind] = KIND_WORDS[c.kind];
   return (
-    <li className="flex flex-col gap-1 rounded-card border border-border bg-surface p-3 shadow-card" data-testid="queue-case">
+    <li className="flex flex-col gap-1 rounded-card bg-surface p-3" data-testid="queue-case">
       <div className="flex flex-wrap items-center gap-2">
         <Link to="/cases/$id" params={{ id: c.id }} className="text-base font-semibold">
           Case {c.number}: <UntrustedText value={c.title} limits={{ maxChars: 160, maxLines: 2 }} />

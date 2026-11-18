@@ -195,7 +195,7 @@ export function SaveBar({ state, built, onSave }: { state: SettingsSave; built: 
   const busy = state.save.isPending;
   const note = RISK_NOTE[built.risk];
   return (
-    <div className="sticky bottom-2 flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface px-3 py-2 shadow-card" data-testid="save-bar">
+    <div className="sticky bottom-3 flex flex-wrap items-center gap-3 rounded-full border border-border bg-raised px-4 py-2 shadow-card" data-testid="save-bar">
       <Button variant="primary" aria-disabled={n === 0 || busy} onClick={() => n > 0 && !busy && onSave()}>
         {busy ? "Saving…" : n === 0 ? "Save" : `Save ${n} ${n === 1 ? "change" : "changes"}`}
       </Button>

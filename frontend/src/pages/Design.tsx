@@ -11,13 +11,15 @@ import { HOSTILE } from "../lib/hostile";
 import { zoneLabel } from "../lib/site";
 
 const TOKENS: { name: string; role: string; swatch: string }[] = [
-  { name: "bg", role: "page background", swatch: "bg-bg" },
-  { name: "surface", role: "cards and panels", swatch: "bg-surface" },
-  { name: "surface-2", role: "sidebars, code, quiet areas", swatch: "bg-surface-2" },
+  { name: "bg", role: "the page, and a field's fill", swatch: "bg-bg" },
+  { name: "surface", role: "tiles: cards, panels, the side menu", swatch: "bg-surface" },
+  { name: "surface-2", role: "what sits on a tile: code, quiet buttons", swatch: "bg-surface-2" },
+  { name: "raised", role: "menus and dialogs over the page", swatch: "bg-raised" },
   { name: "border", role: "lines between things", swatch: "bg-border" },
   { name: "text", role: "body text", swatch: "bg-text" },
   { name: "muted", role: "secondary text", swatch: "bg-muted" },
-  { name: "accent", role: "links and the main action", swatch: "bg-accent" },
+  { name: "accent", role: "the main action", swatch: "bg-accent" },
+  { name: "link", role: "links and quiet actions", swatch: "bg-link" },
   { name: "critical", role: "critical severity", swatch: "bg-critical" },
   { name: "high", role: "high severity", swatch: "bg-high" },
   { name: "medium", role: "medium severity", swatch: "bg-medium" },
@@ -57,8 +59,8 @@ export function Design() {
   const [sevenMinutesAgo] = useState(() => new Date(Date.now() - 7 * 60_000));
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Design system</h1>
-      <p className="m-0 max-w-prose text-muted">
+      <h1 className="page-h">Design system</h1>
+      <p className="page-sub">
         The colours, components and safety parts every page of the app is built from. Colours follow the system’s light
         or dark setting; each colour that carries meaning comes with words.
       </p>
@@ -77,7 +79,7 @@ export function Design() {
       </Section>
 
       <Section title="Text">
-        <p className="m-0 text-2xl font-semibold">Page title</p>
+        <p className="page-h">Page title</p>
         <p className="m-0 text-base font-semibold">Section title</p>
         <p className="m-0">Body text for summaries and explanations, in plain words.</p>
         <p className="m-0 text-sm text-muted">Secondary text: where a value came from, and when.</p>
@@ -120,12 +122,12 @@ export function Design() {
 
       <Section title="Tabs">
         <Tabs.Root defaultValue="overview">
-          <Tabs.List aria-label="Example tabs" className="flex gap-1 border-b border-border">
+          <Tabs.List aria-label="Example tabs" className="flex gap-1 py-1">
             {["overview", "evidence", "timeline"].map((v) => (
               <Tabs.Tab
                 key={v}
                 value={v}
-                className="min-h-8 cursor-pointer rounded-t-control border-0 bg-transparent px-3 text-sm text-muted capitalize aria-selected:bg-accent-soft aria-selected:font-semibold aria-selected:text-text"
+                className="min-h-8 cursor-pointer rounded-full border-0 bg-transparent px-3 text-sm text-muted capitalize hover:text-text aria-selected:bg-text aria-selected:font-medium aria-selected:text-bg"
               >
                 {v}
               </Tabs.Tab>

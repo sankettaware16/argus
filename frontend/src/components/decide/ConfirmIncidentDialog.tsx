@@ -92,7 +92,7 @@ export function ConfirmIncidentDialog({ open, onOpenChange, target, canTake, me,
           initialFocus={cancel}
           finalFocus={finalFocus ? () => finalFocus() ?? true : undefined}
           data-testid="confirm-incident"
-          className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-5 text-text shadow-card"
+          className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-raised p-5 text-text shadow-card"
         >
           <AlertDialog.Title className="m-0 text-lg font-semibold">Confirm incident #{target.number}?</AlertDialog.Title>
           <p className="m-0 text-sm font-medium">
@@ -108,7 +108,7 @@ export function ConfirmIncidentDialog({ open, onOpenChange, target, canTake, me,
             </p>
           )}
           {open_.lines.length > 0 && (
-            <section aria-labelledby={`${id}-open`} className="flex flex-col gap-1 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm" data-testid="still-open">
+            <section aria-labelledby={`${id}-open`} className="flex flex-col gap-1 rounded-control bg-surface-2 px-3 py-2 text-sm" data-testid="still-open">
               <h3 id={`${id}-open`} className="m-0 text-sm font-semibold">
                 Still open — read before you confirm:
               </h3>
@@ -136,7 +136,7 @@ export function ConfirmIncidentDialog({ open, onOpenChange, target, canTake, me,
               maxLength={NOTE_MAX + 1}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-control border border-border-strong bg-surface px-2 py-1 text-sm text-text"
+              className="rounded-control border border-border-strong bg-bg px-2 py-1 text-sm text-text"
             />
           </label>
           {tooLong && <p className="m-0 text-sm text-danger">The note is longer than {NOTE_MAX} characters.</p>}

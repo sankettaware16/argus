@@ -38,7 +38,7 @@ function AssessmentCard({ a, detail }: { a: AssessmentOut; detail: Investigation
   const reading = a.status === "no_decision" ? a.reading : null;
   const acceptable = detail.acceptable_assessment_id === a.id;
   return (
-    <article aria-label={assessmentTitle(a)} className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
+    <article aria-label={assessmentTitle(a)} className="flex flex-col gap-2 rounded-card bg-surface p-3">
       <h3 className="m-0 text-base font-semibold">{assessmentTitle(a)}</h3>
       {(a.status === "queued" || a.status === "running") && (
         <p className="m-0 text-sm text-muted">
@@ -215,7 +215,7 @@ export function AiBrief({ detail }: { detail: InvestigationDetail }) {
   if (!top) return null;
   const answer = top.run?.answer ?? null;
   return (
-    <section aria-label="What ARGUS proposes" className="flex flex-col gap-1.5 rounded-card border border-border bg-surface-2 p-3">
+    <section aria-label="What ARGUS proposes" className="flex flex-col gap-1.5 rounded-card bg-surface-2 p-3">
       <h3 className="m-0 flex flex-wrap items-center gap-2 text-base font-semibold">
         {assessmentTitle(top)}
         {top.status === "proposed" && <Badge tone="info">a proposal, not a decision</Badge>}

@@ -22,7 +22,7 @@ function Text({ value, max = 700, lines = 6 }: { value: string; max?: number; li
 
 function Step({ step, hidden }: { step: TeamStep; hidden: boolean }) {
   return (
-    <li className="rounded-control border border-border bg-surface p-2" data-testid="team-step">
+    <li className="rounded-control border border-border bg-bg p-2" data-testid="team-step">
       <details>
         <summary className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <span className="text-muted">{step.n}.</span>
@@ -37,7 +37,7 @@ function Step({ step, hidden }: { step: TeamStep; hidden: boolean }) {
           {step.text !== null && step.text !== undefined && (
             <div>
               <p className="m-0 mb-1 text-xs font-medium text-muted">{step.kind === "open" ? "The case's description, exactly" : "The comment, exactly"}</p>
-              <div className="rounded-control border border-border bg-surface-2 p-2 text-sm" data-testid="team-text">
+              <div className="rounded-control bg-surface-2 p-2 text-sm" data-testid="team-text">
                 <UntrustedText value={step.text} block limits={{ maxChars: 30_000, maxLines: 400 }} />
               </div>
             </div>
@@ -88,7 +88,7 @@ function Approval({ data }: { data: CaseTeamOut }) {
   const request = useMemo(() => ({ method: "POST" as const, path: `/api/v1/cases/${data.case_id}/team/approve`, body: approveBody(hash ?? "") }), [data.case_id, hash]);
   if (!a.required) return null;
   return (
-    <div className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3" role="group" aria-label="Approval of the first post" data-testid="team-approval">
+    <div className="flex flex-col gap-2 rounded-card bg-surface-2 p-3" role="group" aria-label="Approval of the first post" data-testid="team-approval">
       <p className="m-0 text-sm font-medium">The first cases need a person&apos;s approval</p>
       <p className="m-0 max-w-prose text-sm text-muted">Nothing is written to Kibana for this case until a person approves exactly the steps listed here. If anything below changes, the approval no longer holds and a new one is needed.</p>
       {a.given ? (

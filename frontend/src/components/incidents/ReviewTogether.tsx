@@ -31,7 +31,7 @@ export function ReviewTogether({ rows, onClose }: { rows: Row[]; onClose: () => 
       {phone ? (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {lines.map((l, i) => (
-            <li key={i} className="flex flex-col rounded-card border border-border bg-surface p-3 text-sm" data-testid="together-row">
+            <li key={i} className="flex flex-col rounded-card bg-surface p-3 text-sm" data-testid="together-row">
               <span className="font-medium">
                 <UntrustedText value={l.campus} limits={{ maxChars: 120, maxLines: 1 }} />
               </span>

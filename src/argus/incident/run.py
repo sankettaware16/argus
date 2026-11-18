@@ -6,7 +6,8 @@ report for those with none or whose evidence changed (a cheap signal read in one
 stored. A case is not written again within ``incident.min_interval``, and a pass writes at most
 ``incident.per_pass``. **A failure is reported and never stops the pass**: the case keeps its last
 report and is tried again later. Only ARGUS's own database is read; a model is asked only for the
-summary's prose, through :mod:`argus.incident.prose`."""
+summary's prose (:mod:`argus.incident.prose`) and the analyst brief (:mod:`argus.incident.brief`),
+and its words are kept only after code's checks."""
 
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from argus import site
 from argus.assets.classify import IpClassifier
 from argus.db.errors import DB_ERRORS, short_db_error
-from argus.incident import build, discover, gather, prose, scene, store
+from argus.incident import brief, build, discover, gather, prose, scene, store
 from argus.incident import model as m
 from argus.observability.redaction import redact_text
 from argus.reporter.build import snapshot
@@ -31,6 +32,7 @@ from argus.signins import view as signin_view
 log = logging.getLogger("argus.incident")
 RETRY_AFTER = timedelta(hours=1)  # a failed case is tried again no sooner than this
 ProseFn = Callable[[m.IncidentReport], Awaitable[prose.Improved]]
+BriefFn = Callable[[m.IncidentReport, m.ReportBrief | None], Awaitable[brief.Improved]]
 
 
 @dataclass
@@ -118,15 +120,60 @@ class Made:
     by: str | None  # the model that wrote the summary's prose
 
 
+@dataclass(frozen=True)
+class Briefer:
+    """The analyst brief's writer (``incident.brief``): ``write`` words a report's brief given the
+    version before's, ``scope`` says for which cases (``confirmed``: those a person confirmed;
+    ``all``), ``close`` ends its transport."""
+
+    write: BriefFn
+    scope: str
+    close: Callable[[], Awaitable[None]] | None = None
+
+    def wants(self, case: Any) -> bool:
+        return self.scope == "all" or case.opened_at is not None
+
+
+def briefer_for(settings: Any, privacy: Any, db: AsyncEngine) -> tuple[Briefer | None, str | None]:
+    """The brief's writer through the LLM gateway, or None with why not (off, or no model can
+    be reached: the reports keep code's text). Never raises."""
+    scope = settings.incident.brief
+    if scope == "off":
+        return None, None
+    from argus.llm.providers import Tier, load_config
+    from argus.llm.service import build_gateway
+    from argus.llm.wire import HttpxLlmTransport
+
+    try:
+        llm = load_config()
+        transport = HttpxLlmTransport(llm)
+        gateway = build_gateway(db, llm, transport)
+    except Exception as exc:  # no keys, no providers file: no brief, nothing else changes
+        return None, f"incident reports: no model for the brief ({type(exc).__name__})"
+    purpose = llm.purposes.get(brief.TASK)
+    tier = purpose.tier if purpose is not None and purpose.tier is not None else Tier.LARGE
+    keep = settings.incident.brief_every
+
+    async def write(report: m.IncidentReport, before: m.ReportBrief | None) -> brief.Improved:
+        return await brief.improve(report, privacy, gateway.complete, previous=before, tier=tier,
+                                   keep=keep)  # fmt: skip
+
+    return Briefer(write, scope, transport.aclose), None
+
+
 async def make(
-    db: AsyncEngine, case_id: uuid.UUID, ctx: build.Context, *, prose_fn: ProseFn | None = None
-) -> Made | None:
+    db: AsyncEngine, case_id: uuid.UUID, ctx: build.Context, *, prose_fn: ProseFn | None = None,
+    briefer: Briefer | None = None,
+) -> Made | None:  # fmt: skip
     """The case's report as it reads now (nothing is written): None when there is no such case.
-    One read-only snapshot, so the parts agree; the model, when asked, comes after it."""
+    One read-only snapshot, so the parts agree; the models, when asked, come after it."""
+    before = None
     async with snapshot(db) as conn:
         facts = await gather.gather(conn, case_id, ctx.as_at)
         if facts is not None and ctx.signins is not None:
             facts = replace(facts, users=await users_of(conn, facts, ctx))
+        if facts is not None and briefer is not None:
+            before = await store.latest(conn, case_id)
     if facts is None:
         return None
     report = build.build(facts, ctx)
@@ -134,6 +181,9 @@ async def make(
     if prose_fn is not None:
         improved = await prose_fn(report)
         report, by = improved.report, improved.by
+    if briefer is not None and briefer.wants(facts.case):
+        kept = None if before is None else before.report.brief
+        report = (await briefer.write(report, kept)).report
     return Made(report, facts.case.version, by)
 
 
@@ -161,7 +211,7 @@ async def _failed(db: AsyncEngine, case_id: uuid.UUID, key: str, at: datetime, w
 
 async def run_pass(
     db: AsyncEngine, settings: Any, now: datetime, *, classifier: IpClassifier | None = None,
-    prose_fn: ProseFn | None = None,
+    prose_fn: ProseFn | None = None, briefer: Briefer | None = None,
 ) -> Done:  # fmt: skip
     """One pass: look at up to ``incident.look`` active cases and write up to
     ``incident.per_pass`` reports. Nothing it meets stops it."""
@@ -208,7 +258,7 @@ async def run_pass(
             done.waiting += 1
             continue
         try:
-            made = await make(db, case_id, ctx, prose_fn=prose_fn)
+            made = await make(db, case_id, ctx, prose_fn=prose_fn, briefer=briefer)
             if made is None:
                 continue
             _, new = await write(db, made, key, now)

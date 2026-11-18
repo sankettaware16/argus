@@ -82,7 +82,7 @@ function useSettleFocus(readAt: number): Settle {
 function StepUp({ queue }: { queue: ApprovalQueueOut }) {
   const s = queue.step_up;
   return (
-    <section aria-label="Confirming it is you" className="rounded-control border border-border bg-surface-2 px-3 py-2 text-sm">
+    <section aria-label="Confirming it is you" className="rounded-control bg-surface-2 px-3 py-2 text-sm">
       {s.valid ? (
         <p className="m-0">
           <Badge tone="ok">Confirmed</Badge> You typed your password again, so you can approve until <Time value={s.valid_until} />.
@@ -169,7 +169,7 @@ function Decide({ a, stepped, canSign, group, onSent }: { a: ApprovalOut; steppe
         {guard.hint}
       </div>
       {mode !== null && (
-        <div className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3">
+        <div className="flex flex-col gap-2 rounded-card bg-surface-2 p-3">
           <Field label={mode === "approved" ? "Your words (optional)" : "Why you reject it (optional)"} htmlFor={id}>
             <TextArea id={id} rows={2} maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
@@ -438,7 +438,7 @@ export function Approvals() {
   const loose = q.pending.filter((a) => !grouped.has(a.id));
   return (
     <SettleFocus.Provider value={settle}>
-      <h1 id={TITLE} tabIndex={-1} className="m-0 text-2xl font-semibold focus:outline-none">
+      <h1 id={TITLE} tabIndex={-1} className="page-h focus:outline-none">
         Approvals
       </h1>
       <p className="m-0 max-w-prose text-sm text-muted">

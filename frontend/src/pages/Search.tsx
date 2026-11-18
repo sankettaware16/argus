@@ -92,7 +92,7 @@ export function SearchPage({ search }: { search: SearchSearch }) {
   const nothing = q !== undefined && !r.pending && !r.groupsPending && incidents.length === 0 && r.groups.length === 0;
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="m-0 text-2xl font-semibold">Search</h1>
+      <h1 className="page-h">Search</h1>
       <form
         role="search"
         aria-label="Search ARGUS"
@@ -112,7 +112,7 @@ export function SearchPage({ search }: { search: SearchSearch }) {
           maxLength={200}
           onChange={(e) => setText(e.target.value)}
           data-search-box="page"
-          className="min-h-10 min-w-0 flex-1 rounded-control border border-border-strong bg-surface px-3 text-base text-text"
+          className="min-h-10 min-w-0 flex-1 rounded-control border border-border-strong bg-bg px-3 text-base text-text"
           placeholder="203.0.113.40, lab-pc-17, #31, IR-2026-1106-02…"
         />
         <Button type="submit" variant="primary" size="lg">
@@ -122,7 +122,7 @@ export function SearchPage({ search }: { search: SearchSearch }) {
       {q && (
         <p className="m-0 flex flex-wrap items-center gap-2 text-sm" data-testid="search-guess">
           <label htmlFor={`${id}-guess`}>Looks like:</label>
-          <select id={`${id}-guess`} value={guess} onChange={(e) => go(q, e.target.value as Guess)} className="min-h-8 rounded-control border border-border-strong bg-surface px-2 text-sm text-text">
+          <select id={`${id}-guess`} value={guess} onChange={(e) => go(q, e.target.value as Guess)} className="min-h-8 rounded-control border border-border-strong bg-bg px-2 text-sm text-text">
             {GUESSES.map((g) => (
               <option key={g} value={g}>
                 {GUESS_WORDS[g]}

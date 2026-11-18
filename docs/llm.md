@@ -377,6 +377,15 @@ OpenAI first, then Anthropic. Put `anthropic` first in a list to have Sonnet 5.5
 them. Each provider tried counts one attempt against the cap. Their text never changes the
 queue: every claim must cite the incident's own facts, and code drops a claim that does not.
 
+The **analyst brief** of an incident report (D-332; `incident.brief` in `config/argus.yaml`) is
+the task `brief`: the large tier, Anthropic first (Opus 5.5), then OpenAI, 12 attempts a day. It
+writes what is happening, the summary, why the incident is judged real, the impact and the steps
+asked for, from the report's own facts with every campus address, host and account replaced by a
+token. Code keeps a line only when it cites facts it was given, names nothing else, states no
+number those facts do not hold and does not contradict the verdict. A case whose verdict and
+standing did not change keeps its brief for `incident.brief_every` (6 hours), so an active case
+costs a few calls a day, not one per new alert.
+
 Every attempt is recorded in the ledger (`llm_calls`): provider, model, tier, purpose, tokens,
 cost, latency, outcome and the request's hash, never its content.
 
@@ -435,8 +444,10 @@ Before any text leaves for a cloud model:
 5. **Re-identification** of an answer happens only in memory, for that one item; an answer that
    names another item's pseudonym is refused. The pseudonym map is never stored.
 
-User names from the sign-in logs are never sent to a model at all. What a reviewer writes in a
-note is never sent either.
+User names from the sign-in logs go to a model in one place only, the analyst brief of an
+incident report, and there only as `USER_n` tokens like every other account name. What a reviewer
+writes in a note is never sent. [Privacy](privacy.md) explains all of this in plain words, with
+an example of what a model receives and the limits you should know.
 
 Your own domains come from `site.own_domains`; `campus_domains` in `config/llm_data_policy.yaml`
 adds more. The asset map's generalisations (`site.type`, `site.zone`) may be sent, never its

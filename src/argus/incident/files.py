@@ -30,7 +30,7 @@ from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Space
 from argus import site
 from argus.cases.blocklist import BOM, safe_cell
 from argus.incident import model as m
-from argus.incident.words import day_label, ist_day, ist_moment, times
+from argus.incident.words import WHEN_WORDS, WHO_WORDS, day_label, ist_day, ist_moment, times
 
 INDICATOR_COLUMNS = ("indicator", "type", "role", "evidence")
 AFFECTED_COLUMNS = ("device_ip", "domain", "days_with_alert", "first_day_ist", "last_day_ist")
@@ -214,6 +214,8 @@ def _styles() -> Styles:
             backColor=colors.HexColor("#f3f4f6"),
             borderPadding=4,
         ),
+        "LEAD": ParagraphStyle("LEAD", parent=p, fontSize=10.5, leading=14.5),
+        "BUL": ParagraphStyle("BUL", parent=p, leftIndent=12, bulletIndent=2, spaceAfter=3),
         "CELL": cell,
         "CELLB": ParagraphStyle("CELLB", parent=cell, fontName=bold),
     }
@@ -271,15 +273,20 @@ def _head(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
         ["Investigated by", "ARGUS (automatic, read-only: it queried nothing for this report)"],
         ["Report written", ist_moment(report.meta.as_at)],
     ]
+    lead: list[Any] = []
+    if report.brief is not None:  # what is happening, under the title, as an analyst opens it
+        said = " ".join(line.text for line in report.brief.statement)
+        lead = [_p(said, st["LEAD"]), Spacer(1, 5)]
     return [
         _p(f"Incident Report {h.incident_id}", st["H1"]),
         _p(h.title.split(" · ", 1)[-1], st["H2"]),
+        *lead,
         _table(rows, [38 * mm, width - 38 * mm], st, head=False),
     ]
 
 
-def _summary(report: m.IncidentReport, st: Styles) -> list[Any]:
-    out: list[Any] = [_p("1. Summary", st["H2"])]
+def _summary(report: m.IncidentReport, st: Styles, n: int = 1) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Summary", st["H2"])]
     words = report.summary.prose or report.summary.sentences
     for sentence in words:
         out += [_p(sentence.text, st["P"]), Spacer(1, 2)]
@@ -298,9 +305,9 @@ def _summary(report: m.IncidentReport, st: Styles) -> list[Any]:
     return out
 
 
-def _timeline(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
+def _timeline(report: m.IncidentReport, st: Styles, width: float, n: int = 2) -> list[Any]:
     t = report.timeline
-    out: list[Any] = [_p(f"2. Timeline ({site.zone_label()})", st["H2"])]
+    out: list[Any] = [_p(f"{n}. Timeline ({site.zone_label()})", st["H2"])]
     if t.dwell_words:
         out.append(_p(f"Dwell time: {t.dwell_words}.", st["P"]))
     if t.days:
@@ -324,8 +331,8 @@ def _timeline(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
     return out
 
 
-def _actors(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
-    out: list[Any] = [_p("3. Actors and roles", st["H2"])]
+def _actors(report: m.IncidentReport, st: Styles, width: float, n: int = 3) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Actors and roles", st["H2"])]
     if not report.actors:
         return [*out, _p("The case names no actor.", st["P"])]
     rows = [["Actor", "Role", "Network / country", "User agents", "Alerts"]]
@@ -337,8 +344,8 @@ def _actors(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
     return out
 
 
-def _indicators(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
-    out: list[Any] = [_p("4. Indicators", st["H2"])]
+def _indicators(report: m.IncidentReport, st: Styles, width: float, n: int = 4) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Indicators", st["H2"])]
     if not report.indicators:
         return [*out, _p("The case holds no indicator.", st["P"])]
     rows = [["Indicator", "Type", "Role", "Evidence"]]
@@ -362,8 +369,8 @@ def _details(line: m.ReportEvidenceLine, st: Styles) -> list[Any]:
     return out
 
 
-def _evidence(report: m.IncidentReport, st: Styles) -> list[Any]:
-    out: list[Any] = [_p("5. Evidence", st["H2"])]
+def _evidence(report: m.IncidentReport, st: Styles, n: int = 5) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Evidence", st["H2"])]
     facts = {f.id: f for f in report.facts}
     for line in report.evidence:
         q = line.query
@@ -387,16 +394,16 @@ def _evidence(report: m.IncidentReport, st: Styles) -> list[Any]:
     return out
 
 
-def _hypotheses(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
+def _hypotheses(report: m.IncidentReport, st: Styles, width: float, n: int = 6) -> list[Any]:
     rows = [["Hypothesis", "Result", "Why"]]
     for hy in report.hypotheses:
         rows.append([hy.name, STATUS[hy.status], " ".join(w.text for w in hy.why[:3])])
     table = _table(rows, [55 * mm, 20 * mm, width - 75 * mm], st)
-    return [_p("6. Hypotheses", st["H2"]), table]
+    return [_p(f"{n}. Hypotheses", st["H2"]), table]
 
 
-def _assets(report: m.IncidentReport, st: Styles) -> list[Any]:
-    out: list[Any] = [_p("7. Affected assets", st["H2"])]
+def _assets(report: m.IncidentReport, st: Styles, n: int = 7) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Affected assets", st["H2"])]
     devices = [a for a in report.assets if a.kind == "device"]
     others = [a for a in report.assets if a.kind != "device"]
     if devices:
@@ -458,11 +465,13 @@ def _accounts(report: m.IncidentReport, st: Styles) -> list[Any]:
                 _p(f"… and {len(rows) - 1 - ACCOUNT_ROWS} more in the accounts CSV.", st["SM"])
             )
     out += [_p(d.sentence.text, st["SM"]) for d in users.devices if not d.accounts][:30]
+    if users.same is not None:
+        out += [Spacer(1, 3), _p(users.same.text, st["B"])]
     return out
 
 
-def _actions(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
-    out: list[Any] = [_p("8. Recommended actions", st["H2"])]
+def _actions(report: m.IncidentReport, st: Styles, width: float, n: int = 8) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Recommended actions", st["H2"])]
     a = report.actions
     if a.lines:
         rows = [["#", "Action", "Owner", "Status"]]
@@ -477,9 +486,60 @@ def _actions(report: m.IncidentReport, st: Styles, width: float) -> list[Any]:
     return out
 
 
-def _queries(report: m.IncidentReport, st: Styles) -> list[Any]:
+def _bullets(lines: Sequence[m.ReportBriefLine], st: Styles) -> list[Any]:
+    return [Paragraph(escape(_shown(line.text)), st["BUL"], bulletText="\u2022") for line in lines]
+
+
+def _brief_summary(brief: m.ReportBrief, st: Styles) -> list[Any]:
+    """The brief's summary, and how it was written: a reader must know a model chose the words."""
+    return [
+        _p("1. Summary", st["H2"]),
+        *_bullets(brief.points, st),
+        Spacer(1, 3),
+        _p(
+            f"Sections 1 to 4 were written by ARGUS AI ({brief.by}) on {ist_moment(brief.at)} from"
+            " the facts in this report; ARGUS checked every sentence against the facts it cites."
+            " The evidence itself starts at section 5.",
+            st["SM"],
+        ),
+    ]
+
+
+def _brief_part(lines: Sequence[m.ReportBriefLine], title: str, st: Styles) -> list[Any]:
+    if not lines:
+        note = "ARGUS AI wrote nothing here that passed the checks."
+        return [_p(title, st["H2"]), _p(note, st["SM"])]
+    return [_p(title, st["H2"]), *_bullets(lines, st)]
+
+
+def _brief_actions(
+    report: m.IncidentReport, brief: m.ReportBrief, st: Styles, width: float
+) -> list[Any]:
+    """The steps the brief asks for, then the responder catalogue's own, then when to close."""
+    out: list[Any] = [_p("4. Actions asked for", st["H2"])]
+    if brief.actions:
+        rows = [["#", "Action", "Who", "When"]]
+        for n, step in enumerate(brief.actions, 1):
+            rows.append([str(n), step.text, WHO_WORDS[step.who], WHEN_WORDS[step.when]])
+        out.append(_table(rows, [8 * mm, width - 68 * mm, 30 * mm, 30 * mm], st))
+    else:
+        out.append(_p("ARGUS AI named no step that passed the checks; a person decides.", st["P"]))
+    a = report.actions
+    if a.lines:
+        out += [Spacer(1, 4), _p("From the responder's catalogue:", st["B"])]
+        rows = [["#", "Action", "Owner", "Status"]]
+        for n, line in enumerate(a.lines, 1):
+            state = line.state.replace("_", " ").capitalize()
+            rows.append([str(n), f"{line.title}. {line.say}", line.owner, state])
+        out.append(_table(rows, [8 * mm, width - 68 * mm, 32 * mm, 28 * mm], st))
+    if a.close_when is not None:
+        out += [Spacer(1, 3), _p(a.close_when.text, st["P"])]
+    return out
+
+
+def _queries(report: m.IncidentReport, st: Styles, n: int = 9) -> list[Any]:
     out: list[Any] = [
-        _p("9. Queries to verify (read-only; the time range is set in the link)", st["H2"])
+        _p(f"{n}. Queries to verify (read-only; the time range is set in the link)", st["H2"])
     ]
     for q in report.queries:
         label = f"{q.template} · {q.index} ({LANGUAGE[q.language]})"
@@ -487,8 +547,8 @@ def _queries(report: m.IncidentReport, st: Styles) -> list[Any]:
     return out
 
 
-def _limits(report: m.IncidentReport, st: Styles) -> list[Any]:
-    out: list[Any] = [_p("10. Scope and limits", st["H2"])]
+def _limits(report: m.IncidentReport, st: Styles, n: int = 10) -> list[Any]:
+    out: list[Any] = [_p(f"{n}. Scope and limits", st["H2"])]
     out += [_p(s.text, st["P"]) for s in report.out_of_scope]
     out += [_p(f"Limit: {limit}.", st["SM"]) for limit in report.meta.limits]
     return out
@@ -501,20 +561,38 @@ def pdf(report: m.IncidentReport) -> bytes:
 
     st = _styles()
     width = A4[0] - 36 * mm
-    story: list[Any] = [
-        *_head(report, st, width),
-        *dashboard.section(report, width),
-        *_summary(report, st),
-        *_timeline(report, st, width),
-        *_actors(report, st, width),
-        *_indicators(report, st, width),
-        *_evidence(report, st),
-        *_hypotheses(report, st, width),
-        *_assets(report, st),
-        *_actions(report, st, width),
-        *_queries(report, st),
-        *_limits(report, st),
-    ]
+    if report.brief is None:
+        story: list[Any] = [
+            *_head(report, st, width),
+            *dashboard.section(report, width),
+            *_summary(report, st),
+            *_timeline(report, st, width),
+            *_actors(report, st, width),
+            *_indicators(report, st, width),
+            *_evidence(report, st),
+            *_hypotheses(report, st, width),
+            *_assets(report, st),
+            *_actions(report, st, width),
+            *_queries(report, st),
+            *_limits(report, st),
+        ]
+    else:  # the analyst brief first: what a reader who must act needs, then the evidence
+        story = [
+            *_head(report, st, width),
+            *_brief_summary(report.brief, st),
+            *_brief_part(report.brief.why, "2. Why it is judged real", st),
+            *_brief_part(report.brief.impact, "3. Impact", st),
+            *_brief_actions(report, report.brief, st, width),
+            *dashboard.section(report, width),
+            *_timeline(report, st, width, 5),
+            *_assets(report, st, 6),
+            *_actors(report, st, width, 7),
+            *_indicators(report, st, width, 8),
+            *_evidence(report, st, 9),
+            *_hypotheses(report, st, width, 10),
+            *_queries(report, st, 11),
+            *_limits(report, st, 12),
+        ]
     ident = report.header.incident_id
     footer = page_footer(report)
     buffer = io.BytesIO()

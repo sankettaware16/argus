@@ -69,8 +69,8 @@ function ThreatIntelView() {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 text-2xl font-semibold">Threat intel</h1>
-        <p className="m-0 max-w-prose text-sm text-muted">
+        <h1 className="page-h">Threat intel</h1>
+        <p className="page-sub">
           The outside sources ARGUS asks about public addresses and names during an investigation. Each is off until it has a key; their free plans are enough, and ARGUS stays below their limits. The rest of their settings are in{" "}
           <Link to="/settings" search={{ section: "outside" }}>
             Settings, Outside sources

@@ -13,6 +13,7 @@ from datetime import timedelta
 
 from argus import site
 from argus.incident import model as m
+from argus.incident import parts
 from argus.incident.book import Book, cut
 from argus.incident.scene import Scene
 from argus.incident.verdict import intel_sentence
@@ -162,7 +163,11 @@ def hypotheses(
     pro["threat"] += support
     con["benign"] += support
     con["rule"] += support
-    if len(scene.devices) >= 3:
+    same = parts.same_account(scene, book)
+    if same is not None:  # the addresses share one account: the spread is one device that moved
+        pro["one"].append(same.cites[0])
+        words[same.cites[0]] = "one account behind most of the addresses"
+    elif len(scene.devices) >= 3:
         many = plural(len(scene.devices), site.own("device"), site.own("devices"))
         ident = book.add(
             "entity",

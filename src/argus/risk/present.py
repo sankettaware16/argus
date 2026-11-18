@@ -40,9 +40,9 @@ import hashlib
 import json
 import logging
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -60,6 +60,7 @@ from argus.risk import alternatives as alt
 from argus.risk import lifecycle, outbound_db, score, titles
 from argus.risk import priority as prio
 from argus.risk.config import RiskConfig
+from argus.risk.identity import read_same
 from argus.risk.lifecycle import Incident, Material
 from argus.risk.observe import ObjectRef, Observation
 
@@ -126,6 +127,8 @@ class Obj:
     last_at: datetime | None = None
     kinds: frozenset[str] = frozenset()  # evidence kinds (ev:<kind>) of its 7 days
     gray: tuple[str, ...] = ()
+    # the device it is with other addresses (identity.same_devices, D-334); None: its own
+    same: str | None = None
 
     @property
     def kind(self) -> str:
@@ -141,7 +144,7 @@ class Obj:
 
 
 def obj_of(ref: ObjectRef, v: score.Verdict, *, oid: int = 0, hub: bool = False,
-           criticality: float = 1.0) -> Obj:  # fmt: skip
+           criticality: float = 1.0, same: str | None = None) -> Obj:  # fmt: skip
     """One object's facts from its verdict's 7-day window."""
     w7 = v.window("7d")
     parts = tuple(sorted((prio.Part(c.source, c.score, c.base) for c in w7.contributions),
@@ -150,7 +153,7 @@ def obj_of(ref: ObjectRef, v: score.Verdict, *, oid: int = 0, hub: bool = False,
         ref, oid, tuple(v.lanes), hub, criticality, w7.score, len(w7.families), w7.stages,
         w7.strong, parts, max((c.at for c in w7.contributions), default=None),
         frozenset(c.source[3:] for c in w7.contributions if c.source.startswith("ev:")),
-        tuple(v.gray),
+        tuple(v.gray), same,
     )  # fmt: skip
 
 
@@ -181,12 +184,42 @@ def stale(config: RiskConfig, part: prio.Part) -> bool:
             and abs(part.base - kind.stale_base) < 1e-9)  # fmt: skip
 
 
+def as_devices(objects: Sequence[Obj]) -> list[Obj]:
+    """``objects`` with the addresses that are one device (``same``) as one object: the one
+    with the highest score stands for it, with the most stages, families and the latest activity
+    of them all. One laptop seen under eleven addresses is one device to the priority, not a
+    spread over eleven."""
+    held: dict[str, Obj] = {}
+    out: list[Obj] = []
+    for o in sorted(objects, key=lambda o: (-o.score, o.key)):
+        if o.same is None:
+            out.append(o)
+            continue
+        top = held.get(o.same)
+        if top is None:
+            held[o.same] = o
+            continue
+        times = [t for t in (top.last_at, o.last_at) if t is not None]
+        held[o.same] = replace(
+            top, families=max(top.families, o.families), stages=max(top.stages, o.stages),
+            strong=top.strong or o.strong, last_at=max(times, default=None),
+            kinds=top.kinds | o.kinds,
+        )  # fmt: skip
+    return sorted([*out, *held.values()], key=lambda o: (-o.score, o.key))
+
+
+def joined(objects: Sequence[Obj]) -> int:
+    """How many addresses of ``objects`` are counted with another as one device."""
+    groups = Counter(o.same for o in objects if o.same is not None)
+    return sum(n for n in groups.values() if n > 1)
+
+
 def facts_of(objects: Sequence[Obj], last_seen: datetime | None) -> list[prio.Facts]:
     return [
         prio.Facts(o.kind, o.label, o.score, o.families, o.stages, o.parts,
                    max((t for t in (o.last_at, last_seen) if t is not None), default=None),
                    o.criticality)
-        for o in objects
+        for o in as_devices(objects)
     ]  # fmt: skip
 
 
@@ -207,14 +240,15 @@ def rank(objects: Sequence[Obj], now: datetime, config: RiskConfig, last_seen: d
 
 def ranker(
     verdicts: Mapping[ObjectRef, score.Verdict], now: datetime, config: RiskConfig,
-    w: prio.Weights = prio.WEIGHTS,
+    w: prio.Weights = prio.WEIGHTS, same: Mapping[ObjectRef, str] | None = None,
 ) -> Callable[[Incident], str]:  # fmt: skip
     """The lifecycle's ``band_of``: the priority step on the pass's verdicts. It sets the
     incident's priority (the evidence's: a person's confirm is no new fact) and returns its
     band, so a band that rises is a material change the lifecycle says."""
 
     def band_of(inc: Incident) -> str:
-        objs = [obj_of(r, verdicts[r]) for r in inc.objects if r in verdicts]
+        one = same or {}  # read at the call: the linking pass fills it before it ranks
+        objs = [obj_of(r, verdicts[r], same=one.get(r)) for r in inc.objects if r in verdicts]
         scored = rank(objs, now, config, inc.last_seen, w)
         inc.priority = scored.priority
         return scored.band
@@ -296,7 +330,14 @@ def value(
     found = alt.alternatives(tests)
     word = alt.certainty(confirmed=confirmed, lanes=lanes, strong=strong, found=found)
     alone = alt.certainty(confirmed=False, lanes=lanes, strong=strong, found=found)
-    return Value(scored.priority, scored.band, evidence, word, tuple(why), tuple(alt.checks(tests)),
+    checks = list(alt.checks(tests))
+    moved = joined(objects)
+    if moved:  # said where a reader looks for what ARGUS checked: the count is not the devices
+        checks.append(alt.Check("checked", site.say(
+            f"{moved} of its addresses are most likely one {{own:device}} that moved: the same"
+            " account signed in from each, never from two at the same time"
+        )))  # fmt: skip
+    return Value(scored.priority, scored.band, evidence, word, tuple(why), tuple(checks),
                  tuple(found), scored.active, strong, alone)  # fmt: skip
 
 
@@ -491,6 +532,8 @@ class World:
     shown_today: int
     gray_stored: set[int]
     measured: dict[int, list[alt.Measured]] = field(default_factory=dict)  # incident -> (D-323)
+    # device -> the device it is with other addresses (identity.same_devices, D-334)
+    same: dict[ObjectRef, str] = field(default_factory=dict)
 
 
 async def read(
@@ -559,8 +602,11 @@ async def read(
     )).scalar_one())  # fmt: skip
     gray_stored = {int(i) for i in (await conn.execute(_GRAY_HELD)).scalars()}
     measured = await outbound_db.measured_for(conn, sorted(by_id))
+    devices = sorted({ref.key for s in stored for ref, _ in s.objects.values()
+                      if ref.kind == "device"})  # fmt: skip
+    same = await read_same(conn, devices)
     return World(stored, verdicts, ids, frozenset(hubs), criticality, threats, reach, signals,
-                 rule_names, shown_today, gray_stored, dict(measured))  # fmt: skip
+                 rule_names, shown_today, gray_stored, dict(measured), same)  # fmt: skip
 
 
 # --------------------------------------------------------------------------- planning (pure)
@@ -658,7 +704,8 @@ def objects_of(s: Stored, world: World) -> list[Obj]:
         v = world.verdicts.get(ref)
         if v is not None:
             out.append(obj_of(ref, v, oid=oid, hub=oid in world.hubs,
-                              criticality=world.criticality.get(oid, 1.0)))  # fmt: skip
+                              criticality=world.criticality.get(oid, 1.0),
+                              same=world.same.get(ref)))  # fmt: skip
     return sorted(out, key=lambda o: (-o.score, o.key))
 
 

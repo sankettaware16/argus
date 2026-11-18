@@ -22,7 +22,7 @@ import { useReview } from "./useReview";
 /** The key a button answers to, drawn on it; the button's name stays its own words (aria-keyshortcuts says the key). */
 function Key({ children }: { children: string }) {
   return (
-    <kbd aria-hidden="true" className="rounded-control border border-border-strong bg-surface px-1 text-xs">
+    <kbd aria-hidden="true" className="rounded-control border border-border-strong bg-bg px-1 text-xs">
       {children}
     </kbd>
   );
@@ -110,7 +110,7 @@ export function VerdictCard({ detail, queue = false }: { detail: InvestigationDe
   }, [queue, shortcuts, announce]);
 
   return (
-    <section aria-labelledby={headline} className="flex flex-col gap-3 rounded-card border border-border-strong bg-surface-2 p-4 shadow-card">
+    <section aria-labelledby={headline} className="flex flex-col gap-3 rounded-card bg-surface p-5">
       <div className="flex flex-col gap-1">
         <h2 id={headline} ref={headingRef} tabIndex={-1} data-testid="verdict-headline" className="m-0 text-lg font-semibold focus:outline-none">
           {stanceHeadline(stance)}

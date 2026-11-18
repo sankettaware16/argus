@@ -489,7 +489,8 @@ async def step(engine: AsyncEngine, setup: Setup, now: datetime) -> Report:
         try:
             linked = await incidents.step(
                 engine, setup.linking, now, rescored.observations, rescored.ids, verdicts,
-                score.Stats(rescored.scored.factors), present.ranker(verdicts, now, setup.config),
+                score.Stats(rescored.scored.factors),
+                present.ranker(verdicts, now, setup.config, same=setup.linking.same),
             )  # fmt: skip
             report.incidents = linked.line()
             report.seconds["link"] = linked.seconds

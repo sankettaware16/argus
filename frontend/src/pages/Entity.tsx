@@ -43,7 +43,7 @@ export function ownerSummary(noun: string, value: string, groups: readonly Inves
 
 function Block({ title, children, testId }: { title: string; children: ReactNode; testId?: string }) {
   return (
-    <section aria-label={title} data-testid={testId} className="flex min-w-0 flex-col gap-1.5 rounded-card border border-border bg-surface p-3 break-words">
+    <section aria-label={title} data-testid={testId} className="flex min-w-0 flex-col gap-1.5 rounded-card bg-surface p-3 break-words">
       <h2 className="m-0 text-base font-semibold">{title}</h2>
       {children}
     </section>
@@ -86,7 +86,7 @@ function NoteBox({ k, value }: { k: "ip" | "host" | "user" | "domain"; value: st
           <label htmlFor={id} className="text-sm font-medium">
             Your note
           </label>
-          <textarea id={id} rows={2} maxLength={4000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="e.g. Owner called 6 Nov, says it is their backup tool" className="rounded-control border border-border-strong bg-surface px-2 py-1 text-sm text-text" />
+          <textarea id={id} rows={2} maxLength={4000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="e.g. Owner called 6 Nov, says it is their backup tool" className="rounded-control border border-border-strong bg-bg px-2 py-1 text-sm text-text" />
           <Button type="submit" variant="primary" aria-disabled={busy || body.trim() === ""}>
             Save the note
           </Button>
@@ -115,7 +115,7 @@ export function EntityPage({ kind, value }: { kind: EntityKind; value: string })
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="m-0 text-2xl font-semibold break-all">
+          <h1 className="page-h break-all">
             <span className="text-muted">{noun}</span> <UntrustedText value={value} limits={{ maxChars: 200, maxLines: 1 }} />
           </h1>
           <div className="flex flex-wrap items-start gap-2">

@@ -289,7 +289,13 @@ def test_email_edges() -> None:
 def test_name_edges() -> None:
     campus = Campus(assets=frozenset({"Geology Lab", "geology"}), hosts=frozenset({"tp8"}))
     assert [s[3] for s in spans("geology xyz", campus) if s[2] == "name"] == ["geology"]
-    assert [s[3] for s in spans("geology.lab", campus) if s[2] == "name"] == ["geology"]
+    assert [s[3] for s in spans("geology.lab", campus) if s[2] == "name"] == ["geology.lab"]
+    dotted = Campus(users=frozenset({"asha.k"}))  # an account is often first.last
+    assert [s[3] for s in spans("user asha.k signed in", dotted) if s[2] == "name"] == ["asha.k"]
+    assert [s[3] for s in spans("asha_k and asha k", dotted) if s[2] == "name"] == [
+        "asha_k", "asha k",
+    ]  # fmt: skip
+    assert [s for s in spans("asha/k", dotted) if s[2] == "name"] == []
     assert [s[3] for s in spans("geology lab", campus) if s[2] == "name"] == ["geology lab"]
     assert [s[3] for s in spans("tp8 and I1.IP_1", campus) if s[2] == "name"] == ["tp8"]
     only = Campus(assets=frozenset({"Geology Lab"}))

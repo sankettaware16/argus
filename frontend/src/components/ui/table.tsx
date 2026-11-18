@@ -24,7 +24,7 @@ export function DataTable<T>({ caption, columns, rows, rowKey, empty, className,
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} scope="col" className={cn("border-b border-border-strong px-2 py-1.5 text-left text-xs font-semibold text-muted", c.numeric && "text-right")}>
+              <th key={c.key} scope="col" className={cn("border-b border-border px-3 py-2 text-left text-xs font-medium text-muted", c.numeric && "text-right")}>
                 {c.header}
               </th>
             ))}
@@ -34,7 +34,7 @@ export function DataTable<T>({ caption, columns, rows, rowKey, empty, className,
           {rows.map((row, i) => (
             <tr key={rowKey(row, i)} className="border-b border-border last:border-b-0">
               {columns.map((c) => (
-                <td key={c.key} className={cn("px-2 py-1.5 align-top", c.numeric && "text-right tabular-nums")}>
+                <td key={c.key} className={cn("px-3 py-2 align-top", c.numeric && "text-right tabular-nums")}>
                   {c.cell(row, i)}
                 </td>
               ))}

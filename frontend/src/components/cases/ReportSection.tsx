@@ -28,6 +28,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Field, Select, TextArea } from "../ui/field";
 import { plainWords } from "../../lib/plainWords";
+import { BriefBlock } from "../incident/Brief";
 import { DataTable } from "../ui/table";
 import { zoneLabel } from "../../lib/site";
 
@@ -40,7 +41,7 @@ function Text({ value, max = 600, lines = 6 }: { value: string; max?: number; li
 /** One part of the report: the heading is always there, the body opens and closes. */
 function Part({ title, hint, open = false, children }: { title: string; hint?: string; open?: boolean; children: ReactNode }) {
   return (
-    <details open={open} className="rounded-card border border-border bg-surface p-3">
+    <details open={open} className="rounded-card bg-surface p-3">
       <summary className="cursor-pointer text-base font-semibold">{title}</summary>
       <div className="mt-2 flex flex-col gap-2">
         {hint && <p className="m-0 max-w-prose text-sm text-muted">{hint}</p>}
@@ -217,7 +218,7 @@ function Decision({ data }: { data: CaseReportOut }) {
     void after.finish(out?.words ?? "Recorded.");
   };
   return (
-    <div className="flex flex-col gap-2 rounded-card border border-border bg-surface-2 p-3" aria-label="Your decision" role="group" data-testid="decision">
+    <div className="flex flex-col gap-2 rounded-card bg-surface-2 p-3" aria-label="Your decision" role="group" data-testid="decision">
       <p className="m-0 text-sm font-medium">Your decision</p>
       {d && (
         <p className="m-0 max-w-prose text-sm" data-testid="decision-line">
@@ -255,7 +256,7 @@ function Decision({ data }: { data: CaseReportOut }) {
       )}
       <p className="m-0 max-w-prose text-xs text-muted">Both are labels ARGUS learns from, saved on the case&apos;s investigations. Neither closes the case: that stays a person&apos;s approval.</p>
       {form && data.reject.enabled && (
-        <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3">
+        <div className="flex flex-col gap-2 rounded-card bg-surface p-3">
           <Field label="What it is instead" htmlFor={`${id}-outcome`}>
             <Select id={`${id}-outcome`} value={outcome} onChange={(e) => setOutcome(e.target.value)} className="max-w-72">
               <option value="">Choose…</option>
@@ -594,6 +595,7 @@ function Body({ data, onVersion, incidentId }: { data: CaseReportOut; onVersion:
     <>
       <Head data={data} onVersion={onVersion} incidentId={incidentId} />
       {data.logs_hidden && <p className="m-0 max-w-prose text-sm text-muted">Your account may not read the logs, so what the logs said is hidden here and in the PDF.</p>}
+      <BriefBlock report={report} />
       <SummaryBlock report={report} state={data.case_state} />
       <VerdictBlock report={report} />
       <Decision key={`${data.case_id}-${data.version}`} data={data} />

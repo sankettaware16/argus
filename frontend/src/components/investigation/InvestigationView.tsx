@@ -51,7 +51,7 @@ function Header({ detail, level }: { detail: InvestigationDetail; level: 1 | 2 }
   const last = detail.reviews[0];
   return (
     <header className="flex flex-col gap-2">
-      <Heading id="investigation-title" tabIndex={-1} className="m-0 text-xl font-semibold focus:outline-none">
+      <Heading id="investigation-title" tabIndex={-1} className="page-h page-h-long focus:outline-none">
         <UntrustedText value={inv.rule_name ?? inv.rule_id} limits={{ maxChars: 160, maxLines: 2 }} />
       </Heading>
       <p className="m-0 text-sm">
@@ -87,7 +87,7 @@ function Header({ detail, level }: { detail: InvestigationDetail; level: 1 | 2 }
           : <UntrustedText value={g.text} limits={{ maxChars: 300, maxLines: 3 }} />.
         </div>
       ))}
-      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 rounded-card border border-border bg-surface-2 p-3 sm:grid-cols-3">
+      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 rounded-card bg-surface px-5 py-4 sm:grid-cols-3">
         <Strip label="State">
           <StateChip state={inv.human_state} />
           {last && inv.human_state === "reviewed" && (
@@ -223,12 +223,12 @@ export function InvestigationView({ id, tab, onTab, level = 2, queue = false }: 
       <VerdictCard key={`${d.investigation.id}:verdict`} detail={d} queue={queue} />
       <GoldBox key={`${d.investigation.id}:gold`} detail={d} />
       <Tabs.Root value={tab} onValueChange={(v) => TABS.includes(v as Tab) && onTab(v as Tab)}>
-        <Tabs.List aria-label="Sections of this investigation" className="flex gap-1 overflow-x-auto border-b border-border" id={tabsId}>
+        <Tabs.List aria-label="Sections of this investigation" className="flex gap-1 overflow-x-auto py-1" id={tabsId}>
           {TABS.map((t) => (
             <Tabs.Tab
               key={t}
               value={t}
-              className="min-h-8 cursor-pointer rounded-t-control border-0 bg-transparent px-3 text-sm whitespace-nowrap text-muted aria-selected:bg-accent-soft aria-selected:font-semibold aria-selected:text-text"
+              className="min-h-8 cursor-pointer rounded-full border-0 bg-transparent px-3 text-sm whitespace-nowrap text-muted hover:text-text aria-selected:bg-text aria-selected:font-medium aria-selected:text-bg"
             >
               {TAB_TITLE[t]}
               {t === "ai" && d.assessments.length > 0 ? ` (${d.assessments.length})` : ""}

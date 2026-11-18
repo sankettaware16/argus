@@ -166,10 +166,14 @@ class Incident:
     key: str = ""  # a stable handle for a new incident before it has an id
     new: bool = False  # opened at this pass
     requeued: bool = False  # a material change at this pass
+    # device -> the device it is with others (identity.same_devices), as the pass read it
+    same: Mapping[ObjectRef, str] = field(default_factory=dict)
 
     @property
     def devices(self) -> int:
-        return len({device_of(o) for o in self.objects if o.kind == "device"})
+        """Its devices: an address's days are one, and so are the addresses the pass read as
+        one device that moved (``same``, D-334)."""
+        return len({device_of(o, self.same) for o in self.objects if o.kind == "device"})
 
     @property
     def size(self) -> int:
@@ -200,10 +204,12 @@ class Facts:
     flagged: Callable[[str], bool]
     score_7d: Mapping[ObjectRef, float] = field(default_factory=dict)
     roles: Mapping[ObjectRef, str] = field(default_factory=dict)
+    same: Mapping[ObjectRef, str] = field(default_factory=dict)  # addresses that are one device
 
 
 def facts_of(obs: Iterable[Observation], now: datetime, flagged: Callable[[str], bool],
-             score_7d: Mapping[ObjectRef, float] | None = None) -> Facts:  # fmt: skip
+             score_7d: Mapping[ObjectRef, float] | None = None,
+             same: Mapping[ObjectRef, str] | None = None) -> Facts:  # fmt: skip
     groups: dict[ObjectRef, dict[uuid.UUID, datetime]] = {}
     per: dict[ObjectRef, list[Observation]] = {}
     roles: dict[ObjectRef, str] = {}
@@ -218,11 +224,12 @@ def facts_of(obs: Iterable[Observation], now: datetime, flagged: Callable[[str],
             roles[o.object] = o.role
     return Facts(
         {r: sorted(g.items(), key=lambda kv: (kv[1], str(kv[0]))) for r, g in groups.items()},
-        per, flagged, score_7d or {}, roles,
+        per, flagged, score_7d or {}, roles, same or {},
     )  # fmt: skip
 
 
 def material_of(inc: Incident, facts: Facts, band_of: Callable[[Incident], str]) -> Material:
+    inc.same = facts.same  # its devices are counted as this pass read them
     sources: set[str] = set()
     stages = 0
     families: set[str] = set()

@@ -125,3 +125,18 @@ VERDICT_TAG = {
     "benign_policy": "verdict:benign-expected",
     "rule_false_positive": "verdict:false-positive",
 }
+
+
+# the analyst brief's steps: who takes one and by when (``model.BriefWho``, ``model.BriefWhen``)
+WHO_WORDS = {
+    "owner": "Device owner",
+    "accounts": "Account holders",
+    "network": "Network team",
+    "soc": "Security team",
+}
+WHEN_WORDS = {
+    "now": "Immediately",
+    "today": "Today",
+    "week": "This week",
+    "after": "After the device is clean",
+}

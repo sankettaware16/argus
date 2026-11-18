@@ -64,9 +64,9 @@ function Summary({ u, last }: { u: UsageOut; last: string }) {
 
 function RangeSwitch({ range, onRange }: { range: Range; onRange: (r: Range) => void }) {
   return (
-    <div role="group" aria-label="Days shown" className="inline-flex rounded-full border border-border bg-surface-2 p-0.5">
+    <div role="group" aria-label="Days shown" className="inline-flex rounded-full bg-surface-2 p-0.5">
       {RANGES.map((r) => (
-        <button key={r} type="button" aria-pressed={range === r} onClick={() => onRange(r)} className={`cursor-pointer rounded-full border-0 px-3 py-0.5 text-sm ${range === r ? "bg-surface font-semibold text-text shadow-card" : "bg-transparent text-muted hover:text-text"}`}>
+        <button key={r} type="button" aria-pressed={range === r} onClick={() => onRange(r)} className={`cursor-pointer rounded-full border-0 px-3 py-0.5 text-sm ${range === r ? "bg-bg font-semibold text-text shadow-sm" : "bg-transparent text-muted hover:text-text"}`}>
           {r} days
         </button>
       ))}
@@ -163,8 +163,8 @@ function CostsView() {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 text-2xl font-semibold">Costs and usage</h1>
-        <p className="m-0 max-w-prose text-sm text-muted">What the AI cost and how many threat-intel lookups ARGUS made, against their limits. Amounts are in US dollars; days are UTC.</p>
+        <h1 className="page-h">Costs and usage</h1>
+        <p className="page-sub">What the AI cost and how many threat-intel lookups ARGUS made, against their limits. Amounts are in US dollars; days are UTC.</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <RangeSwitch range={range} onRange={setRange} />

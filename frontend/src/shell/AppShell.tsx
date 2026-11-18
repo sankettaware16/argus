@@ -15,11 +15,12 @@ import { UndoToast } from "../components/decide/UndoToast";
 import { browserStorage, loadShortcuts } from "../lib/shortcuts";
 import { AccessBanner } from "./AccessBanner";
 import { ACCOUNT, MORE, PRIMARY, type NavItem } from "./nav";
+import { NavIcon } from "./icons";
 import { SystemDot } from "./Status";
 import { EntityDrawerProvider } from "../components/EntityDrawer";
 
 const ITEM =
-  "flex min-h-9 items-center justify-between gap-2 rounded-control px-2 text-sm text-text no-underline hover:bg-surface-3 aria-[current=page]:bg-accent-soft aria-[current=page]:font-semibold";
+  "flex min-h-9 items-center justify-between gap-2 rounded-control px-3 text-[0.9375rem] text-text no-underline transition-colors hover:bg-surface-2 aria-[current=page]:bg-surface-2 aria-[current=page]:font-semibold";
 
 function useMoreItems(): NavItem[] {
   const session = useSession();
@@ -37,9 +38,12 @@ function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onP
   }
   return (
     <Link to={item.to} search={item.search} title={item.hint} className={className} activeOptions={{ exact: item.to === "/", includeSearch: false }} onClick={onPick}>
-      <span>{item.label}</span>
+      <span className="flex items-center gap-2.5 max-lg:flex-col max-lg:gap-0.5">
+        <NavIcon name={item.label} />
+        {item.label}
+      </span>
       {badge != null && badge > 0 && (
-        <span className="rounded-full bg-surface-3 px-1.5 text-xs font-semibold tabular-nums" data-testid="today-badge">
+        <span className="rounded-full bg-accent px-2 text-xs font-semibold text-accent-fg tabular-nums" data-testid="today-badge">
           {badge}
           <span className="sr-only"> need you</span>
         </span>
@@ -62,7 +66,7 @@ function MoreList({ onPick }: { onPick?: () => void }) {
       ))}
       {groups.map((g) => (
         <li key={g.name}>
-          <p className="m-0 mt-2 px-2 text-xs font-semibold tracking-wide text-muted uppercase">{g.name}</p>
+          <p className="m-0 mt-3 mb-1 px-3 text-xs font-semibold text-muted">{g.name}</p>
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
             {g.items.map((item) => (
               <li key={item.label}>
@@ -82,15 +86,15 @@ function SideNav() {
   const count = useNeedsYouCount();
   const id = useId();
   return (
-    <nav aria-label="Main" className="flex flex-col gap-3">
+    <nav aria-label="Main" className="flex flex-col gap-2">
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {PRIMARY.map((item) => (
           <li key={item.label}>
-            <NavLink item={item} badge={item.label === "Today" ? count : null} className={cn(ITEM, "max-lg:flex-col max-lg:justify-center max-lg:gap-0 max-lg:px-1 max-lg:text-xs")} />
+            <NavLink item={item} badge={item.label === "Today" ? count : null} className={cn(ITEM, "max-lg:min-h-14 max-lg:flex-col max-lg:justify-center max-lg:gap-0.5 max-lg:px-1 max-lg:text-xs")} />
           </li>
         ))}
       </ul>
-      <div className="border-t border-border pt-2">
+      <div className="pt-1">
         <button type="button" aria-expanded={more} aria-controls={id} onClick={() => setMore(!more)} className={cn(ITEM, "w-full cursor-pointer border-0 bg-transparent max-lg:px-1 max-lg:text-xs")}>
           More <span aria-hidden="true">{more ? "▴" : "▾"}</span>
         </button>
@@ -108,17 +112,18 @@ function SideNav() {
 function BottomBar() {
   const count = useNeedsYouCount();
   return (
-    <nav aria-label="Pages" className="fixed inset-x-0 bottom-0 z-30 grid h-14 grid-cols-4 border-t border-border bg-surface sm:hidden" data-testid="bottom-bar">
+    <nav aria-label="Pages" className="glass fixed inset-x-0 bottom-0 z-30 grid h-14 grid-cols-4 border-t border-border sm:hidden" data-testid="bottom-bar">
       {PRIMARY.map((item) => (
         <Link
           key={item.label}
           to={item.to ?? "/"}
           search={item.search}
           activeOptions={{ exact: item.to === "/", includeSearch: false }}
-          className="flex flex-col items-center justify-center gap-0.5 text-xs text-text no-underline aria-[current=page]:bg-accent-soft aria-[current=page]:font-semibold"
+          className="relative flex flex-col items-center justify-center gap-0.5 text-xs text-muted no-underline aria-[current=page]:font-semibold aria-[current=page]:text-link"
         >
+          <NavIcon name={item.label} />
           <span>{item.label}</span>
-          {item.label === "Today" && count != null && count > 0 && <span className="text-[0.6875rem] text-muted tabular-nums">{count}</span>}
+          {item.label === "Today" && count != null && count > 0 && <span className="absolute top-1 left-[calc(50%+0.375rem)] rounded-full bg-accent px-1.5 text-[0.6875rem] leading-4 font-semibold text-accent-fg tabular-nums">{count}</span>}
         </Link>
       ))}
     </nav>
@@ -163,7 +168,7 @@ function HeaderSearch() {
         aria-label="Search incidents, addresses, hosts, accounts"
         data-search-box="header"
         maxLength={200}
-        className="min-h-8 w-full max-w-md rounded-control border border-border-strong bg-surface px-3 text-sm text-text"
+        className="min-h-9 w-full max-w-md rounded-full border border-transparent bg-surface px-4 text-sm text-text placeholder:text-muted hover:bg-surface-2"
       />
     </form>
   );
@@ -186,7 +191,7 @@ function KeysDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-surface p-5 text-text shadow-card">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-raised p-6 text-text shadow-card">
           <Dialog.Title className="m-0 text-lg font-semibold">Keyboard shortcuts</Dialog.Title>
           <p className="m-0 text-sm text-muted">Nothing is sent on one key: c, d and the letters open a dialog or a menu, and a second, deliberate Enter sends.</p>
           <dl className="m-0 grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1 text-sm">
@@ -299,7 +304,7 @@ function AccountMenu({ phone = false, onPick }: { phone?: boolean; onPick?: () =
   if (phone) {
     return (
       <div className="flex flex-col gap-0.5">
-        <p className="m-0 px-2 text-xs font-semibold tracking-wide text-muted uppercase">
+        <p className="m-0 px-3 text-xs font-semibold text-muted">
           <UntrustedText value={session.data.user.display_name} limits={{ maxChars: 60, maxLines: 1 }} />
         </p>
         {items}
@@ -309,11 +314,11 @@ function AccountMenu({ phone = false, onPick }: { phone?: boolean; onPick?: () =
   }
   return (
     <div ref={box} className="relative" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
-      <button type="button" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(!open)} className="inline-flex min-h-8 max-w-48 cursor-pointer items-center gap-1 truncate rounded-control border-0 bg-transparent px-2 text-sm text-text hover:bg-surface-2" data-testid="account-menu">
+      <button type="button" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(!open)} className="inline-flex min-h-8 max-w-48 cursor-pointer items-center gap-1 truncate rounded-full border-0 bg-transparent px-3 text-sm text-text hover:bg-surface" data-testid="account-menu">
         <UntrustedText value={session.data.user.display_name} limits={{ maxChars: 60, maxLines: 1 }} /> <span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div id={id} data-testid="account-items" className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-0.5 rounded-card border border-border bg-surface p-1 shadow-card">
+        <div id={id} data-testid="account-items" className="absolute right-0 z-30 mt-1 flex w-56 flex-col gap-0.5 rounded-card border border-border bg-raised p-1.5 shadow-card">
           {items}
         </div>
       )}
@@ -330,7 +335,7 @@ function PhoneMore() {
       <Dialog.Trigger render={<Button size="sm" className="sm:hidden" />}>More</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-3 overflow-auto rounded-t-card border border-border bg-surface p-4 text-text shadow-card">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-3 overflow-auto rounded-t-card border border-border bg-raised p-4 text-text shadow-card">
           <Dialog.Title className="m-0 text-base font-semibold">More</Dialog.Title>
           <MoreList onPick={() => setOpen(false)} />
           <AccountMenu phone onPick={() => setOpen(false)} />
@@ -345,7 +350,7 @@ function BuildNotice() {
   const { stale, ask } = useBuildState();
   if (!stale && !ask) return null;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-info/40 bg-info-soft px-3 py-2 text-sm text-info" role="status">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-card bg-info-soft px-4 py-3 text-sm text-info" role="status">
       <p className="m-0">ARGUS was updated on the server. Reload the page to use the new version; nothing you saved is lost.</p>
       <Button size="sm" onClick={() => window.location.reload()}>
         Reload
@@ -402,25 +407,25 @@ export function AppShell() {
   }
   return (
     <DecidedProvider>
-      <div className="min-h-screen sm:grid sm:grid-cols-[5.5rem_1fr] lg:grid-cols-[14rem_1fr]">
+      <div className="min-h-screen sm:grid sm:grid-cols-[5.5rem_1fr] lg:grid-cols-[15rem_1fr]">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-surface focus:p-2">
           Skip to content
         </a>
-        <aside className="hidden border-r border-border bg-surface-2 sm:sticky sm:top-0 sm:block sm:h-screen sm:overflow-y-auto">
-          <div className="px-3 py-3">
-            <Link to="/" className="flex flex-col text-text no-underline">
-              <span className="text-lg font-bold tracking-wide">ARGUS</span>
+        <aside className="hidden bg-surface sm:sticky sm:top-0 sm:block sm:h-screen sm:overflow-y-auto">
+          <div className="px-5 pt-5 pb-4 max-lg:px-2 max-lg:text-center">
+            <Link to="/" className="flex flex-col gap-0.5 text-text no-underline">
+              <span className="text-sm font-semibold tracking-[0.2em] max-lg:text-xs max-lg:tracking-[0.12em]">ARGUS</span>
               <span className="text-xs text-muted max-lg:hidden">first-line analyst · {organisationName()}</span>
             </Link>
           </div>
-          <div className="px-2 pb-4">
+          <div className="px-2.5 pb-4 max-lg:px-1.5">
             <SideNav />
           </div>
         </aside>
         <div className="flex min-w-0 flex-col">
           <AccessBanner />
-          <header className="flex h-14 items-center gap-3 border-b border-border bg-surface px-4" data-testid="app-header">
-            <Link to="/" className="text-base font-bold tracking-wide text-text no-underline sm:hidden">
+          <header className="flex h-14 items-center gap-3 px-4 sm:px-8" data-testid="app-header">
+            <Link to="/" className="text-sm font-semibold tracking-[0.2em] text-text no-underline sm:hidden">
               ARGUS
             </Link>
             <HeaderSearch />
@@ -435,7 +440,7 @@ export function AppShell() {
               <PhoneMore />
             </span>
           </header>
-          <main id="main" tabIndex={-1} className="mx-auto flex w-full max-w-[75rem] flex-col gap-4 px-4 pt-3 pb-24 focus:outline-none sm:pt-5 sm:pb-6">
+          <main id="main" tabIndex={-1} className="page-in mx-auto flex w-full max-w-[76rem] flex-col gap-5 px-4 pt-2 pb-24 focus:outline-none sm:px-8 sm:pt-4 sm:pb-12">
             <BuildNotice />
             <Messages />
             <EntityDrawerProvider>

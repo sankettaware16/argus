@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
+from argus.risk import identity as identity_mod
 from argus.risk import lifecycle, link
 from argus.risk.identity import Identity, SignIn, address_of, signin_accounts
 from argus.risk.incident_config import IncidentConfig
@@ -51,6 +52,8 @@ class LinkSetup:
     threshold: int = 3  # VirusTotal engines that make a detection
     detection_days: int = 30  # how old a cached detection may be
     cache: dict[str, Any] = field(default_factory=dict)  # the campaigns of the last hour
+    # the pass's addresses that are one device (identity.same_devices): the ranker reads it
+    same: dict[ObjectRef, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -454,6 +457,45 @@ async def _sign_ins(
     return found
 
 
+_SPANS = text(
+    "SELECT b.key, min(o.at) AS first, max(o.at) AS last FROM risk_observations o"
+    " JOIN risk_objects b ON b.id = o.object_id"
+    " WHERE b.kind = 'device' AND b.key = ANY(CAST(:keys AS text[])) AND o.at <= :now"
+    " GROUP BY b.key"
+)
+
+
+async def _same(
+    conn: AsyncConnection, setup: LinkSetup, now: datetime, wanted_refs: set[ObjectRef],
+) -> dict[ObjectRef, str]:  # fmt: skip
+    """The addresses of ``wanted_refs`` that are one device that moved (D-334): one likely
+    account behind each over its activity, never two at the same time. What was read is kept
+    in ``risk_aliases`` (the account of a device over a span), where the presenter and the
+    titles read it."""
+    if setup.signins is None or setup.identity is None or not wanted_refs:
+        return {}
+    keys = sorted({r.key for r in wanted_refs if address_of(r) is not None})
+    if not keys:
+        return {}
+    # the whole of each address's kept activity, not the scoring window's 14 days: an incident
+    # that runs for weeks has addresses older than that
+    rows = await conn.execute(_SPANS, {"keys": keys, "now": now})
+    seen = [(ObjectRef("device", r.key), at) for r in rows for at in (r.first, r.last)]
+    spans = identity_mod.spans_of(seen, setup.identity)
+    used = await identity_mod.device_users(conn, spans, setup.signins, now)
+    if used:
+        await conn.execute(
+            text(
+                "INSERT INTO risk_aliases (device, kind, value, valid_from, valid_to, source,"
+                " confidence) VALUES (:d, 'account', :v, :f, :t, 'signin', 'likely')"
+                " ON CONFLICT (device, kind, value, valid_from) DO UPDATE"
+                " SET valid_to = greatest(risk_aliases.valid_to, EXCLUDED.valid_to)"
+            ),
+            [{"d": u.device.key, "v": u.user, "f": u.start, "t": u.end} for u in used],
+        )
+    return identity_mod.same_devices(used)
+
+
 async def _hosts(
     conn: AsyncConnection, now: datetime, config: IncidentConfig
 ) -> list[tuple[ObjectRef, ObjectRef, datetime, datetime]]:
@@ -585,15 +627,18 @@ async def step(
         live_refs = {r for inc in held if inc.live for r in inc.objects}
         sign_ins = await _sign_ins(conn, setup, now, obs, set(candidates) | live_refs)
         known = known_hubs(setup.identity, obs)
+        same = await _same(conn, setup, now, set(candidates) | live_refs)
+        setup.same.clear()
+        setup.same.update(same)  # the priority step counts them as one device too
         world = link.World(
             flags, frozenset(popular), known, sign_ins, await _hosts(conn, now, config), bindings,
-            setup.identity.one_device if setup.identity is not None else None,
+            setup.identity.one_device if setup.identity is not None else None, same,
         )  # fmt: skip
         starts = lifecycle.candidates_of(candidates, held)
         comps = link.link_all(obs, now, starts, config, stats, world)
         score_7d = {ref: v.window("7d").score for ref, v in verdicts.items()}
         facts = lifecycle.facts_of(obs, now, lambda t: link.flagged_at(flags.get(t), now),
-                                   score_7d)  # fmt: skip
+                                   score_7d, same)  # fmt: skip
         outcome = lifecycle.advance(held, comps, facts, now, config, band_of)
         report.links = await write(conn, outcome, ids, now)
         await prune(conn, now, config)

@@ -20,7 +20,7 @@ function Shell({ open, onOpenChange, title, children, busy }: { open: boolean; o
     <AlertDialog.Root open={open} onOpenChange={(next) => (busy && !next ? undefined : onOpenChange(next))}>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-surface p-5 text-text shadow-card">
+        <AlertDialog.Popup className="fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-auto rounded-card border border-border bg-raised p-5 text-text shadow-card">
           <AlertDialog.Title className="m-0 text-lg font-semibold">{title}</AlertDialog.Title>
           {children}
         </AlertDialog.Popup>
@@ -107,7 +107,7 @@ export function BulkDismiss({ rows, open, onOpenChange, onDone }: { rows: Row[];
       </p>
       <label className="flex flex-col gap-1 text-sm" htmlFor={`${id}-note`}>
         <span className="font-medium">Note (optional, for each)</span>
-        <input id={`${id}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} className="min-h-8 rounded-control border border-border-strong bg-surface px-2 text-sm text-text" />
+        <input id={`${id}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} className="min-h-8 rounded-control border border-border-strong bg-bg px-2 text-sm text-text" />
       </label>
       {progress && (
         <p className="m-0 text-sm" role="status">
@@ -200,7 +200,7 @@ export function BulkMerge({ rows, open, onOpenChange, onDone }: { rows: Row[]; o
 export function BulkBar({ rows, onClear, togetherIds }: { rows: Row[]; onClear: () => void; togetherIds: string[] }) {
   const [dialog, setDialog] = useState<"dismiss" | "merge" | null>(null);
   return (
-    <div data-testid="bulk-bar" className="fixed inset-x-0 bottom-14 z-20 flex flex-wrap items-center gap-2 border-t border-border-strong bg-surface-2 px-4 py-2 text-sm sm:sticky sm:top-0 sm:bottom-auto sm:rounded-card sm:border">
+    <div data-testid="bulk-bar" className="fixed inset-x-0 bottom-14 z-20 flex flex-wrap items-center gap-2 glass border-t border-border px-4 py-2.5 text-sm shadow-card sm:sticky sm:top-0 sm:bottom-auto sm:rounded-card sm:border">
       <span className="font-semibold">{rows.length} selected</span>
       <Button onClick={() => setDialog("dismiss")} aria-disabled={!rows.some((r) => r.row.state === "suspected")}>
         Not an incident ▾
@@ -208,7 +208,7 @@ export function BulkBar({ rows, onClear, togetherIds }: { rows: Row[]; onClear: 
       <Button onClick={() => setDialog("merge")} aria-disabled={rows.length < 2}>
         Merge into one…
       </Button>
-      <Link to="/incidents" search={(prev: Record<string, unknown>) => ({ ...prev, view: (prev.view as never) ?? "needs-you", together: togetherIds })} className="inline-flex min-h-8 items-center rounded-control border border-border-strong bg-surface px-3 font-medium text-text no-underline hover:bg-surface-3">
+      <Link to="/incidents" search={(prev: Record<string, unknown>) => ({ ...prev, view: (prev.view as never) ?? "needs-you", together: togetherIds })} className="inline-flex min-h-8 items-center rounded-control border border-border-strong bg-bg px-3 font-medium text-text no-underline hover:bg-surface-3">
         Review together
       </Link>
       <Button variant="ghost" onClick={onClear}>

@@ -170,7 +170,7 @@ export function Home() {
   const session = useSession();
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Home</h1>
+      <h1 className="page-h">Home</h1>
       <p className="m-0 text-muted">{session.data ? "What needs you today, in order. Incidents whose owner was told and that are quiet are not work: they are counted." : null}</p>
       <Queue />
     </>

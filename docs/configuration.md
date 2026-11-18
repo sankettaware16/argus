@@ -434,6 +434,8 @@ database, as a page, a PDF and two CSVs. Settings → Incident reports.
 | `incident.per_pass` / `look` | `5` / `40` | Reports written / cases examined per assessment pass |
 | `incident.min_interval` | `30m` | No case is rewritten sooner than this |
 | `incident.prose` | `false` | Let a model word the summary from verified facts (needs an LLM key) |
+| `incident.brief` | `off` | The analyst brief that opens the report: a large model writes what is happening, the summary, why it is judged real, the impact and the steps asked for; code checks every line against the report's facts. `confirmed`: for the cases a person confirmed; `all`: for every case (needs a paid LLM key) |
+| `incident.brief_every` | `6h` | A case whose verdict and standing did not change keeps its brief this long before a new one is asked for |
 | `incident.kibana_url` | `kibana.url` | The address people open Kibana at, for the evidence links |
 | `incident.data_views` | none | `source=data-view-id` pairs, so a source's links open as KQL in that data view (others use ES|QL links) |
 
@@ -573,6 +575,7 @@ password and the typed confirmation.
 | `kibana.timeout` | `15s` | |
 | `kibana.reader_api_key_expires` | none | The reader key's expiry; doctor warns 30 days ahead |
 | `kibana.sync.enabled` | `true` (shipped) | The read-back of cases, where `kibana.enabled` is true |
+| `kibana.sync.pause_on_change` | `true` | A person's change of ARGUS's tags or of a case's Sync alerts setting in Kibana pauses ARGUS's writes to that case until `argus kibana sync resume-case`. `false`: the change is a finding only and ARGUS keeps the case in step. A case ARGUS did not make is never written to |
 | `kibana.sync.normal` / `caution` / `degraded` | `10m` / `20m` / `1h` | How often the read-back polls in each health state (never in STOP) |
 | `kibana.write_classes` | none | **The write classes switched on.** Empty: ARGUS writes nothing. |
 | `kibana.write_window` | `02:30`–`17:30` | UTC hours in which writes may happen; never inside the quiet hours |

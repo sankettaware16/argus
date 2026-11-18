@@ -65,7 +65,7 @@ function EntryList({ setting, id }: { setting: SettingOut; id: string }) {
     <div className="flex max-w-3xl flex-col gap-1" id={id} data-testid="entry-list">
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {items.map((item, i) => (
-          <li key={i} className="rounded-control border border-border bg-surface-2 px-2 py-1 font-mono text-xs break-all">
+          <li key={i} className="rounded-control bg-surface-2 px-2 py-1 font-mono text-xs break-all">
             {typeof item === "object" && item !== null ? JSON.stringify(item) : String(item)}
           </li>
         ))}

@@ -714,6 +714,11 @@ class KibanaSyncSettings(_Section):
     )
     """How far before the last poll's start each change poll reaches back: Kibana's find is not
     refreshed at once (``refresh: false``)."""
+    pause_on_change: bool = True
+    """A person's change of ARGUS's tags or of a case's settings in Kibana (or Sync alerts being
+    on) pauses ARGUS's writes to that case until ``argus kibana sync resume-case``. False: the
+    change is still recorded as a finding and ARGUS keeps the case in step (D-333). A case ARGUS
+    did not make is never written to either way."""
     per_page: int = Field(default=100, ge=1, le=100)
     discovery_every: Annotated[
         Duration, bounded_duration(timedelta(minutes=10), timedelta(days=1))
@@ -1216,8 +1221,10 @@ class IncidentSettings(_Section):
     (summary, verdict, timeline, actors, assets, evidence with the query behind each line,
     hypotheses, indicators, actions); a person confirms or rejects it. No request reaches the SIEM
     or Kibana. ``per_pass``, ``look`` and ``min_interval`` bound the work; ``prose`` lets a model
-    word the summary from verified facts; ``kibana_url`` and ``data_views`` set where the evidence
-    links open."""
+    word the summary from verified facts; ``brief`` lets a large model write the analyst brief
+    that opens the report (``confirmed``: for the cases a person confirmed; ``all``: for every
+    case), at most once in ``brief_every`` for a case whose verdict and standing did not change;
+    ``kibana_url`` and ``data_views`` set where the evidence links open."""
 
     enabled: bool = True
     per_pass: int = Field(default=5, ge=0, le=100)
@@ -1226,6 +1233,10 @@ class IncidentSettings(_Section):
         timedelta(minutes=30)
     )
     prose: bool = False
+    brief: Literal["off", "confirmed", "all"] = "off"
+    brief_every: Annotated[Duration, bounded_duration(timedelta(0), timedelta(days=7))] = timedelta(
+        hours=6
+    )
     kibana_url: str | None = None
     data_views: Annotated[tuple[str, ...], BeforeValidator(_items)] = ()
 

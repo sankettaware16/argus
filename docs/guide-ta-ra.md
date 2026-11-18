@@ -193,7 +193,12 @@ confirmed:
 - **Record that the owner was told…** moves it to **Owner told**: ARGUS then watches it quietly
   and raises only something new.
 - **Report** tab: the incident report ARGUS writes (what happened, the verdict, timeline, who did
-  what, what was affected, the evidence, what was ruled out, indicators, actions). **Every
+  what, what was affected, the evidence, what was ruled out, indicators, actions). For a
+  confirmed incident it opens with the **analyst brief**: what is happening, a summary, why it
+  is judged real, the impact and the numbered steps asked for, each with who takes it and by
+  when. ARGUS's AI writes the brief from the report's facts and ARGUS checks every sentence
+  against them (**The facts it rests on** lists them); it may still be wrong, so read the
+  evidence before you send it on. **Report to the CISO…** builds its mail from the brief. **Every
   evidence line has the exact query behind it and a link that opens it in Kibana Discover.**
   **Confirm the verdict** if it is right; **Reject with a reason…** if it is wrong. Neither closes
   the incident. The PDF and the two CSVs are there too, and a new version is written when the

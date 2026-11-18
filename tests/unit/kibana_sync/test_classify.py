@@ -136,6 +136,34 @@ def test_the_case_itself_not_made_by_argus_or_sync_on_without_an_action() -> Non
     assert not out.pause_all
 
 
+def test_with_pausing_off_a_persons_change_is_a_finding_and_argus_keeps_writing() -> None:
+    """D-333 (``kibana.sync.pause_on_change: false``): the same findings, no pause; a pause from
+    before stays until the owner lifts it; a case ARGUS did not make still stops everything."""
+
+    def off(actions: list[KAction], **more: object) -> classify.CaseOutcome:
+        return classify.classify_case(
+            more.get("m") or mirror(),  # type: ignore[arg-type]
+            more.get("case") or kcase(),  # type: ignore[arg-type]
+            actions, (), author="argus", now=T0, kibana_now=T0 + timedelta(minutes=5),
+            complete=True, pause_people=False,
+        )  # fmt: skip
+
+    changes = [action(1, "tags", tags=["verdict:benign"]),
+               action(2, "settings", settings={"syncAlerts": True})]  # fmt: skip
+    on = run(changes)
+    out = off(changes)
+    assert [f.kind for f in out.findings] == [f.kind for f in on.findings]
+    assert on.mirror.paused_reason is not None
+    assert out.mirror.paused_reason is None
+    synced = off([], case=kcase(sync_alerts=True))
+    assert [f.kind for f in synced.findings] == [Kind.SETTINGS_CHANGED]
+    assert synced.mirror.paused_reason is None
+    assert off(changes, m=mirror(paused_reason="earlier")).mirror.paused_reason == "earlier"
+    foreign = off([], case=kcase(created_by="someone"))
+    assert foreign.pause_all
+    assert foreign.mirror.paused_reason == "the case was not made by ARGUS"
+
+
 def test_a_pause_is_never_lifted_by_the_classifier() -> None:
     out = run([action(1, "title", title="x")], m=mirror(paused_reason="earlier"))
     assert out.mirror.paused_reason == "earlier"

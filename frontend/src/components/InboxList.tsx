@@ -88,7 +88,7 @@ export function InboxList(props: InboxListProps) {
       aria-activedescendant={cursor >= 0 && cursor < rows.length && items.some((v) => v.index === cursor) ? rowId(cursor) : undefined}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="min-h-0 flex-1 overflow-y-auto rounded-card border border-border bg-surface focus-visible:outline-2"
+      className="min-h-0 flex-1 overflow-y-auto rounded-card bg-surface focus-visible:outline-2"
     >
       <div role="rowgroup">
         <div role="row" aria-rowindex={1} className="sr-only">

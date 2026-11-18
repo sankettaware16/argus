@@ -8140,6 +8140,28 @@
             "title": "Assets Total",
             "type": "integer"
           },
+          "brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "brief_note": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Note"
+          },
           "evidence": {
             "default": [],
             "items": {
@@ -8256,7 +8278,9 @@
           "queries",
           "out_of_scope",
           "facts",
-          "meta"
+          "meta",
+          "brief",
+          "brief_note"
         ],
         "title": "IncidentReport",
         "type": "object"
@@ -12492,6 +12516,182 @@
         "title": "ReportAsset",
         "type": "object"
       },
+      "ReportBrief": {
+        "additionalProperties": false,
+        "description": "The analyst brief: what a person writes at the top of a hand-made incident report, in a\nmodel's words over the report's own facts. ``statement`` says what is happening, ``points``\nthe summary, ``why`` what makes it real, ``impact`` what is at risk, ``actions`` the steps asked\nfor. ``facts`` holds the cited facts in ARGUS's words; ``facts_sha`` names the facts the model\nwas given, so the same facts keep the same brief. Read from the logs: a person without log\naccess does not see it.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReportBriefAction"
+            },
+            "maxItems": 8,
+            "title": "Actions",
+            "type": "array"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "basis": {
+            "maxLength": 200,
+            "title": "Basis",
+            "type": "string"
+          },
+          "by": {
+            "maxLength": 200,
+            "title": "By",
+            "type": "string"
+          },
+          "dropped": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Dropped",
+            "type": "integer"
+          },
+          "facts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Facts",
+            "type": "object"
+          },
+          "facts_sha": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Facts Sha",
+            "type": "string"
+          },
+          "impact": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReportBriefLine"
+            },
+            "maxItems": 4,
+            "title": "Impact",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBriefLine"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "statement": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBriefLine"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Statement",
+            "type": "array"
+          },
+          "why": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReportBriefLine"
+            },
+            "maxItems": 6,
+            "title": "Why",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statement",
+          "points",
+          "why",
+          "impact",
+          "actions",
+          "facts",
+          "facts_sha",
+          "by",
+          "at",
+          "basis",
+          "dropped"
+        ],
+        "title": "ReportBrief",
+        "type": "object"
+      },
+      "ReportBriefAction": {
+        "additionalProperties": false,
+        "description": "A step the brief asks for: who takes it and by when. Advice for a person; nothing runs.",
+        "properties": {
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Cites",
+            "type": "array"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "when": {
+            "enum": [
+              "now",
+              "today",
+              "week",
+              "after"
+            ],
+            "title": "When",
+            "type": "string"
+          },
+          "who": {
+            "enum": [
+              "owner",
+              "accounts",
+              "network",
+              "soc"
+            ],
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "cites",
+          "who",
+          "when"
+        ],
+        "title": "ReportBriefAction",
+        "type": "object"
+      },
+      "ReportBriefLine": {
+        "additionalProperties": false,
+        "description": "One sentence of the analyst brief, in a model's words, with the facts it rests on (ids of\n``ReportBrief.facts``). Code checked it before it was kept (:mod:`argus.incident.brief`).",
+        "properties": {
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Cites",
+            "type": "array"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "cites"
+        ],
+        "title": "ReportBriefLine",
+        "type": "object"
+      },
       "ReportDayRow": {
         "additionalProperties": false,
         "properties": {
@@ -14029,6 +14229,16 @@
             "title": "Lead",
             "type": "string"
           },
+          "same": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSentence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "signins": {
             "default": [],
             "items": {
@@ -14042,7 +14252,8 @@
           "lead",
           "devices",
           "devices_total",
-          "signins"
+          "signins",
+          "same"
         ],
         "title": "ReportUsers",
         "type": "object"

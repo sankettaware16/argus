@@ -29,7 +29,7 @@ export function KeysHelp({ open, onOpenChange, page = false, canReview = true }:
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-surface p-5 text-text shadow-card">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-card border border-border bg-raised p-5 text-text shadow-card">
           <Dialog.Title className="m-0 text-lg font-semibold">{page ? "Keyboard shortcuts on an investigation" : "Keyboard shortcuts in the Inbox"}</Dialog.Title>
           <Dialog.Description className="m-0 text-sm text-muted">
             {page

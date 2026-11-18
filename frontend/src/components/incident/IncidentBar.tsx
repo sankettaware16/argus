@@ -78,7 +78,7 @@ function More({ items, touch }: { items: Item[]; touch: boolean }) {
           id={id}
           role="menu"
           aria-label="More actions"
-          className="absolute right-0 z-30 mt-1 flex w-[min(22rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-surface p-1 text-text shadow-card sm:left-0 sm:right-auto"
+          className="absolute right-0 z-30 mt-1 flex w-[min(22rem,calc(100vw-2rem))] flex-col rounded-card border border-border bg-raised p-1 text-text shadow-card sm:left-0 sm:right-auto"
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.stopPropagation();
@@ -191,7 +191,7 @@ export function IncidentBar({ detail, engine, keys, reportConfirmable, verdict =
           onDuplicate={mergeOn ? () => setPanel("duplicate") : undefined}
           onConflict={onConflict}
           checkLink={
-            <Link to="/incidents/$id" params={{ id: c.id }} search={{ tab: "evidence" }} className="text-accent">
+            <Link to="/incidents/$id" params={{ id: c.id }} search={{ tab: "evidence" }} className="text-link">
               Ask ARGUS to check
             </Link>
           }
@@ -250,7 +250,7 @@ export function IncidentBar({ detail, engine, keys, reportConfirmable, verdict =
       data-testid="decision-bar"
       data-state={state}
       data-compact={compact || undefined}
-      className="fixed inset-x-0 bottom-14 z-20 flex max-h-[70vh] flex-col gap-2 overflow-auto border-t border-border-strong bg-surface-2 px-4 py-2 shadow-card sm:sticky sm:top-0 sm:bottom-auto sm:max-h-none sm:overflow-visible sm:rounded-card sm:border"
+      className="fixed inset-x-0 bottom-14 z-20 flex max-h-[70vh] flex-col gap-2 overflow-auto glass border-t border-border px-4 py-2.5 shadow-card sm:sticky sm:top-0 sm:bottom-auto sm:max-h-none sm:overflow-visible sm:rounded-card sm:border"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {compact && (
@@ -276,7 +276,7 @@ export function IncidentBar({ detail, engine, keys, reportConfirmable, verdict =
           ))}
         </p>
       )}
-      {form && <div className="rounded-card border border-border bg-surface p-3">{form}</div>}
+      {form && <div className="rounded-card bg-surface p-3">{form}</div>}
       <SendToKibanaDialog detail={detail} open={dialog === "kibana"} onOpenChange={(o) => setDialog(o ? "kibana" : null)} />
       <CisoDraftDialog detail={detail} engine={engine} open={dialog === "ciso"} onOpenChange={(o) => setDialog(o ? "ciso" : null)} />
     </section>

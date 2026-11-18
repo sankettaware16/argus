@@ -213,12 +213,21 @@ async def versions(conn: AsyncConnection, case_id: uuid.UUID) -> list[Listed]:
                    r.decision, r.decided_at) for r in rows]  # fmt: skip
 
 
+def _new_brief(newest: IncidentReport, report: IncidentReport) -> bool:
+    """``report`` holds a brief the newest version does not: stored as a version of its own (the
+    table is append-only), with the same hashes, so a person's confirm still holds."""
+    if report.brief is None:
+        return False
+    return newest.brief is None or newest.brief.facts_sha != report.brief.facts_sha
+
+
 async def save(
     conn: AsyncConnection, report: IncidentReport, *, case_version: int, prose_by: str | None = None
 ) -> tuple[Stored | None, bool]:
     """Write ``report`` as the case's next version, unless the newest version says the same
-    (same ``content_hash`` and writer): then that version stays current. Returns the current
-    version and whether it is new. A writer racing this one (the unique key) is retried."""
+    (same ``content_hash`` and writer, and no new brief): then that version stays current. Returns
+    the current version and whether it is new. A writer racing this one (the unique key) is
+    retried."""
     case_id = uuid.UUID(report.header.case_id)
     digest = content_hash(report)
     for _ in range(RETRIES):
@@ -227,6 +236,7 @@ async def save(
             newest is not None
             and newest.content_hash == digest
             and (newest.report.meta.writer == report.meta.writer)
+            and not _new_brief(newest.report, report)
         ):
             return newest, False
         try:

@@ -38,7 +38,7 @@ function Views({ search }: { search: InboxSearch }) {
             to="/search"
             search={{ advanced: "1", view }}
             aria-current={search.view === view ? "page" : undefined}
-            className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-sm text-text no-underline hover:bg-surface-3 aria-[current=page]:bg-accent-soft aria-[current=page]:font-semibold"
+            className="inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-sm text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg"
           >
             {VIEW_TITLES[view]}
             <span className="text-xs text-muted tabular-nums">{number(view)}</span>
@@ -78,7 +78,7 @@ function FindAndSort({ search }: { search: InboxSearch }) {
   const go = (patch: Partial<InboxSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...patch, id: undefined }) });
   return (
-    <details open={active} className="rounded-card border border-border bg-surface px-3 py-2">
+    <details open={active} className="rounded-card bg-surface px-3 py-2">
       <summary className="cursor-pointer text-sm font-medium">Find, filter and sort</summary>
       <div className="mt-2 flex flex-col gap-3">
         <form
@@ -279,7 +279,7 @@ export function Inbox({ search }: { search: InboxSearch }) {
           </section>
         )}
         {showDetail && (
-          <section id="detail-pane" tabIndex={-1} aria-label="Investigation details" onKeyDown={detailKeys} className="min-w-0 overflow-y-auto rounded-card border border-border bg-surface p-4 focus:outline-none lg:h-full">
+          <section id="detail-pane" tabIndex={-1} aria-label="Investigation details" onKeyDown={detailKeys} className="min-w-0 overflow-y-auto focus:outline-none lg:h-full">
             {!wide && (
               <p className="m-0 mb-2">
                 <Button size="sm" onClick={backToList}>

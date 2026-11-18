@@ -30,7 +30,7 @@ export function WhyPoints({ engine, top }: { engine: Engine; top?: number }) {
             <tr>
               <td />
               <td className="py-0.5">
-                <button type="button" className="cursor-pointer text-sm text-accent underline" onClick={() => setAll(true)}>
+                <button type="button" className="cursor-pointer text-sm text-link underline" onClick={() => setAll(true)}>
                   +{rows.length - (top ?? 0)} more
                 </button>
               </td>
@@ -45,7 +45,7 @@ export function WhyPoints({ engine, top }: { engine: Engine; top?: number }) {
         </tbody>
       </table>
       <details className="text-sm">
-        <summary className="cursor-pointer text-accent">How the score is built</summary>
+        <summary className="cursor-pointer text-link">How the score is built</summary>
         <div className="mt-1 flex max-w-prose flex-col gap-1 text-muted">
           {engine.lane !== null && (
             <p className="m-0">

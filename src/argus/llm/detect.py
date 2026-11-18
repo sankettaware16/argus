@@ -68,8 +68,9 @@ class Campus:
     """What counts as internal. ``networks``: the organisation's public prefixes and the asset
     map's networks (private space is always internal); ``domains``: its domain suffixes;
     ``assets``: asset names; ``hosts``/``users``: a request's own names. Names match as words,
-    ignoring case, their words joined by blanks, ``-`` or ``_``; ``ordinary`` words are never
-    taken for a one-word name. Names are never printed (a repr may end up in a log)."""
+    ignoring case, their words joined by blanks, ``-``, ``_``, ``.`` or a backslash (an account
+    is often ``first.last`` or ``DOMAIN\\name``); ``ordinary`` words are never taken for a
+    one-word name. Names are never printed (a repr may end up in a log)."""
 
     networks: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = ()
     domains: tuple[str, ...] = field(default_factory=site.own_domains)
@@ -163,7 +164,7 @@ B64 = re.compile(r"(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{10,}={0,2}")
 HEXSTR = re.compile(r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){7,}(?![0-9A-Fa-f])")
 LABELS = re.compile(r"[A-Za-z0-9.-]+")
 WORD = re.compile(r"[A-Za-z0-9]+")
-NAME_GAP = re.compile(r"[\s_-]+")
+NAME_GAP = re.compile(r"[\s_.\\-]+")  # a dot or a backslash too: first.last, DOMAIN\\name
 PRINTABLE = re.compile(r"[\x20-\x7e]{7,}")
 ESCAPE = re.compile(
     r"\\(?:x([0-9A-Fa-f]{2})|u([0-9A-Fa-f]{4})|u\{([0-9A-Fa-f]{1,6})\}|([0-7]{3}))"

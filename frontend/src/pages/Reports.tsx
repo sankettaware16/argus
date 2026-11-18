@@ -32,7 +32,7 @@ export function Reports() {
   const utcDay = `${utcDayStart()} ${zoneLabel()}`; // where a UTC day begins on the site's clock
   return (
     <>
-      <h1 className="m-0 text-2xl font-semibold">Reports</h1>
+      <h1 className="page-h">Reports</h1>
       <IncidentReports />
       <h2 className="m-0 mt-2 text-lg font-semibold">Summaries</h2>
       {list.isPending && <Loading what="the summaries" />}
@@ -140,8 +140,8 @@ export function ReportPage({ id }: { id: string }) {
       <p className="m-0 text-sm">
         <Link to="/reports">← All reports</Link>
       </p>
-      <h1 className="m-0 text-2xl font-semibold">{title(r)}</h1>
-      <p className="m-0 max-w-prose text-sm text-muted">
+      <h1 className="page-h">{title(r)}</h1>
+      <p className="page-sub">
         Covers <Time value={r.period_start} /> to <Time value={r.period_end} />. Made <Time value={r.generated_at} />; what is waiting (cases, actions, approvals, the Kibana backlog) is as at{" "}
         <Time value={r.as_at} />, what happened is for the period. {count(figures)} {plural(figures, "figure")}.
       </p>

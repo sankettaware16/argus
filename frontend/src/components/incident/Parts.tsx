@@ -112,7 +112,7 @@ export function EntityChip({ object }: { object: EngineObject }) {
     </>
   );
   const common = { "data-testid": "entity-chip", "data-role": object.role, "data-noun": noun };
-  const style = "inline-flex max-w-full min-h-6 items-center gap-1 truncate rounded-control border border-border bg-surface-2 px-2 py-px text-xs text-text";
+  const style = "inline-flex max-w-full min-h-6 items-center gap-1 truncate rounded-control bg-surface-2 px-2 py-px text-xs text-text";
   if (open === null) {
     return (
       <span {...common} className={style}>

@@ -49,7 +49,7 @@ from argus.outside.psl import registered_parent
 from argus.risk import exposure, exposure_db
 from argus.risk.config import Exposure
 from argus.risk.exposure import CheckRow, PairFacts
-from argus.risk.identity import DAY_MARK
+from argus.risk.identity import DAY_MARK, read_same
 from argus.risk.observe import ObjectRef
 
 # an evidence kind of ``config/risk.yaml`` -> the naming flag it is (kinds with no title word
@@ -117,6 +117,8 @@ class IncidentFacts:
     # devices and accounts of the incident past the bounded object read (counted, never named)
     more_devices: int = 0
     more_accounts: int = 0
+    # device -> the device it is with other addresses (identity.same_devices, D-334)
+    same: Mapping[ObjectRef, str] = field(default_factory=_no_map)
 
 
 @dataclass(frozen=True)
@@ -218,6 +220,13 @@ def _device_names(f: IncidentFacts) -> dict[ObjectRef, tuple[str, str]]:
         loose = keys if len(tied) <= 1 else [r for r in keys if find(r) not in hosted]
         for r in loose[1:]:
             join(loose[0], r)
+    moved: dict[str, list[ObjectRef]] = defaultdict(list)
+    for r in refs:  # one account's addresses that were never active together: one device
+        if r in f.same:
+            moved[f.same[r]].append(r)
+    for keys in (moved[k] for k in sorted(moved)):
+        for r in keys[1:]:
+            join(keys[0], r)
     members: dict[ObjectRef, list[ObjectRef]] = defaultdict(list)
     for r in refs:
         members[find(r)].append(r)
@@ -807,6 +816,9 @@ async def read_facts(conn: AsyncConnection, incident_id: int, ctx: Context) -> I
         catch_all=catch,
         more_devices=more_devices,
         more_accounts=more_accounts,
+        same=MappingProxyType(
+            await read_same(conn, sorted(r.key for r in objects if r.kind == "device"))
+        ),
     )
 
 

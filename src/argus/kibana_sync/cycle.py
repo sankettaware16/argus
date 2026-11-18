@@ -105,6 +105,7 @@ class SyncConfig:
     clock_alarm: timedelta = timedelta(seconds=30)
     window: timedelta = timedelta(days=5)  # history.window: the known alerts discovery checks
     closed_every: timedelta = timedelta(days=1)  # the listing of closed cases
+    pause_on_change: bool = True  # a person's change of ARGUS's case pauses its writes there
     component: str = COMPONENT
 
     @property
@@ -588,6 +589,7 @@ class Syncer:
             complete=True,
             settle=self.config.settle,
             team=self.team,
+            pause_people=self.config.pause_on_change,
         )
         if outcome.pause_all:
             await self._alarm(outcome.findings)

@@ -29,6 +29,7 @@ PER_TEMPLATE = 3
 PHASES = 12
 COLUMNS = 4
 DOMINANT = 5.0  # a collector made this many times the requests of the next actor
+SAME_MIN = 3  # addresses one account must be the first account of, to read them as one device
 SMALL = 0.2  # a scout or a prober made at most this share of the collector's requests
 ROLE_WORDS = {
     "actor": "the actor (a device or address the alerts name)",
@@ -331,6 +332,39 @@ USERS_SOURCE = "the SSO sign-in logs, as ARGUS kept them"
 STATE_ORDER = {"likely": 0, "possible": 1, "unknown": 2, "shared": 3, "none_seen": 4}
 
 
+def same_account(scene: Scene, book: Book) -> m.ReportSentence | None:
+    """One account behind most of the case's addresses: the first account of an address (its
+    likely user, or the one with the most sign-ins) is the same on at least :data:`SAME_MIN`
+    addresses and on two thirds of those with a sign-in. Then the addresses are most likely one
+    device that moved, which the count of addresses alone would read as many devices. A lead from
+    the SSO logs, like every account."""
+    found = scene.f.users
+    if found is None:
+        return None
+    named = [a for a in found.attributions if a.accounts]
+    if len(named) < SAME_MIN:
+        return None
+    user, n = Counter(a.accounts[0].user for a in named).most_common(1)[0]
+    if n < SAME_MIN or 3 * n < 2 * len(named):
+        return None
+    rest = len(found.attributions) - len(named)
+    more = f" No sign-in was seen on {rest} more." if rest else ""
+    tail = (
+        f"is the probable user on {n} of the {len(named)} addresses with a sign-in: most likely"
+        f" one device seen under changing addresses, not {len(named)} separate"
+        f" {site.own('devices')}.{more} A lead, not proof."
+    )
+    numbers = [n, len(named), *([rest] if rest else [])]
+    return book.say(
+        "entity",
+        f"One account, {cut(user, 100)}, {tail}",
+        USERS_SOURCE,
+        numbers,
+        from_logs=True,
+        safe=f"One account {tail}",
+    )
+
+
 def users(scene: Scene, book: Book) -> m.ReportUsers:
     """The accounts that signed in from the case's devices, from the stored SSO
     sightings and never from a model. Each device's sentence is a fact read from the logs
@@ -390,6 +424,7 @@ def users(scene: Scene, book: Book) -> m.ReportUsers:
         devices=tuple(devices),
         devices_total=found.devices_total,
         signins=signins,
+        same=same_account(scene, book),
     )
 
 

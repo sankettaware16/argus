@@ -87,7 +87,7 @@ function Dots({ detail, report }: { detail: CaseDetail; report: CaseReportOut | 
         ⋯
       </Button>
       {open && (
-        <div id={id} role="menu" aria-label="More about this incident" className="absolute right-0 z-30 mt-1 flex w-60 flex-col rounded-card border border-border bg-surface p-1 shadow-card" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+        <div id={id} role="menu" aria-label="More about this incident" className="absolute right-0 z-30 mt-1 flex w-60 flex-col rounded-card border border-border bg-raised p-1 shadow-card" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
           <Copy text={window.location.href} label="Copy link" />
           <Copy text={detail.case.id} label="Copy ID" />
           {detail.incident_id && <Copy text={detail.incident_id} label="Copy IR number" />}
@@ -113,7 +113,7 @@ function Dots({ detail, report }: { detail: CaseDetail; report: CaseReportOut | 
         </div>
       )}
       {raw && (
-        <pre className="absolute right-0 z-20 mt-1 max-h-96 w-[min(40rem,calc(100vw-2rem))] overflow-auto rounded-card border border-border bg-surface p-3 text-xs shadow-card" tabIndex={0} aria-label="The raw record" data-testid="raw-record">
+        <pre className="absolute right-0 z-20 mt-1 max-h-96 w-[min(40rem,calc(100vw-2rem))] overflow-auto rounded-card border border-border bg-raised p-3 text-xs shadow-card" tabIndex={0} aria-label="The raw record" data-testid="raw-record">
           <UntrustedText value={JSON.stringify(detail.case, null, 2)} limits={{ maxChars: 20000, maxLines: 400 }} block />
         </pre>
       )}
@@ -147,7 +147,7 @@ function Header({ detail, engine, report, id }: { detail: CaseDetail; engine: En
           Taken by: {c.owner ? <UntrustedText value={c.owner.display_name} limits={{ maxChars: 60, maxLines: 1 }} /> : "nobody"}
         </p>
       </div>
-      <h1 id="case-title" tabIndex={-1} className="m-0 text-2xl leading-snug font-semibold text-balance focus:outline-none">
+      <h1 id="case-title" tabIndex={-1} className="page-h page-h-long text-balance focus:outline-none">
         {certainty !== null && !startsWithCertainty(c.title) && (
           <>
             <CertaintyWord value={certainty} /> ·{" "}
@@ -271,7 +271,7 @@ export function IncidentPage({ id, tab, onTab }: { id: string; tab: IncidentTab;
     const gone = found.error instanceof ApiError && (found.error.status === 404 || found.error.status === 403);
     return gone ? (
       <div className="flex flex-col gap-2">
-        <h1 className="m-0 text-2xl font-semibold">Not found</h1>
+        <h1 className="page-h">Not found</h1>
         <p className="m-0">
           This incident does not exist, or you cannot see it. <Link to="/incidents" search={{ view: "needs-you" }}>Back to Incidents</Link>
         </p>
@@ -301,9 +301,9 @@ export function IncidentPage({ id, tab, onTab }: { id: string; tab: IncidentTab;
         <Everything detail={d} id={d.case.id} />
       ) : (
       <Tabs.Root value={tab} onValueChange={(v) => (INCIDENT_TABS as readonly string[]).includes(String(v)) && onTab(v as IncidentTab)}>
-        <Tabs.List aria-label="Parts of this incident" className="flex gap-1 overflow-x-auto border-b border-border">
+        <Tabs.List aria-label="Parts of this incident" className="flex gap-1 overflow-x-auto py-1">
           {INCIDENT_TABS.map((t) => (
-            <Tabs.Tab key={t} value={t} className="min-h-9 cursor-pointer rounded-t-control border-0 bg-transparent px-3 text-sm whitespace-nowrap text-muted aria-selected:bg-accent-soft aria-selected:font-semibold aria-selected:text-text">
+            <Tabs.Tab key={t} value={t} className="min-h-9 cursor-pointer rounded-full border-0 bg-transparent px-3 text-sm whitespace-nowrap text-muted hover:text-text aria-selected:bg-text aria-selected:font-medium aria-selected:text-bg">
               {TAB_TITLE[t]}
               {counts[t] ? <span className="ml-1 tabular-nums">{counts[t]}</span> : null}
             </Tabs.Tab>

@@ -4314,6 +4314,11 @@ export type IncidentReport = {
      * Assets Total
      */
     assets_total: number;
+    brief: ReportBrief | null;
+    /**
+     * Brief Note
+     */
+    brief_note: string | null;
     /**
      * Evidence
      */
@@ -6599,6 +6604,106 @@ export type ReportAsset = {
 };
 
 /**
+ * ReportBrief
+ *
+ * The analyst brief: what a person writes at the top of a hand-made incident report, in a
+ * model's words over the report's own facts. ``statement`` says what is happening, ``points``
+ * the summary, ``why`` what makes it real, ``impact`` what is at risk, ``actions`` the steps asked
+ * for. ``facts`` holds the cited facts in ARGUS's words; ``facts_sha`` names the facts the model
+ * was given, so the same facts keep the same brief. Read from the logs: a person without log
+ * access does not see it.
+ */
+export type ReportBrief = {
+    /**
+     * Actions
+     */
+    actions: Array<ReportBriefAction>;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Basis
+     */
+    basis: string;
+    /**
+     * By
+     */
+    by: string;
+    /**
+     * Dropped
+     */
+    dropped: number;
+    /**
+     * Facts
+     */
+    facts: {
+        [key: string]: string;
+    };
+    /**
+     * Facts Sha
+     */
+    facts_sha: string;
+    /**
+     * Impact
+     */
+    impact: Array<ReportBriefLine>;
+    /**
+     * Points
+     */
+    points: Array<ReportBriefLine>;
+    /**
+     * Statement
+     */
+    statement: Array<ReportBriefLine>;
+    /**
+     * Why
+     */
+    why: Array<ReportBriefLine>;
+};
+
+/**
+ * ReportBriefAction
+ *
+ * A step the brief asks for: who takes it and by when. Advice for a person; nothing runs.
+ */
+export type ReportBriefAction = {
+    /**
+     * Cites
+     */
+    cites: Array<string>;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * When
+     */
+    when: 'now' | 'today' | 'week' | 'after';
+    /**
+     * Who
+     */
+    who: 'owner' | 'accounts' | 'network' | 'soc';
+};
+
+/**
+ * ReportBriefLine
+ *
+ * One sentence of the analyst brief, in a model's words, with the facts it rests on (ids of
+ * ``ReportBrief.facts``). Code checked it before it was kept (:mod:`argus.incident.brief`).
+ */
+export type ReportBriefLine = {
+    /**
+     * Cites
+     */
+    cites: Array<string>;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * ReportDayRow
  */
 export type ReportDayRow = {
@@ -7443,6 +7548,7 @@ export type ReportUsers = {
      * Lead
      */
     lead: string;
+    same: ReportSentence | null;
     /**
      * Signins
      */

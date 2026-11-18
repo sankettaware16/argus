@@ -33,12 +33,12 @@ import bisect
 import itertools
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from typing import Literal
 
 from argus import site
-from argus.risk.identity import SignIn, device_of
+from argus.risk.identity import SAME, SignIn, device_of
 from argus.risk.incident_config import IncidentConfig
 from argus.risk.observe import ObjectRef, Observation
 from argus.risk.score import Stats
@@ -102,10 +102,11 @@ class Component:
     links: tuple[Link, ...]
     campaign: bool
     recommended: tuple[Link, ...] = ()
+    same: Mapping[ObjectRef, str] = field(default_factory=dict)  # addresses that are one device
 
     @property
     def devices(self) -> int:
-        return len({device_of(o) for o in self.objects if o.kind == "device"})
+        return len({device_of(o, self.same) for o in self.objects if o.kind == "device"})
 
     @property
     def size(self) -> int:
@@ -125,6 +126,9 @@ class World:
     bindings: Sequence[Binding] = ()  # campaigns of argus.campaigns
     # the asset map says the address is one device (a /32, or stated static); None: none is
     one_device: Callable[[ObjectRef], bool] | None = None
+    # device -> the device it is with others: one account's addresses that were never active
+    # at the same time (identity.same_devices, D-334)
+    same: Mapping[ObjectRef, str] = field(default_factory=dict)
 
 
 def short(value: str, keep: int = 60) -> str:
@@ -149,6 +153,11 @@ def reason_of(via: str, value: str, delta: timedelta, flag: Flag | None = None,
         text = f"the same host {short(bare)}, {_gap(delta)}"
     elif via == "account":
         text = f"the same account {short(bare)} signed in from both, {_gap(delta)}"
+    elif via == "same":
+        text = (
+            f"the same account {short(bare)} behind both addresses, never at the same time:"
+            " most likely one device that moved"
+        )
     elif via == "signin":
         text = f"the account {short(bare)} signed in from this device (likely, the same hour)"
     elif via == "flagged":
@@ -390,6 +399,21 @@ def edges(
                         reason_of("account", value, gap),
                     ))  # fmt: skip
                 break
+    # one device under several addresses: each address joins the one before it, whatever the gap
+    moved: dict[str, list[ObjectRef]] = defaultdict(list)
+    for ref, key in world.same.items():
+        moved[key].append(ref)
+    first_at: dict[ObjectRef, datetime] = {}
+    for o in obs:
+        if o.object in world.same and o.at <= now and o.at < first_at.get(o.object, now):
+            first_at[o.object] = o.at
+    for key, refs in sorted(moved.items()):
+        who = "user:" + key.removeprefix(SAME)
+        chain = sorted((r for r in refs if r in first_at), key=lambda r: (first_at[r], r))
+        for before, after in itertools.pairwise(chain):
+            why = reason_of("same", who, timedelta(0))
+            offer(before, after, Link(before, after, "account", who, PRIORITY["account"],
+                                      timedelta(0), why))  # fmt: skip
     return best
 
 
@@ -413,10 +437,11 @@ def campaign_lane(
         for t in o.threats:
             if flagged_at(world.flags.get(t), now) and t not in world.popular:
                 reached[t].add(o.object)
-    out = [b for b in world.bindings if len({device_of(r) for r in b.objects - set(hubs)})
+    same = world.same  # one device under several addresses is not a campaign of devices
+    out = [b for b in world.bindings if len({device_of(r, same) for r in b.objects - set(hubs)})
            >= config.campaign.min_devices]  # fmt: skip
     for threat, refs in sorted(reached.items()):
-        devices = {device_of(r) for r in refs if r.kind == "device"}
+        devices = {device_of(r, same) for r in refs if r.kind == "device"}
         if len(devices) < config.campaign.min_devices:
             continue
         if len(refs) > config.links.flagged.max_reach:
@@ -528,4 +553,5 @@ def link_all(
     pairs = edges(obs, now, config, stats, world, hubs)
     bindings = campaign_lane(obs, now, config, stats, world, hubs)
     present = {o.object for o in obs if o.at <= now}
-    return components(candidates, pairs, bindings, config, present, hubs)
+    found = components(candidates, pairs, bindings, config, present, hubs)
+    return [replace(c, same=world.same) for c in found] if world.same else found

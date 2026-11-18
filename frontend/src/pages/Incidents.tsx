@@ -76,7 +76,7 @@ function Chip({ label, values, words, chosen, onChange }: { label: string; value
         {n > 0 ? ` (${n})` : ""} ▾
       </Button>
       {open && (
-        <fieldset id={id} className="absolute left-0 z-30 m-0 mt-1 flex min-w-48 flex-col gap-1 rounded-card border border-border bg-surface p-2 text-sm shadow-card">
+        <fieldset id={id} className="absolute left-0 z-30 m-0 mt-1 flex min-w-48 flex-col gap-1 rounded-card border border-border bg-raised p-2 text-sm shadow-card">
           <legend className="sr-only">{label}</legend>
           {values.map((v) => (
             <label key={v} className="flex items-center gap-2">
@@ -132,7 +132,7 @@ function Filters({ search, set, me }: { search: IncidentsSearch; set: (patch: Pa
         }}
         className="flex flex-wrap items-center gap-2"
       >
-        <input type="search" value={q} maxLength={120} onChange={(e) => setQ(e.target.value)} aria-label="Filter by title, number, IR, address" placeholder="Filter by title, number, IR, address…" className="min-h-8 w-full max-w-sm rounded-control border border-border-strong bg-surface px-3 text-sm text-text" />
+        <input type="search" value={q} maxLength={120} onChange={(e) => setQ(e.target.value)} aria-label="Filter by title, number, IR, address" placeholder="Filter by title, number, IR, address…" className="min-h-8 w-full max-w-sm rounded-control border border-border-strong bg-bg px-3 text-sm text-text" />
         {phone && (
           <Button size="sm" aria-expanded={shown} onClick={() => setShown(!shown)}>
             Filters{n > 0 ? ` (${n})` : ""}
@@ -185,7 +185,7 @@ function RowView({ r, view, active, selected, selectable, onSelect, onOpen, onFo
   ) : null;
   if (phone) {
     return (
-      <li id={`incident-row-${row.id}`} data-active={active || undefined} data-testid="incident-row" data-id={row.id} className={cn("flex flex-col gap-1 rounded-card border border-border bg-surface p-3", active && "ring-2 ring-focus")} onClick={onOpen}>
+      <li id={`incident-row-${row.id}`} data-active={active || undefined} data-testid="incident-row" data-id={row.id} className={cn("flex flex-col gap-1 rounded-card bg-surface p-3", active && "ring-2 ring-focus")} onClick={onOpen}>
         <span className="flex items-center gap-2 text-sm">
           {check}
           <PriorityBadge engine={engine} />
@@ -347,7 +347,7 @@ export function Incidents({ search }: { search: IncidentsSearch }) {
     const together = loaded.filter((r) => ids.includes(r.row.id));
     return (
       <div className="flex flex-col gap-3">
-        <h1 className="m-0 text-2xl font-semibold">Incidents</h1>
+        <h1 className="page-h">Incidents</h1>
         {list.isPending ? <p className="m-0 text-sm text-muted">Loading…</p> : <ReviewTogether rows={together} onClose={() => set({ together: undefined })} />}
       </div>
     );
@@ -375,14 +375,14 @@ export function Incidents({ search }: { search: IncidentsSearch }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="m-0 text-2xl font-semibold">Incidents</h1>
+        <h1 className="page-h">Incidents</h1>
         <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(window.location.href)}>
           Copy link to this view
         </Button>
       </div>
       <nav aria-label="Views" className="-mx-1 flex gap-1 overflow-x-auto px-1" data-testid="view-tabs">
         {INCIDENT_VIEWS.map((v) => (
-          <Link key={v} to="/incidents" search={{ view: v }} aria-current={search.view === v ? "page" : undefined} activeOptions={{ includeSearch: true }} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-control px-3 text-sm whitespace-nowrap text-text no-underline hover:bg-surface-3 aria-[current=page]:bg-accent-soft aria-[current=page]:font-semibold">
+          <Link key={v} to="/incidents" search={{ view: v }} aria-current={search.view === v ? "page" : undefined} activeOptions={{ includeSearch: true }} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm whitespace-nowrap text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg">
             {VIEW_TITLES[v]}
             {countOf[v] !== undefined && <span className="text-xs text-muted tabular-nums" data-testid={`count-${v}`}>{countOf[v]}</span>}
           </Link>
@@ -392,7 +392,7 @@ export function Incidents({ search }: { search: IncidentsSearch }) {
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <label className="flex items-center gap-2">
           Sorted by:
-          <select value={search.sort ?? "priority"} onChange={(e) => set({ sort: e.target.value === "priority" ? undefined : (e.target.value as IncidentsSearch["sort"]) })} className="min-h-8 rounded-control border border-border-strong bg-surface px-2 text-sm text-text">
+          <select value={search.sort ?? "priority"} onChange={(e) => set({ sort: e.target.value === "priority" ? undefined : (e.target.value as IncidentsSearch["sort"]) })} className="min-h-8 rounded-control border border-border-strong bg-bg px-2 text-sm text-text">
             {SORTS.map((s) => (
               <option key={s} value={s}>
                 {SORT_WORDS[s]}
