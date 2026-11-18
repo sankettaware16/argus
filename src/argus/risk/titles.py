@@ -49,7 +49,7 @@ from argus.outside.psl import registered_parent
 from argus.risk import exposure, exposure_db
 from argus.risk.config import Exposure
 from argus.risk.exposure import CheckRow, PairFacts
-from argus.risk.identity import DAY_MARK, read_same
+from argus.risk.identity import DAY_MARK, latest_address, read_used, same_devices
 from argus.risk.observe import ObjectRef
 
 # an evidence kind of ``config/risk.yaml`` -> the naming flag it is (kinds with no title word
@@ -119,6 +119,7 @@ class IncidentFacts:
     more_accounts: int = 0
     # device -> the device it is with other addresses (identity.same_devices, D-334)
     same: Mapping[ObjectRef, str] = field(default_factory=_no_map)
+    latest: Mapping[str, str] = field(default_factory=_no_map)  # joined device -> last address
 
 
 @dataclass(frozen=True)
@@ -239,6 +240,9 @@ def _device_names(f: IncidentFacts) -> dict[ObjectRef, tuple[str, str]]:
     out: dict[ObjectRef, tuple[str, str]] = {}
     for top, held in members.items():
         own = [a for a in addresses[top] if holders[a] == 1]
+        # a device that moved is named by the address it was last seen under
+        recent = {f.latest.get(f.same[r]) for r in held if r in f.same}
+        own = [a for a in own if a in recent] or own
         hosts = sorted({r.key[5:] for r in held if r.key.startswith("host:")})
         name = (own[0], "ip") if own else (hosts[0], "host") if hosts else (
             (addresses[top][0], "ip") if addresses[top] else None)  # fmt: skip
@@ -801,6 +805,8 @@ async def read_facts(conn: AsyncConnection, incident_id: int, ctx: Context) -> I
         if ref.kind == "device" and ref.key.startswith("ip:"):
             address = ref.key[3:].split(DAY_MARK, 1)[0]
             places[address] = place_of(address, ctx.classifier)
+    used = await read_used(conn, sorted(r.key for r in objects if r.kind == "device"))
+    same = same_devices(used)
     return IncidentFacts(
         objects=MappingProxyType(objects),
         groups=groups,
@@ -816,9 +822,8 @@ async def read_facts(conn: AsyncConnection, incident_id: int, ctx: Context) -> I
         catch_all=catch,
         more_devices=more_devices,
         more_accounts=more_accounts,
-        same=MappingProxyType(
-            await read_same(conn, sorted(r.key for r in objects if r.kind == "device"))
-        ),
+        same=MappingProxyType(same),
+        latest=MappingProxyType(latest_address(used, same)),
     )
 
 

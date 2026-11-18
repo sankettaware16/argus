@@ -376,15 +376,32 @@ _USED = text(
 )
 
 
-async def read_same(conn: AsyncConnection, devices: Sequence[str]) -> dict[ObjectRef, str]:
-    """The addresses of ``devices`` (object keys) that are one device, from the accounts the
-    linking pass read behind each (``risk_aliases``)."""
+async def read_used(conn: AsyncConnection, devices: Sequence[str]) -> list[Used]:
+    """The account the linking pass read behind each of ``devices`` (object keys), with the
+    span of the device's activity (``risk_aliases``)."""
     if not devices:
-        return {}
+        return []
     rows = await conn.execute(_USED, {"d": list(devices)})
-    return same_devices(
-        Used(ObjectRef("device", r.device), str(r.value), r.valid_from, r.valid_to) for r in rows
-    )
+    return [Used(ObjectRef("device", r.device), str(r.value), r.valid_from, r.valid_to)
+            for r in rows]  # fmt: skip
+
+
+async def read_same(conn: AsyncConnection, devices: Sequence[str]) -> dict[ObjectRef, str]:
+    """The addresses of ``devices`` that are one device (:func:`same_devices`)."""
+    return same_devices(await read_used(conn, devices))
+
+
+def latest_address(used: Iterable[Used], same: Mapping[ObjectRef, str]) -> dict[str, str]:
+    """Each joined device -> the address it was last seen under: the one a person looks for
+    today, so the one that names it."""
+    last: dict[str, tuple[datetime, str]] = {}
+    for u in used:
+        key, address = same.get(u.device), address_of(u.device)
+        if key is None or address is None:
+            continue
+        if key not in last or (u.end, address) > last[key]:
+            last[key] = (u.end, address)
+    return {key: address for key, (_, address) in last.items()}
 
 
 _DEVICES_A_DAY = text(

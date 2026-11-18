@@ -23,6 +23,7 @@ from argus.risk.identity import (
     Identity,
     Used,
     device_of,
+    latest_address,
     same_devices,
     spans_of,
     used_by,
@@ -283,4 +284,12 @@ def test_the_title_counts_one_device_for_one_accounts_addresses() -> None:
                                  same={a: "same:asha", b: "same:asha"})  # fmt: skip
     names = titles._device_names(moved)
     assert names[a] == names[b] != names[c]
+    assert names[a] == ("10.211.0.11", "ip")  # no time is known: the first address names it
+    # the address it was last seen under names it: the one a person looks for today
+    seen = [used(a, "asha", 0), used(b, "asha", 2)]
+    last = latest_address(seen, same_devices(seen))
+    assert last == {"same:asha": "10.211.0.12"}
+    named = titles._device_names(titles.IncidentFacts(
+        objects=facts.objects, groups=facts.groups, same=moved.same, latest=last))  # fmt: skip
+    assert named[a] == named[b] == ("10.211.0.12", "ip")
     assert len({d.value for d in titles.naming_facts(moved).devices}) == 2
