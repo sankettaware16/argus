@@ -237,13 +237,23 @@ describe("a huge value", () => {
     const huge = "\u00e4.b ".repeat(2_500_000); // 10 million characters
     const parts = segments(huge);
     expect(parts.at(-1)).toEqual({ kind: "cut", hidden: 10_000_000 - 2000, lines: false });
-    let best = Infinity;
-    for (let i = 0; i < 3; i++) {
-      const t = performance.now();
-      segments(huge);
-      best = Math.min(best, performance.now() - t);
-    }
-    expect(best).toBeLessThan(100); // 231 ms before (the review's measure), about 15 now
+    const best = (run: () => unknown) => {
+      let fastest = Infinity;
+      for (let i = 0; i < 3; i++) {
+        const t = performance.now();
+        run();
+        fastest = Math.min(fastest, performance.now() - t);
+      }
+      return fastest;
+    };
+    // against one plain pass over the value on the same machine, so a slow runner reads the
+    // same: about 0.4 of it now, 3.7 before (231 ms, the review's measure)
+    const walk = () => {
+      let n = 0;
+      for (const ch of huge) n += ch.length;
+      return n;
+    };
+    expect(best(() => segments(huge))).toBeLessThan(best(walk));
   });
 
   it("counts what is hidden in code points, lone surrogates as one each", () => {
