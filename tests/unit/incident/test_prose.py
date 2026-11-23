@@ -16,13 +16,13 @@ import pytest
 from argus.incident import model as m
 from argus.incident import prose
 from argus.incident.build import build
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.gateway import Call, Completion, NoCapacity, Refused
 from tests.unit.incident import kit
 
 pytestmark = pytest.mark.unit
 
-CAMPUS = Campus(networks=(), domains=(), assets=frozenset(), is_internal=lambda ip: False)
+CAMPUS = OwnSpace(networks=(), domains=(), assets=frozenset(), is_internal=lambda ip: False)
 IP = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 
 
@@ -64,7 +64,7 @@ async def test_a_checked_answer_becomes_the_summary_s_prose() -> None:
     assert m.content_hash(out.report) == m.content_hash(rep)  # wording is no evidence
     call = complete.calls[0]
     assert call.purpose == "summary"
-    assert call.campus_only is False
+    assert call.self_hosted_only is False
     assert call.json is True
 
 

@@ -233,7 +233,7 @@ def test_the_body_is_a_messages_body_with_the_schema_and_the_effort(call: Call) 
     }  # fmt: skip
     assert list(json.loads(raw)) == ["model", "max_tokens", "system", "messages", "output_config"]
     assert raw == json.dumps(json.loads(raw), ensure_ascii=False, separators=(",", ":")).encode()
-    plain = body_for(config().providers[0], Call(Request("é", (), (), (), (), call.request.campus),
+    plain = body_for(config().providers[0], Call(Request("é", (), (), (), (), call.request.ours),
                                                  "x", "t"))  # fmt: skip
     assert "é".encode() in plain
     assert b", " not in plain

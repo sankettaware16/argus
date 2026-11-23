@@ -137,8 +137,8 @@ def test_the_person_criteria_stay_pending() -> None:
     out = soak.judge(hourly(72), T0)
     assert [c["criterion"] for c in out[-3:]] == [
         "detection-rule durations within +10% of the pre-ARGUS baseline",
-        "review task test with a real TA/RA",
-        "write-back (R17), not an exit criterion",
+        "review task test with a real reviewer",
+        "write-back, not an exit criterion",
     ]
     assert [c["result"] for c in out[-3:]] == ["PENDING", "PENDING", "INFO"]
     assert out[-1]["why"] == "built and off; switched on with the user present (D-061)"
@@ -202,7 +202,7 @@ def test_the_limits_and_wording() -> None:
     pending = {c["criterion"]: c["why"] for c in soak.judge(hourly(1), T0)}
     assert pending["detection-rule durations within +10% of the pre-ARGUS baseline"] == (
         "needs Kibana's rule execution data (no Kibana read yet)")  # fmt: skip
-    assert pending["review task test with a real TA/RA"] == "needs a reviewer and 15 minutes"
+    assert pending["review task test with a real reviewer"] == "needs a reviewer and 15 minutes"
     exact = hourly(1)
     exact[0][1]["jobs_due"] = 0
     exact[1][1]["jobs_due"] = 1  # the last sample of the day not at zero: still a zero day

@@ -21,7 +21,7 @@ from typing import Any
 from argus import site
 from argus.incident import model as m
 from argus.llm import egress
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.gateway import Call, Completion, LlmError
 from argus.llm.privacy import Request
 from argus.llm.providers import Tier
@@ -118,11 +118,11 @@ def request_text(view: Shown) -> str:
     return "\n".join(lines)
 
 
-def request_for(view: Shown, campus: Campus) -> Request:
+def request_for(view: Shown, ours: OwnSpace) -> Request:
     """The model's input as a privacy-layer request (checked by the egress validator like any
     other before it leaves)."""
     return Request(text=request_text(view), items=(ITEM,), omitted=(), failed=(), truncated=(),
-                   campus=campus)  # fmt: skip
+                   ours=ours)  # fmt: skip
 
 
 def _allowed(cited: Sequence[m.ReportFact]) -> figures.Allowed:
@@ -189,18 +189,18 @@ class Improved:
 
 
 async def improve(
-    report: m.IncidentReport, complete: Complete | None, campus: Campus | None, *,
+    report: m.IncidentReport, complete: Complete | None, ours: OwnSpace | None, *,
     tier: Tier = Tier.SMALL,
 ) -> Improved:  # fmt: skip
     """The report with the model's wording of its summary when the guardian accepts it, else the
     report as it was with ``prose_note`` saying why not."""
-    if complete is None or campus is None:
+    if complete is None or ours is None:
         return Improved(report, None, "no model is configured for the summary")
     view = shown(report)
     if len(view.facts) < MIN_CITED:
         why = "there were too few facts a model may be shown"
         return Improved(_note(report, why), None, why)
-    request = request_for(view, campus)
+    request = request_for(view, ours)
     if not request.validate().allowed:
         why = "the privacy check refused the facts"
         return Improved(_note(report, why), None, why)

@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS nightly database dump (Q-A2; custody layout, Q-A5)
+Description=ARGUS nightly database dump (custody layout)
 # Started by argus-backup.timer. Runs as root: pg_dump runs in a container (docker is
 # root's), with the owner's password from its credential. Dumps go to /var/lib/argus-backups.
 After=network-online.target docker.service

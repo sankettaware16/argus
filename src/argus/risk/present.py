@@ -29,7 +29,7 @@ Every pass, after the linker:
    taken over as the incident's own. When the linker merges two incidents, the merged one's
    undecided case is merged into the survivor's (or becomes the survivor's own when it has
    none); a person's decision on either incident blocks the merge in the lifecycle instead.
-4. **The gray band**: campus objects just under a lane, valued the same way (Today shows five).
+4. **The gray band**: internal objects just under a lane, valued the same way (Today shows five).
 
 Off (the default) is the shadow: only the engine's own tables are written. Postgres only: no
 SIEM request and no model."""
@@ -106,13 +106,13 @@ class Context:
     config: RiskConfig
     options: Options = Options()
     classifier: IpClassifier | None = None
-    campus_domains: Sequence[str] = ()
+    own_domains: Sequence[str] = ()
     weights: prio.Weights = prio.WEIGHTS
 
 
 @dataclass(frozen=True)
 class Obj:
-    """A campus object as the presenter reads it: its 7-day verdict."""
+    """An internal object as the presenter reads it: its 7-day verdict."""
 
     ref: ObjectRef
     id: int = 0
@@ -800,8 +800,8 @@ def _hash(value: Any) -> str:
 
 def indicators(objs: Sequence[Obj], threats: Iterable[str], reach: Mapping[str, int]
                ) -> tuple[Indicator, ...]:  # fmt: skip
-    """A new case's indicators: its campus objects as actors (a site as an indicator), and its
-    rare outside values (reached by few campus objects)."""
+    """A new case's indicators: its internal objects as actors (a site as an indicator), and its
+    rare outside values (reached by few internal objects)."""
     out: list[Indicator] = []
     for o in objs:
         prefix, _, rest = o.key.partition(":")
@@ -837,7 +837,7 @@ async def _title(conn: AsyncConnection, p: Planned, world: World, ctx: Context) 
             return titles.title_for_incident(facts, p.value.certainty).text[:200]
     except (DBAPIError, ValueError):
         pass
-    tctx = titling.Context(ctx.classifier, tuple(ctx.campus_domains))
+    tctx = titling.Context(ctx.classifier, tuple(ctx.own_domains))
     try:
         async with conn.begin_nested():
             made = await titling.for_members(conn, ids, _marks(p, world), tctx, fallback)

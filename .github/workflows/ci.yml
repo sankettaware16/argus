@@ -1,34 +1,145 @@
-# CI: every push and pull request must pass lint, strict types and the unit suite.
-# The suite's network guard keeps every test on the loopback; nothing here reaches a SIEM.
-# The integration suite needs Docker PostgreSQL and runs locally (`uv run pytest -q`).
+# CI: every push and pull request must pass the static checks, the unit suite, the integration
+# suite and the Kibana contract tests on PostgreSQL, and the frontend's own gate. Mutation
+# testing runs on request (it takes hours): Actions > ci > Run workflow, with the box ticked.
+# The suite's network guard keeps every test on the loopback; nothing here reaches a SIEM. The
+# Kibana contracts are replayed from the recorded cassettes (tests/kibana/cassettes).
 name: ci
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      mutation:
+        description: Also run mutation testing (hours)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+
 jobs:
-  test:
+  static:
+    name: Lint, format, types, dependency audit
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-
       - name: Install Python 3.12 and the dependencies
         run: uv sync --frozen
-
       - name: Lint (ruff)
         run: uv run ruff check . && uv run ruff format --check .
-
       - name: Types (mypy --strict)
         run: uv run mypy
+      - name: The committed frontend build was made from the frontend's sources
+        run: |
+          uv run python - <<'PY'
+          import sys
+          from argus.ops import frontend
+          manifest = frontend.read_manifest()
+          current = manifest is not None and manifest["sources_sha256"] == frontend.sources_sha256()
+          sys.exit(0 if current else "src/argus/web/spa is stale: npm run build, then scripts/frontend_build.py manifest")
+          PY
+      - name: Dependency audit (pip-audit)
+        run: |
+          uv export --frozen --format requirements-txt --no-hashes --no-emit-project > requirements.txt
+          uvx --quiet pip-audit -r requirements.txt --progress-spinner off
 
+  unit:
+    name: Unit suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
       - name: Unit suite and the network guard's own tests
         run: uv run pytest -q -p no:cacheprovider tests/unit tests/_guard
+
+  integration:
+    name: Integration suite and Kibana contracts (PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Start PostgreSQL (the repository's own compose service)
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait db
+      - name: Create the runtime roles and the schema
+        run: |
+          uv run argus db bootstrap
+          uv run argus db upgrade
+      - name: Chromium and Firefox for the browser suites
+        run: uv run playwright install --with-deps chromium firefox
+      - name: Integration suite
+        run: uv run pytest -q -p no:cacheprovider tests/integration
+      - name: Kibana contract tests (replayed from the recorded Kibana 8.19 answers)
+        run: uv run pytest -q -p no:cacheprovider tests/kibana
+      - name: PostgreSQL's log, when something failed
+        if: failure()
+        run: docker compose logs --tail 200 db
+
+  frontend:
+    name: Frontend (types, lint, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: npm 11 (the version the lock file was made with)
+        run: npm install --global npm@11
+      - name: Install (install scripts blocked)
+        run: npm ci --ignore-scripts --no-audit
+      - run: npm run --silent typecheck
+      - run: npm run --silent lint
+      - run: npm run --silent test
+      - run: npm run --silent build
+      - name: npm audit (no high or critical)
+        run: npm audit --audit-level=high
+
+  mutation:
+    name: Mutation testing
+    if: inputs.mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Start PostgreSQL
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait db
+          uv run argus db bootstrap
+          uv run argus db upgrade
+      - name: Mutation testing
+        run: uv run python scripts/mutation.py
+      - name: Report
+        if: always()
+        run: uv run python scripts/mutation.py --report

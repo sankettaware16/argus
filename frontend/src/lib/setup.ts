@@ -203,7 +203,7 @@ export function stepProblems(step: Step, f: SetupForm): Record<string, string> {
   if (step === "organisation") {
     if (f.name.trim() === "") out.name = "Write the organisation's name.";
     if (f.short_name.trim() === "") out.short_name = "Write the security team's name.";
-    if (f.kind.trim() === "") out.kind = "Write what kind of organisation it is, e.g. university.";
+    if (f.kind.trim() === "") out.kind = "Write what kind of organisation it is, e.g. company, hospital, university.";
     const domains = cleaned(f.own_domains);
     const domainWhy = domains.map(domainProblem).find((x) => x !== null);
     if (domains.length === 0) out.own_domains = "Add at least one domain.";

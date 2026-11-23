@@ -17,7 +17,7 @@ pytestmark = pytest.mark.unit
 
 
 def report(checks: bool = True) -> m.IncidentReport:
-    return build.build(kit.scanners(checks=checks), kit.ctx(campus_domains=("example.edu",)))
+    return build.build(kit.scanners(checks=checks), kit.ctx(own_domains=("example.edu",)))
 
 
 def test_the_sites_and_the_server_the_outside_addresses_went_against_are_targets() -> None:
@@ -43,7 +43,7 @@ def test_a_target_whose_investigation_names_another_of_its_kind_is_marked_shared
     f = kit.scanners(count=2)
     first = f.docs[0]
     both = replace(first, alert_id="a-x", fields={**first.fields, "url.domain": (kit.SITES[1],)})
-    rep = build.build(replace(f, docs=(*f.docs, both)), kit.ctx(campus_domains=("example.edu",)))
+    rep = build.build(replace(f, docs=(*f.docs, both)), kit.ctx(own_domains=("example.edu",)))
     by = {t.value: t for t in rep.targets}
     assert sum(by[s].alerts for s in kit.SITES) > rep.meta.alerts_total
     assert by[kit.SITES[0]].shared
@@ -97,7 +97,7 @@ def test_an_alert_that_records_its_own_answer_marks_the_address_and_site_checked
     first = facts.docs[0]
     fields = {**first.fields, "http.response.status_code": ("200",)}
     docs = (replace(first, fields=fields), *facts.docs[1:])
-    rep = build.build(replace(facts, docs=docs), kit.ctx(campus_domains=("example.edu",)))
+    rep = build.build(replace(facts, docs=docs), kit.ctx(own_domains=("example.edu",)))
     actor = next(a for a in rep.actors if a.value == kit.PROBERS[0])
     assert (actor.answered, actor.served) == (1, ("/.env",))
     site = next(t for t in rep.targets if t.value == kit.SITES[0])
@@ -124,7 +124,7 @@ def test_a_count_read_from_a_sample_that_hit_its_cap_is_not_exact() -> None:
     """The review of AR9 (F12): a client with thousands of 2xx answers showed "yes (20)" as if
     exact. The stored search asks for 20 rows and counts no more, so 20 means 20 or more."""
     facts = with_followup(kit.scanners(), kit.PROBERS[0], total=20)
-    rep = build.build(facts, kit.ctx(campus_domains=("example.edu",)))
+    rep = build.build(facts, kit.ctx(own_domains=("example.edu",)))
     actors = {a.value: a for a in rep.actors}
     assert (actors[kit.PROBERS[0]].answered, actors[kit.PROBERS[0]].answered_exact) == (20, False)
     assert actors[kit.PROBERS[1]].answered_exact  # two rows of a sample of 20: all of them
@@ -149,18 +149,16 @@ def test_the_stored_sample_says_whether_a_count_is_exact(
     total: int, size: int | None, complete: bool | None, exact: bool
 ) -> None:
     facts = with_followup(kit.scanners(), kit.PROBERS[0], total=total, size=size, complete=complete)
-    rep = build.build(facts, kit.ctx(campus_domains=("example.edu",)))
+    rep = build.build(facts, kit.ctx(own_domains=("example.edu",)))
     actor = next(a for a in rep.actors if a.value == kit.PROBERS[0])
     assert actor.answered_exact is exact
 
 
 def test_there_are_more_outside_addresses_than_the_report_lists() -> None:
-    rep = build.build(kit.scanners(count=30), kit.ctx(campus_domains=("example.edu",)))
+    rep = build.build(kit.scanners(count=30), kit.ctx(own_domains=("example.edu",)))
     assert len(rep.actors) == 25
     assert rep.outsiders_total == 30
-    assert (
-        build.build(kit.scanners(), kit.ctx(campus_domains=("example.edu",))).outsiders_total == 16
-    )
+    assert build.build(kit.scanners(), kit.ctx(own_domains=("example.edu",))).outsiders_total == 16
     assert build.build(kit.amadey(), kit.ctx()).outsiders_total == 0  # campus devices only
 
 

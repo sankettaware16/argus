@@ -13,6 +13,7 @@ from typing import Any, Literal
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from argus import site
 from argus.assess import raised
 from argus.collector.lateness import reading_sql
 
@@ -104,6 +105,11 @@ BEFORE_NOTICES = (
 )
 # belongs to no case that is still being worked (a closed case is no one's work: a single
 # investigation of its device is judged on its own)
+# a member of an incident, whatever its state (the Alerts page's "in an incident")
+IN_CASE = (
+    "EXISTS (SELECT 1 FROM case_members cm WHERE cm.investigation_id = i.id"
+    " AND cm.removed_at IS NULL)"
+)
 NO_CASE = (
     "NOT EXISTS (SELECT 1 FROM case_members cm JOIN cases cc ON cc.id = cm.case_id"
     " WHERE cm.investigation_id = i.id AND cm.removed_at IS NULL AND cc.state <> 'closed')"
@@ -290,12 +296,14 @@ async def inbox(
     limit: int = PAGE,
     sort: Sort | None = None,
     without_case: bool = False,
+    in_case: bool | None = None,
 ) -> list[Summary]:
     """Investigations for a view: ``attention`` (follow-ups, changed since review, unreviewed
     critical/high), ``open`` (everything not reviewed), ``all``; optionally one rule or one
     entity. ``sort``: by the last alert (newest or oldest first), most urgent first, or the
     newest decision first; without it, the view's own order (urgent; reviewed: decided).
-    ``without_case``: only investigations that belong to no case that is not closed."""
+    ``without_case``: only investigations that belong to no case that is not closed.
+    ``in_case``: only those that are a member of an incident (True) or of none (False)."""
     where = ["true"]
     params: dict[str, Any] = {"offset": offset, "limit": limit}
     if view == "attention":
@@ -308,6 +316,8 @@ async def inbox(
         where.append("last.decision_id IS NOT NULL")
     if without_case:
         where.append(NO_CASE)
+    if in_case is not None:
+        where.append(IN_CASE if in_case else f"NOT {IN_CASE}")
     if rule is not None:
         where.append("i.rule_id = :rule")
         params["rule"] = rule
@@ -632,7 +642,7 @@ def glossary() -> list[dict[str, str]]:
 
     return sorted(
         (
-            {"name": n, "label": e.title("values"), "how": e.how_to_read}
+            {"name": n, "label": e.title("values"), "how": site.say(e.how_to_read)}
             for n, e in registry().items()
         ),
         key=lambda g: g["label"].lower(),

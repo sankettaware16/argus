@@ -37,7 +37,7 @@ KEY = b"k" * 32
 CAMPUS = "campus.ac.in"
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=(CAMPUS,),
+    own_domains=(CAMPUS,),
     keep_domains=("vendor-cdn.example",),
     literals={"Campus University": "Example University", "campusu": "exampleu"},
     fields={
@@ -53,7 +53,7 @@ POLICY = FixturePolicy(
 # The tracked policy's identifier fields (the real list, so "covered by a pattern" is real too).
 SHIPPED = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=(CAMPUS,),
+    own_domains=(CAMPUS,),
     fields=dict(load_policy(REPO / "config" / "fixtures.yaml")[0].fields),
 )
 

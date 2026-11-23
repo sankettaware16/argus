@@ -39,10 +39,10 @@ class Entry(BaseModel):
     def title(self, part: str = "values") -> str:
         """The label for a family's last name part; ``{lookups}`` is the site's looked-up
         threat-intel sources, by index."""
-        return self.label.format(part=PARTS.get(part, part), lookups=lookup_words())
+        return site.say(self.label).format(part=PARTS.get(part, part), lookups=lookup_words())
 
     def said(self, value: Any) -> str:
-        return self.sentence.format(value=value, lookups=lookup_words())
+        return site.say(self.sentence).format(value=value, lookups=lookup_words())
 
 
 def lookup_words() -> str:
@@ -128,7 +128,7 @@ def sentence(
     value = signal.get("value")
     words = _plain(e.plain, value) if plain and known and e is not None and e.plain else None
     if plain and e is not None and e.plain_label and (words is not None or not known):
-        label = e.plain_label
+        label = site.say(e.plain_label)
     if not known:
         reason = str(signal.get("unknown_reason") or "unknown").replace("_", " ")
         return f"{label}: could not be told ({reason})"

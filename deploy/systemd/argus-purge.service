@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS retention purge (Q-A4, D-028)
+Description=ARGUS retention purge
 # Started by argus-purge.timer, after the nightly dump. Deletes only once the schedule is
 # approved (retention.scheduled) and the last restore drill passed within 8 days.
 

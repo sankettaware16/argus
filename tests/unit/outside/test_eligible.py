@@ -21,7 +21,7 @@ from tests.unit.llm.conftest import ASSETS, CAMPUS_PREFIX
 # campus public prefix is 198.51.100.0/24; its entries are named Geology Lab Block, tp8,
 # Mailgate and H12 Wing-C
 PRIVACY = Privacy.build(load_policy(), ASSETS, (CAMPUS_PREFIX,))
-E = Eligibility(PRIVACY.classifier, PRIVACY.campus, PRIVACY.campus_for)
+E = Eligibility(PRIVACY.classifier, PRIVACY.ours, PRIVACY.ours_for)
 
 
 @pytest.mark.parametrize(
@@ -147,17 +147,17 @@ def test_the_item_view_is_the_privacy_layers_own_view() -> None:
     body = item(["web7"], ["bob"], group_key='[["host.name","gk1"],["user.name","carol"]]')
     body["context"] = {"pack": {"fields": {"host.name": {"top": [["fld1", 1]]},
                                           "user.name": {"top": [["dave", 1]]}}}}  # fmt: skip
-    assert E.for_item(body).campus == PRIVACY.campus_for([body])
+    assert E.for_item(body).ours == PRIVACY.ours_for([body])
     for name in ("web7", "bob", "gk1", "carol", "fld1", "dave"):
         assert E.for_item(body).check("domain", f"{name}.evil.com") == "a campus name"
         assert E.check("domain", f"{name}.evil.com") is None
 
 
 def test_without_the_privacy_layers_view_the_base_check_is_kept() -> None:
-    bare = Eligibility(PRIVACY.classifier, PRIVACY.campus)
+    bare = Eligibility(PRIVACY.classifier, PRIVACY.ours)
     assert bare.for_item(item(["web7"], [])) is bare
     assert (
-        bare.with_campus(PRIVACY.campus_for([item(["web7"], [])])).check("domain", "web7.evil.com")
+        bare.with_ours(PRIVACY.ours_for([item(["web7"], [])])).check("domain", "web7.evil.com")
         == "a campus name"
     )
 
@@ -177,7 +177,7 @@ def test_the_outside_service_the_assess_run_builds_checks_each_item_by_its_own_n
     from argus.raising import outside_for
 
     outside, _, _ = outside_for(Settings(), PRIVACY, None)  # type: ignore[arg-type]
-    assert outside.eligibility.campus_for == PRIVACY.campus_for
+    assert outside.eligibility.ours_for == PRIVACY.ours_for
     body = item(["desktop-ab12cd"], ["jsmith"])
     assert outside.eligibility.check("domain", "jsmith.c2.com") is None
     assert outside.eligibility.for_item(body).check("domain", "jsmith.c2.com") == "a campus name"
@@ -202,4 +202,4 @@ def test_the_shipped_fixture_policy_names_no_domains_of_its_own() -> None:
     from argus.llm.privacy import POLICY
 
     fixtures = read_yaml_file(POLICY.parent / "fixtures.yaml")[0]
-    assert fixtures["campus_domains"] == []
+    assert fixtures["own_domains"] == []

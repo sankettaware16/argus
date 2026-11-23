@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { listCases, listInvestigations } from "../client/sdk.gen";
 import type { CaseRowOut } from "../client/types.gen";
+import { DIRECTORY_ACCOUNT, DirectoryCard, useDirectory } from "./DirectoryCard";
 import { EntityOpener, PriorityBadge } from "./incident/Parts";
 import { UntrustedText } from "./UntrustedText";
 import { Button } from "./ui/button";
@@ -56,6 +57,7 @@ function DrawerBody({ o, onClose }: { o: EngineObject; onClose: () => void }) {
   const inc = incidents.data?.items ?? [];
   const g = groups.data?.items ?? [];
   const last = g.map((x) => parse(x.last_event_at)).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
+  const directory = useDirectory();
   return (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -65,6 +67,12 @@ function DrawerBody({ o, onClose }: { o: EngineObject; onClose: () => void }) {
         <Dialog.Close render={<Button size="sm" variant="ghost" aria-label="Close" />}>✕</Dialog.Close>
       </div>
       <p className="m-0 text-sm text-muted">{coverage()}</p>
+      {kind === "account" && directory !== null && DIRECTORY_ACCOUNT.test(o.label) && (
+        <section aria-label="Who this is" className="flex flex-col gap-1 text-sm" data-testid="drawer-directory">
+          <h3 className="m-0 text-sm font-semibold">Who this is (from {directory})</h3>
+          <DirectoryCard account={o.label} />
+        </section>
+      )}
       <section aria-label="What ARGUS knows" className="flex flex-col gap-1 text-sm">
         <h3 className="m-0 text-sm font-semibold">What ARGUS knows (from alert groups)</h3>
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">

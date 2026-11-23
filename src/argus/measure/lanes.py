@@ -394,7 +394,7 @@ def decision_draft(
         if room.measured
         else f"not measured ({room.readings} readings): D-022's ceiling kept"
     )
-    return f"""## D-NNN — The load budget re-measured; the lanes set (Q-A3)
+    return f"""## D-NNN — The load budget re-measured; the lanes set
 - **Date:** {until:%Y-%m-%d}. **Decided by:** the lead, from the measuring session and the ledger
   from {since:%Y-%m-%d %H:%M} to {until:%Y-%m-%d %H:%M} UTC.
 - **Rule:** for each lane, Σ p95 took times planned rate ≤ the lane's share of the headroom, per

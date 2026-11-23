@@ -27,7 +27,7 @@ from argus.outside import facts
 MAX_ENTRIES = 500
 COLUMNS = (
     "type", "value", "kind", "engines_flagging", "engines_total", "owner", "registered",
-    "first_seen_on_campus", "campus_devices", "evidence_checked",
+    "first_seen_on_own_network", "own_devices", "evidence_checked",
 )  # fmt: skip
 
 

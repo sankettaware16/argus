@@ -350,7 +350,7 @@ async def test_facts_the_privacy_check_refuses_are_never_sent() -> None:
             def text(self, value: str, limit: int | None = None, *, quoted: bool = True) -> str:
                 return value
 
-    leaky = Leaky(PRIVACY.policy, PRIVACY.classifier, PRIVACY.campus)
+    leaky = Leaky(PRIVACY.policy, PRIVACY.classifier, PRIVACY.ours)
     rep = report()
     complete = answering(good(view_of(rep)))
     out = await brief.improve(rep, leaky, complete)

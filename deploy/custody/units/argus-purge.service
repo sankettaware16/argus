@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS retention purge (Q-A4, D-028; custody layout, Q-A5)
+Description=ARGUS retention purge (custody layout)
 # Started by argus-purge.timer, after the nightly dump. Runs as root with the owner's password
 # from its credential: it logs in as the owner and works as argus_purge (SET LOCAL ROLE).
 # Deletes only once the schedule is approved (retention.scheduled, with the periods of the last

@@ -77,7 +77,7 @@ class Lane400:
         )
         self.asker = watchrun.GatewayAsker(
             self.gateway, world.runtime, enabled={"proxy.contact", "proxy.pair"},
-            history=timedelta(days=5), is_campus=lambda v: v.startswith("10."),
+            history=timedelta(days=5), is_own=lambda v: v.startswith("10."),
         )  # fmt: skip
         self.ctx = context(self.asker)
         self.world = world

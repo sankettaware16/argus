@@ -92,7 +92,7 @@ def test_the_new_units_are_disabled_and_scheduled_at_quiet_hours() -> None:
         "argus-writer.service", "argus-backup.timer",
         "argus-backup-drill.timer", "argus-purge.timer", "argus-notices.timer",
         "argus-report-daily.timer", "argus-report-weekly.timer",
-        "argus-soak-phase3.timer"}  # fmt: skip
+        "argus-soak-phase3.timer", "argus-writeback.timer"}  # fmt: skip
     purge_timer = (UNITS_DIR / "argus-purge.timer").read_text()
     # 04:30 IST: after the nightly dump (21:30 UTC) and Sunday's drill (22:00 UTC)
     assert "OnCalendar=*-*-* 23:00:00 UTC" in purge_timer
@@ -234,7 +234,8 @@ def test_unit_states_compare_the_rendering_and_read_the_wants_links(tmp_path: Pa
             by_name["argus-collector.service"].identical) == (True, False)  # fmt: skip
     assert by_name["argus-worker.service"].installed is False
     assert units.problems(by_name["argus-writer.service"]) == (
-        "enabled before its production step (Kibana writes (Q-D4, Q-D5): each class's canary)",
+        "enabled before its production step (Kibana writes: each kind after its own first,"
+        " watched run)",
         False,
     )
     assert (unlisted, stray) == ([], ["argus-stray.service"])

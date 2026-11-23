@@ -34,6 +34,9 @@ SPIKE = 3.0  # alerts above this many times the recent median of the same rule a
 SPIKE_DAYS = 5
 BEACON = 0.3  # proxy.regularity below this is regular, like a beacon
 RARE = 1  # a destination reached by at most this many internal hosts
+# a part of a stored floor (kept as it was first written, so stored rows still match); people and
+# models read it in the site's words (argus.agent.reading)
+FEW_HOSTS = "a destination few campus hosts reach"
 POSITIVE = "true_positive"
 Key = tuple[str, ...]
 
@@ -140,7 +143,7 @@ def floor(body: Mapping[str, Any], first_seen: bool | None, spike: bool | None) 
         out.append("regular like a beacon" if ok else "proxy.regularity not known")
     ok, value = known("proxy.hosts_to_destination")
     if "proxy.hosts_to_destination" in sig and (not ok or (value or 0) <= RARE):
-        out.append("a destination few campus hosts reach" if ok else "destinations not known")
+        out.append(FEW_HOSTS if ok else "destinations not known")
     severity = str((body.get("facts") or {}).get("severity") or "").lower()
     if severity in ("high", "critical"):
         out.append(f"severity {severity}")

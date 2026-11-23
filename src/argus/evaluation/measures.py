@@ -62,7 +62,7 @@ def require_licence(llm: LlmConfig) -> str | None:
     """Why an evaluation may not call these providers yet: a local provider without the
     decision recording its licence's confirmation, else None."""
     for p in llm.providers:
-        if p.trust is Trust.CAMPUS and p.licence is None:
+        if p.trust is Trust.SELF_HOSTED and p.licence is None:
             return (f"{p.name}: the model's licence confirmation is not recorded: set"
                     f" `licence: D-NNN` on it in config/llm.yaml (plan §12 item 21) before"
                     " evaluation calls")  # fmt: skip

@@ -1,1 +1,0 @@
-import{i as e}from"./UntrustedText-C-ynB6mT.js";function t(t,n=90){return e(t,{maxChars:n,maxLines:1}).map(e=>{switch(e.kind){case`text`:case`idn`:return e.text;case`mark`:return`‹${e.label}›`;case`cut`:return`…`}}).join(``)}export{t};

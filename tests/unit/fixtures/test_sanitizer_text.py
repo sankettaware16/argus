@@ -18,7 +18,7 @@ from argus.fixtures.sanitizer import Sanitizer
 KEY = b"k" * 32
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=("campus.ac.in",),
+    own_domains=("campus.ac.in",),
     keep_domains=("vendor-cdn.example",),
     literals={"Campus University": "Example University", "SynOrg": "ExampleOrg"},
     fields={
@@ -613,7 +613,7 @@ def _run(policy: FixturePolicy, doc: dict[str, Any]) -> tuple[Any, list[str]]:
 
 def test_an_email_right_after_an_escape_is_learned_without_the_escape_letter() -> None:
     """JSON inside a log line: the n of \\n is no part of the address after it."""
-    policy = FixturePolicy(campus_domains=("campus.ac.in",))
+    policy = FixturePolicy(own_domains=("campus.ac.in",))
     doc = {"message": '{"note":"mail \\nalice@campus.ac.in"} later alice logged in'}
     out, harvested = _run(policy, doc)
     assert harvested == ["alice", "alice@campus.ac.in", "campus.ac.in"]
@@ -622,7 +622,7 @@ def test_an_email_right_after_an_escape_is_learned_without_the_escape_letter() -
 
 
 def test_a_campus_host_right_after_an_escape_keeps_the_escape_and_its_pseudonym() -> None:
-    policy = FixturePolicy(campus_domains=("campus.ac.in",))
+    policy = FixturePolicy(own_domains=("campus.ac.in",))
     out, _ = _run(policy, {"message": "from \\nwww.campus.ac.in and www.campus.ac.in"})
     assert out == {"message": "from \\nnj4xtrco.univ.example and nj4xtrco.univ.example"}
 

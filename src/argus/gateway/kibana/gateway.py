@@ -358,7 +358,7 @@ class KibanaGateway:
         if cls not in spec.classes:
             raise WriteRefusedError("wrong_class", f"{spec.name} is not a {cls} write")
         if cls is WriteClass.WT:
-            raise WriteRefusedError("class_off", "alert tags (WT) are not written (DQ11)")
+            raise WriteRefusedError("class_off", "alert tags (WT) are not written")
         if cls not in self.classes:
             raise WriteRefusedError("class_off", f"{cls} is not switched on at this host")
         lane = await self.state.kibana_lane()

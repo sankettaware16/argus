@@ -11,11 +11,11 @@ questions that decide it:
 2. **What is asked**, once an incident's material version: for its most telling device and
    outside address (a beacon-timed alert group first, then a flagged address, then the newest),
    ``proxy.pair`` (the device's requests to it over ``pair_hours``: their rhythm, count and
-   bytes) and ``proxy.contact`` (how many campus devices reached that address that day). An
-   incident with no outside address to time, but a campus device and an outside domain or a
+   bytes) and ``proxy.contact`` (how many internal devices reached that address that day). An
+   incident with no outside address to time, but an internal device and an outside domain or a
    tunnel suspicion, gets ``dns.host_domains`` (the device's lookups around its last alert).
-   Only an outside address is timed (the proxy logs say nothing of campus-to-campus traffic). An
-   address ARGUS's own alerts already show with 25 campus devices is answered from the store
+   Only an outside address is timed (the proxy logs say nothing of inside-to-inside traffic). An
+   address ARGUS's own alerts already show with 25 internal devices is answered from the store
    ("too common to ask about"); an answer about the same subject and day at most
    ``reuse_hours`` old is reused for another incident or version, with no request. A count of
    a day still going on is a count so far: it is asked again, once, after that day is over.
@@ -30,7 +30,7 @@ questions that decide it:
 4. **What it changes**: the answers are stored (``risk_evidence``) and the incident's
    alert groups are marked for the engine's next pass, which reads them as signals
    (:func:`argus.risk.outbound_db.attach`): a measured regular rhythm is a beacon fact, a
-   destination no other campus device reached a rare one. Those can only add to a score. What
+   destination no other internal device reached a rare one. Those can only add to a score. What
    speaks against the incident (no regular timing, a destination many devices reach) shows as
    a check, an alternative that fits and so the certainty word, never as a lower priority
    (``argus.risk.alternatives``).
@@ -71,7 +71,7 @@ TEMPLATES = frozenset({"proxy.pair", "proxy.contact", "dns.host_domains"})
 BANDS = ("P1", "P2", "P3", "P4")
 AFTER = timedelta(minutes=30)  # a pair window reaches past the device's last alert by this
 DEADLINE = checking.DEADLINE
-COMMON_HOSTS = batch1.HOSTS_LIMIT  # ARGUS's own alerts show this many campus devices: common
+COMMON_HOSTS = batch1.HOSTS_LIMIT  # ARGUS's own alerts show this many internal devices: common
 Kind = Literal["pair", "contact", "dns"]
 KIND_OF: Mapping[str, Kind] = {"proxy.pair": "pair", "proxy.contact": "contact",
                                "dns.host_domains": "dns"}  # fmt: skip
@@ -91,7 +91,7 @@ class Sender(Protocol):
 
 @dataclass(frozen=True)
 class Pair:
-    """A campus device and an outside address one of the incident's outbound alert groups names
+    """An internal device and an outside address one of the incident's outbound alert groups names
     together: when it last did, and whether that group was beacon-timed or the address flagged."""
 
     device: str
@@ -112,7 +112,7 @@ class Target:
     material_at: datetime | None
     last_seen: datetime
     pairs: tuple[Pair, ...] = ()  # most telling first
-    devices: tuple[str, ...] = ()  # campus actor addresses of its outbound groups, newest first
+    devices: tuple[str, ...] = ()  # internal actor addresses of its outbound groups, newest first
     domains: bool = False  # its outbound groups name an outside domain
     tunnel: bool = False  # a DNS tunnel suspicion is among its evidence
 
@@ -269,10 +269,10 @@ def plan(inputs: Inputs, now: datetime, config: Outbound, enabled: frozenset[str
     return asks
 
 
-def outside_only(targets: Iterable[Target], is_campus: Callable[[str], bool]) -> list[Target]:
+def outside_only(targets: Iterable[Target], is_own: Callable[[str], bool]) -> list[Target]:
     """The targets with only their pairs to an outside address: the proxy logs say nothing of a
-    device's traffic to another campus address."""
-    return [replace(t, pairs=tuple(p for p in t.pairs if not is_campus(p.destination)))
+    device's traffic to another internal address."""
+    return [replace(t, pairs=tuple(p for p in t.pairs if not is_own(p.destination)))
             for t in targets]  # fmt: skip
 
 
@@ -341,7 +341,7 @@ def whole_day(params: beacon.ContactParams) -> bool:
 
 def read_contact(params: beacon.ContactParams, body: Any, device: str | None = None
                  ) -> tuple[str, dict[str, Any]]:  # fmt: skip
-    """``common`` (at least ``alternatives.COMMON`` campus devices that day), ``rare`` (at most
+    """``common`` (at least ``alternatives.COMMON`` internal devices that day), ``rare`` (at most
     ``alternatives.RARE``), ``some`` between, ``none`` (no request at all). ``complete``: the
     window held the whole day; a day still going on is asked again once it is over."""
     aggs = _aggs(body)
@@ -431,9 +431,9 @@ def reused_row(ask: Ask) -> Row:
 
 
 def common_row(ask: Ask, seen: batch1.Prevalence) -> Row:
-    """An address ARGUS's own alerts already show with many campus devices: too common to ask
+    """An address ARGUS's own alerts already show with many internal devices: too common to ask
     about, and a common service's shape (no request)."""
-    facts = {"devices": seen.campus_hosts, "investigations": seen.investigations,
+    facts = {"devices": seen.own_hosts, "investigations": seen.investigations,
              "from": "argus", "day": ask.day.isoformat()}  # fmt: skip
     return row_of(ask, "common", facts, None)
 
@@ -507,11 +507,11 @@ class Budget:
 async def run_pass(
     engine: AsyncEngine, gateway: Sender, health: Callable[[], Any], *, now: datetime,
     config: Outbound, lane_day_ms: int, enabled: Iterable[str], clock: Callable[[], datetime],
-    is_campus: Callable[[str], bool], history: timedelta,
+    is_own: Callable[[str], bool], history: timedelta,
     health_config: HealthConfig | None = None, check: SendCheck | None = None,
 ) -> Report:  # fmt: skip
     """One pass (see the module). ``health``: the gateway's stored health memory (awaitable);
-    ``enabled``: the evidence switch; ``is_campus`` and ``history``: the prevalence read of
+    ``enabled``: the evidence switch; ``is_own`` and ``history``: the prevalence read of
     ARGUS's own alerts; ``check``: the gateway's send rule (``batch1.send_check``)."""
     from argus.risk import outbound_db as db
 
@@ -530,7 +530,7 @@ async def run_pass(
     async with engine.connect() as conn:
         found = await db.inputs(conn, now, config)
         spent = await db.spent_today(conn, now, COMPONENT)
-    found.targets = outside_only(found.targets, is_campus)
+    found.targets = outside_only(found.targets, is_own)
     asks = plan(found, now, config, on)
     report.planned = len(asks)
     budget = Budget(config, lane_day_ms, spent)
@@ -545,9 +545,9 @@ async def run_pass(
         if ask.kind == "contact" and ask.destination is not None:
             async with engine.connect() as conn:
                 seen = await batch1.prevalence(
-                    conn, batch1.Key("destination", ask.destination), now - history, is_campus
+                    conn, batch1.Key("destination", ask.destination), now - history, is_own
                 )
-            if seen.campus_hosts >= COMMON_HOSTS:
+            if seen.own_hosts >= COMMON_HOSTS:
                 rows.append(common_row(ask, seen))
                 report.from_store += 1
                 continue

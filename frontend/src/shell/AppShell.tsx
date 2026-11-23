@@ -11,10 +11,11 @@ import { can, signOut, useSession, useSessionWatch } from "../lib/session";
 import { opensSetup, setupLeft } from "../lib/setup";
 import { organisationName } from "../lib/site";
 import { useNeedsYouCount } from "../lib/today";
+import { useWide } from "../lib/viewport";
 import { UndoToast } from "../components/decide/UndoToast";
 import { browserStorage, loadShortcuts } from "../lib/shortcuts";
 import { AccessBanner } from "./AccessBanner";
-import { ACCOUNT, MORE, PRIMARY, type NavItem } from "./nav";
+import { ACCOUNT, BOTTOM, PRIMARY, SECTIONS, type NavItem, type NavSection } from "./nav";
 import { NavIcon } from "./icons";
 import { SystemDot } from "./Status";
 import { EntityDrawerProvider } from "../components/EntityDrawer";
@@ -22,13 +23,16 @@ import { EntityDrawerProvider } from "../components/EntityDrawer";
 const ITEM =
   "flex min-h-9 items-center justify-between gap-2 rounded-control px-3 text-[0.9375rem] text-text no-underline transition-colors hover:bg-surface-2 aria-[current=page]:bg-surface-2 aria-[current=page]:font-semibold";
 
-function useMoreItems(): NavItem[] {
+/** The sections a person may see: the administration's for an admin (and a development build), the account look-up where the site has a directory. */
+function useSections(): NavSection[] {
   const session = useSession();
   const admin = can(session.data, "admin") || import.meta.env.DEV;
-  return MORE.filter((m) => !m.admin || admin);
+  const directory = (session.data?.directory ?? null) !== null;
+  return SECTIONS.map((s) => ({ ...s, items: s.items.filter((m) => (!m.admin || admin) && (!m.directory || directory)) })).filter((s) => s.items.length > 0);
 }
 
-function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onPick?: () => void; badge?: number | null; className?: string }) {
+/** One entry: its glyph and its name side by side; `stacked`, the glyph over the name where the menu is a narrow rail. */
+function NavLink({ item, onPick, badge, className = ITEM, stacked = false }: { item: NavItem; onPick?: () => void; badge?: number | null; className?: string; stacked?: boolean }) {
   if (item.to === undefined) {
     return (
       <a href={item.href} title={item.hint} className={className}>
@@ -38,9 +42,9 @@ function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onP
   }
   return (
     <Link to={item.to} search={item.search} title={item.hint} className={className} activeOptions={{ exact: item.to === "/", includeSearch: false }} onClick={onPick}>
-      <span className="flex items-center gap-2.5 max-lg:flex-col max-lg:gap-0.5">
+      <span className={cn("flex min-w-0 items-center gap-2.5", stacked && "max-lg:flex-col max-lg:gap-0.5")}>
         <NavIcon name={item.label} />
-        {item.label}
+        <span className="truncate">{item.label}</span>
       </span>
       {badge != null && badge > 0 && (
         <span className="rounded-full bg-accent px-2 text-xs font-semibold text-accent-fg tabular-nums" data-testid="today-badge">
@@ -52,58 +56,77 @@ function NavLink({ item, onPick, badge, className = ITEM }: { item: NavItem; onP
   );
 }
 
-/** More's entries; the classic queues and the administration pages each under their own heading. */
-function MoreList({ onPick }: { onPick?: () => void }) {
-  const items = useMoreItems();
-  const plain = items.filter((i) => i.group === undefined);
-  const groups = ["More queues", "Administration"].map((name) => ({ name, items: items.filter((i) => i.group === name) })).filter((g) => g.items.length > 0);
+function Items({ items, onPick }: { items: NavItem[]; onPick?: () => void }) {
   return (
-    <ul className="m-0 flex list-none flex-col gap-0.5 p-0" data-testid="more-list">
-      {plain.map((item) => (
+    <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+      {items.map((item) => (
         <li key={item.label}>
           <NavLink item={item} onPick={onPick} />
-        </li>
-      ))}
-      {groups.map((g) => (
-        <li key={g.name}>
-          <p className="m-0 mt-3 mb-1 px-3 text-xs font-semibold text-muted">{g.name}</p>
-          <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-            {g.items.map((item) => (
-              <li key={item.label}>
-                <NavLink item={item} onPick={onPick} />
-              </li>
-            ))}
-          </ul>
         </li>
       ))}
     </ul>
   );
 }
 
-/** The side nav (640 px and up): the four pages, then More as an inline list. */
-function SideNav() {
-  const [more, setMore] = useState(false);
-  const count = useNeedsYouCount();
+/**
+ * The menu below the daily pages: each section under its heading, every entry with its glyph so
+ * the labels line up; the folded section (More: the pages opened rarely) opens on a click, and
+ * by itself when the page shown is one of its own.
+ */
+function Sections({ onPick, open = false }: { onPick?: () => void; open?: boolean }) {
+  const sections = useSections();
+  const path = useRouterState({ select: (st) => st.location.pathname });
+  const [asked, setAsked] = useState(open);
   const id = useId();
   return (
-    <nav aria-label="Main" className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3" data-testid="nav-sections">
+      {sections.map((section) => {
+        if (!section.folded) {
+          return (
+            <section key={section.title} aria-label={section.title}>
+              <p className="m-0 mb-1 px-3 text-xs font-semibold tracking-wide text-muted uppercase">{section.title}</p>
+              <Items items={section.items} onPick={onPick} />
+            </section>
+          );
+        }
+        const shown = asked || section.items.some((i) => i.to !== undefined && path.startsWith(i.to));
+        return (
+          <section key={section.title} aria-label={section.title}>
+            <button type="button" aria-expanded={shown} aria-controls={id} onClick={() => setAsked(!shown)} className={cn(ITEM, "w-full cursor-pointer border-0 bg-transparent text-left")}>
+              <span className="flex items-center gap-2.5">
+                <NavIcon name="More" />
+                {section.title}
+              </span>
+              <span aria-hidden="true" className="text-muted">
+                {shown ? "▴" : "▾"}
+              </span>
+            </button>
+            {shown && (
+              <div id={id} className="mt-0.5" data-testid="more-list">
+                <Items items={section.items} onPick={onPick} />
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The side nav (640 px and up): the daily pages, then the sections (as a sheet on the narrow rail). */
+function SideNav() {
+  const count = useNeedsYouCount();
+  const wide = useWide();
+  return (
+    <nav aria-label="Main" className="flex flex-col gap-3">
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {PRIMARY.map((item) => (
           <li key={item.label}>
-            <NavLink item={item} badge={item.label === "Today" ? count : null} className={cn(ITEM, "max-lg:min-h-14 max-lg:flex-col max-lg:justify-center max-lg:gap-0.5 max-lg:px-1 max-lg:text-xs")} />
+            <NavLink item={item} stacked badge={item.label === "Today" ? count : null} className={cn(ITEM, "max-lg:min-h-14 max-lg:flex-col max-lg:justify-center max-lg:gap-0.5 max-lg:px-1 max-lg:text-xs")} />
           </li>
         ))}
       </ul>
-      <div className="pt-1">
-        <button type="button" aria-expanded={more} aria-controls={id} onClick={() => setMore(!more)} className={cn(ITEM, "w-full cursor-pointer border-0 bg-transparent max-lg:px-1 max-lg:text-xs")}>
-          More <span aria-hidden="true">{more ? "▴" : "▾"}</span>
-        </button>
-        {more && (
-          <div id={id} className="mt-1">
-            <MoreList />
-          </div>
-        )}
-      </div>
+      {wide ? <Sections /> : <MoreSheet rail />}
     </nav>
   );
 }
@@ -113,7 +136,7 @@ function BottomBar() {
   const count = useNeedsYouCount();
   return (
     <nav aria-label="Pages" className="glass fixed inset-x-0 bottom-0 z-30 grid h-14 grid-cols-4 border-t border-border sm:hidden" data-testid="bottom-bar">
-      {PRIMARY.map((item) => (
+      {BOTTOM.map((item) => (
         <Link
           key={item.label}
           to={item.to ?? "/"}
@@ -327,18 +350,31 @@ function AccountMenu({ phone = false, onPick }: { phone?: boolean; onPick?: () =
   );
 }
 
-/** The phone's More: a sheet with More's entries and the account's. */
-function PhoneMore() {
+/**
+ * Everything outside the tab bar, as a sheet: on a phone from the header's More (with the daily
+ * pages the bar has no room for, and the account's entries), on the narrow rail from its own More.
+ */
+function MoreSheet({ rail = false }: { rail?: boolean }) {
   const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const rest = PRIMARY.filter((p) => !BOTTOM.includes(p));
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger render={<Button size="sm" className="sm:hidden" />}>More</Dialog.Trigger>
+      {rail ? (
+        <Dialog.Trigger className={cn(ITEM, "min-h-14 w-full cursor-pointer flex-col justify-center gap-0.5 border-0 bg-transparent px-1 text-xs")}>
+          <NavIcon name="More" />
+          More
+        </Dialog.Trigger>
+      ) : (
+        <Dialog.Trigger render={<Button size="sm" className="sm:hidden" />}>More</Dialog.Trigger>
+      )}
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-3 overflow-auto rounded-t-card border border-border bg-raised p-4 text-text shadow-card">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-3 overflow-auto rounded-t-card border border-border bg-raised p-4 text-text shadow-card sm:inset-x-auto sm:inset-y-0 sm:left-[5.5rem] sm:max-h-none sm:w-72 sm:rounded-none sm:border-y-0">
           <Dialog.Title className="m-0 text-base font-semibold">More</Dialog.Title>
-          <MoreList onPick={() => setOpen(false)} />
-          <AccountMenu phone onPick={() => setOpen(false)} />
+          {!rail && <Items items={rest} onPick={close} />}
+          <Sections onPick={close} open />
+          {!rail && <AccountMenu phone onPick={close} />}
           <Dialog.Close render={<Button />}>Close</Dialog.Close>
         </Dialog.Popup>
       </Dialog.Portal>
@@ -360,7 +396,7 @@ function BuildNotice() {
 }
 
 /**
- * The app's frame (docs/p4f-ui-spec.md §4): four pages and More in the side nav (a rail between
+ * The app's frame (docs/p4f-ui-spec.md §4): the daily pages and the sections in the side nav (a rail between
  * 640 and 1023 px, a bottom tab bar on a phone), the header's search, the system dot and the
  * person's menu, the messages, and the Undo toast.
  */
@@ -437,7 +473,7 @@ export function AppShell() {
               <span className="hidden sm:inline-flex">
                 <AccountMenu />
               </span>
-              <PhoneMore />
+              <MoreSheet />
             </span>
           </header>
           <main id="main" tabIndex={-1} className="page-in mx-auto flex w-full max-w-[76rem] flex-col gap-5 px-4 pt-2 pb-24 focus:outline-none sm:px-8 sm:pt-4 sm:pb-12">

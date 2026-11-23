@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS case team every 3 minutes, paced by the Kibana write lane (AR8, D-214)
+Description=ARGUS case team every 3 minutes, paced by the Kibana write lane
 
 [Timer]
 OnBootSec=5min

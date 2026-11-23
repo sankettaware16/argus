@@ -64,7 +64,7 @@ def setup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, port: int, cert: Path
     llm = LlmConfig.model_validate({"keys_file": str(keys), "providers": [
         {"name": "cloud", "base_url": "https://cloud.example/v1", "keys": ["CLOUD_KEY"],
          "models": {"small": {"name": "c"}}},
-        {"name": "local", "trust": "campus", "enabled": False, "probe": True,
+        {"name": "local", "trust": "self_hosted", "enabled": False, "probe": True,
          "base_url": f"https://127.0.0.1:{port}/v1", "keys": ["LOCAL_LLM_API_KEY"],
          "ca_file": str(cert), "tasks": ["evaluate", "ping"], "limits": {"rpd": 9},
          "models": {"small": {"name": ls.MODEL}}, **over},

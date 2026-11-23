@@ -175,7 +175,7 @@ describe("a campus address is never an outside one (§12.3)", () => {
     const other = await screen.findByTestId("other-side");
     expect(other.textContent).not.toContain("10.201.7.11");
     expect(other.textContent).toContain("Outside address 45.138.12.49");
-    expect(screen.getByTestId("campus-side").textContent).toContain("Device 10.201.7.11");
+    expect(screen.getByTestId("own-side").textContent).toContain("Device 10.201.7.11");
   });
 });
 

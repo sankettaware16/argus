@@ -214,6 +214,8 @@ def test_an_install_makes_the_whole_layout(fake: Fake) -> None:
         - {"notices.password"}
         # the outside threat-intel keys (AR3, D-165): each only when its source is used
         - {"outside.virustotal_api_key", "outside.shodan_api_key", "outside.censys_api_key"}
+        # the account directory's session (D-337): only where the site has a directory
+        - {"directory.session"}
     )
     for path in credentials.iterdir():
         assert stat.S_IMODE(path.stat().st_mode) == 0o600

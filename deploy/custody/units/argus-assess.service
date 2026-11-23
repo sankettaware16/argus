@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS assess (Phase 2: proposed outcomes; custody layout, Q-A5)
+Description=ARGUS assess: proposed outcomes (custody layout)
 After=network-online.target docker.service
 Wants=network-online.target
 StartLimitIntervalSec=0

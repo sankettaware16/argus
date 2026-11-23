@@ -1,6 +1,8 @@
 """The documentation's screenshots (D-329), from a demo installation, never from production:
 ``argus web`` as a process on a throwaway database seeded by ``demo_world`` (synthetic, neutral
-data), each page captured at 1440 x 900 into ``docs/images/screenshots/``.
+data), each page captured at 1440 x 900 into ``docs/images/screenshots/``. The demo's
+organisation is a company in another zone than the suite's (``DEMO``), so the pictures show the
+words a site gives, not the first site's (D-338).
 
 Opt-in: ``ARGUS_SCREENSHOTS=1 uv run pytest -q tests/integration/web/test_screenshots.py``.
 """
@@ -15,8 +17,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from argus import site
 from argus.cases import signing
 from argus.web import queries
 from tests.integration.grouping.test_grouping import ingest
@@ -33,6 +37,33 @@ pytestmark = [
                        reason="screenshots are made on request: ARGUS_SCREENSHOTS=1"),
 ]  # fmt: skip
 ROOT = Path(__file__).resolve().parents[3]
+ZONE = "Europe/Amsterdam"
+# what the demo's site says differently from the suite's (tests/fixtures/site.yaml); its
+# ``own_network_noun`` is left out: the shipped "your network"
+DEMO: dict[str, Any] = {
+    "organisation": {
+        "name": "Northwind Logistics",
+        "short_name": "Northwind SOC",
+        "kind": "company",
+        "units": "depot, office or team",
+        "reviewers": "security analysts",
+    },
+    "own_domains": ["northwind.example"],
+    "incident_id_prefix": "NW-IR",
+    "timezone": ZONE,
+    "timezone_label": "CET",
+}
+
+
+def demo_site() -> dict[str, Any]:
+    """The suite's site file with the demo's organisation in it."""
+    fixtures = Path(__file__).resolve().parents[2] / "fixtures"
+    data: dict[str, Any] = yaml.safe_load((fixtures / "site.yaml").read_text(encoding="utf-8"))
+    data["site"].update(DEMO)
+    data["site"].pop("own_network_noun", None)
+    return data
+
+
 OUT = ROOT / "docs" / "images" / "screenshots"
 VIEW = {"width": 1440, "height": 900}
 
@@ -48,26 +79,30 @@ async def live(
 ) -> AsyncIterator[Live]:
     from tests.conftest import suite_checkout
 
-    now = datetime.now(UTC).replace(microsecond=0)
-    await demo.add_people(app_engine)
-    await ingest(app_engine, demo.demo_docs(now), now)
-    async with app_engine.connect() as conn:
-        found = await queries.inbox(conn, "all", limit=500, sort="oldest")
-    key = signing.new_key()
-    path = tmp_path / "approval.key"
-    signing.write_key(path, key)
-    world = World(app_engine, web_engine, [i.id for i in found], path, migrated_engine)
-    await demo.plant_dossiers(app_engine, now)
-    await demo.raise_flags(migrated_engine, now)
-    print("engine:", await demo.run_engine(app_engine, now))
-    await demo.work_the_cases(app_engine, now)
-    await demo.health_state(migrated_engine, now)
+    data = demo_site()
     root = suite_checkout(tmp_path / "checkout")
-    await demo.reports(app_engine, root, now)
-    await demo.admin_state(migrated_engine, root, now)
-    login = await make_api_login()
-    async for server in start_server(world, test_database, login, tmp_path):
-        yield server
+    (root / "config" / "site.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+    now = datetime.now(UTC).replace(microsecond=0)
+    with site.using(site.SiteSettings.model_validate(data["site"])):
+        await demo.add_people(app_engine)
+        await ingest(app_engine, demo.demo_docs(now), now)
+        async with app_engine.connect() as conn:
+            found = await queries.inbox(conn, "all", limit=500, sort="oldest")
+        key = signing.new_key()
+        path = tmp_path / "approval.key"
+        signing.write_key(path, key)
+        world = World(app_engine, web_engine, [i.id for i in found], path, migrated_engine)
+        await demo.plant_dossiers(app_engine, now)
+        await demo.raise_flags(migrated_engine, now)
+        print("engine:", await demo.run_engine(app_engine, now))
+        await demo.work_the_cases(app_engine, now)
+        await demo.health_state(migrated_engine, now)
+        await demo.reports(app_engine, root, now)
+        await demo.admin_state(migrated_engine, root, now)
+        login = await make_api_login()
+        config = root / "config" / "argus.yaml"
+        async for server in start_server(world, test_database, login, tmp_path, config=config):
+            yield server
 
 
 MAX_BYTES = 400_000
@@ -116,14 +151,15 @@ async def setup_chapters(page: Any, app: str) -> None:
     await page.get_by_role("button", name="Begin").wait_for()
     await shoot(page, "setup-start")
     await page.get_by_role("button", name="Begin").click()
-    await page.get_by_label("Organisation name").fill("Example University")
-    await page.get_by_label("Security team's name").fill("Example CSIRT")
-    await page.get_by_label("What kind of organisation").fill("university")
-    await page.get_by_role("textbox", name="Your own domains, row 1").fill("example.edu")
+    organisation = DEMO["organisation"]
+    await page.get_by_label("Organisation name").fill(organisation["name"])
+    await page.get_by_label("Security team's name").fill(organisation["short_name"])
+    await page.get_by_label("What kind of organisation").fill(organisation["kind"])
+    await page.get_by_role("textbox", name="Your own domains, row 1").fill(DEMO["own_domains"][0])
     await page.get_by_role("textbox", name="Your public networks, row 1").fill("198.51.100.0/24")
-    await page.get_by_label("Time zone").fill("Asia/Kolkata")
-    await page.get_by_label("Short label for it").fill("IST")
-    await page.get_by_label("Incident id prefix").fill("CSIRT-IR")
+    await page.get_by_label("Time zone").fill(ZONE)
+    await page.get_by_label("Short label for it").fill(DEMO["timezone_label"])
+    await page.get_by_label("Incident id prefix").fill(DEMO["incident_id_prefix"])
     await page.evaluate("() => window.scrollTo(0, 0)")
     await page.wait_for_timeout(700)
     await shoot(page, "setup-organisation")
@@ -169,7 +205,7 @@ async def signed_in(play: Any, url: str, scheme: str, scale: int,
                     user: str = "asha") -> tuple[Any, Any, Watch]:  # fmt: skip
     browser, context = await open_context(play, "chromium", viewport=VIEW,
                                           device_scale_factor=scale, color_scheme=scheme,
-                                          timezone_id="Asia/Kolkata")  # fmt: skip
+                                          timezone_id=ZONE)  # fmt: skip
     page = await context.new_page()
     page.set_default_timeout(60_000)
     watch = Watch()
@@ -215,6 +251,18 @@ async def test_the_screenshots(live: Live) -> None:
         await visit(page, f"{app}/incidents/{waiting[0].id}", "incident")
         await visit(page, f"{app}/alert-groups/{group[0].id}", "investigation")
         await report_page(page, f"{url}/api/v1/cases/{confirmed[0].id}/report/files/report.pdf")
+        await visit(page, f"{app}/alerts", "alerts")
+        await page.goto(f"{app}/dashboards")
+        chart = page.locator("[data-testid=columns] svg")
+        await chart.wait_for()
+        await page.wait_for_load_state("networkidle")
+        box = await chart.bounding_box()
+        assert box is not None
+        await page.mouse.move(box["x"] + box["width"] * 0.62, box["y"] + 90)  # a readout shows
+        await page.wait_for_timeout(500)
+        await page.screenshot(path=str(OUT / "dashboards.png"))
+        fit(OUT / "dashboards.png")
+        await visit(page, f"{app}/dashboards?d=detections", "dashboards-detections")
         await visit(page, f"{app}/search?q=203.0.113.45", "search")
         await visit(page, f"{app}/reports", "reports")
         await visit(page, f"{app}/settings?section=siem", "settings")

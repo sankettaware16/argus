@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS checking lane pass every 10 minutes (P4-F E3, D-323)
+Description=ARGUS checking lane pass every 10 minutes
 
 [Timer]
 OnBootSec=7min

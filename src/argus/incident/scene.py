@@ -39,7 +39,7 @@ class Context:
     active_days: int = 3  # activity within this many days is "still going on"
     quiet_days: int = 14  # no activity this long: ARGUS proposes "stopped after notice"
     signins: Reading | None = None  # how the SSO sign-ins of the case's devices are read
-    campus_domains: tuple[str, ...] = ()  # a site under one of these is an internal web site
+    own_domains: tuple[str, ...] = ()  # a site under one of these is an internal web site
 
 
 def is_ip(value: str) -> bool:
@@ -59,12 +59,12 @@ def private(value: str) -> bool:
     return any(address.version == n.version and address in n for n in _INTERNAL)
 
 
-def campus(value: str, classifier: IpClassifier | None) -> bool:
+def ours(value: str, classifier: IpClassifier | None) -> bool:
     """Whether ``value`` is an internal address (the asset map's, an internal prefix or private
     space)."""
     if classifier is not None:
         kind = classifier.classify(value).ip_class
-        return kind in (IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL)
+        return kind in (IpClass.ASSET, IpClass.OWN, IpClass.INTERNAL)
     return private(value)
 
 
@@ -136,8 +136,8 @@ class Scene:
             last=last,
             alerts=f.alerts_total or sum(x.alerts for x in f.members),
             standing=standing(last, ctx),
-            devices=sorted({i.value for i in actors if campus(i.value, ctx.classifier)}),
-            outsiders=sorted({i.value for i in actors if not campus(i.value, ctx.classifier)}),
+            devices=sorted({i.value for i in actors if ours(i.value, ctx.classifier)}),
+            outsiders=sorted({i.value for i in actors if not ours(i.value, ctx.classifier)}),
             servers=sorted({i.value for i in f.indicators if i.role == "c2"}),
             members={x.id: x for x in f.members},
             entity_of=entity_of,

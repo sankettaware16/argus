@@ -36,6 +36,7 @@ export const SECTION_CHECKS: Record<string, { target: string; label: string }[]>
     { target: "outside:shodan", label: "Test Shodan" },
     { target: "outside:censys", label: "Test Censys" },
   ],
+  directory: [{ target: "directory", label: "Check the saved session" }],
 };
 
 /** The setting's label for a key, from every loaded section (the key itself when it is unknown). */

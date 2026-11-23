@@ -1,5 +1,5 @@
 # The incident engine v2 (P4-F E1, docs/p4f-plan.md §5): how alert groups and evidence facts
-# become scored observations on campus objects, and which lanes make a possible incident.
+# become scored observations on internal objects, and which lanes make a possible incident.
 # It runs in shadow (its own tables; the queue, the suggester and the raises are unchanged).
 # Every value here is generic: a severity, a dossier signal, an ATT&CK stage. No rule is named.
 # Thresholds are changed by a person only (the monthly calibration report); unknown keys are
@@ -36,18 +36,18 @@ evidence:
   - {kind: beacon, signals: {proxy.regularity: {below: 0.3}, pair.period_s: positive}, base: 15,
      stage: foothold}
   - {kind: ports, signals: {ports.risky: positive}, base: 10, stage: foothold}
-  # a destination no other campus device reaches (the dossier's count, or the checking lane's
+  # a destination no other internal device reaches (the dossier's count, or the checking lane's
   # proxy.contact count of the day)
   - {kind: rare_dest, signals: {proxy.hosts_to_destination: {at_most: 1},
      contact.hosts: {at_most: 1}}, base: 10}
-  # Inbound exposure (E3): what the checking lane verified for an outside address on a campus
+  # Inbound exposure (E3): what the checking lane verified for an outside address on an own
   # site: a sensitive file really served (not the site's soft-404 page), many files taken under
   # one sensitive prefix, or rare paths that got through for it and for another address.
   - {kind: served, signals: {exposure.served: positive}, base: 35, stage: actions}
   - {kind: bulk_take, signals: {exposure.bulk_take: positive}, base: 35, stage: actions}
   - {kind: shared_paths, signals: {exposure.shared_paths: positive}, base: 25, stage: access}
 
-# Distinct days on one rare outside destination (reached by few campus objects in the window).
+# Distinct days on one rare outside destination (reached by few internal objects in the window).
 persistence: {base: 15, stage: foothold, days: 3, window_days: 7, max_reach: 6}
 
 # A threat-intel feed is fresh when its newest indicator is this recent.
@@ -70,7 +70,7 @@ probation: {days: 7, factor: 0.5, reach: 10}
 # step, up to `cap` families.
 families: {step: 0.5, cap: 3}
 
-# Lanes (on campus objects that act: devices and accounts). L1 decisive: a source at least
+# Lanes (on internal objects that act: devices and accounts). L1 decisive: a source at least
 # `base` (a critical rule), or a strong evidence kind with at least `with_sources` sources in
 # 24 h. L2 burst: the 24 h score and sources. L3 slow: the 7 d score, active days, and two
 # families, two matched stages or a strong source (a fact adds a stage only outside its own alert
@@ -92,7 +92,7 @@ max_actors: 64
 max_threats: 50
 digest_samples: 5
 
-# L5 exposure (E3): for an inbound attack the campus site is the thing at risk and the outside
+# L5 exposure (E3): for an inbound attack the own site is the thing at risk and the outside
 # address a threat. A site is in the lane with one of `lane_kinds` (a verified served file, a
 # bulk take, rare paths shared by two outside addresses that got through); plain scanning stays
 # in the digest. The checking lane (`argus risk check`, gateway lane `checking`: NORMAL only,
@@ -127,7 +127,7 @@ exposure:
 # The engine's own evidence for its outbound incidents (D-323): on the checking lane, for each
 # presented incident of `bands` (top band first, newest material version first), once a material
 # version: the device's timing to its destination (proxy.pair over `pair_hours`), how many
-# campus devices reached that destination that day (proxy.contact) and, with no outside address
+# internal devices reached that destination that day (proxy.contact) and, with no outside address
 # to time, the device's lookups (dns.host_domains). Only the templates enrichment.templates
 # switches on are asked. Sized on the measured costs (a proxy aggregation: p95 about 0.9 s,
 # 3.9 s at most): 10-20 incidents a day at two or three checks each fit `day_requests`, and even

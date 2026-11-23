@@ -39,43 +39,54 @@ class Role(StrEnum):
 # ``units.run`` (config/local.yaml): enabling an OFF unit is a production step, and the step
 # adds it there.
 MANIFEST: dict[str, tuple[Role, str]] = {
-    "argus-collector.service": (Role.RUN, "the collector (R5)"),
-    "argus-worker.service": (Role.RUN, "the context worker (R8)"),
-    "argus-web.service": (Role.RUN, "the web (R7, D-104)"),
-    "argus-assess.service": (Role.RUN, "the assessments (Phase 2)"),
-    "argus-admin.service": (Role.RUN, "applies the settings changed in the app (P4-H, D-327)"),
-    "argus-soak-sample.timer": (Role.CHOICE, "the soak samples (D-092)"),
+    "argus-collector.service": (Role.RUN, "the collector: the SIEM's alerts into ARGUS"),
+    "argus-worker.service": (Role.RUN, "the worker: evidence for each investigation"),
+    "argus-web.service": (Role.RUN, "the web app"),
+    "argus-assess.service": (
+        Role.RUN,
+        "the assessments: the decision engine and the AI investigator",
+    ),
+    "argus-admin.service": (Role.RUN, "applies the settings changed in the app"),
+    "argus-soak-sample.timer": (Role.CHOICE, "the soak samples"),
     "argus-soak-sample.service": (Role.TRIGGERED, "started by argus-soak-sample.timer"),
-    "argus-risk.timer": (Role.CHOICE, "the incident engine's pass (P4-F, D-317)"),
+    "argus-risk.timer": (Role.CHOICE, "the incident engine's pass"),
     "argus-risk.service": (Role.TRIGGERED, "started by argus-risk.timer"),
     "argus-risk-check.timer": (
         Role.CHOICE,
-        "the checking lane: exposure checks and the engine incidents' evidence (D-323)",
+        "the checking lane: exposure checks and the engine incidents' evidence",
     ),
     "argus-risk-check.service": (Role.TRIGGERED, "started by argus-risk-check.timer"),
-    "argus-backup.timer": (Role.SOON, "the nightly dump (Q-A2)"),
+    "argus-backup.timer": (Role.SOON, "the nightly dump"),
     "argus-backup.service": (Role.TRIGGERED, "started by argus-backup.timer"),
-    "argus-backup-drill.timer": (Role.SOON, "the weekly restore drill (Q-A2)"),
+    "argus-backup-drill.timer": (Role.SOON, "the weekly restore drill"),
     "argus-backup-drill.service": (Role.TRIGGERED, "started by argus-backup-drill.timer"),
-    "argus-purge.timer": (Role.OFF, "the retention purge (Q-A4): its schedule is the user's"),
+    "argus-purge.timer": (Role.OFF, "the retention purge: you choose its schedule"),
     "argus-purge.service": (Role.TRIGGERED, "started by argus-purge.timer"),
-    "argus-notices.timer": (Role.OFF, "notices (Q-H4): the user approves the relay and recipients"),
+    "argus-notices.timer": (
+        Role.OFF,
+        "e-mail notices: on once the relay and the recipients are set",
+    ),
     "argus-notices.service": (Role.TRIGGERED, "started by argus-notices.timer"),
     "argus-report-daily.timer": (
         Role.OFF,
-        "the daily report (Q-H3): on after the user has read two",
+        "the daily report: on once you have read two",
     ),
     "argus-report-daily.service": (Role.TRIGGERED, "started by argus-report-daily.timer"),
     "argus-report-weekly.timer": (
         Role.OFF,
-        "the weekly report (Q-H3): on after the user has read two",
+        "the weekly report: on once you have read two",
     ),
     "argus-report-weekly.service": (Role.TRIGGERED, "started by argus-report-weekly.timer"),
-    "argus-kibana-sync.service": (Role.CHOICE, "Kibana read-back and Verdict: comments (D-214)"),
-    "argus-case-team.timer": (Role.CHOICE, "the case team's posts to Kibana (AR8, D-214)"),
+    "argus-kibana-sync.service": (Role.CHOICE, "Kibana read-back and Verdict: comments"),
+    "argus-case-team.timer": (Role.CHOICE, "the case team's posts to Kibana"),
     "argus-case-team.service": (Role.TRIGGERED, "started by argus-case-team.timer"),
-    "argus-writer.service": (Role.OFF, "Kibana writes (Q-D4, Q-D5): each class's canary"),
-    "argus-soak-phase3.timer": (Role.OFF, "the soak gate, daily (P4-A1): on when the lead says"),
+    "argus-writeback.timer": (
+        Role.OFF,
+        "people's decisions as alert status in Kibana: after a person's first run",
+    ),
+    "argus-writeback.service": (Role.TRIGGERED, "started by argus-writeback.timer"),
+    "argus-writer.service": (Role.OFF, "Kibana writes: each kind after its own first, watched run"),
+    "argus-soak-phase3.timer": (Role.OFF, "the soak gate, daily"),
     "argus-soak-phase3.service": (Role.TRIGGERED, "started by argus-soak-phase3.timer"),
 }
 # What an installation runs when ``units.run`` is left out: ARGUS's four services.
@@ -275,7 +286,7 @@ def enabled_units(installed_dir: Path) -> set[str]:
     return names
 
 
-MOVED = "moved to its system unit (custody, Q-A5): the user unit stays off"
+MOVED = "moved to its system unit (custody): the user unit stays off"
 
 
 def unit_states(

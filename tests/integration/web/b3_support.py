@@ -56,13 +56,16 @@ class World:
         team: Any = None,
         signins: Any = None,
         switches_root: Path | None = None,
+        directory: Any = None,
+        sla: Any = None,
         **settings: Any,
     ) -> httpx.AsyncClient:
         key = self.key_file if signing else None
         web = WebSettings(approval_key_file=key, failure_delay_s=0, signin_delay_s=0, **settings)
         # the case team's switches file is read from the test's own folder, never the checkout's
         root = switches_root or self.key_file.parent
-        app = create_app(self.web, web, team=team, signins=signins, switches_root=root)
+        app = create_app(self.web, web, team=team, signins=signins, switches_root=root,
+                         directory=directory, sla=sla)  # fmt: skip
         transport = httpx.ASGITransport(app=app)
         return httpx.AsyncClient(transport=transport, base_url=BASE, headers=SAME_ORIGIN)
 
@@ -219,6 +222,8 @@ async def start_server(
     test_database: str,
     login: Any,
     tmp_path: Path,
+    *,
+    config: Path | None = None,
 ) -> AsyncIterator[Live]:
     import os
     import subprocess
@@ -241,7 +246,8 @@ async def start_server(
     )
     from tests.conftest import suite_config
 
-    env["ARGUS_CONFIG"] = str(suite_config())  # the suite's site, not this checkout's
+    # the suite's site, not this checkout's; ``config``: another made-up site's (the demo's)
+    env["ARGUS_CONFIG"] = str(config or suite_config())
     log = tempfile.TemporaryFile()  # noqa: SIM115 - closed below
     process = subprocess.Popen(  # noqa: S603, ASYNC220 - our own CLI, started once
         [str(BIN / "argus"), "web"], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=log

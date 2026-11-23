@@ -15,11 +15,12 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Any
 
+from argus import site
 from argus.llm import egress
 from argus.llm.detect import TOKEN
 from argus.llm.privacy import Privacy, Pseudonyms, Request, _parse_time, _Scrub
 
-FAKE_DOMAIN = "campus.example"
+FAKE_DOMAIN = "internal.example"
 CREDENTIAL = "[credential removed]"
 KINDS = {"ips": ("IP",), "hosts": ("HOST",), "users": ("USER", "EMAIL"), "sites": ("SITE",),
          "ids": ("MAC", "HASH", "ID")}  # fmt: skip
@@ -121,7 +122,7 @@ class Fakes(Pseudonyms):
                     v6 = False
                 if v6:
                     return f"fd00:fa:ce::{n:x}"
-                if "campus public" in legend:
+                if legend.startswith(site.a_own("public address")):  # the legend's own words
                     return f"203.0.113.{n % 254 + 1}"  # a documentation range
                 return f"10.{200 + n // 65536 % 50}.{n // 256 % 256}.{n % 256}"
             case "SITE":
@@ -176,8 +177,8 @@ class _AbsoluteTimes(_Scrub):
 def arm(privacy: Privacy, name: str) -> Privacy:
     if name not in ARMS:
         raise ValueError(f"unknown arm {name!r}; arms: {', '.join(ARMS)}")
-    variant = Privacy(privacy.policy, privacy.classifier, privacy.campus)
-    domains = privacy.campus.domains
+    variant = Privacy(privacy.policy, privacy.classifier, privacy.ours)
+    domains = privacy.ours.domains
     if name == "A-fake":
         variant.space = partial(Fakes, labels=ALL_FAKE, domains=domains)
         variant.scrub = _Plain
@@ -260,7 +261,7 @@ def _faked(base: Request, labels: frozenset[str], domains: tuple[str, ...]) -> F
         maps[item] = fakes
     text = TOKEN.sub(lambda m: swap.get(m.group(0), m.group(0)), base.text)
     return FakeRequest(
-        text, base.items, base.omitted, base.failed, base.truncated, base.campus, maps, base
+        text, base.items, base.omitted, base.failed, base.truncated, base.ours, maps, base
     )
 
 
@@ -269,5 +270,5 @@ def render(privacy: Privacy, name: str, bodies: list[Any], max_chars: int = 60_0
         raise ValueError(f"unknown arm {name!r}; arms: {', '.join(ARMS)}")
     if name in FAKE_ARMS:
         labels = ALL_FAKE if name == "A-fake" else frozenset(KINDS[name[2:]])
-        return _faked(privacy.request(bodies, max_chars), labels, privacy.campus.domains)
+        return _faked(privacy.request(bodies, max_chars), labels, privacy.ours.domains)
     return arm(privacy, name).request(bodies, max_chars)

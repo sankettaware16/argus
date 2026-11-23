@@ -16,12 +16,12 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from argus.evaluation import tasks
 from argus.evaluation.harness import Rate
 from argus.llm.compare import mcnemar
-from argus.llm.providers import HELPER_TASKS, NEVER_ON_CAMPUS
+from argus.llm.providers import HELPER_TASKS, NEVER_SELF_HOSTED
 
 # The robustness cases and what each must do.
 CASES: dict[str, str] = {
@@ -145,7 +145,7 @@ class Shadow(_Model):
 class Measures(_Model):
     provider: str
     model: str
-    trust: Literal["cloud", "campus"]
+    trust: Literal["cloud", "self_hosted"]
     licence: str | None = None
     promoted: dict[str, str] = {}
     hardening: dict[str, bool] | None = None
@@ -154,6 +154,12 @@ class Measures(_Model):
     injection: Injection | None = None  # the agent's
     tasks: dict[str, TaskRun] = {}
     shadow: dict[str, Shadow] = {}
+
+    @field_validator("trust", mode="before")
+    @classmethod
+    def _older_word(cls, value: object) -> object:
+        """Measures written before the site-neutral names say ``campus``."""
+        return "self_hosted" if value == "campus" else value
 
 
 class State(StrEnum):
@@ -220,7 +226,7 @@ def _setup(m: Measures) -> Rung:
 
 def robustness_rung(m: Measures, t: Thresholds = THRESHOLDS) -> Rung:
     if m.trust == "cloud":
-        return Rung("robustness", State.NA, ("a cloud provider: measured by Q-G1's tests",))
+        return Rung("robustness", State.NA, ("a cloud provider: measured by the gateway's tests",))
     if m.robustness is None:
         return _rung("robustness", [], [], "not measured: run `argus llm drill`")
     problems, facts = [], []
@@ -407,8 +413,8 @@ def _shadow(task: str, sh: Shadow | None, t: Thresholds) -> Rung:
 def judge(task: str, m: Measures, t: Thresholds = THRESHOLDS) -> Ladder:
     """How far ``m``'s model got on ``task``'s ladder."""
     promoted = m.promoted.get(task)
-    if task in NEVER_ON_CAMPUS:
-        why = "verdicts and tuning stay with the cloud and the floor in Phase 3 (plan §7.4)"
+    if task in NEVER_SELF_HOSTED:
+        why = "verdicts and tuning stay with the cloud and the floor in Phase 3"
         return Ladder(task, m.provider, m.model, (Rung("allowed", State.BARRED, (why,)),),
                       False, None)  # fmt: skip
     if task not in tasks.SPECS:
@@ -435,7 +441,7 @@ def judge(task: str, m: Measures, t: Thresholds = THRESHOLDS) -> Ladder:
     ]
     climbed = all(r.state in (State.PASS, State.NA) for r in rungs)
     if task not in HELPER_TASKS:
-        why = ("the cloud-outage fallback stays in shadow (DQ22 (ii)): it needs a measured"
+        why = ("the cloud-outage fallback stays in shadow: it needs a measured"
                " 32,768-token context and its own gate")  # fmt: skip
         rungs.append(Rung("decision", State.BARRED, (why,)))
     elif m.trust == "cloud":
@@ -451,7 +457,7 @@ def judge(task: str, m: Measures, t: Thresholds = THRESHOLDS) -> Ladder:
                 f" `promoted: {{{task}: D-NNN}}` and the task in `tasks`)" if climbed else
                 "not ready: the rungs above must pass first")  # fmt: skip
         rungs.append(Rung("decision", State.MISSING, (line,)))
-    ready = climbed and m.trust == "campus" and task in HELPER_TASKS
+    ready = climbed and m.trust == "self_hosted" and task in HELPER_TASKS
     return Ladder(task, m.provider, m.model, tuple(rungs), ready, promoted)
 
 

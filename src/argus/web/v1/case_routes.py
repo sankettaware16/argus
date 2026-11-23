@@ -578,7 +578,7 @@ def install(
                     type=e.type,  # type: ignore[arg-type]
                     value=e.value, evidence=e.evidence, engines_flagging=e.flagging,
                     engines_total=e.engines, owner=e.owner, registered=e.registered,
-                    first_seen_on_campus=e.first_seen, campus_devices=e.devices,
+                    first_seen_on_own_network=e.first_seen, own_devices=e.devices,
                     evidence_checked=e.checked,
                 )
                 for e in found.entries

@@ -20,7 +20,7 @@ function weekStart(d: Date): number {
   return day - monday;
 }
 
-/** This week, Last week or Earlier, in IST weeks that start on Monday (§11). */
+/** This week, Last week or Earlier, in weeks of the site's zone that start on Monday (§11). */
 export function weekOf(d: Date, now: Date): Week {
   const diff = weekStart(now) - weekStart(d);
   return diff <= 0 ? "This week" : diff === 7 ? "Last week" : "Earlier";

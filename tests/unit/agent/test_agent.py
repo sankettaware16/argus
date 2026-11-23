@@ -272,7 +272,7 @@ async def test_an_item_that_cannot_be_sent_is_no_decision(
 ) -> None:
     from argus.llm.privacy import Request
 
-    failed = Request("", (), (), ("I1",), (), privacy.campus)
+    failed = Request("", (), (), ("I1",), (), privacy.ours)
     monkeypatch.setattr(privacy, "request", lambda bodies, max_chars=60_000: failed)
     model = Model(say())
     got = await run(agent(privacy, model))

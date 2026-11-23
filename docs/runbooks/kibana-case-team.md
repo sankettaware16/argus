@@ -26,7 +26,7 @@ Confirm and approval in `/app`. Stop: `ARGUS_CASE_TEAM__POST=false` in `local/ar
 | `argus-reporter` | the PDF, the one-page dashboard PDF (AR10) and the two CSVs in the Files tab, then the comment listing them | `REPORTER_API_KEY` |
 
 The order is fixed: lead opens, the alerts (100 a call, D-235), evidence, the visualiser's glance,
-devices (campus devices, or for outside addresses the campus targets and the outside actors:
+devices (internal devices, or for outside addresses the own targets and the outside actors:
 D-240), intel if needed, responder, hunter, reporter's four files and its comment, the lead's
 verdict last. It ends: **"ARGUS's verdict: true positive (0.8). ... Confirm or reject in a
 comment."** Only `argus-lead` opens a case or touches alerts, only `argus-reporter` uploads a file
@@ -172,7 +172,7 @@ its packages are installed (`tests/kibana_markdown/README.md`; otherwise the tes
 **The comment "Incident at a glance"** (`argus-visualiser`) has a plain **numbers row** (alerts, actors,
 targets, indicators on the local threat lists, first and last alert in IST, rules), which always renders,
 and up to four **live Kibana charts** (`!{lens{...}}` blocks, each on its own line): alerts over time stacked
-by rule, the top actors, the targets (campus sites or the servers reached) and a table of the rules. Every
+by rule, the top actors, the targets (own sites or the servers reached) and a table of the rules. Every
 chart is over the alerts tagged with the incident ID only (a phrase filter on `kibana.alert.workflow_tags`
 over `.alerts-security.alerts-<space>`, as a self-contained ad hoc data view; the time range runs from the
 first alert minus 1 hour to the last plus 1 hour). No name of a person is in it. If Kibana does not draw a

@@ -14,7 +14,7 @@ from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.llm.gateway import NoCapacity
 from argus.tuning import advise, report, store
 
-tune_app = typer.Typer(no_args_is_help=True, help="Rule tuning: weekly reports (Phase 2).")
+tune_app = typer.Typer(no_args_is_help=True, help="Rule tuning: weekly reports.")
 
 
 def _run[T](work: Coroutine[Any, Any, T]) -> T:

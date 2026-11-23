@@ -31,6 +31,7 @@ from argus.web import (
     dashboard,
     lookups,
     patternsummary,
+    performance,
     queries,
     queuepage,
     security,
@@ -53,6 +54,7 @@ from argus.web.v1 import (  # UI v2's additions (spec §2.3), the engine's (P4-F
     work_routes,
 )
 from argus.web.v1 import models as m
+from argus.web.v1 import perf_models as pm
 from argus.web.v1 import queue_models as qm
 
 PREFIX = "/api/v1"
@@ -159,6 +161,7 @@ def build(
             step_up_valid_until=None if stepped is None else stepped + STEP_UP_VALID,
             since=me.previous_seen_at, site=site_out(),
             setup_pending=await admin_routes.setup_pending(conn),
+            directory=entity_routes.directory_label(request, me),
         )  # fmt: skip
 
     @router.delete("/session", tags=["session"], operation_id="endSession", status_code=204,
@@ -183,32 +186,44 @@ def build(
         rule: Annotated[str | None, Query(max_length=200, pattern=CLEAN)] = None,
         kind: m.EntityKind | None = None,
         value: Annotated[str | None, Query(max_length=300, pattern=CLEAN)] = None,
+        incident: Annotated[
+            Literal["in", "none"] | None,
+            Query(description="only alert groups that belong to an incident, or to none"),
+        ] = None,
         offset: Annotated[int, Query(ge=0, le=queries.DEEPEST, description=OFFSET_HELP)] = 0,
         limit: Annotated[int, Query(ge=1, le=queries.PAGE)] = queries.PAGE,
     ) -> m.InvestigationPage:
         """The Inbox: a view (attention, open, reviewed, all), optionally one rule or one
-        entity (kind and value together). Without ``sort``: newest alert first, and the
-        reviewed view by newest decision (the classic Inbox's order, D-095). ``sort=queue`` is
+        entity (kind and value together), optionally only the alert groups that belong to an
+        incident or to none. Each row names the incident it belongs to (``case``). Without
+        ``sort``: newest alert first, and the reviewed view by newest decision (the classic
+        Inbox's order, D-095). ``sort=queue`` is
         the order Home's queue walks: changed since a notice, then raised by ARGUS's evidence,
         then a follow-up, then the rule's severity, then the last alert (AR4 review, D-186).
         Pages reach 10,000 investigations deep at most: past that, narrow the list (a view, a
         rule, an entity) or turn the sort around."""
         order = sort or ("reviewed" if view == "reviewed" else "newest")
         entity = (kind, value) if kind is not None and value is not None else None
-        found = await queries.inbox(conn, view, rule=rule, entity=entity, offset=offset,
-                                    limit=limit + 1, sort=order)  # fmt: skip
+        found = await queries.inbox(
+            conn, view, rule=rule, entity=entity, offset=offset, limit=limit + 1, sort=order,
+            in_case=None if incident is None else incident == "in",
+        )  # fmt: skip
         page = found[:limit]
         ai = await assessed.verdicts(conn, [s.id for s in page])
+        cases = await lookups.case_by_group(conn, [s.id for s in page])
         return m.InvestigationPage(
-            items=[views.investigation(s, ai.get(s.id)) for s in page], view=view, sort=order,
-            offset=offset, limit=limit, has_more=len(found) > limit,
+            items=[
+                views.investigation(s, ai.get(s.id)).model_copy(update={"case": cases.get(s.id)})
+                for s in page
+            ],
+            view=view, sort=order, offset=offset, limit=limit, has_more=len(found) > limit,
         )  # fmt: skip
 
     @router.get("/queue", tags=["investigations"], operation_id="getQueue", responses=READ)
     async def get_queue(request: Request, me: Viewer, conn: Conn) -> qm.QueueOut:
         """What needs a person, in order (AR4): ARGUS's open cases that need one (suggested
         cases and cases with a change since the owner was told first), each with its verdict or
-        reading, its campus devices and its outside addresses (apart) and why it is here; then
+        reading, its internal devices and its outside addresses (apart) and why it is here; then
         the single investigations in Needs attention that belong to no case; and the order the
         app's "Next" walks through them. The patterns to close are ``/patterns``; the numbers of
         new and known work are ``/counts``."""
@@ -521,7 +536,7 @@ def build(
         me: Viewer,
         conn: Conn,
         pattern: Annotated[str, Query(pattern=r"^[0-9a-f]{64}$", description="the pattern's hash")],
-        day: Annotated[date, Query(description="its IST day")],
+        day: Annotated[date, Query(description="its day, in the site's time zone")],
     ) -> m.PatternCloseOut:
         """The members closing one pattern names, read now: the investigations ARGUS has a
         proposal for (at most 200), each with its version and latest review, to send to
@@ -658,6 +673,19 @@ def build(
         """Whether the most urgent open investigations of the dashboard's span are on a threat
         list, from their dossiers: out of date or unchecked is said, never shown as clear."""
         return views.threat_tile(await dashboard.threat_lists(conn, filters, clock()))
+
+    @router.get("/performance", tags=["dashboard"], operation_id="getPerformance",
+                responses=READ)  # fmt: skip
+    async def get_performance(
+        request: Request, me: Viewer, conn: Conn, range: dashboard.RangeName = "7d"
+    ) -> pm.PerformanceOut:
+        """How fast alerts became decisions (D-340): for the incidents raised in the span, the
+        time to detect, to a person's first decision and to close, each against the site's
+        targets by priority (``sla.*``), and what is past its target now."""
+        now = clock()
+        start, end = performance.span_of(range, now)
+        incidents = await performance.read(conn, start, end)
+        return pm.out(performance.build(incidents, start, end, now, request.app.state.sla))
 
     @router.get("/since", tags=["session"], operation_id="getSince", responses=READ)
     async def get_since(me: Viewer, conn: Conn) -> m.SinceOut:

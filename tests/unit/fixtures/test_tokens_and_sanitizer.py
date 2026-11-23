@@ -17,7 +17,7 @@ from argus.fixtures.tokens import DomainMapper
 KEY = b"k" * 32
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=("campus.example.edu",),
+    own_domains=("campus.example.edu",),
     keep_domains=("vendor-cdn.com",),
     literals={"Campus University": "Example University", "CU": "EU"},
     fields={

@@ -29,7 +29,7 @@ from argus.context.evidence import COMPLETE
 from argus.context.packs import PackRegistry, TaskSpec
 from argus.evaluation.harness import BENIGN
 from argus.llm import budget
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.egress import QUOTED
 from argus.llm.gateway import Call, Completion, NoCapacity, Refused
 from argus.llm.privacy import Privacy, Request
@@ -568,7 +568,7 @@ class Agent:
                 continue
             if isinstance(spec, catalogue.OutsideAsk):
                 done[key] = await self._outside_lookup(
-                    spec, ask.tool, value, by, body, trace, found, request.campus
+                    spec, ask.tool, value, by, body, trace, found, request.ours
                 )
                 continue
             if spec.template.name in complete:
@@ -614,7 +614,7 @@ class Agent:
         body: Mapping[str, Any],
         trace: Trace,
         found: list[dict[str, Any]],
-        campus: Campus,
+        ours: OwnSpace,
     ) -> str:
         """An ``outside.*`` ask: one check per source tried, a fact for each answer. Returns what
         happened, for the history the model is shown. A source answers once per indicator in the
@@ -635,7 +635,7 @@ class Agent:
             if len(trace.tools) >= self.limits.tools:
                 break
             got = await self.outside.lookup(source, spec.kind, spec.value, purpose="agent",
-                                            campus=campus)  # fmt: skip
+                                            ours=ours)  # fmt: skip
             trace.tools.append(f"{tool}: {got.status}")
             entry = got.fact(self.outside.threshold)
             if entry is not None:

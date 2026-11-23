@@ -1,7 +1,7 @@
 /**
  * What a "Check more" entity may be, as far as the page can tell before asking: an address or a
  * domain (the patterns below allow printable ASCII only). The server is the judge (it also knows
- * which addresses are the campus's and which the rule's logs allow); this only spares a person a
+ * which addresses are the organisation's and which the rule's logs allow); this only spares a person a
  * round trip for a value that could never be asked about. Mirrors
  * argus.investigation.checks.clean. Pure.
  */

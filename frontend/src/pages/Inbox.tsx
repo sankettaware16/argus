@@ -38,10 +38,10 @@ function Views({ search }: { search: InboxSearch }) {
             to="/search"
             search={{ advanced: "1", view }}
             aria-current={search.view === view ? "page" : undefined}
-            className="inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-sm text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg"
+            className="group inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-sm text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg"
           >
             {VIEW_TITLES[view]}
-            <span className="text-xs text-muted tabular-nums">{number(view)}</span>
+            <span className="text-xs text-muted tabular-nums group-aria-[current=page]:text-bg">{number(view)}</span>
           </Link>
         ))}
       </nav>

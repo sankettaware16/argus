@@ -17,7 +17,7 @@ from argus.web.v1.routes import PREFIX
 VERSION = "1.0.0"
 TITLE = "ARGUS API"
 DESCRIPTION = """\
-The typed API of ARGUS's web app (Phase 3, Q-A1).
+The typed API of ARGUS's web app.
 
 **Signing in** happens only on the server-rendered page `/signin` (and confirming it is you,
 before an approval, on `/stepup`): no password ever passes through this API. A session is an
@@ -38,8 +38,9 @@ time without a request of the person's own, and at its absolute end whatever hap
 `/signin?next=<the app's path>`; on 403 `csrf` read the session again once; on 409 `conflict`
 read the thing again; 429 and 503 are said plainly and never retried by the client.
 
-**Words** (DQ23): an *investigation* is one rule, one actor and one IST day; a *case* is one
-real problem across days, hosts and rules; an *incident* is a case a person confirmed.
+**Words**: an *investigation* is one rule, one actor and one day in the site's time
+zone; a *case* is one real problem across days, hosts and rules; an *incident* is a case a
+person confirmed.
 """
 TAGS = [
     {"name": "session", "description": "Who is signed in; signing out."},

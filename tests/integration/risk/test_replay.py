@@ -27,7 +27,7 @@ async def load(engine: AsyncEngine, mode: str) -> replay.Loaded:
     async with engine.connect() as conn:
         return await replay.load(
             conn, start=START, end=NOW, mode=mode, config=s.config, classifier=s.classifier,
-            families=profile.families, campus_domains=profile.own_domains,
+            families=profile.families, own_domains=profile.own_domains,
             feed_modes=run.feed_modes(profile.ti_sources), shared=NO_SHARED, answers=None,
         )  # fmt: skip
 

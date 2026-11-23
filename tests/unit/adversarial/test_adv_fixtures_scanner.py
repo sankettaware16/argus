@@ -81,7 +81,7 @@ class Env:
     def policy(self, **override: Any) -> None:
         data: dict[str, Any] = {
             "site_prefixes": [SITE],
-            "campus_domains": ["campus.example.edu"],
+            "own_domains": ["campus.example.edu"],
             "keep_domains": ["example.org", "github.com"],
             "literals": {"Campus University": "Example University"},
             "fields": {

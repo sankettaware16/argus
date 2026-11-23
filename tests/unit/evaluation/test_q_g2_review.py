@@ -298,7 +298,7 @@ def test_f4b_shortened_indicators_are_invented() -> None:
 
 
 def gold_rung(gold: ladder.Gold) -> ladder.Rung:
-    m = ladder.Measures(provider="local", model="m", trust="campus", gold=gold)
+    m = ladder.Measures(provider="local", model="m", trust="self_hosted", gold=gold)
     return ladder._gold(m, ladder.THRESHOLDS)
 
 

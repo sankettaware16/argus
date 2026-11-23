@@ -1078,15 +1078,41 @@ export type BacklogOut = {
 };
 
 /**
+ * BandOut
+ *
+ * One priority: what was raised in the span, its two targets and how each was kept.
+ */
+export type BandOut = {
+    /**
+     * Band
+     */
+    band: 'P1' | 'P2' | 'P3' | 'P4';
+    /**
+     * Raised
+     */
+    raised: number;
+    resolve: KeptOut;
+    /**
+     * Resolve Target S
+     */
+    resolve_target_s: number;
+    triage: KeptOut;
+    /**
+     * Triage Median S
+     */
+    triage_median_s: number | null;
+    /**
+     * Triage Target S
+     */
+    triage_target_s: number;
+};
+
+/**
  * BlockEntryOut
  *
  * One thing to block, with the outside evidence ARGUS holds for it.
  */
 export type BlockEntryOut = {
-    /**
-     * Campus Devices
-     */
-    campus_devices: number;
     /**
      * Engines Flagging
      */
@@ -1104,9 +1130,13 @@ export type BlockEntryOut = {
      */
     evidence_checked: string | null;
     /**
-     * First Seen On Campus
+     * First Seen On Own Network
      */
-    first_seen_on_campus: string | null;
+    first_seen_on_own_network: string | null;
+    /**
+     * Own Devices
+     */
+    own_devices: number;
     /**
      * Owner
      */
@@ -2883,6 +2913,75 @@ export type DecisionRecordOut = {
 };
 
 /**
+ * DirectoryLineOut
+ */
+export type DirectoryLineOut = {
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * DirectoryOut
+ *
+ * One account in the site's directory (D-337). ``outcome``: ``found``; ``not_found`` (the
+ * directory has no such account); ``expired`` (the directory no longer accepts the saved
+ * session: an administrator saves a new one in Settings); ``error`` (no answer). ``person``
+ * is set when found; ``described`` is what the account's name alone says, whatever the
+ * outcome.
+ */
+export type DirectoryOut = {
+    /**
+     * Account
+     */
+    account: string;
+    described: DirectoryPersonOut | null;
+    /**
+     * Directory
+     */
+    directory: string;
+    /**
+     * Outcome
+     */
+    outcome: 'found' | 'not_found' | 'expired' | 'error';
+    person: DirectoryPersonOut | null;
+    /**
+     * Why
+     */
+    why: string | null;
+};
+
+/**
+ * DirectoryPersonOut
+ *
+ * What the site's account directory says of an account. ``name`` is None in what the
+ * account's name alone says (no request was made, or it failed).
+ */
+export type DirectoryPersonOut = {
+    /**
+     * Department
+     */
+    department: string | null;
+    /**
+     * Details
+     */
+    details: Array<DirectoryLineOut>;
+    /**
+     * Kind
+     */
+    kind: string | null;
+    /**
+     * Name
+     */
+    name: string | null;
+};
+
+/**
  * DismissChoiceOut
  */
 export type DismissChoiceOut = {
@@ -3202,7 +3301,7 @@ export type EntityOut = {
 /**
  * EntityPageOut
  *
- * What ARGUS knows of a device, account, campus site or outside address: its incidents, its
+ * What ARGUS knows of a device, account, own site or outside address: its incidents, its
  * alert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps
  * alert detail (it keeps every incident and decision).
  */
@@ -4618,6 +4717,7 @@ export type InvestigationOut = {
      * Bucket Start
      */
     bucket_start: string;
+    case?: InCaseOut | null;
     /**
      * Continues Id
      */
@@ -4797,6 +4897,32 @@ export type JobOut = {
      * State
      */
     state: 'pending' | 'running' | 'done' | 'failed';
+};
+
+/**
+ * KeptOut
+ *
+ * How a target was kept. ``met`` and ``missed`` are settled (an incident still waiting past
+ * its target is missed already); ``pending`` still has time. ``share``: met of those settled,
+ * 0 to 1, or null with nothing settled.
+ */
+export type KeptOut = {
+    /**
+     * Met
+     */
+    met: number;
+    /**
+     * Missed
+     */
+    missed: number;
+    /**
+     * Pending
+     */
+    pending: number;
+    /**
+     * Share
+     */
+    share: number | null;
 };
 
 /**
@@ -5469,10 +5595,51 @@ export type OutcomeCountOut = {
 };
 
 /**
+ * OverdueOut
+ *
+ * An incident past its target now: undecided past its time to a first decision
+ * (``triage``), or confirmed and not closed past its time to close (``resolve``).
+ */
+export type OverdueOut = {
+    /**
+     * Band
+     */
+    band: 'P1' | 'P2' | 'P3' | 'P4';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'triage' | 'resolve';
+    /**
+     * Number
+     */
+    number: number;
+    /**
+     * State
+     */
+    state: 'suspected' | 'open' | 'assigned' | 'contained';
+    /**
+     * Target S
+     */
+    target_s: number;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Waited S
+     */
+    waited_s: number;
+};
+
+/**
  * PatternBriefOut
  *
  * A pattern ARGUS recommends closing, as Home shows it (AR4 review, D-186): the investigations
- * one run of the AI investigator stands for on an IST day, counted now (not reviewed, not a
+ * one run of the AI investigator stands for on a site day, counted now (not reviewed, not a
  * known infection's). ``covered`` of ``investigations`` have a proposal; the rest have none yet
  * and are left out of a close. Real totals: no dossier is read and nothing is sampled.
  */
@@ -5733,6 +5900,64 @@ export type PatternSummaryOut = {
      * Total
      */
     total: number;
+};
+
+/**
+ * PerformanceOut
+ *
+ * How fast alerts became decisions for the incidents raised in the span. ``detect``: from
+ * an incident's first alert to ARGUS raising it (the mean is the mean time to detect);
+ * ``triage``: from there to a person's first decision (to acknowledge); ``resolve``: from a
+ * confirmation to the closure (to resolve). ``overdue`` is what is past its target now,
+ * whenever it was raised, the furthest past first; ``due_soon`` counts those with three
+ * quarters of their time used.
+ */
+export type PerformanceOut = {
+    /**
+     * Bands
+     */
+    bands: Array<BandOut>;
+    /**
+     * Confirmed
+     */
+    confirmed: number;
+    detect: TimesOut;
+    /**
+     * Dismissed
+     */
+    dismissed: number;
+    /**
+     * Due Soon
+     */
+    due_soon: number;
+    /**
+     * End
+     */
+    end: string;
+    /**
+     * Overdue
+     */
+    overdue: Array<OverdueOut>;
+    /**
+     * Overdue Total
+     */
+    overdue_total: number;
+    /**
+     * Raised
+     */
+    raised: number;
+    resolve: TimesOut;
+    resolve_kept: KeptOut;
+    /**
+     * Start
+     */
+    start: string;
+    triage: TimesOut;
+    triage_kept: KeptOut;
+    /**
+     * Waiting
+     */
+    waiting: number;
 };
 
 /**
@@ -6907,7 +7132,7 @@ export type ReportEvidenceLine = {
  * One verified fact: a sentence written by code from stored data, with the figures it
  * states (``numbers``) so a check can hold any sentence that cites it to them. ``source`` says
  * where ARGUS read it; ``from_logs`` marks a fact derived from log content (an account without
- * log access sees it hidden). ``safe`` is the same fact without a campus address, host or
+ * log access sees it hidden). ``safe`` is the same fact without an internal address, host or
  * account, the only form a model is ever shown (None: it cannot be said without one).
  */
 export type ReportFact = {
@@ -7435,7 +7660,7 @@ export type ReportSummary = {
 /**
  * ReportTarget
  *
- * A campus web site or host that outside actors went against (D-240): where the alerts say
+ * An own web site or host that outside actors went against (D-240): where the alerts say
  * the attack was aimed, with the alerts that named it and, when a stored web check or an alert's
  * own record shows it, the successful (2xx) answers it gave and the paths they were for.
  */
@@ -7977,7 +8202,7 @@ export type RunOut = {
 /**
  * SamePatternOut
  *
- * The investigator's run on another investigation of the same pattern and IST day (AR2),
+ * The investigator's run on another investigation of the same pattern and site day (AR2),
  * shown as "same pattern as <id>". Display only: it is not this investigation's assessment, so
  * it cannot be accepted and nothing is scored, closed or written back from it.
  */
@@ -8266,6 +8491,10 @@ export type SessionOut = {
      * Csrf Token
      */
     csrf_token: string;
+    /**
+     * Directory
+     */
+    directory?: string | null;
     /**
      * Expires At
      */
@@ -9442,6 +9671,31 @@ export type TimelineItemOut = {
      * Until
      */
     until: string | null;
+};
+
+/**
+ * TimesOut
+ *
+ * A set of durations, in seconds: how many there were, their median, their mean and the
+ * value 90 % of them stayed at or under. With none, the three are null.
+ */
+export type TimesOut = {
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Mean S
+     */
+    mean_s: number | null;
+    /**
+     * Median S
+     */
+    median_s: number | null;
+    /**
+     * P90 S
+     */
+    p90_s: number | null;
 };
 
 /**
@@ -13140,6 +13394,54 @@ export type GetThreatListsResponses = {
 
 export type GetThreatListsResponse = GetThreatListsResponses[keyof GetThreatListsResponses];
 
+export type GetDirectoryAccountData = {
+    body?: never;
+    path: {
+        /**
+         * Account
+         *
+         * the account's name, as the site's directory knows it
+         */
+        account: string;
+    };
+    query?: never;
+    url: '/api/v1/directory/{account}';
+};
+
+export type GetDirectoryAccountErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * no such thing
+     */
+    404: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetDirectoryAccountError = GetDirectoryAccountErrors[keyof GetDirectoryAccountErrors];
+
+export type GetDirectoryAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: DirectoryOut;
+};
+
+export type GetDirectoryAccountResponse = GetDirectoryAccountResponses[keyof GetDirectoryAccountResponses];
+
 export type ListEntitiesData = {
     body?: never;
     path?: never;
@@ -13511,6 +13813,12 @@ export type ListInvestigationsData = {
          * Value
          */
         value?: string;
+        /**
+         * Incident
+         *
+         * only alert groups that belong to an incident, or to none
+         */
+        incident?: 'in' | 'none';
         /**
          * Offset
          *
@@ -14172,7 +14480,7 @@ export type GetPatternClosingData = {
         /**
          * Day
          *
-         * its IST day
+         * its day, in the site's time zone
          */
         day: string;
     };
@@ -14290,6 +14598,48 @@ export type GetPatternSummaryResponses = {
 };
 
 export type GetPatternSummaryResponse = GetPatternSummaryResponses[keyof GetPatternSummaryResponses];
+
+export type GetPerformanceData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Range
+         */
+        range?: '24h' | '7d' | '30d' | '90d';
+    };
+    url: '/api/v1/performance';
+};
+
+export type GetPerformanceErrors = {
+    /**
+     * not signed in, or the session ended: sign in at /signin
+     */
+    401: ErrorOut;
+    /**
+     * refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)
+     */
+    403: ErrorOut;
+    /**
+     * the request does not match this contract
+     */
+    422: ErrorOut;
+    /**
+     * unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server
+     */
+    503: ErrorOut;
+};
+
+export type GetPerformanceError = GetPerformanceErrors[keyof GetPerformanceErrors];
+
+export type GetPerformanceResponses = {
+    /**
+     * Successful Response
+     */
+    200: PerformanceOut;
+};
+
+export type GetPerformanceResponse = GetPerformanceResponses[keyof GetPerformanceResponses];
 
 export type ListProposalsData = {
     body?: never;

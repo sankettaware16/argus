@@ -21,7 +21,7 @@ CREDENTIALS=$ETC/credentials
 declare -A USERS=([svc]=argus-svc [web]=argus-web [writer]=argus-writer [owner]=root)
 declare -A CREDS=(
   [svc]="database.password siem.api_key llm-api-keys.env notices.password outside.virustotal_api_key outside.shodan_api_key outside.censys_api_key"
-  [web]="database.api_password web-tls.key"
+  [web]="database.api_password web-tls.key directory.session"
   [writer]="database.writer_password approval-signing.key siem.api_key siem.writer_api_key kibana.reader_api_key kibana.cases_writer_api_key kibana.alert_writer_api_key case_team.lead_api_key case_team.evidence_api_key case_team.intel_api_key case_team.responder_api_key case_team.hunter_api_key case_team.reporter_api_key case_team.visualiser_api_key"
   [owner]="database.owner_password database.password database.api_password database.writer_password siem.api_key kibana.reader_api_key"
 )
@@ -30,6 +30,7 @@ declare -A CREDS=(
 # cases canary and the cases schedule do not wait for them.
 declare -A OPTIONAL=(
   [svc]="notices.password outside.virustotal_api_key outside.shodan_api_key outside.censys_api_key"
+  [web]="directory.session"
   [owner]="database.api_password database.writer_password siem.api_key kibana.reader_api_key"
   [writer]="siem.writer_api_key kibana.alert_writer_api_key case_team.lead_api_key case_team.evidence_api_key case_team.intel_api_key case_team.responder_api_key case_team.hunter_api_key case_team.reporter_api_key case_team.visualiser_api_key"
 )

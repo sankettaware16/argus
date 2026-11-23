@@ -1,10 +1,10 @@
 # Notices (Q-H4)
 
 ARGUS can send a short e-mail when something needs a person: a confirmed case that is still
-active, a closure nobody has decided, a campus host that reached a known-bad address, or ARGUS
+active, a closure nobody has decided, an internal host that reached a known-bad address, or ARGUS
 not seeing everything for an hour. The e-mail carries **a link, a severity and a count, and
 nothing else**: no host, address, user or rule name (plan §5 Q-H4, §7.7; DQ26 as D-110 answered
-it). **Off until you approve the campus mail relay and name the recipients.** It is the fix for
+it). **Off until you approve the organisation's network mail relay and name the recipients.** It is the fix for
 what happened with PS1Bot: its hosts kept beaconing for 10 days after their verdicts and nobody
 was told.
 
@@ -22,7 +22,7 @@ flag, plus at most one pass).
 | A confirmed case is still active | an open, assigned or contained case where the watch (Q-C2) found its host active on one of the last 3 days, after the verdict or the containment (a `new_activity` event counts too) | the case's; at least *high* if it had been contained | days of activity since |
 | Activity after a case was closed | a case closed as fixed has an `activity_after_closure` event in the last 3 days (the link leads to the follower case when there is one) | the case's, at least *high* | times noted |
 | A closure is waiting | a closure request nobody has decided for more than 12 hours that has not expired | *medium*; *high* in its last 12 hours | hours waiting |
-| A campus host reached a known-bad address | an unreviewed investigation with alerts in the last day whose newest dossier lists an indicator a feed marks high-confidence ("high", or a score of 75 to 100), and whose actor is a campus host | *high*; *critical* for a critical alert | high-confidence indicators |
+| An internal host reached a known-bad address | an unreviewed investigation with alerts in the last day whose newest dossier lists an indicator a feed marks high-confidence ("high", or a score of 75 to 100), and whose actor is an internal host | *high*; *critical* for a critical alert | high-confidence indicators |
 | ARGUS cannot watch everything | the SIEM's health memory DEGRADED or STOP (also a probe silent for 15 minutes), the Kibana lane stopped or a write class paused, the daily watch on and not run for 36 hours, or ARGUS's own collector lag (once it has lasted an hour: one closed sooner whose hours reconciliation found complete was only lateness, "collected late", D-321), an open breaker or a stalled log source | STOP and collector lag *high*, the rest *medium* | hours so far |
 
 A request for a closure lives to the end of the next Kibana write window (15 to 39 hours, plan
@@ -68,9 +68,9 @@ are the severity, the count and the web address you configure.
 
 ## Switching it on (your steps)
 
-1. **Ask campus IT for a mail relay** that accepts mail from this machine: host, port (25, 587),
+1. **Ask your IT team for a mail relay** that accepts mail from this machine: host, port (25, 587),
    whether it offers STARTTLS (use it if so), the From address it will accept for ARGUS (for
-   example `argus@<your domain>`), and whether it needs a login (most campus relays accept by
+   example `argus@<your domain>`), and whether it needs a login (most internal relays accept by
    network address).
 2. **Choose the recipients** (up to 20, one address each).
 3. Put the settings in production's own `.env` (never in `config/argus.yaml`: every checkout loads
@@ -94,7 +94,7 @@ are the severity, the count and the web address you configure.
 5. **Send yourself the test message:** `uv run argus notices test --to you@example.org`. It is
    refused while `enabled` is false. It travels the same path as a real notice and is audited
    (`notice.test`). If it does not arrive, read the error (the relay's reply is not shown, only
-   the kind of failure), check the relay with campus IT, and do not go on.
+   the kind of failure), check the relay with your IT team, and do not go on.
 6. `uv run argus notices run --dry-run`: what would go out, nothing stored or sent. Then
    `uv run argus notices run` once by hand.
 7. **Enable the timer** (it is off until now): `systemctl --user enable --now argus-notices.timer`
@@ -130,6 +130,6 @@ are the severity, the count and the web address you configure.
 - A beacon seen in the proxy logs only is flagged by the watch within about 28 hours (a day is
   read after it ends); the notice follows the flag within 10 minutes.
 - SMTP over implicit TLS (port 465) is not supported; use STARTTLS (587) or a plain relay inside
-  the campus network.
+  the internal network.
 - The relay's certificate is checked against the system's CAs; a relay with a private CA needs
   that CA installed on the machine.

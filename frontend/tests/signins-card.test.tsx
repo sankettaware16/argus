@@ -1,10 +1,27 @@
 // "Who used this device" (AR6, D-216): the probable user with a lead-not-proof line, names only as
 // untrusted text and only when the server sent them, a shared address naming no one, what is
-// unknown and why, and nothing at all on a server that does not have the feature.
+// unknown and why, and nothing at all on a server that does not have the feature. Each account is
+// a chip to its drawer; a probable user gets the site's directory answer in place (D-337).
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
-import type { SigninDeviceOut, SigninsOut } from "../src/client/types.gen";
-import { SigninsCard } from "../src/components/signins/SigninsCard";
+import type { DirectoryOut, SigninDeviceOut, SigninsOut } from "../src/client/types.gen";
+import { DeviceUser, probableUser, SigninsCard, signinsOf } from "../src/components/signins/SigninsCard";
+import { sessionQuery } from "../src/lib/session";
+import { SESSION } from "./helpers";
+
+/** Render with a session (a directory or none) and the directory's answers already known: no request leaves. */
+function show(ui: ReactElement, directory: string | null = null, answers: DirectoryOut[] = []) {
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queries.setQueryData(sessionQuery.queryKey, { ...SESSION, directory });
+  for (const a of answers) queries.setQueryData(["directory", a.account.toLowerCase()], a);
+  return render(<QueryClientProvider client={queries}>{ui}</QueryClientProvider>);
+}
+
+function answer(account: string): DirectoryOut {
+  return { account, directory: "The directory", outcome: "found", why: null, person: { name: "A Person", kind: "PhD student", department: "Design", details: [] }, described: null };
+}
 
 const LEAD = "Probable user, from SSO sign-ins on this address — a lead, not proof: addresses can be reassigned.";
 
@@ -31,12 +48,12 @@ function card(more: Partial<SigninsOut> = {}): SigninsOut {
 
 describe("the card", () => {
   it("is not there on a server without the feature", () => {
-    const { container } = render(<SigninsCard signins={null} />);
+    const { container } = show(<SigninsCard signins={null} />);
     expect(container.textContent).toBe("");
   });
 
   it("says the probable user, the sign-ins and the browser, and that it is a lead", () => {
-    render(<SigninsCard signins={card()} />);
+    show(<SigninsCard signins={card()} />);
     const region = screen.getByRole("region", { name: "Who used this device" });
     expect(within(region).getByText(LEAD)).toBeTruthy();
     expect(within(region).getByText("Probable user")).toBeTruthy();
@@ -47,7 +64,7 @@ describe("the card", () => {
   });
 
   it("shows times in IST", () => {
-    render(<SigninsCard signins={card()} />);
+    show(<SigninsCard signins={card()} />);
     const times = document.querySelectorAll("time");
     expect(times.length).toBe(2);
     expect(times[0]?.textContent).toMatch(/IST$/);
@@ -58,7 +75,7 @@ describe("the card", () => {
       hidden: true,
       devices: [device({ words: "1 account signed in from this address — hidden: needs log access.", accounts: [] })],
     });
-    render(<SigninsCard signins={hidden} />);
+    show(<SigninsCard signins={hidden} />);
     const region = screen.getByRole("region", { name: "Who used this device" });
     expect(region.textContent).toContain("1 account signed in from this address — hidden: needs log access.");
     expect(region.textContent).toContain("Your account cannot read the logs in ELK");
@@ -69,7 +86,7 @@ describe("the card", () => {
   it("names no one on a shared address and says why a device is not known", () => {
     const shared = device({ state: "shared", accounts: [], words: "A shared address: 9 accounts signed in on 28 Oct. No user is guessed.", account_count: 9 });
     const unknown = device({ address: "10.198.36.231", state: "unknown", accounts: [], words: "Not known: 28 Oct: not looked up yet.", gaps: [{ day: "2026-10-28", why: "not_looked", words: "not looked up yet" }] });
-    render(<SigninsCard signins={card({ states: [{ state: "unknown", devices: 1 }, { state: "shared", devices: 1 }], devices: [unknown, shared], devices_total: 2 })} />);
+    show(<SigninsCard signins={card({ states: [{ state: "unknown", devices: 1 }, { state: "shared", devices: 1 }], devices: [unknown, shared], devices_total: 2 })} />);
     const region = screen.getByRole("region", { name: "Who used these devices" });
     expect(region.textContent).toContain("No user is guessed.");
     expect(region.textContent).toContain("Not known: 28 Oct: not looked up yet.");
@@ -86,27 +103,79 @@ describe("the card", () => {
         { day: "2026-10-28", user: "user-ar6-beta" },
       ],
     });
-    render(<SigninsCard signins={card({ devices: [hands] })} />);
+    show(<SigninsCard signins={card({ devices: [hands] })} />);
     expect(screen.getByText(/changed hands/)).toBeTruthy();
   });
 
   it("treats a hostile name as text", () => {
     const [first] = device().accounts;
     const hostile = device({ accounts: first ? [{ ...first, user: "<img src=x onerror=alert(1)>" }] : [], words: "Probable user: <img src=x onerror=alert(1)>." });
-    const { container } = render(<SigninsCard signins={card({ devices: [hostile] })} />);
+    const { container } = show(<SigninsCard signins={card({ devices: [hostile] })} />);
     expect(container.querySelector("img")).toBeNull();
     expect(container.textContent).toContain("<img src=x onerror=alert(1)>");
   });
 
   it("lists the first ten devices and folds the rest", () => {
     const many = Array.from({ length: 13 }, (_, i) => device({ address: `10.0.0.${i + 1}`, state: "none_seen", accounts: [], words: "No account had a successful sign-in from this address in the window." }));
-    render(<SigninsCard signins={card({ states: [{ state: "none_seen", devices: 13 }], devices: many, devices_total: 13 })} />);
+    show(<SigninsCard signins={card({ states: [{ state: "none_seen", devices: 13 }], devices: many, devices_total: 13 })} />);
     expect(screen.getByText("3 more devices")).toBeTruthy();
     expect(screen.getByText("13 devices:")).toBeTruthy();
   });
 
+  it("makes each account a chip, and says who a probable user is from the directory", () => {
+    show(<SigninsCard signins={card()} />, "The directory", [answer("user-ar6-alpha")]);
+    expect(screen.getAllByTestId("entity-chip").map((c) => c.getAttribute("data-noun"))).toEqual(["Account"]);
+    const who = screen.getByTestId("who-this-is");
+    expect(who.textContent).toContain("Who this is (from The directory): user-ar6-alpha");
+    expect(who.textContent).toContain("A Person");
+    expect(who.textContent).toContain("PhD student");
+  });
+
+  it("asks the directory about no one without a directory, or with several possible users", () => {
+    const { unmount } = show(<SigninsCard signins={card()} />);
+    expect(screen.queryByTestId("who-this-is")).toBeNull();
+    unmount();
+    const [first] = device().accounts;
+    const two = device({ state: "possible", accounts: first ? [first, { ...first, user: "user-ar6-beta" }] : [] });
+    show(<SigninsCard signins={card({ devices: [two] })} />, "The directory");
+    expect(screen.queryByTestId("who-this-is")).toBeNull();
+    expect(screen.getAllByTestId("entity-chip")).toHaveLength(2);
+  });
+
   it("says it is off when the lookups are not switched on", () => {
-    render(<SigninsCard signins={card({ enabled: false, states: [], devices: [], devices_total: 1 })} />);
+    show(<SigninsCard signins={card({ enabled: false, states: [], devices: [], devices_total: 1 })} />);
     expect(screen.getByText(/ARGUS is not reading the sign-in logs yet/)).toBeTruthy();
+  });
+});
+
+describe("one device's user", () => {
+  it("is the one account of a likely device only", () => {
+    expect(probableUser(device())).toBe("user-ar6-alpha");
+    expect(probableUser(device({ state: "possible" }))).toBeNull();
+    expect(probableUser(device({ state: "unknown" }))).toBeNull();
+    expect(probableUser(device({ accounts: [] }))).toBeNull();
+  });
+
+  it("finds an address's sign-ins, or none", () => {
+    expect(signinsOf(card(), "10.201.7.11")?.state).toBe("likely");
+    expect(signinsOf(card(), "10.201.7.12")).toBeNull();
+    expect(signinsOf(null, "10.201.7.11")).toBeNull();
+  });
+
+  it("shows the state, the chip and who it is; the server's words when no name is sent", () => {
+    const { unmount } = show(<DeviceUser device={device()} />, "The directory", [answer("user-ar6-alpha")]);
+    expect(screen.getByText("Probable user")).toBeTruthy();
+    expect(screen.getByTestId("who-this-is").textContent).toContain("A Person");
+    unmount();
+    show(<DeviceUser device={device({ accounts: [], words: "1 account signed in from this address — hidden: needs log access." })} directory={false} />, "The directory");
+    expect(screen.getByTestId("device-user").textContent).toContain("hidden: needs log access");
+    expect(screen.queryByTestId("entity-chip")).toBeNull();
+    expect(screen.queryByTestId("who-this-is")).toBeNull();
+  });
+
+  it("leaves the directory to the drawer when told to", () => {
+    show(<DeviceUser device={device()} directory={false} />, "The directory", [answer("user-ar6-alpha")]);
+    expect(screen.getByTestId("entity-chip")).toBeTruthy();
+    expect(screen.queryByTestId("who-this-is")).toBeNull();
   });
 });

@@ -265,7 +265,7 @@ async def _rules(
 
 async def load(
     conn: AsyncConnection, *, start: datetime, end: datetime, mode: str, config: RiskConfig,
-    classifier: IpClassifier, families: Sequence[LogFamily], campus_domains: Sequence[str],
+    classifier: IpClassifier, families: Sequence[LogFamily], own_domains: Sequence[str],
     feed_modes: dict[str, str], shared: Shared, answers: Mapping[str, Any] | None,
     threshold: int = 3, exposure_answers: Sequence[Mapping[str, Any]] | None = None,
     devices: Callable[[str, date], tuple[ObjectRef, str | None]] | None = None,
@@ -352,7 +352,7 @@ async def load(
                 for s, newest in feeds
                 if s in feed_modes and newest and newest > g.last_at
             )  # fmt: skip
-            ctx = Context(config, classifier, campus_domains, fresh, shared, families, devices)
+            ctx = Context(config, classifier, own_domains, fresh, shared, families, devices)
             seen = observe(g2, rules.get(g.rule_id), ctx)
             raised_at, stored_at = known_at.get(g.id, (None, None))
             outside_at = flagged_at if hit else None
@@ -417,7 +417,7 @@ class Incident:
 def incidents_of(
     spec: Mapping[str, Any], loaded: Loaded
 ) -> dict[str, Incident]:  # fmt: skip
-    """Each library incident's campus objects: its addresses as devices, and for its domain
+    """Each library incident's internal objects: its addresses as devices, and for its domain
     suffixes the objects of every group that named such a domain."""
     out = {}
     by_source: dict[str, set[ObjectRef]] = defaultdict(set)  # E3: an outside address's sites

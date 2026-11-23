@@ -75,7 +75,7 @@ def gate_problems(settings: Settings, write_class: str, now: datetime | None = N
     if write_class == "W1" and settings.web.public_url is None:
         problems.append(
             "web.public_url is not set: the link to ARGUS in a Kibana case would not open"
-            " for people (DQ29)"
+            " for people"
         )
     if verifier_of(settings) is None and write_class == "W3":
         problems.append("no approval key is configured: the writer cannot check signatures")

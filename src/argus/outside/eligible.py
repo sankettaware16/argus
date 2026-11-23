@@ -14,7 +14,7 @@ from typing import Any
 
 from argus import site
 from argus.assets.classify import IpClass, IpClassifier
-from argus.llm.detect import Campus, find
+from argus.llm.detect import OwnSpace, find
 from argus.outside import facts
 
 # special-use and non-public suffixes: a name under one is not a public name
@@ -32,21 +32,21 @@ _NOT_PUBLIC = (ipaddress.ip_network("fec0::/10"),)
 @dataclass(frozen=True)
 class Eligibility:
     classifier: IpClassifier
-    campus: Campus
-    # the privacy layer's ``campus_for``: the base campus plus the names a dossier mentions
-    campus_for: Callable[[Sequence[Any]], Campus] | None = field(
+    ours: OwnSpace
+    # the privacy layer's ``ours_for``: the base own space plus the names a dossier mentions
+    ours_for: Callable[[Sequence[Any]], OwnSpace] | None = field(
         default=None, compare=False, repr=False
     )
 
     def for_item(self, body: Mapping[str, Any]) -> Eligibility:
-        """This check with the campus view of one investigation's dossier ``body`` (its host
-        and user names added), as the model's view of it is scrubbed."""
-        if self.campus_for is None:
+        """This check with the organisation's own names as one investigation's dossier ``body``
+        gives them (its host and user names added), as the model's view of it is scrubbed."""
+        if self.ours_for is None:
             return self
-        return replace(self, campus=self.campus_for([body]))
+        return replace(self, ours=self.ours_for([body]))
 
-    def with_campus(self, campus: Campus) -> Eligibility:
-        return replace(self, campus=campus)
+    def with_ours(self, ours: OwnSpace) -> Eligibility:
+        return replace(self, ours=ours)
 
     def check(self, kind: str, value: str) -> str | None:
         """Why ``value`` (an indicator of ``kind``, in its canonical spelling) may not be looked
@@ -70,7 +70,7 @@ class Eligibility:
         address = ipaddress.ip_address(got.address)
         if any(address.version == n.version and address in n for n in _NOT_PUBLIC):
             return site.a_own_or("address", "private", "special-use")
-        if self.campus.internal(address):
+        if self.ours.internal(address):
             return site.a_own("address")
         return None
 
@@ -80,9 +80,9 @@ class Eligibility:
             return "not a public domain name"
         if any(name == s or name.endswith("." + s) for s in _PRIVATE_SUFFIXES):
             return "not a public domain name"
-        if self.campus.campus_domain(name):
+        if self.ours.own_domain(name):
             return site.a_own("name")
-        if find(name, self.campus):
+        if find(name, self.ours):
             return site.a_own("name")
         return None
 
@@ -94,7 +94,7 @@ class Eligibility:
         why = self._address(host) if _is_address(host) else self._name(host)
         if why is not None:
             return why
-        return f"{site.a_own('identifier')} in the URL" if find(url, self.campus) else None
+        return f"{site.a_own('identifier')} in the URL" if find(url, self.ours) else None
 
 
 def _is_address(host: str) -> bool:

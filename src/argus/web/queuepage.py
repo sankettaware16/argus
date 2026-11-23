@@ -161,7 +161,7 @@ def why_words(row: cm.CaseRowOut, kind: qm.QueueKind, new_members: int = 0) -> s
 async def build(
     conn: AsyncConnection, me_id: int, *, hide_logs: bool, classifier: IpClassifier | None = None
 ) -> qm.QueueOut:
-    """The queue for one person. ``classifier`` tells campus devices from outside addresses
+    """The queue for one person. ``classifier`` tells internal devices from outside addresses
     (the asset map and the site's own networks); without one, public addresses are outside."""
     found, total = await _case_rows(conn, me_id)
     ids = [row.id for row, _ in found]

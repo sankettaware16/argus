@@ -37,7 +37,7 @@ C = Capability
 ROLES: tuple[m.RoleOut, ...] = (
     m.RoleOut(key="viewer", label="Viewer", capabilities=[C.VIEW.value],
               about="Reads incidents, reports and Today; changes nothing."),
-    m.RoleOut(key="analyst", label="Analyst (TA/RA)",
+    m.RoleOut(key="analyst", label="Analyst",
               capabilities=[c.value for c in ordered({C.VIEW, C.SEE_LOGS, C.REVIEW, C.ANSWER_GOLD,
                                                       C.MANAGE_CASES})],
               about="Works the queue: reads the logs, reviews, confirms and dismisses incidents."),

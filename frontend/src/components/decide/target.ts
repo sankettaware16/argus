@@ -76,13 +76,13 @@ export function confirmSentence(t: Target): string {
   return t.kibanaAfterConfirm ?? `${t.after} ${KIBANA_WAVE1}`;
 }
 
-/** The consequence sentence of a dismissal (§5.5), with the campus side when it is known. */
+/** The consequence sentence of a dismissal (§5.5), with the own side when it is known. */
 export function dismissSentence(t: Target): string {
   if (t.dismissEffect !== null) return t.dismissEffect;
-  const campus = t.engine?.objects.filter((o) => o.role === "affected") ?? [];
-  const first = campus[0];
+  const ours = t.engine?.objects.filter((o) => o.role === "affected") ?? [];
+  const first = ours[0];
   if (first === undefined) return DISMISS_WAVE1;
-  const more = campus.length > 1 ? ` +${campus.length - 1}` : "";
+  const more = ours.length > 1 ? ` +${ours.length - 1}` : "";
   return `ARGUS does not suggest the same activity on ${first.label}${more} again for two weeks unless something new appears.`;
 }
 

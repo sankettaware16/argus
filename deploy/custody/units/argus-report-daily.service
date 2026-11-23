@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS daily report (Q-H3: the figures of the last UTC day that has ended, and of any other day of the last 7 that a missed run left out; custody layout, Q-A5)
+Description=ARGUS daily report: the figures of the last UTC day that has ended, and of any other day of the last 7 that a missed run left out, from ARGUS's own database (custody layout)
 # Started by argus-report-daily.timer. Reads the local database only (no SIEM request, no model call) and
 # stores the report once. Off until the user has read two reports.
 After=network-online.target docker.service

@@ -716,6 +716,9 @@ def event_words(
             )
         return f"{by} confirmed the case", detail
     if kind == "dismissed":
+        said = details.get("reason")
+        if not isinstance(said, str) or said not in REASON_WORDS:  # an older event kept none
+            return f"{by} dismissed the suspected case as not an incident", detail
         return f"{by} dismissed the suspected case as {reason()}", detail
     if kind == "taken":
         return f"{by} took the case", None
@@ -1872,7 +1875,7 @@ async def watch_status(
     due = 0
     if context is not None and not stored:
         wanted = watch.subjects(
-            ((i.kind, i.value, i.role) for i in case.indicators), context.is_campus,
+            ((i.kind, i.value, i.role) for i in case.indicators), context.is_own,
             context.shared.reason,
         )  # fmt: skip
         due = len(wanted)

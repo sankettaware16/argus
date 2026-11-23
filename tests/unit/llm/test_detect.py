@@ -12,13 +12,13 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from argus.llm.detect import Campus, Found, canonical, find, outermost, unescape
+from argus.llm.detect import Found, OwnSpace, canonical, find, outermost, unescape
 
 pytestmark = pytest.mark.unit
 
 
-def kinds(text: str, campus: Campus) -> set[str]:
-    return {f.kind for f in find(text, campus)}
+def kinds(text: str, ours: OwnSpace) -> set[str]:
+    return {f.kind for f in find(text, ours)}
 
 
 def b64(text: str) -> str:
@@ -102,8 +102,8 @@ def b64(text: str) -> str:
         "31302e312e322e33",  # a hex string
     ],
 )
-def test_internal_addresses_in_every_form(text: str, campus: Campus) -> None:
-    assert "ip" in kinds(text, campus), text
+def test_internal_addresses_in_every_form(text: str, ours: OwnSpace) -> None:
+    assert "ip" in kinds(text, ours), text
 
 
 @pytest.mark.parametrize(
@@ -128,8 +128,8 @@ def test_internal_addresses_in_every_form(text: str, campus: Campus) -> None:
         "::",
     ],
 )
-def test_no_false_addresses(text: str, campus: Campus) -> None:
-    assert "ip" not in kinds(text, campus), text
+def test_no_false_addresses(text: str, ours: OwnSpace) -> None:
+    assert "ip" not in kinds(text, ours), text
 
 
 @pytest.mark.parametrize(
@@ -188,8 +188,8 @@ def test_no_false_addresses(text: str, campus: Campus) -> None:
         ("MAILGATE relays", "name"),
     ],
 )
-def test_other_identifiers(text: str, kind: str, campus: Campus) -> None:
-    assert kind in kinds(text, campus), text
+def test_other_identifiers(text: str, kind: str, ours: OwnSpace) -> None:
+    assert kind in kinds(text, ours), text
 
 
 @pytest.mark.parametrize(
@@ -209,64 +209,64 @@ def test_other_identifiers(text: str, kind: str, campus: Campus) -> None:
         "the gate is open",
     ],
 )
-def test_no_false_identifiers(text: str, campus: Campus) -> None:
-    assert not kinds(text, campus), (text, kinds(text, campus))
+def test_no_false_identifiers(text: str, ours: OwnSpace) -> None:
+    assert not kinds(text, ours), (text, kinds(text, ours))
 
 
 def test_names_by_length_and_ordinary_words() -> None:
-    campus = Campus(
+    ours = OwnSpace(
         assets=frozenset({"ab", "gateway", "x9z"}),
         hosts=frozenset({"h1"}),
         users=frozenset({"Alice.Smith"}),
         ordinary=frozenset({"gateway"}),
     )
-    found = [f.value for f in find("ab gateway x9z h1 alice smith", campus)]
+    found = [f.value for f in find("ab gateway x9z h1 alice smith", ours)]
     assert found == ["x9z", "h1", "alice smith"]  # an asset name needs 3, a request name 2
-    assert Campus().name_index == {}
+    assert OwnSpace().name_index == {}
 
 
 def test_names_say_whether_they_are_users() -> None:
-    campus = Campus(hosts=frozenset({"tp8"}), users=frozenset({"Alice.Smith"}))
-    assert campus.name_kind("ALICE SMITH") == "user"
-    assert campus.name_kind("alice.smith") == "user"
-    assert campus.name_kind("tp8") == "host"
+    ours = OwnSpace(hosts=frozenset({"tp8"}), users=frozenset({"Alice.Smith"}))
+    assert ours.name_kind("ALICE SMITH") == "user"
+    assert ours.name_kind("alice.smith") == "user"
+    assert ours.name_kind("tp8") == "host"
 
 
 def test_a_name_inside_a_pseudonym_is_not_a_name() -> None:
-    campus = Campus(assets=frozenset({"host"}))
-    assert kinds("I1.HOST_3", campus) == set()
-    assert kinds("the host", campus) == {"name"}
+    ours = OwnSpace(assets=frozenset({"host"}))
+    assert kinds("I1.HOST_3", ours) == set()
+    assert kinds("the host", ours) == {"name"}
 
 
-def test_embedded_addresses_are_unwrapped(campus: Campus) -> None:
-    assert campus.internal(ipaddress.ip_address("::ffff:10.0.0.1"))
-    assert campus.internal(ipaddress.ip_address("64:ff9b:1::a00:1"))
-    assert not campus.internal(ipaddress.ip_address("::1"))
-    assert not campus.internal(ipaddress.ip_address("64:ff9b::808:808"))
+def test_embedded_addresses_are_unwrapped(ours: OwnSpace) -> None:
+    assert ours.internal(ipaddress.ip_address("::ffff:10.0.0.1"))
+    assert ours.internal(ipaddress.ip_address("64:ff9b:1::a00:1"))
+    assert not ours.internal(ipaddress.ip_address("::1"))
+    assert not ours.internal(ipaddress.ip_address("64:ff9b::808:808"))
 
 
-def test_encoded_findings_span_the_encoded_stretch(campus: Campus) -> None:
+def test_encoded_findings_span_the_encoded_stretch(ours: OwnSpace) -> None:
     text = "a " + b64("10.1.2.3 inside") + " b"
-    found = [f for f in find(text, campus) if f.encoded]
+    found = [f for f in find(text, ours) if f.encoded]
     assert found[0].start == 2
     assert found[0].end == len(text) - 2
     assert found[0].value == "10.1.2.3"
-    whole = [f for f in find("x 10%2e1%2e2%2e3 y", campus) if f.encoded]
+    whole = [f for f in find("x 10%2e1%2e2%2e3 y", ours) if f.encoded]
     assert (whole[0].start, whole[0].end) == (0, 18)
 
 
-def test_values_are_canonical(campus: Campus) -> None:
-    assert [f.value for f in find("010.001.002.003", campus)] == ["10.1.2.3"]
-    assert [f.value for f in find("167838211", campus)] == ["10.1.2.3"]
-    assert {f.value for f in find("3.2.1.10.in-addr.arpa", campus)} == {"10.1.2.3"}
-    assert [f.value for f in find("FD00::0001", campus)] == ["fd00::1"]
-    assert [f.value for f in find("00:1A:2B:3C:4D:5E", campus)] == ["00:1a:2b:3c:4d:5e"]
+def test_values_are_canonical(ours: OwnSpace) -> None:
+    assert [f.value for f in find("010.001.002.003", ours)] == ["10.1.2.3"]
+    assert [f.value for f in find("167838211", ours)] == ["10.1.2.3"]
+    assert {f.value for f in find("3.2.1.10.in-addr.arpa", ours)} == {"10.1.2.3"}
+    assert [f.value for f in find("FD00::0001", ours)] == ["fd00::1"]
+    assert [f.value for f in find("00:1A:2B:3C:4D:5E", ours)] == ["00:1a:2b:3c:4d:5e"]
 
 
-def test_spans(campus: Campus) -> None:
-    assert [(f.start, f.end) for f in find("at 10.1.2.x now", campus)] == [(3, 11)]
-    assert [(f.start, f.end) for f in find("src:fd00::7 x", campus)] == [(4, 11)]
-    assert [(f.start, f.end) for f in find("a cse.example.edu b", campus)] == [(2, 17)]
+def test_spans(ours: OwnSpace) -> None:
+    assert [(f.start, f.end) for f in find("at 10.1.2.x now", ours)] == [(3, 11)]
+    assert [(f.start, f.end) for f in find("src:fd00::7 x", ours)] == [(4, 11)]
+    assert [(f.start, f.end) for f in find("a cse.example.edu b", ours)] == [(2, 17)]
 
 
 def test_canonical_and_unescape() -> None:
@@ -289,15 +289,15 @@ def test_outermost_keeps_the_longest_span_at_each_position() -> None:
     ["a." * 25_000, "1." * 25_000, "xn--a." * 8_000, "_-" * 25_000, "a" * 50_000 + "@b.org",
      ":" * 50_000, "1:" * 25_000, "ab" * 25_000, "QUJD" * 12_000, "10.1.2.3 " * 5_000],
 )  # fmt: skip
-def test_adversarial_input_stays_fast(text: str, campus: Campus) -> None:
+def test_adversarial_input_stays_fast(text: str, ours: OwnSpace) -> None:
     start = time.perf_counter()
-    find(text, campus)
+    find(text, ours)
     assert time.perf_counter() - start < 5  # 50 KB; quadratic patterns took minutes
 
 
 @given(st.ip_addresses(network="10.0.0.0/8"), st.sampled_from(["", " ", "x=", "/", "(", ".", ":"]))
 def test_any_private_address_is_found_in_its_forms(ip: ipaddress.IPv4Address, pre: str) -> None:
-    campus = Campus()
+    ours = OwnSpace()
     forms = [
         str(ip),
         str(int(ip)),
@@ -312,18 +312,18 @@ def test_any_private_address_is_found_in_its_forms(ip: ipaddress.IPv4Address, pr
         f"{ip}.443",
     ]
     for form in forms:
-        assert "ip" in kinds(pre + form + " ", campus), form
+        assert "ip" in kinds(pre + form + " ", ours), form
 
 
 @given(st.ip_addresses(v=4))
 def test_public_addresses_are_never_found(ip: ipaddress.IPv4Address) -> None:
-    campus = Campus()
-    if campus.internal(ip):
+    ours = OwnSpace()
+    if ours.internal(ip):
         return
-    assert "ip" not in kinds(f"from {ip} to", campus)
+    assert "ip" not in kinds(f"from {ip} to", ours)
 
 
 @given(st.text(max_size=200))
 def test_find_never_raises(text: str) -> None:
-    for f in find(text, Campus(hosts=frozenset({"tp8"}))):
+    for f in find(text, OwnSpace(hosts=frozenset({"tp8"}))):
         assert 0 <= f.start <= f.end <= len(text)

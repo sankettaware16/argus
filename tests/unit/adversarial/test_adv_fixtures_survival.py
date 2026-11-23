@@ -37,7 +37,7 @@ KEY = b"k" * 32
 CAMPUS = "campus.ac.in"
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=(CAMPUS,),
+    own_domains=(CAMPUS,),
     keep_domains=("vendor-cdn.example",),
     literals={"Campus University": "Example University", "campusu": "exampleu"},
     fields={
@@ -215,7 +215,7 @@ def test_fxa03_url_encoded_identifiers_survive(text: str, pattern: str) -> None:
 
 _SHIPPED_FIELDS = dict(load_policy(REPO / "config" / "fixtures.yaml")[0].fields)
 _SHIPPED = FixturePolicy(
-    site_prefixes=("192.0.2.0/24",), campus_domains=(CAMPUS,), fields=_SHIPPED_FIELDS
+    site_prefixes=("192.0.2.0/24",), own_domains=(CAMPUS,), fields=_SHIPPED_FIELDS
 )
 
 

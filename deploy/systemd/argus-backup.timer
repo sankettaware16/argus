@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS nightly database dump at 03:00 IST (Q-A2)
+Description=ARGUS nightly database dump at 21:30 UTC
 
 [Timer]
 OnCalendar=*-*-* 21:30:00 UTC

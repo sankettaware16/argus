@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS weekly restore drill of the newest nightly dump (Q-A2; custody layout, Q-A5)
+Description=ARGUS weekly restore drill of the newest nightly dump (custody layout)
 # Started by argus-backup-drill.timer. Restores into a scratch database, compares every
 # table's fingerprint with the dump's own, drops the scratch database. Its memory cap is its own
 # (the operator's heavy-task lock lives in the operator's home, which root's units do not see).

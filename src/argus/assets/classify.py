@@ -23,7 +23,9 @@ _INTERNAL = tuple(
 
 class IpClass(StrEnum):
     ASSET = "asset"  # inside a network of the asset map
-    CAMPUS = "campus"  # one of the organisation's public prefixes, not in the asset map
+    # one of the organisation's public prefixes, not in the asset map. The stored word predates
+    # the site-neutral names and stays: it is in every stored dossier (and so in its hash)
+    OWN = "campus"
     INTERNAL = "internal"  # private space, not in the asset map
     PUBLIC = "public"
     SPECIAL = "special"  # loopback, link-local, multicast, reserved, documentation, shared, ...
@@ -46,9 +48,9 @@ class IpClassification:
 
 
 class IpClassifier:
-    def __init__(self, assets: AssetMap | None, campus_prefixes: Sequence[IPNetwork] = ()) -> None:
+    def __init__(self, assets: AssetMap | None, own_prefixes: Sequence[IPNetwork] = ()) -> None:
         self.assets = assets
-        self.campus_prefixes = tuple(campus_prefixes)
+        self.own_prefixes = tuple(own_prefixes)
 
     def classify(self, value: Any) -> IpClassification:
         ip = parse_address(value)
@@ -61,8 +63,8 @@ class IpClassifier:
             lookup = AssetLookup.MATCHED if match is not None else AssetLookup.NOT_FOUND
         if match is not None:
             ip_class = IpClass.ASSET
-        elif any(ip.version == n.version and ip in n for n in self.campus_prefixes):
-            ip_class = IpClass.CAMPUS
+        elif any(ip.version == n.version and ip in n for n in self.own_prefixes):
+            ip_class = IpClass.OWN
         elif any(ip.version == n.version and ip in n for n in _INTERNAL):
             ip_class = IpClass.INTERNAL
         elif (

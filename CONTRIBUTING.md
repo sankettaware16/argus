@@ -18,6 +18,25 @@ what is specific to ARGUS.
   issues.
 - Contributions are accepted under the [Apache-2.0 license](LICENSE).
 
+## How this repository is made
+
+ARGUS is developed in a private repository that also holds its first installation's
+configuration, working notes and incident records. This repository is an export of it: the
+same code, tests and documentation without that installation's files, checked by a sweep for
+its names and addresses before every push. That is why the history here is short and its
+commits are large.
+
+- Comments and tests cite design decisions by number (`D-123`).
+  [docs/decisions.md](docs/decisions.md) lists what each one decided; the full entries stay
+  with the working notes. Other labels (`Q-A5`, `AR8`, `P4-F`) name the work item a piece
+  was built under.
+- A few tests check the code against files of the private repository (its runbooks, its
+  release tooling). They are skipped here, and say so.
+- A pull request is reviewed here and applied to both repositories.
+- A release is a tag (`vX.Y.Z`), a GitHub release and a dated section of
+  [CHANGELOG.md](CHANGELOG.md), made only after that build was installed from scratch and
+  tried. Between releases `main` reports a development version (`X.Y.Z.dev0`).
+
 ## Development setup
 
 ```bash
@@ -45,7 +64,11 @@ uv run pytest -q                         # unit + integration (Docker PostgreSQL
   models at component boundaries, UTC timezone-aware datetimes only.
 - **Generic code:** nothing specific to one organisation in `src/` — a site's
   values belong in `config/site.yaml` (written by `argus discover`) or
-  `config/local.yaml`.
+  `config/local.yaml`. That includes words: a sentence, a label or a prompt says
+  "your network" through the site's own word (`argus.site.say`, `lib/site.ts`),
+  never "campus" or "the office". The suite's made-up site is a university, so
+  `tests/unit/site/test_organisation_words.py` and
+  `frontend/tests/site-words.test.tsx` check the words on a second site.
 - **Database changes** come as an Alembic migration
   (`uv run alembic revision --autogenerate -m "..."`) that GRANTs the runtime
   role exactly what it needs and lists the table in

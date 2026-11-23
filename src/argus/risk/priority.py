@@ -6,7 +6,7 @@
 
 - **stages**: 1 + 0.25 per matched stage beyond the first (a maximum matching: one rule tagged
   with two tactics is one stage);
-- **spread**: 1 + 0.1 per campus object beyond the first, up to ten;
+- **spread**: 1 + 0.1 per internal object beyond the first, up to ten;
 - **activity**: x 1.2 with an observation in the last 24 h, x 1 within 72 h, x 0.7 when quiet;
 - **trust**: x 1.3 once a person confirmed it. Intel from an out-of-date feed, when no fresh
   strong fact stands beside it, counts a fifth less again (taken off its own points, so adding
@@ -37,7 +37,7 @@ MINUS = "\u2212"
 Op = Literal["+", "\u00d7"]
 NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 STAGE_WORDS = ("reconnaissance", "access", "foothold or control", "actions on the goal")
-# an object of the organisation's own network, in the site's words ("campus device")
+# an object of the organisation's own network, in the site's words ("internal device")
 OBJECT_THINGS = {"device": ("device", "devices"), "account": ("account", "accounts"),
                  "site": ("site", "sites")}  # fmt: skip
 
@@ -86,7 +86,7 @@ class Part:
 
 @dataclass(frozen=True)
 class Facts:
-    """A campus object as the presenter reads it: its 7-day score and breakdown, and when it
+    """An internal object as the presenter reads it: its 7-day score and breakdown, and when it
     was last seen."""
 
     kind: str  # device, account, site

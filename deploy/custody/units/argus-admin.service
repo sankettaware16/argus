@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS admin (custody layout, D-327): refuses changes made in the app (the custodian's)
+Description=ARGUS admin (custody layout): refuses changes made in the app (the custodian's)
 After=network-online.target docker.service
 Wants=network-online.target
 StartLimitIntervalSec=0

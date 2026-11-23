@@ -61,13 +61,13 @@ def engine_for(settings: Settings) -> AsyncEngine:
 
 
 RESUME_NEEDS_OWNER = (
-    "resuming needs the database owner (Q-A5): services and the runtime login may stop a"
+    "resuming needs the database owner: services and the runtime login may stop a"
     " switch, only the owner resumes it. Run it where the owner's password is configured"
     " (ARGUS_DATABASE__OWNER_PASSWORD), or in the custody layout as"
     " `sudo argus-owner {command}`"
 )
 EXPLAIN_NEEDS_OWNER = (
-    "explaining a finding needs the database owner (Q-A5, D-322): the runtime may only add"
+    "explaining a finding needs the database owner (D-322): the runtime may only add"
     " findings, only the owner resolves one. Run it where the owner's password is configured"
     " (ARGUS_DATABASE__OWNER_PASSWORD), or in the custody layout as"
     " `sudo argus-owner {command}`"

@@ -439,12 +439,12 @@ async def test_a_dns_investigation_that_lists_both_devices_keeps_them_both_on_th
         await (await CaseService.start(conn)).apply(
             people["asha"].actor(), six.case, Link((Member(dns, "person"),)), expected_version=None
         )
-    campus = IpClassifier(None, (ipaddress.ip_network("10.0.0.0/8"),))  # the addresses count
+    ours = IpClassifier(None, (ipaddress.ip_network("10.0.0.0/8"),))  # the addresses count
     async with app_engine.begin() as conn:
         service = await CaseService.start(conn)
         done = await service.split(
             people["asha"].actor(), six.case, [six.b1], reason="r",
-            carry=splitting.carrier(conn, campus), expected_version=None, title="t",
+            carry=splitting.carrier(conn, ours), expected_version=None, title="t",
         )  # fmt: skip
     assert done.carried.leaving == ()
     assert Indicator("ip", B, "actor") in done.carried.staying

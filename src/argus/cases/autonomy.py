@@ -20,7 +20,7 @@ from argus.evaluation.harness import Rate
 MIN_AUDITED = 125
 MIN_LOWER_BOUND = 0.97
 STABLE_WEEKS = 4
-STILL_TO_DO = ("a 10 % audit of the class by people", "the user's decision (DQ14)")
+STILL_TO_DO = ("a 10 % audit of the class by people", "the user's decision")
 
 
 @dataclass(frozen=True)

@@ -191,7 +191,7 @@ _MEMORY_BUSY = """(i.id IN (SELECT j.investigation_id FROM jobs j
 OR i.id IN (SELECT s.investigation_id FROM assessments s
   WHERE s.status IN ('queued', 'running'))
 OR i.id IN (SELECT w.investigation_id FROM writeback_outbox w
-  WHERE w.state IN ('planned', 'paused')))"""
+  WHERE w.state IN ('planned', 'paused') AND w.investigation_id IS NOT NULL))"""
 _MEMORY_WHERE = f"{_MEMORY_EXPIRED}\nAND NOT {_MEMORY_BUSY}"
 # Kept: held, continued by a held investigation (the held row's link stays), or named by a case
 # record (never purged; foreign keys need them).

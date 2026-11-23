@@ -23,6 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from argus import site
+from argus.assets.classify import IpClass
 from argus.context import beacon, dns, paths, source_events
 from argus.context.bounds import clamp, quiet, utf16_len
 from argus.context.evidence import COMPLETE, SignalValue, canonical
@@ -193,7 +194,7 @@ def keys(name: str, params: Params) -> tuple[Key, ...]:
 @dataclass(frozen=True)
 class Prevalence:
     investigations: int
-    campus_hosts: int  # 0 for a host or a path
+    own_hosts: int  # 0 for a host or a path
 
 
 def too_common(key: Key, seen: Prevalence) -> bool:
@@ -201,11 +202,11 @@ def too_common(key: Key, seen: Prevalence) -> bool:
         return key.value in paths.COMMON_PATHS
     if seen.investigations >= INVESTIGATIONS_LIMIT:
         return True
-    return key.kind == "destination" and seen.campus_hosts >= HOSTS_LIMIT
+    return key.kind == "destination" and seen.own_hosts >= HOSTS_LIMIT
 
 
 async def prevalence(
-    conn: AsyncConnection, key: Key, since: datetime, is_campus: Callable[[str], bool]
+    conn: AsyncConnection, key: Key, since: datetime, is_own: Callable[[str], bool]
 ) -> Prevalence:
     """How common ``key`` is in ARGUS's own store: investigations naming it whose activity
     reaches into ``since``, and (a destination) the internal addresses those investigations
@@ -240,7 +241,7 @@ async def prevalence(
             ).scalars()
         )
         for value in others:
-            hosts += is_campus(str(value))
+            hosts += is_own(str(value))
             if hosts >= HOSTS_LIMIT:
                 break
         if len(others) >= CO_ADDRESSES:  # more addresses than ARGUS reads: common, whatever
@@ -266,15 +267,15 @@ async def spent_today(conn: AsyncConnection, name: str, now: datetime) -> int:
 def private_or(classify: Callable[[str], str] | None) -> Callable[[str], bool]:
     """Internal addresses: the asset map's classes when given, else private space."""
 
-    def campus(value: str) -> bool:
+    def ours(value: str) -> bool:
         if classify is not None:
-            return classify(value) in {"asset", "campus", "internal"}
+            return classify(value) in INTERNAL
         try:
             return ipaddress.ip_address(value).is_private
         except ValueError:
             return False
 
-    return campus
+    return ours
 
 
 class Reservations:
@@ -315,7 +316,7 @@ async def admit(
     enabled: Iterable[str],
     now: datetime,
     history: timedelta,
-    is_campus: Callable[[str], bool],
+    is_own: Callable[[str], bool],
     health_config: HealthConfig | None = None,
     reservations: Reservations = RESERVED,
 ) -> Refusal | None:
@@ -331,7 +332,7 @@ async def admit(
     if memory.state is not HealthState.NORMAL:
         return Refusal("not_normal", str(memory.state))
     for key in keys(name, task.params):
-        if too_common(key, await prevalence(conn, key, now - history, is_campus)):
+        if too_common(key, await prevalence(conn, key, now - history, is_own)):
             return Refusal("too_common", key.kind)
     if await spent_today(conn, name, now) + reservations.held(name, now) >= DAILY_CAP_MS:
         return Refusal("daily_cap")
@@ -363,7 +364,7 @@ async def send(
     *,
     enabled: Iterable[str],
     history: timedelta,
-    is_campus: Callable[[str], bool],
+    is_own: Callable[[str], bool],
     deadline: datetime,
     health_config: HealthConfig | None = None,
     reservations: Reservations = RESERVED,
@@ -380,7 +381,7 @@ async def send(
     async with reservations.lock(name):
         now = gateway.clock()
         refused = await admit(conn, gateway.state, task, enabled=enabled, now=now,
-                              history=history, is_campus=is_campus,
+                              history=history, is_own=is_own,
                               health_config=health_config,
                               reservations=reservations)  # fmt: skip
         if refused is not None:
@@ -402,7 +403,7 @@ async def send(
 # ----------------------------------------------------------------------------- builders
 
 
-INTERNAL = frozenset({"asset", "campus", "internal"})
+INTERNAL = frozenset({IpClass.ASSET.value, IpClass.OWN.value, IpClass.INTERNAL.value})
 
 
 def _top(fields: Mapping[str, Any], path: str) -> list[str]:

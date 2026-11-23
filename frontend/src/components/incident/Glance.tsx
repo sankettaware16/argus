@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CaseReportOut, IncidentReport, ReportActor, ReportTarget } from "../../client/types.gen";
 import { count, plural } from "../../lib/format";
+import { own, ownCapital } from "../../lib/site";
 import { isIp, isPrivateIp, type EngineObject } from "../../lib/engine";
 import { parse } from "../../lib/time";
 import { dayAndTime } from "../../lib/when";
@@ -110,7 +111,7 @@ function Days({ report }: { report: IncidentReport }) {
 /**
  * The incident at a glance on ARGUS's own page (the Visualiser's V5, docs/p4f-plan.md §7), drawn
  * from the same incident report as its dashboard: the numbers, the alerts a day, the top outside
- * sources and the top campus targets, each a link to its entity. The dashboard itself is the
+ * sources and the top own targets, each a link to its entity. The dashboard itself is the
  * report PDF's second part.
  */
 export function Glance({ data }: { data: CaseReportOut | undefined }) {
@@ -125,12 +126,12 @@ export function Glance({ data }: { data: CaseReportOut | undefined }) {
   const first = parse(report.timeline.first_seen ?? report.header.first_alert_at);
   const last = parse(report.timeline.last_seen ?? report.header.last_alert_at);
   const outside = report.outsiders_total || report.actors.filter((a) => !a.inside).length;
-  const campus = report.targets_total || report.assets_total;
+  const ours = report.targets_total || report.assets_total;
   const listed = report.actors.filter((a) => a.listed).length;
   const numbers: [string, string][] = [
     ["Alerts", count(report.timeline.alerts || report.meta.alerts_total)],
     ["Outside sources", count(outside)],
-    ["Campus targets", count(campus)],
+    [ownCapital("targets"), count(ours)],
     ["On a threat list", count(listed)],
     ["Activity", report.summary.standing_words],
   ];
@@ -160,7 +161,7 @@ export function Glance({ data }: { data: CaseReportOut | undefined }) {
       <Days report={report} />
       <div className="grid gap-4 md:grid-cols-2">
         <Panel title="Top outside sources" items={actors} unit="alert" />
-        <Panel title="Top campus targets" items={targets} unit="alert" />
+        <Panel title={`Top ${own("targets")}`} items={targets} unit="alert" />
       </div>
       <p className="m-0 text-sm" data-testid="dashboard-pdf">
         The Visualiser&apos;s dashboard is the second part of the incident report.{" "}

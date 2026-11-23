@@ -67,7 +67,7 @@ async def test_a_stopped_gateway_waits_a_minute(call: Call) -> None:
 
 
 async def test_the_ledger_entry_of_a_request_the_validator_refuses(privacy: Privacy) -> None:
-    leaky = Request("host 10.20.3.4 called", (), (), (), (), privacy.campus)
+    leaky = Request("host 10.20.3.4 called", (), (), (), (), privacy.ours)
     gw, _, store, _ = make()
     with pytest.raises(Refused):
         await gw.complete(Call(leaky, "Answer in JSON.", "assess"))

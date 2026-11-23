@@ -82,7 +82,7 @@ def test_only_the_pins_approval_tags_count(tree: Path) -> None:
     under D-110 an unrelated component's approval tag sits on a tree holding agents nobody
     approved, and silenced the warning)."""
     assert drift.approvals() == {
-        "q-h1-approved", "q-h2-approved", "q-h3-approved", "ar3-approved",
+        "q-h1-approved", "q-h2-approved", "q-h3-approved", "ar3-approved", "site-words-approved",
     }  # fmt: skip
     fake = FakeGit(tree_of(tree), **{"tag --list": "q-f5-approved\nq-h1-approved\n"},
                    describe="q-f5-approved\n")  # fmt: skip
@@ -237,9 +237,10 @@ def test_the_default_object_format_is_sha1(tree: Path) -> None:
 def test_the_default_tags_are_the_pins(tree: Path) -> None:
     fake = FakeGit(tree_of(tree))
     assert drift.since_approved(fake, tree) == Drift(
-        "q-h1-approved", waiting=("ar3-approved", "q-h2-approved", "q-h3-approved")
+        "q-h1-approved",
+        waiting=("ar3-approved", "q-h2-approved", "q-h3-approved", "site-words-approved"),
     )
-    assert fake.calls[1][-1] == "q-h3-approved"  # the pins' tags, sorted
+    assert fake.calls[1][-1] == "site-words-approved"  # the pins' tags, sorted
 
 
 # -- reading files: never whole, never waiting --------------------------------------------------
@@ -562,11 +563,11 @@ async def test_doctor_shows_the_agents_and_their_gold_run_ids(
 ) -> None:
     got = await _check(monkeypatch, Drift("q-h1-approved"))
     assert got == [
-        doctor.CheckResult("agents", True, "investigator coordinator@4; web, proxy specialist@1;"
-                           " intel specialist@2; gold run ids 98aa90f205fd (no tools),"
-                           " 0232557c5055 (tools)"),
-        doctor.CheckResult("agent reporter", True, "reporter@1, off"),
-        doctor.CheckResult("agent responder", True, "responder@1, off"),
+        doctor.CheckResult("agents", True, "investigator coordinator@5; web, proxy specialist@2;"
+                           " intel specialist@3; gold run ids 8962e42b9863 (no tools),"
+                           " bf01507f7984 (tools)"),
+        doctor.CheckResult("agent reporter", True, "reporter@2, off"),
+        doctor.CheckResult("agent responder", True, "responder@2, off"),
         doctor.CheckResult("agents since approval", True, "as at q-h1-approved"),
     ]  # fmt: skip
 
@@ -625,13 +626,13 @@ async def test_doctor_names_specialists_by_version(
     from dataclasses import replace
 
     agents = loader.load()
-    web = replace(agents.by_name["web"], version="specialist@3")
+    web = replace(agents.by_name["web"], version="specialist@4")
     mixed = loader.Agents({**agents.by_name, "web": web})
     monkeypatch.setattr(loader, "load", lambda *a, **kw: mixed)
     got, *_ = await _check(monkeypatch, Drift("t"))
-    assert got.detail.startswith("investigator coordinator@4; web specialist@3; proxy"
-                                 " specialist@1; intel specialist@2; gold run ids ")  # fmt: skip
-    assert not got.ok  # web=specialist@3 is not what the gold run ids in code name
+    assert got.detail.startswith("investigator coordinator@5; web specialist@4; proxy"
+                                 " specialist@2; intel specialist@3; gold run ids ")  # fmt: skip
+    assert not got.ok  # web=specialist@4 is not what the gold run ids in code name
     nobody = loader.Agents({**agents.by_name, "investigator": replace(
         agents.coordinator, specialists=())})  # fmt: skip
     monkeypatch.setattr(loader, "load", lambda *a, **kw: nobody)
@@ -653,7 +654,7 @@ async def test_doctor_gives_every_other_agent_its_own_line(
         "reporter": registry.BINDINGS["intel"],
         "hunter": registry.BINDINGS["intel"],
     }
-    on = replace_version(agents.by_name["intel"], "specialist@3")
+    on = replace_version(agents.by_name["intel"], "specialist@4")
     survey: dict[str, Any] = {
         **agents.by_name, "responder": agents.by_name["intel"], "reporter": on,
         "hunter": loader.AgentError("hunter.md: is not the file pinned"),
@@ -663,14 +664,14 @@ async def test_doctor_gives_every_other_agent_its_own_line(
     monkeypatch.setattr(
         registry,
         "ENABLED",
-        {**registry.ENABLED, "responder": None, "reporter": "specialist@3", "hunter": None},
+        {**registry.ENABLED, "responder": None, "reporter": "specialist@4", "hunter": None},
     )
     monkeypatch.setattr(loader, "survey", lambda *a, **kw: survey)
     got = await _check(monkeypatch, Drift("q-h1-approved"))
     assert [(r.name, r.ok, r.warn, r.detail) for r in got[1:-1]] == [
         ("agent hunter", True, True, "off, and refused: hunter.md: is not the file pinned"),
-        ("agent reporter", True, False, "specialist@3, on"),
-        ("agent responder", True, False, "specialist@2, off"),
+        ("agent reporter", True, False, "specialist@4, on"),
+        ("agent responder", True, False, "specialist@3, off"),
     ]
     monkeypatch.setattr(registry, "ENABLED", {**registry.ENABLED, "hunter": "specialist@1"})
     got = await _check(monkeypatch, Drift("q-h1-approved"))
@@ -901,9 +902,9 @@ async def test_doctor_names_each_specialist_when_the_coordinator_is_refused(
     ]  # fmt: skip
     assert results[0].detail.startswith("refused: investigator.md: is not the file pinned")
     assert results[1].detail.startswith("on, and refused: intel.md: is not the file pinned")
-    assert results[3].detail == "reporter@1, off"
-    assert results[4].detail == "responder@1, off"
-    assert results[5].detail == "specialist@1, on"
+    assert results[3].detail == "reporter@2, off"
+    assert results[4].detail == "responder@2, off"
+    assert results[5].detail == "specialist@2, on"
 
 
 async def test_doctor_prints_an_os_errors_text_in_printable_ascii(

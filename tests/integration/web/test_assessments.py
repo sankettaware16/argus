@@ -148,13 +148,13 @@ async def test_a_reviewed_investigation_can_still_be_asked_about(
 def test_plain_words_for_stored_sentences() -> None:
     from argus.web.app import plain
 
-    assert plain("Not checked yet: needs the threat-intel pack (R11).") == (
+    assert plain("Not checked yet: needs the threat-intel pack.") == (
         "Not checked yet: needs a threat-intelligence lookup."
     )
-    assert plain("needs the proxy pack (R12) and the log pivots (R12, R13)") == (
+    assert plain("needs the proxy pack and the log pivots") == (
         "needs proxy-log statistics and a search of the web and proxy logs"
     )
-    assert plain("an unknown pack (R14) here") == "an unknown pack here"
+    assert plain("an unknown pack here") == "an unknown pack here"
     assert plain(5) == "5"
 
 
@@ -202,7 +202,7 @@ async def test_an_unsearchable_agents_directory_never_breaks_a_page(
                     "ready": True,
                     "state": "ready",
                     "detail": "investigator"
-                    " coordinator@4; web, proxy specialist@1; intel specialist@2",
+                    " coordinator@5; web, proxy specialist@2; intel specialist@3",
                 }
             else:
                 reason = (
@@ -310,7 +310,7 @@ async def test_the_health_read_tells_switched_off_from_refused(
                                  headers={"Origin": "http://127.0.0.1:8765"}) as http:  # fmt: skip
         await signed_in(http)
         api = (await http.get("/api/health")).json()["investigator"]
-    detail = "investigator.md: holds coordinator@4, but investigator is off" \
+    detail = "investigator.md: holds coordinator@5, but investigator is off" \
         " (argus.agent.registry.ENABLED)"  # fmt: skip
     assert api == {"ready": False, "state": "off", "detail": detail}
 

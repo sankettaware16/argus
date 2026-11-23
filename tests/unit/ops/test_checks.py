@@ -265,7 +265,7 @@ def test_a_write_key_in_any_shared_place_is_named_never_shown(tmp_path: Path) ->
     result = checks.write_key_result(problems, configured=True)
     assert result.label == "FAIL"
     assert secret not in result.detail
-    assert result.detail.endswith("belongs only to the writer's own credential (Q-A5); remove it")
+    assert result.detail.endswith("belongs only to the writer's own credential; remove it")
 
 
 def test_a_write_key_in_a_drop_in_or_an_environment_file_is_found(tmp_path: Path) -> None:
@@ -701,7 +701,7 @@ def test_the_node_toolchain(tmp_path: Path) -> None:
 
 def test_the_frontend_build_is_the_build_of_its_sources(tmp_path: Path) -> None:
     source, build = tmp_path / "frontend", tmp_path / "spa"
-    assert checks.build_result(source, build).detail == "no frontend yet (Q-B1)"
+    assert checks.build_result(source, build).detail == "no frontend yet"
     source.mkdir()
     (source / "package.json").write_text("{}")
     assert checks.build_result(source, build).label == "FAIL"

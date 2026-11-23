@@ -487,7 +487,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
       )}
       {dash.isError && <Problem error={dash.error} what="The dashboard" onRetry={() => void dash.refetch()} />}
       {dash.isPending && <Loading what="the dashboard" />}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SinceCard />
         <ThreatCard f={f} open={d?.kpis.open} />
       </div>
@@ -495,7 +495,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
         <div className="flex flex-col gap-4" aria-busy={dash.isFetching}>
           <Kpis d={d} f={f} />
           <TimeChart d={d} />
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Breakdown title="Investigations by state" counts={d.states} name="state" titles={STATE_TITLES} fills={STATE_FILL} f={f} />
             <Breakdown title="Investigations by severity" counts={d.severities} name="severity" titles={{}} fills={SEVERITY_FILL} f={f} />
             <Breakdown title="Person's verdict" counts={d.verdicts} name="verdict" titles={VERDICT_TITLES} fills={VERDICT_FILL} f={f} />
@@ -520,7 +520,7 @@ export function Dashboard({ search }: { search: Record<string, unknown> }) {
               ]}
             />
           </Card>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {(["ip", "host", "domain", "user"] as const).map((kind) => (
               <Card key={kind} aria-label={`Top ${KIND_TITLES[kind]}s`}>
                 <CardTitle>{`Top ${kind === "ip" ? "IP addresses" : `${kind}s`}`}</CardTitle>

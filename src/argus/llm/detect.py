@@ -1,5 +1,5 @@
 """Identifiers in text: what must never reach a model in clear. Shared by the pseudonymizer (which
-replaces them) and the egress validator (which blocks any that remain). ``find(text, campus)``
+replaces them) and the egress validator (which blocks any that remain). ``find(text, ours)``
 returns every identifier with its span and kind: addresses in any spelling (dotted, octal, hex,
 IPv6 forms), MAC addresses, own domains, names, e-mail, credentials, tokens, hex ids and secrets,
 also behind percent, HTML or backslash escapes, Unicode forms, defanging, base64, hex or
@@ -64,7 +64,7 @@ def _words(name: str) -> tuple[str, ...]:
 
 
 @dataclass(frozen=True)
-class Campus:
+class OwnSpace:
     """What counts as internal. ``networks``: the organisation's public prefixes and the asset
     map's networks (private space is always internal); ``domains``: its domain suffixes;
     ``assets``: asset names; ``hosts``/``users``: a request's own names. Names match as words,
@@ -87,7 +87,7 @@ class Campus:
             return True
         return bool(self.is_internal and self.is_internal(ip))
 
-    def campus_domain(self, host: str) -> bool:
+    def own_domain(self, host: str) -> bool:
         host = host.lower().rstrip(".")
         return any(host == d or host.endswith("." + d) for d in self.domains)
 
@@ -211,27 +211,27 @@ def _aton(parts: Sequence[str]) -> list[ipaddress.IPv4Address]:
     return out
 
 
-def _dotted(text: str, campus: Campus, out: list[Found]) -> None:
+def _dotted(text: str, ours: OwnSpace, out: list[Found]) -> None:
     for m in DOTTED.finditer(text):
         parts = m.group(0).split(".")
         value: str | None = None
         for i in range(len(parts) - 3):  # every window of four parts
             window = parts[i : i + 4]
-            hits = [a for a in _aton(window) if campus.internal(a)]
+            hits = [a for a in _aton(window) if ours.internal(a)]
             if hits:
                 value = str(hits[0])
                 break
             head = _aton([*window[:3], "0"])  # ``192.168.12.990``: its network shows
-            if not _aton(window) and head and campus.internal(head[0]):
+            if not _aton(window) and head and ours.internal(head[0]):
                 value = m.group(0)
                 break
         if value is None and len(parts) in (2, 3) and (_part(parts[-1], False) or 0) > 255:
-            hits = [a for a in _aton(parts) if campus.internal(a)]  # ``10.65538``
+            hits = [a for a in _aton(parts) if ours.internal(a)]  # ``10.65538``
             value = str(hits[0]) if hits else None
         mark = MARK.match(text, m.end())
         if value is None and len(parts) == 3:
             head = _aton([*parts, "0"])
-            if head and campus.internal(head[0]):
+            if head and ours.internal(head[0]):
                 # a marked prefix (``10.1.2.x``) always; an unmarked one only outside private
                 # space, where ``10.0.1`` is far more often a version than a network
                 private = any(head[0] in n for n in PRIVATE)
@@ -243,13 +243,13 @@ def _dotted(text: str, campus: Campus, out: list[Found]) -> None:
     for m in DASHED.finditer(text):
         parts = m.group(0).split("-")
         for i in range(len(parts) - 3):
-            hits = [a for a in _aton(parts[i : i + 4])[:1] if campus.internal(a)]
+            hits = [a for a in _aton(parts[i : i + 4])[:1] if ours.internal(a)]
             if hits:
                 out.append(Found(m.start(), m.end(), "ip", str(hits[0])))
                 break
 
 
-def _ipv6(text: str, campus: Campus, out: list[Found]) -> None:
+def _ipv6(text: str, ours: OwnSpace, out: list[Found]) -> None:
     """Every candidate between colons of a hex/colon run, at most 45 characters long."""
     for m in V6RUN.finditer(text):
         run = m.group(0)
@@ -269,14 +269,14 @@ def _ipv6(text: str, campus: Campus, out: list[Found]) -> None:
                 if candidate.count(":") < 2 or ":::" in candidate or candidate.count("::") > 1:
                     continue
                 ip = _ip(candidate)
-                if isinstance(ip, ipaddress.IPv6Address) and campus.internal(ip):
+                if isinstance(ip, ipaddress.IPv6Address) and ours.internal(ip):
                     out.append(Found(m.start() + s, m.start() + e, "ip", str(ip)))
                     done = e
                     break
     for m in ARPA6.finditer(text):
         nibbles = m.group(1).replace(".", "")[::-1]
         ip6 = ipaddress.IPv6Address(int(nibbles, 16))
-        if campus.internal(ip6):
+        if ours.internal(ip6):
             out.append(Found(m.start(), m.end(), "ip", str(ip6)))
 
 
@@ -300,13 +300,13 @@ def _macs(text: str, out: list[Found]) -> None:
                     break
 
 
-def _domains(text: str, campus: Campus, out: list[Found]) -> None:
+def _domains(text: str, ours: OwnSpace, out: list[Found]) -> None:
     """A domain of the organisation or a subdomain, also inside a longer name
     (``moodle.example.edu.evil.example``: its own part is internal), but not glued to more
     letters or digits (``example.education``) nor another domain ending alike (``xexample.edu``).
     Found by the suffix, then extended to the left: linear time."""
     low = text.lower()
-    for domain in campus.domains:
+    for domain in ours.domains:
         for hit in re.finditer(re.escape(domain), low):
             at, end = hit.start(), hit.end()
             nxt = text[end : end + 1]
@@ -340,8 +340,8 @@ def _emails(text: str, out: list[Found]) -> None:
             out.append(Found(start, stop, "email", text[start:stop]))
 
 
-def _names(text: str, campus: Campus, out: list[Found]) -> None:
-    index = campus.name_index
+def _names(text: str, ours: OwnSpace, out: list[Found]) -> None:
+    index = ours.name_index
     if not index:
         return
     tokens = [t.span() for t in TOKEN.finditer(text)]
@@ -363,30 +363,30 @@ def _names(text: str, campus: Campus, out: list[Found]) -> None:
             break
 
 
-def _scan(text: str, campus: Campus) -> list[Found]:
+def _scan(text: str, ours: OwnSpace) -> list[Found]:
     """Identifiers written in clear (no decoding)."""
     out: list[Found] = []
 
     def add(m: re.Match[str], kind: Kind, group: int = 0, value: str | None = None) -> None:
         out.append(Found(m.start(group), m.end(group), kind, value or m.group(group)))
 
-    _dotted(text, campus, out)
-    _ipv6(text, campus, out)
+    _dotted(text, ours, out)
+    _ipv6(text, ours, out)
     for m in ARPA.finditer(text):
         ip = _ip(".".join(reversed(m.groups())))
-        if ip is not None and campus.internal(ip):
+        if ip is not None and ours.internal(ip):
             add(m, "ip", 0, str(ip))
     for pattern, radix in ((DECIMAL, 10), (OCTAL_INT, 8)):
         for m in pattern.finditer(text):
             number = int(m.group(1), radix)
-            if number < 2**32 and campus.internal(ipaddress.IPv4Address(number)):
+            if number < 2**32 and ours.internal(ipaddress.IPv4Address(number)):
                 add(m, "ip", 1, str(ipaddress.IPv4Address(number)))
     for m in HEX_IP.finditer(text):
         ip4 = ipaddress.IPv4Address(int(m.group(1), 16))
-        if campus.internal(ip4):
+        if ours.internal(ip4):
             add(m, "ip", 0, str(ip4))
     _macs(text, out)
-    _domains(text, campus, out)
+    _domains(text, ours, out)
     _emails(text, out)
     for m in USER_PATH.finditer(text):
         add(m, "user_path")
@@ -400,7 +400,7 @@ def _scan(text: str, campus: Campus) -> list[Found]:
         add(m, "roll_number")
     for m in SECRET.finditer(text):
         add(m, "secret")
-    _names(text, campus, out)
+    _names(text, ours, out)
     return out
 
 
@@ -506,20 +506,20 @@ def _segments(text: str) -> Iterable[tuple[int, int, str]]:
         yield m.start(), m.end(), plain
 
 
-def find(text: str, campus: Campus, depth: int = DEPTH) -> list[Found]:
+def find(text: str, ours: OwnSpace, depth: int = DEPTH) -> list[Found]:
     """Every identifier in ``text``, in clear or encoded (up to ``depth`` encodings deep),
     sorted by position. An encoded one spans the encoded stretch (the whole text for a
     whole-text encoding)."""
-    found = _scan(text, campus)
+    found = _scan(text, ours)
     if depth > 0:
         plain = canonical(text)
         if plain != text:
-            found += [Found(0, len(text), f.kind, f.value, True) for f in _scan(plain, campus)]
+            found += [Found(0, len(text), f.kind, f.value, True) for f in _scan(plain, ours)]
         for source in dict.fromkeys((text, plain)):
             whole = source is not text
             for start, end, decoded in _segments(source):
                 span = (0, len(text)) if whole else (start, end)
-                for inner in find(decoded, campus, depth - 1):
+                for inner in find(decoded, ours, depth - 1):
                     found.append(Found(*span, inner.kind, inner.value, encoded=True))
     return sorted(set(found), key=lambda f: (f.start, f.end, f.kind, f.value))
 

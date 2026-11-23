@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS retention purge at 04:30 IST, after the nightly dump and the weekly drill (Q-A4)
+Description=ARGUS retention purge at 23:00 UTC, after the nightly dump and the weekly drill
 
 [Timer]
 OnCalendar=*-*-* 23:00:00 UTC

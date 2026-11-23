@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS notices (Q-H4: a link, a severity and a count by e-mail; custody layout, Q-A5)
+Description=ARGUS notices: a link, a severity and a count by e-mail (custody layout)
 # Started by argus-notices.timer. Sends mail only when notices.enabled is true, a recipient is
 # named and the relay is set (docs/runbooks/notices.md). A relay that needs a login names
 # notices.password in this unit at that production step (it is not loaded until then).

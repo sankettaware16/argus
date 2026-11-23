@@ -212,7 +212,7 @@ class Campaign:
         return frozenset({("domain", p) for p in self.parents} | {("ip", s) for s in self.servers})
 
     def reason(self) -> str:
-        """The campaign in a line: "one operator, 47 campus devices: ..."."""
+        """The campaign in a line: "one operator, 47 internal devices: ..."."""
         n = len(self.hosts)
         devices = f"{n} {site.own('device' if n == 1 else 'devices')}"
         what = [*self.parents, *self.servers]

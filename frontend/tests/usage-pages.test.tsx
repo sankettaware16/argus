@@ -2,7 +2,7 @@
 // like any key (sealed, never shown), on or off by key (Shodan's keyless fallback), its limits and
 // lookups, the Test of one public address; the costs' summary first, the AI's spend a day stacked
 // by provider, the tasks' table and each source's lookups against its daily limit; the menu.
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -130,118 +130,126 @@ describe("Threat intel", () => {
 });
 
 describe("Costs and usage", () => {
-  it("says first what was spent against the limits, and that the AI is allowed", async () => {
-    serve();
-    renderApp("/costs");
-    expect(await screen.findByRole("heading", { level: 1, name: "Costs and usage" })).toBeTruthy();
-    expect(document.title).toBe("Costs and usage · ARGUS");
-    expect(screen.getByTestId("costs-month").textContent).toBe("$2.50 of $10.00");
-    expect(screen.getByTestId("costs-today").textContent).toBe("$0.0040 of $0.30");
-    expect(within(screen.getByTestId("costs-summary")).getByRole("link", { name: /Stop them/ }).getAttribute("href")).toBe("/app/ai");
+  const METRICS = { backlog: [], calls: [], fallbacks: 0, floor_hits: 0, validator_blocks: 0, outcomes: [{ assessor: "the AI investigator", label: "Real but harmless", count: 50 }], quota: [], stopped: false, month_cost_usd: 2.5 };
+  const serveBoard = (more: Partial<UsageOut> = {}) => {
+    serve(more);
+    server.use(http.get(`${BASE}/api/v1/metrics`, () => HttpResponse.json(METRICS)));
+  };
+
+  it("is the dashboards' fourth board, and the old address leads to it", async () => {
+    serveBoard();
+    const { router } = renderApp("/costs");
+    expect(await screen.findByTestId("stat-month")).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/dashboards");
+    expect(router.state.location.search).toEqual({ d: "costs" });
+    expect(screen.getByRole("button", { name: "Costs" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByRole("group", { name: "Time range" })).toBeNull();
+  });
+
+  it("leads with what was spent against the caps and where the month is heading", async () => {
+    serveBoard();
+    renderApp("/dashboards?d=costs");
+    const month = await screen.findByTestId("stat-month");
+    expect(month.textContent).toContain("$2.50");
+    expect(month.textContent).toContain("of a $10.00 cap");
+    expect(screen.getByTestId("stat-today").textContent).toContain("$0.0040");
+    expect(screen.getByTestId("stat-today").textContent).toContain("of a $0.30 cap");
+    expect(screen.getByTestId("stat-projected").textContent).toMatch(/On course for\$\d/);
+    expect(screen.getByTestId("stat-projected").textContent).toContain("by the month's end");
+    expect(screen.getByTestId("stat-unit").textContent).toContain("$0.05");
+    expect(screen.getByTestId("stat-unit").textContent).toContain("50 proposed outcomes this month");
+    expect(screen.getByTestId("stat-lookups").textContent).toContain("12");
+    const caps = within(screen.getByTestId("caps"));
+    expect(caps.getByRole("img", { name: "Today: $0.0040 of $0.30" })).toBeTruthy();
+    expect(caps.getByRole("img", { name: "This month: $2.50 of $10.00" })).toBeTruthy();
+    expect(caps.getByRole("link", { name: "Change the caps ›" }).getAttribute("href")).toBe("/app/ai");
   });
 
   it("says when every AI call is stopped, with the way to resume", async () => {
-    serve({ stopped: true });
-    renderApp("/costs");
+    serveBoard({ stopped: true });
+    renderApp("/dashboards?d=costs");
     const stopped = await screen.findByTestId("costs-stopped");
     expect(stopped.textContent).toContain("All AI calls are stopped");
     expect(within(stopped).getByRole("link").getAttribute("href")).toBe("/app/ai");
   });
 
-  it("draws the AI's spend a day stacked by provider, the dearest first, with a legend and a table", async () => {
-    serve();
-    renderApp("/costs");
-    const card = await screen.findByTestId("costs-ai-days");
-    const chart = within(card).getByRole("img", { name: /^The AI's spend a day by provider, last 31 days/ });
-    expect(chart.querySelectorAll("rect.fill-transparent").length).toBe(31);
-    const legend = within(card).getByRole("list", { name: "Legend" });
-    expect(within(legend).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["paidcloud$0.42", "freecloud$0.00"]);
-    const table = within(card).getByRole("table");
-    expect(within(table).getAllByRole("row").length).toBe(3);
-  });
-
-  it("reads a day out on focus and with the arrow keys: its spend and each provider's calls", async () => {
-    serve();
+  it("draws the spend a day by provider, read in dollars by the arrow keys or as a table", async () => {
     const user = userEvent.setup();
-    renderApp("/costs");
-    const card = await screen.findByTestId("costs-ai-days");
-    const chart = within(card).getByRole("img", { name: /^The AI's spend a day by provider/ });
-    act(() => chart.focus());
-    expect(within(card).getByTestId("bar-tip").textContent).toContain("$0.0040 spent");
-    await user.keyboard("{ArrowLeft}");
-    const tip = within(card).getByTestId("bar-tip").textContent ?? "";
-    expect(tip).toContain("$0.42 spent");
-    expect(tip).toContain("paidcloud: $0.42 · 4 calls");
-    expect(tip).toContain("freecloud: $0.00 · 9 calls");
-    await user.keyboard("{Escape}");
-    expect(within(card).queryByTestId("bar-tip")).toBeNull();
+    serveBoard();
+    renderApp("/dashboards?d=costs");
+    const card = within(await screen.findByTestId("spend-days"));
+    expect(card.getAllByTestId("column")).toHaveLength(31);
+    expect(within(card.getByTestId("legend")).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["freecloud", "paidcloud"]);
+    const chart = card.getByTestId("columns");
+    fireEvent.keyDown(chart, { key: "ArrowLeft" });
+    const readout = card.getByTestId("readout").textContent ?? "";
+    expect(readout).toContain("$0.42");
+    expect(readout).toContain("paidcloud");
+    expect(card.getByRole("img", { name: /^Spend a day: \$0\.42 in 31 days; the most, \$0\.42, on / })).toBeTruthy();
+    await user.click(card.getByRole("button", { name: "Show as a table" }));
+    const rows = within(card.getByRole("table", { name: "Spend a day, by provider" })).getAllByRole("row");
+    expect(rows).toHaveLength(32);
+    expect(rows.at(-2)?.textContent).toContain("$0.42");
   });
 
-  it("hides and shows a provider from its legend button, and switches to 7 days", async () => {
-    serve();
-    const user = userEvent.setup();
-    renderApp("/costs");
-    const card = await screen.findByTestId("costs-ai-days");
-    const paid = within(card).getByRole("button", { name: /paidcloud/ });
-    expect(paid.getAttribute("aria-pressed")).toBe("true");
-    await user.click(paid);
-    expect(paid.getAttribute("aria-pressed")).toBe("false");
-    const chart = within(card).getByRole("img", { name: /^The AI's spend a day/ });
-    expect(chart.querySelectorAll("rect.fill-accent").length).toBe(0);
-    await user.click(paid);
-    expect(chart.querySelectorAll("rect.fill-accent").length).toBe(2);
-    await user.click(screen.getByRole("button", { name: "7 days" }));
-    expect(within(card).getByRole("heading", { name: "The AI's spend a day, last 7 days" })).toBeTruthy();
-    expect(within(card).getByRole("img", { name: /last 7 days/ }).querySelectorAll("rect.fill-transparent").length).toBe(7);
+  it("gives two providers it does not know two different colours", async () => {
+    serveBoard();
+    renderApp("/dashboards?d=costs");
+    const legend = within(within(await screen.findByTestId("calls-days")).getByTestId("legend"));
+    const fills = legend.getAllByRole("listitem").map((li) => li.querySelector("rect")?.getAttribute("class"));
+    expect(new Set(fills).size).toBe(2);
+    expect(fills).not.toContain("fill-viz-rest");
   });
 
-  it("says the trend against the previous 7 days, the projection to the month's end, and when it was read", async () => {
-    serve();
-    renderApp("/costs");
-    expect((await screen.findByTestId("costs-trend")).textContent).toContain("nothing the 7 before");
-    expect(screen.getByTestId("costs-projection").textContent).toContain("Projection, not a promise");
-    expect(screen.getByRole("img", { name: /The AI's spend this month/ })).toBeTruthy();
-    expect(screen.getByTestId("costs-updated").textContent).toContain("every minute");
+  it("says what the money is for and which provider answered", async () => {
+    serveBoard();
+    renderApp("/dashboards?d=costs");
+    const tasks = within(await screen.findByTestId("tasks"));
+    expect(tasks.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Second opinions on P1 incidents5 · $0.42", "Incident readings9 · $0.00"]);
+    const providers = within(screen.getByTestId("providers"));
+    expect(providers.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["freecloud9 · 89% answered · $0.00", "paidcloud5 · 100% answered · $0.42"]);
+    expect(screen.getByTestId("stat-calls").textContent).toContain("14");
+    expect(screen.getByTestId("stat-calls").textContent).toContain("13 answered · 64% on free providers");
   });
 
-  it("lists the tasks this month with their calls and cost", async () => {
-    serve();
-    renderApp("/costs");
-    const rows = within(await screen.findByTestId("costs-tasks")).getAllByRole("row");
-    expect(rows[1]?.textContent).toBe("Second opinions on P1 incidents5$0.42");
-    expect(rows[2]?.textContent).toBe("Incident readings9$0.00");
-  });
-
-  it("draws each source's lookups a day against its daily limit", async () => {
-    serve();
-    renderApp("/costs");
-    const vt = await screen.findByTestId("costs-source-virustotal");
-    expect(vt.textContent).toContain("12 today of 400, 140 this month");
-    const chart = within(vt).getByRole("img", { name: /^VirusTotal: lookups a day, last 31 days/ });
-    expect(chart.textContent).toContain("limit 400 a day");
-    act(() => chart.focus());
-    expect(within(vt).getByTestId("bar-tip").textContent).toContain("12 lookups of 400 a day");
-    expect(screen.getByTestId("costs-source-censys").textContent).toContain("Off: no key");
+  it("shows each threat-intel source against its daily limit", async () => {
+    serveBoard();
+    renderApp("/dashboards?d=costs");
+    const sources = within(await screen.findByTestId("sources"));
+    const cards = sources.getAllByTestId("source");
+    expect(cards.map((c) => c.textContent?.slice(0, 12))).toEqual(["VirusTotalOn", "ShodanOn wit", "CensysOffLoo"]);
+    expect(within(cards[0] as HTMLElement).getByRole("img", { name: "Lookups today: 12 of 400" })).toBeTruthy();
+    expect(cards[0]?.textContent).toContain("140 this month, 139 answered · limit: 3 a minute, 400 a day");
+    expect(sources.getByRole("link", { name: "Keys and limits ›" }).getAttribute("href")).toBe("/app/threat-intel");
   });
 
   it("says when nothing was spent and the lookups are not counted yet", async () => {
-    serve({ ai_days: [], ai_tasks: [], sources: [], sources_at: null });
-    renderApp("/costs");
-    expect(await screen.findByText("No AI call in the last 31 days.")).toBeTruthy();
-    expect(screen.getByText("No AI call this month.")).toBeTruthy();
+    serveBoard({ month_usd: 0, today_usd: 0, ai_days: [], ai_tasks: [], sources: [], sources_at: null });
+    renderApp("/dashboards?d=costs");
+    expect((await screen.findByTestId("stat-calls")).textContent).toContain("ARGUS decided without a model");
+    expect(screen.getByText("No AI task ran this month.")).toBeTruthy();
     expect(screen.getByText(/has not counted the lookups yet/)).toBeTruthy();
   });
 
-  it("is in the menu under Administration with Threat intel, after AI and agents", async () => {
+  it("is an administrator's: nobody else is shown the figures, and nothing is asked for them", async () => {
+    serve();
+    server.use(...shellHandlers(sessionWith(["view"])));
+    renderApp("/dashboards?d=costs");
+    expect((await screen.findByTestId("costs-admin-only")).textContent).toContain("an administrator's to see");
+    expect(screen.queryByTestId("stat-month")).toBeNull();
+    expect(sent("GET", "/api/v1/admin/usage")).toEqual([]);
+  });
+
+  it("Threat intel is in the menu under Administration; Costs and usage, opened rarely, under More", async () => {
     const user = userEvent.setup();
     serve();
     renderApp("/");
-    await user.click(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("button", { name: /More/ }));
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
+    const administration = within(nav.getByRole("region", { name: "Administration" }));
+    expect(administration.getByRole("link", { name: "Threat intel" }).getAttribute("href")).toBe("/app/threat-intel");
+    expect(administration.queryByRole("link", { name: "Costs and usage" })).toBeNull();
+    await user.click(nav.getByRole("button", { name: /More/ }));
     const more = within(screen.getByTestId("more-list"));
-    const links = more.getAllByRole("link").map((a) => a.textContent?.trim());
-    const at = links.indexOf("Settings");
-    expect(links.slice(at, at + 5)).toEqual(["Settings", "AI and agents", "Threat intel", "Costs and usage", "Users and roles"]);
-    expect(more.getByRole("link", { name: "Threat intel" }).getAttribute("href")).toBe("/app/threat-intel");
     expect(more.getByRole("link", { name: "Costs and usage" }).getAttribute("href")).toBe("/app/costs");
   });
 });

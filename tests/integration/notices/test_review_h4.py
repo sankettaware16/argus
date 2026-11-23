@@ -224,8 +224,8 @@ async def test_r5_a_campus_hit_is_missed_when_200_newer_listed_investigations_co
     from tests.integration.notices.test_triggers import dossier_body, put_dossier
 
     now = datetime.now(UTC)
-    campus = await world.investigation("10.201.7.13", [now - timedelta(hours=5)])
-    await put_dossier(world.owner, campus, dossier_body([C2], {C2: "high"}))
+    ours = await world.investigation("10.201.7.13", [now - timedelta(hours=5)])
+    await put_dossier(world.owner, ours, dossier_body([C2], {C2: "high"}))
     for n in range(201):  # newer, listed, but from outside addresses (scanners)
         scanner = await world.investigation(
             f"8.8.{n // 250}.{n % 250 + 1}", [now - timedelta(hours=1)]
@@ -233,7 +233,7 @@ async def test_r5_a_campus_hit_is_missed_when_200_newer_listed_investigations_co
         await put_dossier(world.owner, scanner, dossier_body([C2], {C2: "high"}))
     async with app_engine.connect() as conn:
         found = await triggers.ioc_hit(conn, now, IpClassifier(None))
-    assert [c.subject for c in found] == [str(campus)]
+    assert [c.subject for c in found] == [str(ours)]
 
 
 # --------------------------------------------------------------------------- kind 5

@@ -142,12 +142,12 @@ pair.still_active:
   how_to_read: The rhythm went on to the end of the window checked.
 contact.hosts:
   label: Hosts that reached it
-  sentence: "{value} campus hosts reached the destination"
-  how_to_read: Every campus host the proxy logs show reaching the destination that day.
+  sentence: "{value} {own:hosts} reached the destination"
+  how_to_read: "Every {own:host} the proxy logs show reaching the destination that day."
 contact.last:
-  label: Last contact from campus
+  label: "Last contact from {where}"
   sentence: "{value}"
-  how_to_read: The newest request any campus host made to the destination that day.
+  how_to_read: "The newest request any {own:host} made to the destination that day."
 dns.lookups:
   label: DNS lookups
   sentence: "{value} DNS lookups"

@@ -1,5 +1,5 @@
 """The egress validator: the last check on the exact bytes of a request before it leaves, and on
-a model's answer before it is used. ``check(payload, campus, ordinary=...)`` blocks a request
+a model's answer before it is used. ``check(payload, ours, ordinary=...)`` blocks a request
 holding any identifier ``argus.llm.detect`` finds, in clear or encoded; quoted strings are
 untrusted (no word is exempt), ``ordinary`` words are exempt only outside quotes, and any error
 blocks (fail closed). A ``Verdict`` holds kinds only. ``foreign(answer, items, about)`` lists
@@ -14,7 +14,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, replace
 from typing import Any
 
-from argus.llm.detect import TOKEN, Campus, find
+from argus.llm.detect import TOKEN, OwnSpace, find
 
 MAX_BYTES = 128 * 1024  # requests are at most 60,000 characters
 QUOTED = re.compile(r'"(?:[^"\\\n]|\\.){0,4000}"')
@@ -62,21 +62,21 @@ def _quoted(text: str) -> Iterator[str]:
             yield inner
 
 
-def _check(text: str, strict: Campus, outside: Campus, part: str) -> list[Blocked]:
+def _check(text: str, strict: OwnSpace, outside: OwnSpace, part: str) -> list[Blocked]:
     out = [Blocked(f.kind, f.encoded, part) for f in find(text, outside)]
     for inner in _quoted(text):
         out += [Blocked(f.kind, f.encoded, "quoted") for f in find(inner, strict)]
     return out
 
 
-def check(payload: bytes | str, campus: Campus, ordinary: Iterable[str] = ()) -> Verdict:
+def check(payload: bytes | str, ours: OwnSpace, ordinary: Iterable[str] = ()) -> Verdict:
     try:
         raw = payload if isinstance(payload, bytes) else payload.encode("utf-8")
         if len(raw) > MAX_BYTES:
             return Verdict(False, error="too large")
         text = raw.decode("utf-8")
-        strict = replace(campus, ordinary=frozenset())
-        outside = replace(campus, ordinary=frozenset(w.lower() for w in ordinary))
+        strict = replace(ours, ordinary=frozenset())
+        outside = replace(ours, ordinary=frozenset(w.lower() for w in ordinary))
         try:
             decoded = json.loads(text)
         except ValueError:

@@ -28,6 +28,7 @@ from types import MappingProxyType
 from typing import Literal
 
 from argus import site
+from argus.assess import raised
 from argus.outside import facts as outside_facts
 from argus.outside.psl import registered_parent
 
@@ -45,7 +46,7 @@ OUTSIDE = "flagged by outside threat intel"
 OPERATOR = "same operator as a flagged destination"
 SUCCESS = "successful answers after the alert"
 PORTS = "remote-admin, P2P or anonymizer ports"
-CAMPAIGN = "many campus devices reach one rare domain"
+CAMPAIGN = raised.CAMPAIGN  # a stored key; shown in the site's words
 EVIDENCE = frozenset({BEACON, LISTED, OUTSIDE, OPERATOR, SUCCESS, PORTS, CAMPAIGN})
 BEACON_PORTS = f"{BEACON} + {PORTS}"  # a per-device set: both flags on one investigation
 # a stored path check's outcomes (``argus.context.paths``; a test holds them equal)
@@ -153,7 +154,7 @@ class Facts:
     servers: tuple[str, ...] = ()  # flagged, listed or command-and-control addresses and names
     domains: tuple[str, ...] = ()  # outside names the devices asked for
     sites: tuple[str, ...] = ()  # internal web sites that were reached (entities, stored checks)
-    campus_servers: int = 0  # internal addresses that were reached (not devices that acted)
+    own_servers: int = 0  # internal addresses that were reached (not devices that acted)
     listed: tuple[str, ...] = ()  # values a local threat list holds
     labels: tuple[str, ...] = ()  # threat names ARGUS stores: where a family may show
     follows: int = 0  # the number of the closed case this one follows (0: none)
@@ -623,7 +624,7 @@ def _web_ok(f: Facts) -> bool:
 
 
 def _probe_ok(f: Facts) -> bool:
-    if f.devices or f.campus_servers < 1:
+    if f.devices or f.own_servers < 1:
         return False
     return bool(set(_unique(f.outsiders)) & set(f.listed))
 
@@ -779,7 +780,7 @@ def _device_words(value: str, f: Facts) -> str | None:
 
 
 def _actor_words(f: Facts, activity: str, backers: frozenset[str]) -> list[tuple[str, str]]:
-    """(fact, words) for who did it: the one device by name, or "N of M campus devices" (N: the
+    """(fact, words) for who did it: the one device by name, or "N of M internal devices" (N: the
     devices that carry the activity's fact; M: the case's devices, with those past a bounded read),
     the most specific first."""
     n, m = len(backers), len(_device_values(f)) + max(0, f.more_devices)
@@ -986,7 +987,7 @@ def _web_titles(f: Facts) -> list[list[Part]] | None:
 def _probe_titles(f: Facts) -> list[list[Part]] | None:
     if not _probe_ok(f):
         return None
-    n = f.campus_servers
+    n = f.own_servers
     servers = site.a_own("server") if n == 1 else f"{n} {site.own('servers')}"
     act = Claim("activity", ACTIVITIES["probing"], "activity:probing")
     target = Claim("object", servers, f"count:own_servers:{n}")
@@ -1088,7 +1089,7 @@ def held(f: Facts) -> dict[str, set[str]]:
             out.take(_site_parts(f, how))
     if _probe_ok(f):
         out.put("activity:probing", ACTIVITIES["probing"])
-        n = f.campus_servers
+        n = f.own_servers
         servers = site.a_own("server") if n == 1 else f"{n} {site.own('servers')}"
         out.put(f"count:own_servers:{n}", servers)
     for named in (True, False):
@@ -1242,7 +1243,7 @@ def _count_pattern(*own: str) -> re.Pattern[str]:
 
 def counts_in(text: str) -> tuple[str, tuple[int, ...]]:
     """``text`` with each count of a title blanked ("#"), and the counts in order. A count is a
-    number before one of the title's count nouns ("12 of 22 campus devices", "+1 site",
+    number before one of the title's count nouns ("12 of 22 internal devices", "+1 site",
     "VirusTotal: 4 engines", "6 outside IPs", "(19 in hostels)"); a number in an address, a name,
     a place ("Hostel 12"), a rule's quoted name, "case N" or "HTTP 200" is a word."""
     own = (site.own("device"), site.own("devices"), site.own("sites"), site.own("servers"))
@@ -1324,9 +1325,9 @@ def _row_values(value: object) -> list[str]:
 
 
 def _row_side(
-    pairs: Sequence[tuple[str, object]], side: RowSide, campus: Callable[[str], bool]
+    pairs: Sequence[tuple[str, object]], side: RowSide, ours: Callable[[str], bool]
 ) -> str | None:
-    """One side of a key in plain words: a value, or a count ("8 campus devices", "3 outside IPs",
+    """One side of a key in plain words: a value, or a count ("8 internal devices", "3 outside IPs",
     "1 account"); an account is counted, never named."""
     values = [(n, v) for n, value in pairs if _side_of(n) == side for v in _row_values(value)]
     if not values:
@@ -1340,7 +1341,7 @@ def _row_side(
     if len(names) == 1 and not ips:
         return names[0]
     if ips and not names:
-        inside = sum(1 for v in ips if campus(v))
+        inside = sum(1 for v in ips if ours(v))
         if inside == len(ips):
             return f"{len(ips)} {site.own('devices')}"
         return (
@@ -1366,7 +1367,7 @@ def own_address(value: str) -> bool:
 
 def row_title(
     key_fields: Sequence[tuple[str, object]], flags: Iterable[str], alerts: int,
-    campus: Callable[[str], bool] = own_address,
+    ours: Callable[[str], bool] = own_address,
 ) -> tuple[str, str]:  # fmt: skip
     """An Inbox row's two lines from the investigation's own facts (its key, its evidence flags,
     its alert count), never the rule's name: line 1 "<who> → <what> · <activity>" ("→ <what>"
@@ -1374,9 +1375,9 @@ def row_title(
     first; line 2 the key in plain words ("from 10.0.0.7 to 203.0.113.5", "to 203.0.113.5",
     "for 2 accounts"). A value keeps its side: a destination is never said as "from"."""
     pairs = [(str(k), v) for k, v in key_fields]
-    who = _row_side(pairs, "actor", campus)
-    what = _row_side(pairs, "object", campus)
-    account = _row_side(pairs, "account", campus)
+    who = _row_side(pairs, "actor", ours)
+    what = _row_side(pairs, "object", ours)
+    account = _row_side(pairs, "account", ours)
     if who is None and what is not None:
         who, account = account, None  # an account acted on what the key names
     elif what is None and who is not None:

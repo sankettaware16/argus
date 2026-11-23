@@ -38,7 +38,7 @@ KEY = b"k" * 32
 TOKENS = Tokenizer(KEY)
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=("campus.ac.in", "campus-alt.org"),
+    own_domains=("campus.ac.in", "campus-alt.org"),
     keep_domains=("ubuntu.com", "vendor-cdn.com"),
     literals={"Campus University": "Example University", "CU": "EU", "ACME-CU": "ACME-EU"},
     fields={
@@ -150,7 +150,7 @@ def test_lockin_output_is_identical_across_hash_seeds(tmp_path: Path) -> None:
     equal-length campus and keep domains (their order comes from a set) and every detector."""
     policy = POLICY.model_copy(
         update={
-            "campus_domains": ("aaaa.ac.in", "bbbb.ac.in", "cccc.org.in"),
+            "own_domains": ("aaaa.ac.in", "bbbb.ac.in", "cccc.org.in"),
             "keep_domains": ("cdn-a.com", "cdn-b.com", "cdn-c.com"),
         }
     )
@@ -274,9 +274,9 @@ def test_fxd08_url_host_swallows_trailing_punctuation() -> None:
     (``tok.tok.tok.in)``) instead of ``tok.univ.example``, and a kept vendor domain followed by a
     comma is pseudonymised."""
     s = _sanitizer([])
-    campus = s.domains.map("www.campus.ac.in")
-    assert s.map_text("(see http://www.campus.ac.in)") == f"(see http://{campus})"
-    assert s.map_text("[http://www.campus.ac.in];") == f"[http://{campus}];"
+    ours = s.domains.map("www.campus.ac.in")
+    assert s.map_text("(see http://www.campus.ac.in)") == f"(see http://{ours})"
+    assert s.map_text("[http://www.campus.ac.in];") == f"[http://{ours}];"
     assert (
         s.map_text("fetched http://vendor-cdn.com, done") == "fetched http://vendor-cdn.com, done"
     )
@@ -401,7 +401,7 @@ def test_lockin_literals_longest_first_and_single_pass() -> None:
 
 
 def test_fxd15_two_campus_domains_collide() -> None:
-    """DEFECT FXD-15: every campus domain maps onto the single ``campus_replacement``, so
+    """DEFECT FXD-15: every campus domain maps onto the single ``own_replacement``, so
     ``www.campus.ac.in`` and ``www.campus-alt.org`` (two different hosts; the real policy has two
     campus domains) get the same pseudonym."""
     s = _sanitizer([])
@@ -674,7 +674,7 @@ def test_fxd14_keep_domain_covering_a_campus_domain_is_accepted() -> None:
     driver removes from the leak denylist, so the leak goes unreported."""
     with pytest.raises(ValueError):  # noqa: PT011 - any refusal at load time is the fix
         Sanitizer(
-            FixturePolicy(campus_domains=("campus.ac.in",), keep_domains=("ac.in",)), KEY
+            FixturePolicy(own_domains=("campus.ac.in",), keep_domains=("ac.in",)), KEY
         ).harvest([{"m": "http://www.campus.ac.in/"}])
 
 

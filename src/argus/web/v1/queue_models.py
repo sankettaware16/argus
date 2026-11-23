@@ -35,7 +35,7 @@ class QueueCaseOut(Out):
     changes: list[str]  # kind "changed": what is new since the notice, at most three
     notified_at: datetime | None
     stance: StanceOut
-    devices: list[str]  # the case's campus hosts and addresses, at most four
+    devices: list[str]  # the case's internal hosts and addresses, at most four
     devices_total: int
     outside: list[str]  # the case's outside (public) addresses, at most four: never "devices"
     outside_total: int

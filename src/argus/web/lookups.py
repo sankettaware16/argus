@@ -39,7 +39,7 @@ HOSTS_READ = 20  # host names a day of an address is compared on
 REPORT_PAGE = 50
 NOUNS = {"device": "Device", "account": "Account", "site": "{Own:site}",
          "outside": "Outside address"}  # fmt: skip
-CAMPUS_CLASSES = (IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL)  # else an outside address
+OWN_CLASSES = (IpClass.ASSET, IpClass.OWN, IpClass.INTERNAL)  # else an outside address
 _NUMBER = re.compile(r"^#?(\d{1,7})$")
 _IR = re.compile(r"(^IR-|-IR-\d{4}-\d{4}-\d{2}$)", re.I)
 _DOMAIN = re.compile(r"^(?=.{3,253}$)[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*\.[A-Za-z]{2,63}\.?$")
@@ -78,7 +78,7 @@ def guess(q: str, classifier: IpClassifier | None) -> tuple[m.Guess, m.SearchEnt
     if _IR.search(q):
         return "ir", None
     if _address(q):
-        if _ip_class(q, classifier) in CAMPUS_CLASSES:
+        if _ip_class(q, classifier) in OWN_CLASSES:
             return "device_address", m.SearchEntityOut(kind="device", value=q,
                                                        noun=site.say(NOUNS["device"]))  # fmt: skip
         return "outside_address", m.SearchEntityOut(kind="outside", value=q,
@@ -130,6 +130,29 @@ async def case_of(conn: AsyncConnection, investigation_id: uuid.UUID) -> InCaseO
     if row is None:
         return None
     return InCaseOut(id=row.id, number=int(row.number), title=row.title, state=row.state)
+
+
+_IN_CASES = text(
+    "SELECT DISTINCT ON (mm.investigation_id) mm.investigation_id, c.id, c.number, c.title,"
+    " c.state FROM case_members mm JOIN cases c ON c.id = mm.case_id"
+    " WHERE mm.investigation_id = ANY(CAST(:ids AS uuid[])) AND mm.removed_at IS NULL"
+    " ORDER BY mm.investigation_id, c.number DESC"
+)
+
+
+async def case_by_group(
+    conn: AsyncConnection, investigation_ids: Iterable[uuid.UUID]
+) -> dict[uuid.UUID, InCaseOut]:
+    """The incident each of these alert groups belongs to (its newest, as ``case_of``), in one
+    read; an alert group in none has no entry."""
+    wanted = sorted(set(investigation_ids), key=str)
+    if not wanted:
+        return {}
+    rows = await conn.execute(_IN_CASES, {"ids": wanted})
+    return {
+        r.investigation_id: InCaseOut(id=r.id, number=int(r.number), title=r.title, state=r.state)
+        for r in rows
+    }
 
 
 async def _refs(conn: AsyncConnection, ids: Iterable[uuid.UUID | None]) -> dict[uuid.UUID, Any]:
@@ -329,7 +352,7 @@ async def entity_page(
     classifier: IpClassifier | None,
     show_names: bool,
 ) -> m.EntityPageOut:
-    """What ARGUS knows of one device, account, campus site or outside address."""
+    """What ARGUS knows of one device, account, own site or outside address."""
     stored = stored_kind(kind, value)
     address_class = asset = None
     if stored == "ip":

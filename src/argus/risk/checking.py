@@ -9,7 +9,7 @@ One pass (``argus risk check``):
 2. **Site lookup**, at most once every ``lookup_every_minutes``: the outside addresses of recent
    inbound alert groups whose site is unknown (no target in their alerts, no stored web
    evidence, no lookup yet), at most 50 in **one** request (``web.source_sites``).
-3. **Checks of the candidates**: an outside address that got a 2xx from a campus site for a
+3. **Checks of the candidates**: an outside address that got a 2xx from an own site for a
    sensitive path (its stored web evidence), or that the lookup found with a 2xx: the site's
    soft-404 check (``web.catchall``, once a site and day), what the address took
    (``web.bulk_take``, when it got many answers or only the lookup knows it) and the outcome
@@ -76,7 +76,7 @@ class Sender(Protocol):
 
 @dataclass
 class Pair:
-    """An outside address on a campus site, on one UTC day: what the stored evidence, the lookup
+    """An outside address on an own site, on one UTC day: what the stored evidence, the lookup
     and earlier take checks say it got."""
 
     source: str

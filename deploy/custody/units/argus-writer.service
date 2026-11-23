@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS writer (Q-D4/Q-D5: Kibana case and alert writes from the outbox; custody layout, Q-A5)
+Description=ARGUS writer: Kibana case and alert writes from the outbox (custody layout)
 # Disabled: writes need the user's approval of each class at its canary (plan §7.1, D-109).
 # The writer key is loaded by this unit alone (plan §3 rule 11); its credential file is made at
 # the canary, so until then a start fails. Until its command exists the condition below skips a

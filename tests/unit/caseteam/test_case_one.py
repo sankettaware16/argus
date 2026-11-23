@@ -23,7 +23,7 @@ CATALOGUE = cat.load()
 
 def report(**more: object) -> m.IncidentReport:
     facts = kit.scanners(**{k: v for k, v in more.items() if k == "checks"})  # type: ignore[arg-type]
-    ctx = kit.ctx(catalogue=CATALOGUE, campus_domains=("example.edu",))
+    ctx = kit.ctx(catalogue=CATALOGUE, own_domains=("example.edu",))
     return build.build(facts, ctx)
 
 
@@ -84,7 +84,7 @@ def test_a_case_a_person_reviewed_does_not_say_unconfirmed() -> None:
     reviewed = replace(
         facts, members=tuple(replace(x, reviewed_outcome="true_positive") for x in facts.members)
     )
-    rep = build.build(reviewed, kit.ctx(catalogue=CATALOGUE, campus_domains=("example.edu",)))
+    rep = build.build(reviewed, kit.ctx(catalogue=CATALOGUE, own_domains=("example.edu",)))
     assert rep.verdict.kind == "person"
     row = next(ln for ln in texts(rep)["open"].split("\n") if ln.startswith("| ARGUS case |"))
     assert "a person reviewed the report \\(a true positive\\)" in row

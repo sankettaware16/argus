@@ -127,7 +127,7 @@ async def check(engine: AsyncEngine, siem: Siem, *, config: Outbound = CONFIG,
     gateway, state, clock = await gateway_for(engine, siem, health=health, at=at)
     return await outbound.run_pass(
         engine, gateway, state.health, now=NOW + at, config=config, lane_day_ms=LANE_DAY_MS,
-        enabled=ON, clock=clock, is_campus=batch1.private_or(None), history=timedelta(days=5),
+        enabled=ON, clock=clock, is_own=batch1.private_or(None), history=timedelta(days=5),
         check=batch1.send_check(state),
     )  # fmt: skip
 
@@ -258,7 +258,7 @@ async def test_only_presented_incidents_and_only_in_normal_health(
     assert "quiet hours" in str(quiet.stopped)
     off = await outbound.run_pass(
         app_engine, *(await _gw(app_engine)), now=NOW, config=CONFIG, lane_day_ms=LANE_DAY_MS,
-        enabled=("proxy.host",), clock=lambda: NOW, is_campus=batch1.private_or(None),
+        enabled=("proxy.host",), clock=lambda: NOW, is_own=batch1.private_or(None),
         history=timedelta(days=5),
     )  # fmt: skip
     assert off.sent == 0
@@ -360,7 +360,7 @@ async def test_the_runtime_role_writes_only_what_it_may(
                 " FROM risk_incidents LIMIT 1"))  # fmt: skip
     pruned = await outbound.run_pass(
         app_engine, *(await _gw(app_engine)), now=NOW + timedelta(days=200), config=CONFIG,
-        lane_day_ms=LANE_DAY_MS, enabled=(), clock=lambda: NOW, is_campus=lambda _: True,
+        lane_day_ms=LANE_DAY_MS, enabled=(), clock=lambda: NOW, is_own=lambda _: True,
         history=timedelta(days=5),
     )  # fmt: skip
     assert pruned.pruned == 2

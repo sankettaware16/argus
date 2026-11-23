@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS checking lane pass (P4-F E3, D-323; custody layout, Q-A5)
+Description=ARGUS checking lane pass: exposure checks and the evidence of the engine's outbound incidents (custody layout)
 After=network-online.target docker.service
 Wants=network-online.target
 

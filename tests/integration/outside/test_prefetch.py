@@ -395,12 +395,12 @@ async def test_a_name_one_investigation_scrubs_is_not_asked_for_another_that_hol
 async def test_a_lookup_given_a_campus_checks_it_before_any_request(
     make_outside: Make, app_engine: AsyncEngine
 ) -> None:
-    from argus.llm.detect import Campus
+    from argus.llm.detect import OwnSpace
 
     transport = Transport(json_reply(200, VT_CLEAN))
     outside = make_outside(transport)
-    mine = Campus(domains=("example.edu",), users=frozenset({"jsmith"}))
-    refused = await outside.lookup("virustotal", "domain", "jsmith.c2.com", campus=mine)
+    mine = OwnSpace(domains=("example.edu",), users=frozenset({"jsmith"}))
+    refused = await outside.lookup("virustotal", "domain", "jsmith.c2.com", ours=mine)
     assert (refused.status, refused.reason) == (
         service.REFUSED, "never looked up outside: a campus name",
     )  # fmt: skip

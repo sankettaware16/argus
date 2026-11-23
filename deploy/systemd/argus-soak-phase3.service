@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS soak gate (P4-A1): the Phase 3 exit gate judged from the store and saved under soak.dir
+Description=ARGUS soak gate: the exit gate judged from the store and saved under soak.dir
 # Started by argus-soak-phase3.timer. Reads ARGUS's own database and a few local files only (no
 # request to the SIEM, no model call, nothing written but the report). Exit 1 means a line FAILs:
 # the report is saved first. Off until the lead switches it on (docs/runbooks/soak-gate.md).

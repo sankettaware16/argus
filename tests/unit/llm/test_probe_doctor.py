@@ -26,7 +26,7 @@ NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
 def provider(**over: Any) -> Any:
     data: dict[str, Any] = {
-        "name": "local", "trust": "campus", "base_url": "https://127.0.0.1:28443/v1",
+        "name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:28443/v1",
         "keys": ["LOCAL_LLM_API_KEY"], "ca_file": "data/tls/local-llm.crt",
         "tasks": ["ping"], "limits": {"rpd": 9}, "timeout_s": 600,
         "models": {"small": {"name": "cp"}, "medium": {"name": "cp2"}}, **over,
@@ -148,7 +148,7 @@ def test_an_imported_certificate_is_checked(tmp_path: Path) -> None:
     good = llm_doctor.certificate_check(provider(ca_file=str(cert)), NOW)
     assert good is not None
     assert good.ok, good
-    assert good.detail.startswith("campus, for 127.0.0.1, valid until ")
+    assert good.detail.startswith("self-hosted, for 127.0.0.1, valid until ")
     elsewhere = llm_doctor.certificate_check(
         provider(ca_file=str(cert), base_url="https://127.0.0.2:28443/v1"), NOW
     )

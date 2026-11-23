@@ -223,14 +223,14 @@ function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<str
   return (
     <div className="setup-tile grid gap-5 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <Field id={`${id}-name`} label="Organisation name" hint="e.g. Example University" error={bad.name}>
+        <Field id={`${id}-name`} label="Organisation name" hint="e.g. Northwind Logistics" error={bad.name}>
           <Input id={`${id}-name`} value={f.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
       </div>
       <Field id={`${id}-short`} label="Security team's name" hint="in the header and reports" error={bad.short_name}>
         <Input id={`${id}-short`} value={f.short_name} onChange={(e) => set("short_name", e.target.value)} />
       </Field>
-      <Field id={`${id}-kind`} label="What kind of organisation" hint="e.g. university" error={bad.kind}>
+      <Field id={`${id}-kind`} label="What kind of organisation" hint="e.g. company, hospital, university" error={bad.kind}>
         <Input id={`${id}-kind`} value={f.kind} onChange={(e) => set("kind", e.target.value)} />
       </Field>
       <div className="sm:col-span-2">
@@ -253,7 +253,7 @@ function Organisation({ f, set, bad }: { f: SetupForm; set: Set; bad: Record<str
           ))}
         </datalist>
       </Field>
-      <Field id={`${id}-label`} label="Short label for it" hint="optional, e.g. IST">
+      <Field id={`${id}-label`} label="Short label for it" hint="optional, e.g. CET">
         <Input id={`${id}-label`} value={f.timezone_label} onChange={(e) => set("timezone_label", e.target.value)} />
       </Field>
       <Field id={`${id}-prefix`} label="Incident id prefix" hint="ids look like SOC-IR-2026-1027-01" error={bad.incident_id_prefix}>

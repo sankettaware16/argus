@@ -44,7 +44,7 @@ def config(port: int, ca: Path, **over: Any) -> LlmConfig:
     model = {"name": ls.MODEL, "context_tokens": 16384, "thinking_tokens": 2048,
              "max_output": 6144, "max_prompt_tokens": 12000}  # fmt: skip
     provider: dict[str, Any] = {
-        "name": "local", "trust": "campus", "base_url": f"https://127.0.0.1:{port}/v1",
+        "name": "local", "trust": "self_hosted", "base_url": f"https://127.0.0.1:{port}/v1",
         "keys": ["LOCAL_LLM_API_KEY"], "ca_file": str(ca), "timeout_s": 30, "concurrency": 1,
         "tasks": ["evaluate", "ping"], "probe": True, "max_tokens_field": "max_tokens",
         "schema_output": True, "schema_required": True, "licence": "D-990",
@@ -85,7 +85,7 @@ async def test_the_drill_on_the_stand_in_defers_every_fault(
 ) -> None:
     cfg = config(port, cert)
     before = datetime.now(UTC)
-    result = await robustness.drill(cfg, KEYS, privacy.campus, HttpxLlmTransport,
+    result = await robustness.drill(cfg, KEYS, privacy.ours, HttpxLlmTransport,
                                     robustness.CASES, faults(machine))  # fmt: skip
     cases = result.cases
     assert cases["control"].outcome == "answered"  # the healthy machine answers
@@ -107,7 +107,7 @@ async def test_the_drill_on_the_stand_in_defers_every_fault(
     chats = [s for s in machine.seen if s["method"] == "POST" and s["path"].endswith("completions")]
     assert all(s["headers"]["Authorization"] == f"Bearer {ls.KEY}" for s in chats
                if s["body"] != {})  # fmt: skip
-    measures = ladder.Measures(provider="local", model=ls.MODEL, trust="campus",
+    measures = ladder.Measures(provider="local", model=ls.MODEL, trust="self_hosted",
                                licence="D-990", hardening=result.hardening,
                                robustness=result.cases)  # fmt: skip
     rung = ladder.judge("triage", measures).rungs[1]
@@ -119,12 +119,12 @@ async def test_the_drill_on_the_stand_in_defers_every_fault(
 async def test_on_the_machine_loading_is_left_to_the_stand_in(
     cert: Path, port: int, privacy: Privacy
 ) -> None:
-    result = await robustness.drill(config(port, cert), KEYS, privacy.campus, HttpxLlmTransport,
+    result = await robustness.drill(config(port, cert), KEYS, privacy.ours, HttpxLlmTransport,
                                     ("wrong_key",), check_hardening=False)  # fmt: skip
     assert result.cases["loading"].outcome == "skipped"
     assert result.cases["slow"].outcome == "skipped"  # not run: the ladder says so
     assert result.hardening == {}
-    measured = ladder.Measures(provider="local", model="m", trust="campus",
+    measured = ladder.Measures(provider="local", model="m", trust="self_hosted",
                                robustness=result.cases)  # fmt: skip
     rung = ladder.robustness_rung(measured)
     assert rung.state is ladder.State.FAIL
@@ -136,7 +136,7 @@ async def test_the_drill_never_touches_the_shared_state(
     cert: Path, port: int, privacy: Privacy
 ) -> None:
     """A wrong key or certificate raises an alarm only in the drill's own store."""
-    result = await robustness.drill(config(port, cert), KEYS, privacy.campus, HttpxLlmTransport,
+    result = await robustness.drill(config(port, cert), KEYS, privacy.ours, HttpxLlmTransport,
                                     ("wrong_key", "changed_certificate"))  # fmt: skip
     assert {e["case"] for e in result.ledger} >= {"control", "wrong_key"}
     # the drill builds its own stores: nothing to inspect in a shared one but its outcome
@@ -147,10 +147,10 @@ async def test_a_control_that_does_not_answer_makes_the_drill_prove_nothing(
     cert: Path, privacy: Privacy
 ) -> None:
     cfg = config(ls.free_port(), cert)
-    result = await robustness.drill(cfg, KEYS, privacy.campus, HttpxLlmTransport, ("wrong_key",),
+    result = await robustness.drill(cfg, KEYS, privacy.ours, HttpxLlmTransport, ("wrong_key",),
                                     check_hardening=False)  # fmt: skip
     assert result.cases["control"].outcome == "deferred"
-    measured = ladder.Measures(provider="local", model="m", trust="campus",
+    measured = ladder.Measures(provider="local", model="m", trust="self_hosted",
                                robustness=result.cases)  # fmt: skip
     rung = ladder.robustness_rung(measured)
     assert rung.state is ladder.State.FAIL
@@ -276,6 +276,6 @@ async def test_without_the_licence_only_the_connection_test_reaches_the_machine(
         verdict = await agent.run(INV, body(), False, False)
     assert verdict.outcome is None
     assert [s for s in machine.seen if s["method"] == "POST"] == []
-    result = await robustness.drill(cfg, KEYS, privacy.campus, HttpxLlmTransport, ("wrong_key",),
+    result = await robustness.drill(cfg, KEYS, privacy.ours, HttpxLlmTransport, ("wrong_key",),
                                     check_hardening=False)  # fmt: skip
     assert result.cases["control"].outcome == "answered"

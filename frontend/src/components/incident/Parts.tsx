@@ -99,7 +99,7 @@ export function ChangedDot({ on }: { on: boolean }) {
 /** Opens an entity: the drawer when the page has one (§9.5). */
 export const EntityOpener = createContext<((o: EngineObject, from: HTMLElement) => void) | null>(null);
 
-/** One campus-side or other-side object, with its noun. */
+/** One own-side or other-side object, with its noun. */
 export function EntityChip({ object }: { object: EngineObject }) {
   const open = useContext(EntityOpener);
   const noun = nounFor(object);

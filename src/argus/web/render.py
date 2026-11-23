@@ -68,9 +68,9 @@ def raw_json(value: Any) -> str:
 
 
 _PACKS = (
-    ("the threat-intel pack (R11)", "a threat-intelligence lookup"),
-    ("the proxy pack (R12)", "proxy-log statistics"),
-    ("the log pivots (R12, R13)", "a search of the web and proxy logs"),
+    ("the threat-intel pack", "a threat-intelligence lookup"),
+    ("the proxy pack", "proxy-log statistics"),
+    ("the log pivots", "a search of the web and proxy logs"),
 )
 _CODES = re.compile(r"\s*\((?:R\d{1,2}(?:, )?)+\)")
 

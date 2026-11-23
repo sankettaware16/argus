@@ -19,7 +19,7 @@ TODAY = date(2026, 10, 24)
 D = [TODAY - timedelta(days=n) for n in (3, 2, 1)]  # the three whole days before today
 
 
-def campus(value: str) -> bool:
+def ours(value: str) -> bool:
     return value.startswith("10.")
 
 
@@ -55,7 +55,7 @@ def test_a_case_with_a_c2_and_three_hosts_has_one_check_for_the_c2() -> None:
         ("ip", "77.221.155.150", "c2"), ("domain", "evil.example", "c2"),
         ("user", "alice", "actor"), ("ip", "8.8.8.8", "actor"),
     ]  # fmt: skip
-    (subject,) = watch.subjects(held, campus)
+    (subject,) = watch.subjects(held, ours)
     assert subject.destination == "77.221.155.150"
     assert subject.hosts == ("10.0.0.1", "10.0.0.2", "10.0.0.3")  # a public actor is no host
     assert subject.key == (watch.CONTACT, "77.221.155.150", 0)
@@ -64,7 +64,7 @@ def test_a_case_with_a_c2_and_three_hosts_has_one_check_for_the_c2() -> None:
 def test_more_than_ten_hosts_make_more_parts_and_a_campus_address_is_no_destination() -> None:
     held = [("ip", f"10.0.0.{n}", "actor") for n in range(1, 24)]
     held += [("ip", "77.221.155.150", "c2"), ("ip", "10.9.9.9", "c2")]
-    found = watch.subjects(held, campus)
+    found = watch.subjects(held, ours)
     assert [(s.destination, s.part, len(s.hosts)) for s in found] == [
         ("77.221.155.150", 0, 10), ("77.221.155.150", 1, 10), ("77.221.155.150", 2, 3),
     ]  # fmt: skip
@@ -75,13 +75,13 @@ def test_a_shared_destination_is_checked_only_for_watched_hosts() -> None:
         return "a CDN" if value == "104.21.5.5" else None
 
     alone = [("ip", "104.21.5.5", "c2")]
-    assert watch.subjects(alone, campus, shared) == []  # "who reached it" asks a CDN nothing
+    assert watch.subjects(alone, ours, shared) == []  # "who reached it" asks a CDN nothing
     with_host = [*alone, ("ip", "10.0.0.1", "actor")]
-    assert [s.destination for s in watch.subjects(with_host, campus, shared)] == ["104.21.5.5"]
+    assert [s.destination for s in watch.subjects(with_host, ours, shared)] == ["104.21.5.5"]
 
 
 def test_hosts_without_a_destination_have_no_proxy_check() -> None:
-    assert watch.subjects([("ip", "10.0.0.1", "actor"), ("host", "pc1", "actor")], campus) == []
+    assert watch.subjects([("ip", "10.0.0.1", "actor"), ("host", "pc1", "actor")], ours) == []
 
 
 def subject(destination: str, part: int = 0) -> Subject:
@@ -751,7 +751,7 @@ async def test_the_asker_tells_a_missing_stream_from_an_expired_day(
         Engine(),  # type: ignore[arg-type]
         enabled=["proxy.contact"],
         history=timedelta(days=5),
-        is_campus=campus,
+        is_own=ours,
     )
     start = NOW.replace(hour=2, minute=0)
     task = TaskSpec(

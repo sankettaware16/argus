@@ -3,6 +3,7 @@ import { Fragment, useState, type Ref } from "react";
 import type { CaseRowOut } from "../../client/types.gen";
 import { cn } from "../../lib/cn";
 import { shownCertainty, side, startsWithCertainty, stateWords, topWhy, type Card } from "../../lib/engine";
+import { ownSide } from "../../lib/site";
 import { parse } from "../../lib/time";
 import { clock, sinceWords, waited, weekdayDay } from "../../lib/when";
 import { AlertGroupDecide } from "../decide/AlertGroupDecide";
@@ -93,12 +94,12 @@ function Why({ card }: { card: Card }) {
 }
 
 function Sides({ card }: { card: Card }) {
-  const campus = side(card.engine, "affected");
+  const ours = side(card.engine, "affected");
   const other = side(card.engine, "actor");
-  if (campus.length === 0 && other.length === 0) return null;
+  if (ours.length === 0 && other.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1" data-testid="card-sides">
-      <ChipRow objects={campus} label="Campus side" />
+      <ChipRow objects={ours} label={ownSide()} />
       <ChipRow objects={other} label="Other side" />
     </div>
   );

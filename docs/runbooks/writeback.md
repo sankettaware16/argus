@@ -12,6 +12,8 @@ written to the SIEM (D-109): the first run is the user's, with them present.
 | a person's review as true positive, or a follow-up | **acknowledged** |
 | inconclusive, a note | nothing |
 | an approved case closure (not `duplicate`, not `created_in_error`) | its alerts **closed** |
+| a person's dismissal of a possible incident as a wrong rule, expected activity, allowed by policy or an attempt that did nothing (D-336) | its alerts **closed** |
+| a dismissal as a duplicate or as created in error | nothing |
 | a benign verdict (or closure) that rests on Q-F1's "nothing found" | **waits** until `writeback.f1_audited: true` (your decision after the audit) |
 
 Only alerts the reviewer saw (linked before the review) whose status differs. A newer decision on
@@ -26,6 +28,10 @@ before each batch (also a case reopened). Alert tags (WT, D-004) are not written
   operator signs in with their own ELK account** (`--operator NAME`, the password read with
   `getpass`, checked live through the identity lane, and the check must show `review`). Plan them
   first with `uv run argus writeback plan --older`; `diff` lists them under `needs_operator`.
+- **`writeback.own_accounts: true` (D-336):** a person's review made in one of ARGUS's own
+  accounts, and a person's dismissal of a possible incident, leave without an operator. For a
+  site that signs people in with ARGUS's accounts: ARGUS's users and roles are then what decides
+  who changes alert status in the SIEM. Off, both wait under `needs_operator`.
 - Break-glass and service accounts: never. The ARGUS service user cannot be the operator.
 
 ## Local, no request
@@ -91,5 +97,16 @@ Stop at once: `uv run argus siem stop --component writeback`.
 2. `kibana.write_classes: [WA]` and `writeback.enabled: true`.
 3. `plan`, `diff`; then the first run with you present (at most 5 alerts); check them in Kibana;
    a second run writes 0.
-4. Then `writeback.batch` (5 until production numbers, at most 100 by your decision) and the
-   schedule are yours (DQ8); no schedule exists yet.
+4. Then `writeback.batch` (5 until production numbers, at most 100 by your decision).
+5. The schedule (D-336): `writeback.auto: true` in the writer's file
+   (`ARGUS_WRITEBACK__AUTO=true` in `local/argus-writer.env`, with the other switches),
+   `argus-writeback.timer` in `units.run`, `argus units install`, then
+   `systemctl --user enable --now argus-writeback.timer`.
+
+## The timer's run (D-336)
+
+`argus-writeback.timer` starts `argus writeback run --unattended` every 10 minutes: it plans (as
+the runtime), prints the diff, and sends (as the writer) with no prompt. It is refused, exit 2,
+until a person's first run has written; every other condition and every stop above holds.
+`journalctl --user -u argus-writeback.service` shows each run's lines. Stop it:
+`ARGUS_WRITEBACK__AUTO=false`, or `uv run argus siem stop --component writeback`.

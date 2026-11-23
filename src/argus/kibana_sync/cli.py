@@ -171,7 +171,7 @@ def sync_run(config: ConfigOption = None) -> None:
         (not settings.kibana.sync.enabled, "kibana.sync.enabled"),
     ):
         if off:
-            typer.echo(f"{name} is false: the read-back does not run (Q-D3's production step)")
+            typer.echo(f"{name} is false: the read-back does not run")
             raise typer.Exit(0)
 
     async def go() -> None:

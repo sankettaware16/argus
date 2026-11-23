@@ -102,7 +102,7 @@ def answer(text: str = '{"ok": true}', prompt: int = 120, written: int = 20,
 
 
 def request(privacy: Privacy, text: str = "Assess I1.") -> Request:
-    return Request(text, ("I1",), (), (), (), privacy.campus)
+    return Request(text, ("I1",), (), (), (), privacy.ours)
 
 
 def strict(schema: dict[str, Any]) -> None:
@@ -146,7 +146,7 @@ async def test_every_local_task_sends_a_strict_schema(privacy: Privacy, tmp_path
     from tests.unit.evaluation.test_comparison import Model as CompareModel
 
     p = shipped_local()
-    calls = [ping_call(Request("ping", (), (), (), (), privacy.campus), Tier.SMALL)]
+    calls = [ping_call(Request("ping", (), (), (), (), privacy.ours), Tier.SMALL)]
     compare_model = CompareModel()
     await comparison.run(CASES, privacy, compare_model, tmp_path / "a.json", ("A-fake",))
     calls += compare_model.calls
@@ -448,9 +448,9 @@ def certs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     return {"leaf": leaf, "bundle": both, "evil": other / "evil.crt", "v6": v6 / "llm.crt"}
 
 
-def campus(port: int, ca: Path, host: str = "127.0.0.1") -> LlmConfig:
+def ours(port: int, ca: Path, host: str = "127.0.0.1") -> LlmConfig:
     return LlmConfig.model_validate({"providers": [{
-        "name": "local", "trust": "campus", "base_url": f"https://{host}:{port}/v1",
+        "name": "local", "trust": "self_hosted", "base_url": f"https://{host}:{port}/v1",
         "keys": ["LOCAL_LLM_API_KEY"], "ca_file": str(ca), "timeout_s": 30, "concurrency": 1,
         "tasks": ["evaluate", "ping"], "probe": True,
         "models": {"small": {"name": ls.MODEL}}, "limits": {"rpd": 300}}]})  # fmt: skip
@@ -461,7 +461,7 @@ async def test_a_certificate_file_with_more_than_one_certificate_is_never_truste
 ) -> None:
     machine = ls.Machine()
     with ls.serving(certs["evil"], machine) as port:  # someone else's server, another CA
-        cfg = campus(port, certs["bundle"])
+        cfg = ours(port, certs["bundle"])
         found = llm_doctor.certificate_check(cfg.providers[0], datetime.now(UTC))
         transport = HttpxLlmTransport(cfg)
         try:
@@ -478,7 +478,7 @@ async def test_a_certificate_file_with_more_than_one_certificate_is_never_truste
 async def test_the_pinned_certificate_alone_still_verifies(certs: dict[str, Path]) -> None:
     machine = ls.Machine()
     with ls.serving(certs["leaf"], machine) as port:
-        cfg = campus(port, certs["leaf"])
+        cfg = ours(port, certs["leaf"])
         found = llm_doctor.certificate_check(cfg.providers[0], datetime.now(UTC))
         transport = HttpxLlmTransport(cfg)
         try:
@@ -491,12 +491,12 @@ async def test_the_pinned_certificate_alone_still_verifies(certs: dict[str, Path
 
 
 def test_doctor_reads_an_ipv6_campus_url(certs: dict[str, Path]) -> None:
-    found = llm_doctor.certificate_check(campus(18999, certs["v6"], "[::1]").providers[0],
+    found = llm_doctor.certificate_check(ours(18999, certs["v6"], "[::1]").providers[0],
                                          datetime.now(UTC))  # fmt: skip
     assert found is not None
     assert found.ok, found
     assert "for ::1" in found.detail
-    other = llm_doctor.certificate_check(campus(18999, certs["leaf"], "[::1]").providers[0],
+    other = llm_doctor.certificate_check(ours(18999, certs["leaf"], "[::1]").providers[0],
                                          datetime.now(UTC))  # fmt: skip
     assert other is not None
     assert not other.ok
@@ -512,17 +512,17 @@ def test_doctor_fails_a_certificate_others_could_replace(
     cert = shared / "llm.crt"
     cert.write_bytes(certs["leaf"].read_bytes())
     cert.chmod(0o644)
-    found = llm_doctor.certificate_check(campus(1, cert).providers[0], datetime.now(UTC))
+    found = llm_doctor.certificate_check(ours(1, cert).providers[0], datetime.now(UTC))
     assert found is not None
     assert not found.ok
     assert "folder is writable by others" in found.detail
     shared.chmod(0o700)
-    found = llm_doctor.certificate_check(campus(1, cert).providers[0], datetime.now(UTC))
+    found = llm_doctor.certificate_check(ours(1, cert).providers[0], datetime.now(UTC))
     assert found is not None
     assert found.ok, found
     uid = os.geteuid()
     monkeypatch.setattr(os, "geteuid", lambda: uid + 1)
-    found = llm_doctor.certificate_check(campus(1, cert).providers[0], datetime.now(UTC))
+    found = llm_doctor.certificate_check(ours(1, cert).providers[0], datetime.now(UTC))
     assert found is not None
     assert not found.ok
     assert "owned by another account" in found.detail

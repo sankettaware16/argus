@@ -7,6 +7,10 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Versions 0.3.0, 0.3.1 and 0.3.2 were published on 17 November 2026 and withdrawn the same day:
+the first-time setup failed on a self-managed Elastic stack. Their changes are listed here, and
+the next release is 0.4.0. Until it is tagged, `main` reports `0.4.0.dev0`.
+
 ### Added
 
 - **One command, then the browser:** `./install.sh` installs the packages, the database, the
@@ -53,12 +57,68 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
   any licence including the free Basic, measured on Basic and on a trial licence.
 - New screenshots of the current app, made from synthetic demo data.
 
+- **Alerts** (the menu's third entry): every alert group, newest first, with the incident it
+  belongs to; the ones in an incident and the ones in none are one click apart, and the
+  list narrows to one rule. An alert group's page leads back to its incident.
+- **Dashboards**: four ready-made boards. *Security overview*: the alerts over time, how far
+  ARGUS narrows them down, the most active devices and outside addresses, what waits for a
+  person, and the **response times** (mean time to detect, to a person's first decision and to
+  close; the share decided and closed within targets by priority; what is past its time now).
+  *Detections*: every rule that fired, the loud ones that never found anything, the ones that
+  did. *ARGUS operations*: what it takes in and handles alone. *Costs* (administrators): the
+  AI's spend against its caps and where the month is heading, by day, provider and task, and
+  the threat-intel lookups against their limits. Charts are read by pointing, with the arrow
+  keys or as a table; most figures open the list behind them.
+- **Response-time targets** as settings (`sla.triage_p1` … `sla.resolve_p4`, Settings ›
+  Response times): how long a person has to decide and to close an incident, by priority.
+- `GET /api/v1/performance`, and `incident=in|none` and each row's incident on
+  `GET /api/v1/investigations`.
+- **Who used a device, on the incident itself:** the Overview and Entities tabs name the
+  accounts that signed in from each of your devices in the incident, from the sign-in logs ARGUS
+  already reads.
+- **Your own account directory (optional):** name a provider in `directory.provider` and ARGUS
+  asks your organisation's own system who an account belongs to (the name, the kind of account,
+  the department): a card on the incident and on the account's page, and an *Account look-up*
+  page. The answer is shown only to people who may see account names, kept in memory for
+  `directory.cache_window`, and never stored, reported or sent to a model. ARGUS ships the
+  hook and no provider; without one the feature is off.
+- **A person's decision reaches Kibana's alerts by itself** (off by default): a dismissed
+  possible incident closes its alerts; with `writeback.own_accounts` a review made in one of
+  ARGUS's own accounts needs no operator; with `writeback.auto`, `argus-writeback.timer` plans
+  and sends every 10 minutes, once a person has made the first run at a terminal
+  ([runbook](docs/runbooks/writeback.md)).
+
 ### Changed
 
+- **The menu** shows what is used: Today, Incidents, Alerts, Dashboards, Search, Reports, then
+  the work, health and administration pages, each with a glyph; More holds only what is opened
+  rarely. Costs and usage is the dashboards' Costs board (`/costs` leads there).
+- **No word of the first installation in what ARGUS says.** The incident pages ("Your side",
+  or your own word: "Plant side"), the evidence sentences, the action catalogue and the AI
+  agents' instructions now take every word about your organisation from your settings
+  (`site.own_network_noun`, `site.organisation.kind`, `site.organisation.reviewers`). The agents
+  no longer tell a model it reads "a university network": they say what kind of organisation
+  yours is. New agent versions: coordinator@5, specialist@2 and @3, responder@2, reporter@2.
+- **Renamed, the older names still read:** a self-hosted model's `trust: campus` is
+  `trust: self_hosted`; `campus_domains` and `campus_replacement` in
+  `config/llm_data_policy.yaml` and `config/fixtures.yaml` are `own_domains` and
+  `own_replacement`. A file that has both the new and the older name is refused.
+- **Renamed, not compatible:** the block list's API fields and CSV columns
+  `first_seen_on_campus` and `campus_devices` are `first_seen_on_own_network` and
+  `own_devices`. The role "Analyst (TA/RA)" is "Analyst".
+- `docs/guide-ta-ra.md` is `docs/guide-reviewers.md`.
+- CI runs the integration suite on PostgreSQL, the Kibana contract tests, the frontend's
+  types, lint, tests and build, and a dependency audit on every push; mutation testing on request.
+- `docs/decisions.md` lists every design decision the code and the tests cite by number.
 - Own domains refuse a public suffix (`in`, `ac.in`, `co.uk`): each entry is a whole domain and
   covers its subdomains.
 
 ### Fixed
+
+- The times on an entity's page and in the CISO draft were labelled "IST" whatever the site's
+  time zone; they carry the site's label now.
+- The comparison arms of the model evaluation recognised one of your public addresses only on a
+  site whose word for its network was "campus".
 
 - **Running `./install.sh` again after `git pull` now restarts the web and `argus-admin`,** so they
   run the new code at once (before, they kept the version they started with until a reboot).
@@ -88,14 +148,14 @@ this repository adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **An incident engine:** every alert group and evidence fact becomes a scored observation on a
-  campus device, account or site; observations add up per object (each source once per window,
+  device, account or site of your own; observations add up per object (each source once per window,
   noisy sources scaled down, stages counted so one rule cannot fake progression); five lanes
   decide what a person sees; a linker joins objects across rules, days and log families into one
   incident (hubs never link, size caps, a reason sentence per link); a lifecycle re-queues only on
   a material change; priority P1–P4 with a "why" line, checks and ruled-out explanations; a
   capacity governor; a "handled by ARGUS" digest. Runs in shadow until `risk.present` is on, from
   its own timer (`argus-risk.timer`), and replays over stored history (`argus risk`).
-- **Exposure checks:** for inbound attacks the campus site is the thing at risk; a capped checking
+- **Exposure checks:** for inbound attacks your own site is the thing at risk; a capped checking
   lane (10 minutes of SIEM time a day, normal health only) verifies whether a probe was really
   served or answered by a not-found page.
 - **The analyst UI, rebuilt:** Today · Incidents · Search · Reports, a queue with a preview pane, a

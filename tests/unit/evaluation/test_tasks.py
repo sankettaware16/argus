@@ -230,10 +230,12 @@ def test_notes_at_1_is_the_pinned_specialists_at_1() -> None:
     """The notes task sends the agent's specialist prompts (Q-H1: config/agents/*.md, pinned
     by version). Its answers are kept under ``notes@2``: a new specialist version must rename
     the task's prompt, or answers to the old prompt would be counted for the new. AR3's intel
-    specialist@2 (the outside tools, D-165) renamed it from notes@1."""
+    specialist@2 (the outside tools, D-165) renamed it from notes@1. D-338's versions (web and
+    proxy specialist@2, intel specialist@3) keep notes@2: on the site its answers were made on
+    they give a model the same text (tests/unit/site/test_organisation_words.py holds that)."""
     from argus.agent import loader
 
     assert {d.version for d in loader.load().specialists.values()} == {
-        "specialist@1", "specialist@2",
+        "specialist@2", "specialist@3",
     }  # fmt: skip
     assert tasks.SPECS[tasks.NOTES].prompt == "notes@2"

@@ -46,7 +46,7 @@ TIE_OPENED = "opened on its own merits after a tie between cases"  # in case_ope
 # The backfill reaches back to a fixed start, not only history.window.
 BACKFILL_FROM = datetime(2026, 10, 14, tzinfo=UTC)
 LINKABLE = frozenset({IpClass.ASSET, IpClass.INTERNAL, IpClass.PUBLIC})
-CAMPUS = frozenset({IpClass.ASSET, IpClass.INTERNAL, IpClass.CAMPUS})
+OWN_CLASSES = frozenset({IpClass.ASSET, IpClass.INTERNAL, IpClass.OWN})
 # Identity fields: who acted. Other user.* and host.* fields (user.domain, host.os.name,
 # user.group.name, user.roles) are shared by many people and hosts and never link.
 HOST_FIELDS = frozenset({"host.name", "host.hostname", "host.id"})
@@ -77,13 +77,13 @@ class Candidate:
     rule_name: str | None
     severity: Severity
     actors: tuple[Indicator, ...]  # who acted, if linkable
-    campus_actor: bool  # an actor is an internal host
+    own_actor: bool  # an actor is an internal host
     entities: frozenset[tuple[str, str]]  # (kind, value) the investigation involves
     listed: tuple[str, ...]  # its threat-listed values
     signals: Mapping[str, tuple[str, Any]] = field(default_factory=dict)  # name: (status, value)
     held_by: uuid.UUID | None = None  # the case it is in already (a closed one included)
     by_user_id: int | None = None  # the person whose verdict it is
-    campus_keys: frozenset[tuple[str, str]] = frozenset()  # the actors that are internal devices
+    own_keys: frozenset[tuple[str, str]] = frozenset()  # the actors that are internal devices
 
 
 @dataclass
@@ -137,7 +137,7 @@ def impact(candidate: Candidate) -> list[str]:
     regularity = _known(candidate, "proxy.regularity")
     if regularity is not None and regularity < BEACON:
         out.append("a regular beacon")
-    if candidate.campus_actor and (_known(candidate, "ti.listed") or 0) > 0:
+    if candidate.own_actor and (_known(candidate, "ti.listed") or 0) > 0:
         out.append(site.say("{a_own:host} in contact with a threat-listed address"))
     return out
 
@@ -145,7 +145,7 @@ def impact(candidate: Candidate) -> list[str]:
 def floor(candidate: Candidate) -> list[str]:
     """Floor signals that are known and present (a suspected case needs one)."""
     out = impact(candidate)
-    if (_known(candidate, "ti.listed") or 0) > 0 and not candidate.campus_actor:
+    if (_known(candidate, "ti.listed") or 0) > 0 and not candidate.own_actor:
         out.append("a threat-listed value")
     rare = _known(candidate, "proxy.hosts_to_destination")
     if rare is not None and rare <= RARE:
@@ -180,17 +180,17 @@ def title_facts(candidate: Candidate, reasons: Sequence[str]) -> naming.Facts:
     outside addresses, accounts), the threat-listed values it reached, and the signals that made
     it a candidate (as the evidence flags' words)."""
     flags = reason_flags(reasons)
-    campus = set(candidate.campus_keys)
-    if not campus and candidate.campus_actor:
-        campus = {(a.kind, a.value) for a in candidate.actors if a.kind in ("ip", "host")}
+    ours = set(candidate.own_keys)
+    if not ours and candidate.own_actor:
+        ours = {(a.kind, a.value) for a in candidate.actors if a.kind in ("ip", "host")}
     actors = {a.value for a in candidate.actors}
     outsiders = sorted(
-        a.value for a in candidate.actors if a.kind == "ip" and (a.kind, a.value) not in campus
+        a.value for a in candidate.actors if a.kind == "ip" and (a.kind, a.value) not in ours
     )
     return naming.Facts(
         rules=((candidate.rule_name, 1),) if candidate.rule_name else (),
         flags=flags,
-        devices=tuple(naming.Device(value, kind) for kind, value in sorted(campus)),
+        devices=tuple(naming.Device(value, kind) for kind, value in sorted(ours)),
         outsiders=tuple(outsiders),
         accounts=sum(1 for a in candidate.actors if a.kind == "user"),
         servers=tuple(v for v in candidate.listed if v not in actors),
@@ -338,7 +338,7 @@ def _actors(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, 
     if not isinstance(pairs, list):
         return (), False
     out: list[Indicator] = []
-    campus = False
+    ours = False
     for pair in pairs:
         if not (isinstance(pair, list) and len(pair) == 2 and isinstance(pair[1], str)):
             continue
@@ -350,13 +350,13 @@ def _actors(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, 
             continue
         if kind == "ip":
             ip_class = classifier.classify(value).ip_class
-            campus |= ip_class in CAMPUS
+            ours |= ip_class in OWN_CLASSES
             if ip_class not in LINKABLE:  # a shared egress address links nothing
                 continue
         elif kind == "host":
-            campus = True
+            ours = True
         out.append(Indicator(kind, value, "actor", "investigation"))  # type: ignore[arg-type]
-    return tuple(sorted(set(out))), campus
+    return tuple(sorted(set(out))), ours
 
 
 def actors_of(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator, ...], bool]:
@@ -365,7 +365,7 @@ def actors_of(group_key: str, classifier: IpClassifier) -> tuple[tuple[Indicator
     return _actors(group_key, classifier)
 
 
-def is_campus_actor(group_key: str, classifier: IpClassifier) -> bool:
+def is_own_actor(group_key: str, classifier: IpClassifier) -> bool:
     """Whether an investigation's group key names an internal host or address (the test
     :func:`observe` and :func:`candidates` make, without a query)."""
     return _actors(group_key, classifier)[1]
@@ -453,11 +453,12 @@ async def _candidate(conn: AsyncConnection, row: Any, classifier: IpClassifier) 
             signals[signal["name"]] = (str(signal.get("status")), signal.get("value"))
     ti = ((body.get("context") or {}).get("pack") or {}).get("ti") or {}
     listed = tuple(sorted({str(v) for v in ti.get("listed") or () if isinstance(v, str)}))[:50]
-    actors, campus = _actors(inv.group_key, classifier)
+    actors, ours = _actors(inv.group_key, classifier)
     keys = frozenset(
         (a.kind, a.value)
         for a in actors
-        if a.kind == "host" or (a.kind == "ip" and classifier.classify(a.value).ip_class in CAMPUS)
+        if a.kind == "host"
+        or (a.kind == "ip" and classifier.classify(a.value).ip_class in OWN_CLASSES)
     )
     held = (
         await conn.execute(
@@ -477,13 +478,13 @@ async def _candidate(conn: AsyncConnection, row: Any, classifier: IpClassifier) 
         rule_name=inv.rule_name,
         severity=_severity(inv.severity),
         actors=actors,
-        campus_actor=campus,
+        own_actor=ours,
         entities=entities,
         listed=listed,
         signals=signals,
         held_by=held,
         by_user_id=None if row.by_user_id is None else int(row.by_user_id),
-        campus_keys=keys,
+        own_keys=keys,
     )
 
 
@@ -495,7 +496,7 @@ class Observed:
     rule_name: str | None
     severity: Severity
     actors: tuple[Indicator, ...]
-    campus_actor: bool
+    own_actor: bool
     entities: frozenset[tuple[str, str]]
     last_event_at: datetime | None
 
@@ -523,8 +524,8 @@ async def observe(
             {"i": investigation_id},
         )
     )
-    actors, campus = _actors(inv.group_key, classifier)
-    return Observed(investigation_id, inv.rule_name, _severity(inv.severity), actors, campus,
+    actors, ours = _actors(inv.group_key, classifier)
+    return Observed(investigation_id, inv.rule_name, _severity(inv.severity), actors, ours,
                     entities, inv.last_event_at)  # fmt: skip
 
 

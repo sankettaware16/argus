@@ -52,7 +52,7 @@ class ReportFact(_M):
     """One verified fact: a sentence written by code from stored data, with the figures it
     states (``numbers``) so a check can hold any sentence that cites it to them. ``source`` says
     where ARGUS read it; ``from_logs`` marks a fact derived from log content (an account without
-    log access sees it hidden). ``safe`` is the same fact without a campus address, host or
+    log access sees it hidden). ``safe`` is the same fact without an internal address, host or
     account, the only form a model is ever shown (None: it cannot be said without one)."""
 
     id: str = Field(pattern=r"^F[0-9]{1,5}$")
@@ -234,7 +234,7 @@ class ReportActor(_M):
 
 
 class ReportTarget(_M):
-    """A campus web site or host that outside actors went against (D-240): where the alerts say
+    """An own web site or host that outside actors went against (D-240): where the alerts say
     the attack was aimed, with the alerts that named it and, when a stored web check or an alert's
     own record shows it, the successful (2xx) answers it gave and the paths they were for."""
 

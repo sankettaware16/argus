@@ -83,6 +83,7 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("GET", "/api/v1/reports"): C.VIEW,  # Q-H3
     ("GET", "/api/v1/reports/{report_id}"): C.VIEW,  # Q-H3
     ("GET", "/api/v1/dashboard"): C.VIEW,
+    ("GET", "/api/v1/performance"): C.VIEW,
     ("GET", "/api/v1/dashboard/threat-lists"): C.VIEW,  # Q-B2
     ("GET", "/api/v1/since"): C.VIEW,  # Q-B2
     ("GET", "/api/v1/investigations/{investigation_id}/reports"): C.VIEW,  # Q-B2 (report@2)
@@ -119,6 +120,7 @@ EXPECTED: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/cases/{case_id}/actions/{action_id}/done"): C.MANAGE_CASES,
     ("POST", "/api/v1/cases/{case_id}/undo-dismissal"): C.MANAGE_CASES,
     ("GET", "/api/v1/entities/{kind}/{value}"): C.VIEW,
+    ("GET", "/api/v1/directory/{account}"): C.SEE_LOGS,  # the site's account directory (D-337)
     ("GET", "/api/v1/search"): C.VIEW,
     ("GET", "/api/v1/incident-reports"): C.VIEW,
     ("GET", "/api/v1/today"): C.VIEW,  # the incident engine's Today (P4-F E5)

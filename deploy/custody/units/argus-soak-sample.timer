@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS soak sample every 15 minutes (D-092; custody layout, Q-A5)
+Description=ARGUS soak sample every 15 minutes (custody layout)
 
 [Timer]
 OnBootSec=3min

@@ -19,6 +19,7 @@ from argus.config.settings import (
     POSTGRES_IMAGE,
     BackupSettings,
     CaseTeamSettings,
+    DirectorySettings,
     KibanaSettings,
     NoticesSettings,
     OutsideSettings,
@@ -40,6 +41,7 @@ SECRETS = {
     ("outside", "virustotal_api_key"): "Synthetic-VirusTotal-12",  # AR3
     ("outside", "shodan_api_key"): "Synthetic-Shodan-13",
     ("outside", "censys_api_key"): "Synthetic-Censys-14",
+    ("directory", "session"): "SyntheticDirectorySession15",
     ("kibana", "reader_api_key"): "Synthetic-KibanaReader-66",  # Q-D2
     ("kibana", "cases_writer_api_key"): "Synthetic-CasesWriter-77",
     ("kibana", "alert_writer_api_key"): "Synthetic-AlertWriter-88",
@@ -84,6 +86,7 @@ def test_every_secret_is_registered_for_redaction() -> None:
         case_team=CaseTeamSettings(**sections["case_team"]),
         notices=NoticesSettings(**sections["notices"]),
         outside=OutsideSettings(**sections["outside"]),
+        directory=DirectorySettings(**sections["directory"]),
     )
     assert settings.secret_values() == list(SECRETS.values())  # declaration order
 

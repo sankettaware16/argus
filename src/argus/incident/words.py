@@ -1,5 +1,6 @@
-"""The report's plain words: times in IST (12-hour), durations, sizes, plurals and the one place the
-writer turns a number into a phrase. Pure; the same input always gives the same text.
+"""The report's plain words: times in the site's zone (12-hour), durations, sizes, plurals and
+the one place the writer turns a number into a phrase. Pure; the same input always gives the
+same text.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ def ist_moment(at: datetime) -> str:
 
 
 def ist_date(at: datetime) -> str:
-    """``15 Oct 2026`` in IST."""
+    """``15 Oct 2026`` in the site's zone."""
     try:
         return f"{at.astimezone(site.zone()):%d %b %Y}"
     except (OverflowError, ValueError, OSError):
@@ -32,7 +33,7 @@ def ist_date(at: datetime) -> str:
 
 
 def ist_day(at: datetime) -> str:
-    """The IST day as a sortable key, ``2026-10-15``."""
+    """The site day as a sortable key, ``2026-10-15``."""
     return f"{at.astimezone(site.zone()):%Y-%m-%d}"
 
 

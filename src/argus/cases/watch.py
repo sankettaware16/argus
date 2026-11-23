@@ -49,8 +49,7 @@ ALERT_MARGIN = timedelta(hours=1)  # the collector must have read this far past 
 PAIR_WINDOW = timedelta(hours=6)  # the rhythm is read over the last 6 hours of contact
 
 NOT_ON = (
-    "known 'nothing found' answers are not switched on yet (Q-F1), so a quiet period cannot be"
-    " verified"
+    "known 'nothing found' answers are not switched on yet, so a quiet period cannot be verified"
 )
 # The freshness reasons (argus.freshness.model.REASONS) in plain words
 ZERO_WORDS = {
@@ -114,7 +113,7 @@ class Subject:
 
 def subjects(
     indicators: Iterable[tuple[str, str, str]],
-    campus: Callable[[str], bool],
+    ours: Callable[[str], bool],
     shared: Callable[[str, str], str | None] = lambda kind, value: None,
 ) -> list[Subject]:
     """The proxy checks a case has, from its (kind, value, role) indicators: each destination
@@ -123,9 +122,9 @@ def subjects(
     "who reached it" is no question about a content-delivery network."""
     held = sorted(set(indicators))
     destinations = sorted(
-        {v for k, v, r in held if k == "ip" and r in ("c2", "indicator") and not campus(v)}
+        {v for k, v, r in held if k == "ip" and r in ("c2", "indicator") and not ours(v)}
     )
-    hosts = sorted({v for k, v, r in held if k == "ip" and r == "actor" and campus(v)})
+    hosts = sorted({v for k, v, r in held if k == "ip" and r == "actor" and ours(v)})
     size = beacon.WATCHED_HOSTS
     chunks = [tuple(hosts[i : i + size]) for i in range(0, len(hosts), size)]
     out = []

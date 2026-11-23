@@ -43,8 +43,12 @@ MAX_BYTES = 64 * 1024  # a prompt is a few KiB
 MAX_DEPTH = 4  # the header, budget, a list, a value
 FENCE = "---"
 TOOLS = "{tools}"
+# The site's words a file may ask for (``argus.site.say``): what kind of organisation it is, its
+# word for its own network and who reads the reports. They describe; none names the organisation
+# (its name and its team's never reach a model), so ``{org}`` and ``{team}`` are refused.
+SITE_WORDS = frozenset({"{a_kind}", "{kind}", "{noun}", "{the}", "{where}", "{reviewers}"})
 # The words a pin's hash is made in: the prompt a model reads carries the site's words (a tool's
-# line says "a campus host"), but what is approved is the template, so the hash is taken with
+# line says "a plant host"), but what is approved is the template, so the hash is taken with
 # these fixed words (only the tools' lines have any), whatever the site is.
 PIN_WORDS = site.SiteSettings(own_network_noun="campus")
 PLACEHOLDER = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
@@ -273,12 +277,13 @@ def _split(name: str, lines: list[str]) -> tuple[str, str]:
     if not body[0]:
         raise AgentError(f"{name}: the instructions start with a blank line (line {end + 2})")
     instructions = "\n".join(body)
-    found = PLACEHOLDER.findall(instructions)
+    found = [f for f in PLACEHOLDER.findall(instructions) if f not in SITE_WORDS]
     if found != [TOOLS]:
         others = sorted({f for f in found if f != TOOLS})
         raise AgentError(
             f"{name}: the instructions must hold {TOOLS} exactly once and no other"
-            f" {{name}} (found {found.count(TOOLS)}"
+            f" {{name}} but the site's words ({', '.join(sorted(SITE_WORDS))})"
+            f" (found {found.count(TOOLS)}"
             + (f"; also {', '.join(others)}" if others else "")
             + ")"
         )
@@ -427,9 +432,9 @@ def read(path: Path, bindings: Mapping[str, Binding] = BINDINGS) -> Definition:
         raise AgentError(f"{name}: code binds no agent {front.name!r}")
     tier, triggers = _bound(name, front, binding)
     tools = tuple(t for t in catalogue.TOOLS if t in front.tools)
-    prompt = instructions.replace(TOOLS, catalogue.lines(tools))
+    prompt = site.say(instructions).replace(TOOLS, catalogue.lines(tools))
     with site.using(PIN_WORDS):  # the template's hash does not depend on the site's words
-        pinned_prompt = instructions.replace(TOOLS, catalogue.lines(tools))
+        pinned_prompt = site.say(instructions).replace(TOOLS, catalogue.lines(tools))
     budget = None
     if front.budget is not None:
         values = front.budget.model_dump()

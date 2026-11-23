@@ -51,11 +51,33 @@ describe("the menu", () => {
     expect((await within(nav).findByTestId("today-badge")).textContent).toContain("17");
   });
 
-  it("S-2: a phone has the bottom tab bar with the same four pages", async () => {
+  it("S-2: a phone has the bottom tab bar with the four pages opened most", async () => {
     renderApp("/");
     const bar = await screen.findByTestId("bottom-bar");
-    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["Today", "Incidents", "Search", "Reports"]);
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["Today", "Incidents", "Alerts", "Dashboards"]);
     expect(screen.getByTestId("app-header").className).toContain("h-14");
+  });
+
+  it("the menu has a glyph for every entry, the daily pages first and the sections under their headings", async () => {
+    renderApp("/");
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.slice(0, 6).map((a) => a.textContent?.replace(/\d+ need you$/, "").trim())).toEqual(["Today", "Incidents", "Alerts", "Dashboards", "Search", "Reports"]);
+    // every entry, in every section, starts with its glyph: the labels line up
+    for (const a of links) expect(a.querySelector("svg"), a.textContent ?? "").not.toBeNull();
+    const sections = within(screen.getByTestId("nav-sections"));
+    expect(sections.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(import.meta.env.DEV ? ["Work", "ARGUS", "Administration", "More"] : ["Work", "ARGUS", "More"]);
+    expect(within(sections.getByRole("region", { name: "Work" })).getAllByRole("link").map((a) => a.textContent)).toEqual(["Approvals", "Rule tuning"]);
+    expect(within(sections.getByRole("region", { name: "ARGUS" })).getAllByRole("link").map((a) => a.textContent)).toEqual(["ARGUS quality", "System health"]);
+    // More is folded: the pages opened rarely are one click away
+    expect(screen.queryByTestId("more-list")).toBeNull();
+  });
+
+  it("More opens by itself on one of its own pages", async () => {
+    server.use(http.get(`${BASE}/api/v1/patterns`, () => HttpResponse.json({ items: [], has_more: false })));
+    renderApp("/glossary");
+    const more = within(await screen.findByTestId("more-list"));
+    expect(more.getByRole("link", { name: "Help & glossary" }).getAttribute("aria-current")).toBe("page");
   });
 
   it("S-6, S-7: the classic queues are in More; the Design system only for an admin (this test build is not a dev build)", async () => {

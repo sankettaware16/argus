@@ -105,7 +105,7 @@ export function shares(counts: Readonly<Record<string, number>>): Part[] {
   return out;
 }
 
-/** "Mon 12 Oct" or, for an hourly bucket, "12 Oct 2 PM" (the bucket's start in IST, as the server wrote it). */
+/** "Mon 12 Oct" or, for an hourly bucket, "12 Oct 2 PM" (the bucket's start in the site's zone, as the server wrote it). */
 export function bucketLabel(at: string, hourly: boolean): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(at);
   if (!m) return at;

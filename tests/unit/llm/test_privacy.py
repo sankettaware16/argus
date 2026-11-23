@@ -17,7 +17,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from argus import site
-from argus.llm.detect import TOKEN, Campus
+from argus.llm.detect import TOKEN, OwnSpace
 from argus.llm.privacy import (
     Policy,
     Privacy,
@@ -378,7 +378,7 @@ def test_the_group_key_follows_the_policy(privacy: Privacy) -> None:
     assert "ravi" not in request.text
     assert "lab-pc-17" not in request.text
     assert "Withheld by the data policy: 5" in request.text
-    assert "web7" in request.campus.hosts
+    assert "web7" in request.ours.hosts
 
 
 def test_url_parts_for_the_proxy_send_query_keys_only(privacy: Privacy) -> None:
@@ -699,8 +699,8 @@ def test_every_internal_entity_gets_a_pseudonym(ips: list[str]) -> None:
         assert (ip in request.text) == (ip in ("8.8.4.4", "198.51.100.1"))
 
 
-def test_campus_is_built_from_the_map(campus: Campus) -> None:
-    assert "tp8" in campus.assets
-    assert "Mailgate" in campus.assets
-    assert campus.campus_domain("a.EXAMPLE.edu.")
-    assert "tp8" not in repr(campus)
+def test_campus_is_built_from_the_map(ours: OwnSpace) -> None:
+    assert "tp8" in ours.assets
+    assert "Mailgate" in ours.assets
+    assert ours.own_domain("a.EXAMPLE.edu.")
+    assert "tp8" not in repr(ours)

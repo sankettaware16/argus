@@ -26,7 +26,7 @@ from argus.evaluation import ladder
 from argus.evaluation.harness import BENIGN
 from argus.llm import budget
 from argus.llm import prompts as llm_prompts
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.gateway import Call, LlmGateway, MemoryLlmStore, NoCapacity, Refused
 from argus.llm.privacy import Request
 from argus.llm.probe import ProbeState, probe
@@ -55,10 +55,10 @@ async def _nothing(case: str) -> AsyncIterator[None]:
     yield
 
 
-def drill_call(campus: Campus, text: str | None = None, **over: Any) -> Call:
+def drill_call(ours: OwnSpace, text: str | None = None, **over: Any) -> Call:
     """The drill's call: a synthetic item, ``assess@1``'s prompt and strict schema, as a
     connection test (``ping``: no evaluation window, no real data)."""
-    request = Request(site.say(DRILL_TEXT) if text is None else text, (), (), (), (), campus)
+    request = Request(site.say(DRILL_TEXT) if text is None else text, (), (), (), (), ours)
     instructions = llm_prompts.PROMPTS[llm_prompts.ASSESS_V1]
     return Call(request, instructions, "ping", Tier.SMALL, budget.Priority.HIGH,
                 max_output=200, schema=llm_prompts.ASSESS_V1_SCHEMA, **over)  # fmt: skip
@@ -185,7 +185,7 @@ def _classify(case: str, result: Any, now: datetime) -> ladder.Case:
 async def drill(
     config: LlmConfig,
     keys: Mapping[str, SecretStr],
-    campus: Campus,
+    ours: OwnSpace,
     transport_for: TransportFor,
     cases: Sequence[str] = ON_THE_MACHINE,
     hook: Hook = _nothing,
@@ -208,7 +208,7 @@ async def drill(
     with tempfile.TemporaryDirectory(prefix="argus-drill-") as tmp:
         for case in ("control", *cases):
             async with hook(case):
-                out.cases[case] = await _one(config, provider, keys, key, campus, transport_for,
+                out.cases[case] = await _one(config, provider, keys, key, ours, transport_for,
                                              Path(tmp), case, clock, out.ledger)  # fmt: skip
     for case in CASES:
         out.cases.setdefault(case, ladder.Case(
@@ -228,7 +228,7 @@ async def _one(
     provider: ProviderConfig,
     keys: Mapping[str, SecretStr],
     key: SecretStr,
-    campus: Campus,
+    ours: OwnSpace,
     transport_for: TransportFor,
     folder: Path,
     case: str,
@@ -252,7 +252,7 @@ async def _one(
             return None, s
 
         await store.change(crashed)
-    call = drill_call(campus, OVERFLOW_TEXT if case == "overflow" else None,
+    call = drill_call(ours, OVERFLOW_TEXT if case == "overflow" else None,
                       timeout_s=SLOW_DEADLINE_S if case == "slow" else None)  # fmt: skip
     transport = transport_for(cfg)
     gateway = LlmGateway(cfg, case_keys, transport, store, clock)

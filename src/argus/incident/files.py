@@ -104,7 +104,7 @@ def indicators_csv(report: m.IncidentReport) -> str:
 
 def affected_csv(report: m.IncidentReport) -> str:
     """One row for each affected device (an internal address): the name it reached, the days with
-    an alert and the first and last day, in IST."""
+    an alert and the first and last day, in the site's zone."""
     return _csv(
         AFFECTED_COLUMNS,
         [

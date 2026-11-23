@@ -154,12 +154,12 @@ def judge(
             "detection-rule durations within +10% of the pre-ARGUS baseline",
             "needs Kibana's rule execution data (no Kibana read yet)",
         ),
-        ("review task test with a real TA/RA", "needs a reviewer and 15 minutes"),
+        ("review task test with a real reviewer", "needs a reviewer and 15 minutes"),
     ):
         out.append({"criterion": name, "result": "PENDING", "why": why})
     out.append(
         {
-            "criterion": "write-back (R17), not an exit criterion",
+            "criterion": "write-back, not an exit criterion",
             "result": "INFO",
             "why": "built and off; switched on with the user present (D-061)",
         }

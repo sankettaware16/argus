@@ -325,6 +325,17 @@ Settings → History.
 
 Durations are written `30s`, `15m`, `36h`, `5d`.
 
+### `sla`: response times
+
+Settings → Response times. How long a person has, by an incident's priority. ARGUS enforces
+none of it: **Dashboards → Security overview** measures the time to a first decision and the
+time to close against these, and lists what is past its time.
+
+| Setting | Shipped | Range | Meaning |
+|---|---|---|---|
+| `sla.triage_p1` … `sla.triage_p4` | `1h`, `4h`, `24h`, `3d` | `5m`–`90d` | A possible incident of that priority is confirmed or dismissed within this, counted from the moment ARGUS raised it. |
+| `sla.resolve_p1` … `sla.resolve_p4` | `24h`, `3d`, `7d`, `14d` | `5m`–`90d` | A confirmed incident of that priority is closed within this, counted from its confirmation. |
+
 ### memory
 
 | Setting | Shipped | Meaning |
@@ -673,7 +684,7 @@ assessments read it at their next run.
 | `margin` | `0.8` | The share of each provider's published rate limits ARGUS uses |
 | `shares` | `{high: 1.0, normal: 0.8, low: 0.5}` | The share of each day limit and of both caps a priority may use |
 | `evaluation` | `window_utc: ["17:30", "00:00"]`, `calls_per_day: 150` | When evaluation runs may call models, and how many a night per provider |
-| `providers[]` | groq, openrouter, gemini, anthropic, openai, local (disabled) | Tried in this order. Each: `name`, `base_url`, `keys` (key names), `models` (`small`, `medium`, `large`: `name`, `limits`, `input_per_m`, `output_per_m`, `extra`, `thinking_tokens`), `limits` (`rpm`, `rpd`, `tpm`, `tpd`), `timeout_s`, `max_tokens_field`, and optionally `api` (`openai`, or `anthropic` with `api_version`), `enabled`, `trust` (`cloud` or `campus`), `ca_file`, `concurrency`, `tasks`, `probe`, `slow_s`, `schema_output` |
+| `providers[]` | groq, openrouter, gemini, anthropic, openai, local (disabled) | Tried in this order. Each: `name`, `base_url`, `keys` (key names), `models` (`small`, `medium`, `large`: `name`, `limits`, `input_per_m`, `output_per_m`, `extra`, `thinking_tokens`), `limits` (`rpm`, `rpd`, `tpm`, `tpd`), `timeout_s`, `max_tokens_field`, and optionally `api` (`openai`, or `anthropic` with `api_version`), `enabled`, `trust` (`cloud` or `self_hosted`), `ca_file`, `concurrency`, `tasks`, `probe`, `slow_s`, `schema_output` |
 
 ## Other sections
 

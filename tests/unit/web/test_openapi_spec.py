@@ -68,8 +68,9 @@ def test_every_operation_is_named_and_documented(built: dict[str, Any]) -> None:
             assert op.get("description"), (method, path)
             assert op.get("tags"), (method, path)
     # P4-F added confirmCase and dismissCase; UI v2 (spec §2.3) its 13 additions; E5 getToday;
-    # D-328/D-329 the AI, usage and services reads and four jobs
-    assert len(ids) == len(set(ids)) == 100
+    # D-328/D-329 the AI, usage and services reads and four jobs; D-337 getDirectoryAccount;
+    # D-340 getPerformance
+    assert len(ids) == len(set(ids)) == 102
 
 
 def test_every_schema_has_its_own_plain_name(built: dict[str, Any]) -> None:

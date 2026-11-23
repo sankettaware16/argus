@@ -86,13 +86,13 @@ def context_for(
     from argus.cases import titling
 
     try:
-        campus_domains = titling.default_campus_domains()
+        own_domains = titling.default_own_domains()
     except (OSError, ValueError):
-        campus_domains = ()  # the report is written without the sites' names
+        own_domains = ()  # the report is written without the sites' names
     return build.Context(
         cfg=discover_config(settings), as_at=now, classifier=classifier, catalogue=catalogue,
         active_days=settings.notified.active_days, quiet_days=settings.notified.quiet_days,
-        signins=reading, campus_domains=campus_domains,
+        signins=reading, own_domains=own_domains,
     )  # fmt: skip
 
 

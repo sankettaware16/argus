@@ -38,7 +38,7 @@ from argus import site
 from argus.cases import identity
 from argus.cases.service import no_quiet_window
 from argus.cases.signing import Signer, load_key
-from argus.config.settings import WebSettings
+from argus.config.settings import SlaSettings, WebSettings
 from argus.context.packs import default_registry
 from argus.report import store as report_store
 from argus.report.model import Report
@@ -298,7 +298,7 @@ SIGN_IN = Open("signing in: there is no session yet")
 SIGN_OUT = Open("signing out: it ends the session only with the session's own CSRF token")
 PUBLIC = Open("a page or file anyone may load: it shows no data")
 LINK = Open("a permanent link: it only redirects, and the page it leads to checks access")
-APP_FILES = Open("the app's code and styles (Q-B1): no data in them; its page needs a session")
+APP_FILES = Open("the app's code and styles: no data in them; its page needs a session")
 WELCOME = Open("a one-time link sets its person's password (D-327): the link's token is the proof")
 
 Viewer = Annotated[auth.Reviewer, Depends(PAGE_VIEW)]
@@ -366,6 +366,8 @@ def create_app(
     team: Any = None,  # the case team's ``PostConfig`` (the Kibana case preview); else off
     signins: Any = None,  # ``signins.view.Reading`` (who used a device); else the card is off
     switches_root: FilePath | None = None,  # the case team's switches file's root; else ROOT
+    directory: Any = None,  # ``directory.Directory`` (the site's account directory); else off
+    sla: SlaSettings | None = None,  # the response-time targets (``sla.*``); else the defaults
 ) -> FastAPI:
     web = settings or WebSettings()
     tls = web.tls_cert is not None
@@ -408,6 +410,8 @@ def create_app(
     app.state.team = team
     app.state.switches_root = switches_root or web.switches_root  # the case team's switches
     app.state.signins = signins
+    app.state.directory = directory
+    app.state.sla = sla or SlaSettings()
     app.state.quiet_windows_for = (
         (lambda conn: no_quiet_window) if watch is None else _finder_for(watch, clock)
     )

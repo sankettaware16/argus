@@ -339,8 +339,8 @@ def test_a_slow_provider_lengthens_only_the_wall_clock(privacy: Privacy) -> None
 
     from argus.agent.agent import NAME, ROUTE, VERIFY
 
-    raw = json.dumps([NAME, VERIFY, ROUTE, "coordinator@4",
-                      "intel=specialist@2,proxy=specialist@1,web=specialist@1",
+    raw = json.dumps([NAME, VERIFY, ROUTE, "coordinator@5",
+                      "intel=specialist@3,proxy=specialist@2,web=specialist@2",
                       asdict(Limits(seconds=1800.0)), True, "local/small=m"],
                      sort_keys=True)  # fmt: skip
     assert agent_eval.signature(slow, True, "local/small=m") == hashlib.sha256(

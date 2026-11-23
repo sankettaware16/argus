@@ -68,7 +68,7 @@ def fixtures() -> dict[str, m.IncidentReport]:
         "amadey": team.amadey(),
         "git": team.git(),
         "scanners": build.build(
-            kit.scanners(), kit.ctx(catalogue=CATALOGUE, campus_domains=("example.edu",))
+            kit.scanners(), kit.ctx(catalogue=CATALOGUE, own_domains=("example.edu",))
         ),
     }
 

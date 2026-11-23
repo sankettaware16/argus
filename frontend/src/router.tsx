@@ -3,7 +3,9 @@ import { lazy, Suspense, type ComponentType } from "react";
 import { Loading } from "./components/Problem";
 import { isStale, reloadOnce } from "./lib/build";
 import { parseCases } from "./lib/cases";
+import { parseAlerts } from "./lib/alerts";
 import { parseFilters, toSearch } from "./lib/dashboardFilters";
+import { parseDashboards } from "./lib/dashboards";
 import { parseInbox, TABS, type InboxSearch, type Tab } from "./lib/inboxQuery";
 import { parseSearchPage, type SearchSearch } from "./lib/searchPage";
 import { QualityPage } from "./pages/Quality";
@@ -23,6 +25,8 @@ const BASE = "/app";
 const DesignPage = lazy(() => import("./pages/Design").then((m) => ({ default: m.Design })));
 const DashboardPage = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.Inbox })));
+const AlertsPage = lazy(() => import("./pages/Alerts").then((m) => ({ default: m.Alerts })));
+const DashboardsPage = lazy(() => import("./pages/Dashboards").then((m) => ({ default: m.Dashboards })));
 const ProposalsPage = lazy(() => import("./pages/Proposals").then((m) => ({ default: m.Proposals })));
 const IncidentsPage = lazy(() => import("./pages/Incidents").then((m) => ({ default: m.Incidents })));
 const IncidentRoutePage = lazy(() => import("./pages/IncidentPage").then((m) => ({ default: m.IncidentRoute })));
@@ -30,6 +34,7 @@ const ApprovalsPage = lazy(() => import("./pages/Approvals").then((m) => ({ defa
 const ReportsPage = lazy(() => import("./pages/Reports").then((m) => ({ default: m.Reports })));
 const ReportDetailPage = lazy(() => import("./pages/Reports").then((m) => ({ default: m.ReportPage })));
 const EntityPageLazy = lazy(() => import("./pages/Entity").then((m) => ({ default: m.EntityPage })));
+const DirectoryPageLazy = lazy(() => import("./pages/Directory").then((m) => ({ default: m.DirectoryPage })));
 const SearchPageLazy = lazy(() => import("./pages/Search").then((m) => ({ default: m.SearchPage })));
 const PatternsPage = lazy(() => import("./pages/Patterns").then((m) => ({ default: m.Patterns })));
 const HealthPage = lazy(() => import("./pages/System").then((m) => ({ default: m.Health })));
@@ -40,7 +45,6 @@ const GoldPage = lazy(() => import("./pages/Gold").then((m) => ({ default: m.Gol
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
 const AiAgentsPage = lazy(() => import("./pages/AiAgents").then((m) => ({ default: m.AiAgents })));
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntel").then((m) => ({ default: m.ThreatIntel })));
-const CostsPage = lazy(() => import("./pages/Costs").then((m) => ({ default: m.Costs })));
 const UsersPage = lazy(() => import("./pages/Users").then((m) => ({ default: m.Users })));
 const ConfirmedPage = lazy(() => import("./pages/Confirmed").then((m) => ({ default: m.Confirmed })));
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.Setup })));
@@ -89,7 +93,14 @@ const settings = createRoute({
 });
 const aiAgents = admin("/ai", "the AI settings", AiAgentsPage);
 const threatIntel = admin("/threat-intel", "the threat-intel sources", ThreatIntelPage);
-const costs = admin("/costs", "the costs", CostsPage);
+// Costs and usage is the dashboards' fourth board (D-340): the old address leads there
+const costs = createRoute({
+  getParentRoute: () => root,
+  path: "/costs",
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboards", search: { d: "costs" }, replace: true });
+  },
+});
 const users = admin("/users", "the people", UsersPage);
 const setup = admin("/setup", "the setup", SetupPage);
 const confirmed = admin("/confirmed", "the page", ConfirmedPage);
@@ -111,6 +122,34 @@ const overview = createRoute({
     return (
       <Suspense fallback={<Loading what="the dashboard" />}>
         <DashboardPage search={search} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
+const alerts = createRoute({
+  getParentRoute: () => root,
+  path: "/alerts",
+  validateSearch: parseAlerts,
+  component: function AlertsRoute() {
+    const s = alerts.useSearch();
+    return (
+      <Suspense fallback={<Loading what="the alerts" />}>
+        <AlertsPage search={s} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
+const dashboards = createRoute({
+  getParentRoute: () => root,
+  path: "/dashboards",
+  validateSearch: parseDashboards,
+  component: function DashboardsRoute() {
+    const s = dashboards.useSearch();
+    return (
+      <Suspense fallback={<Loading what="the dashboards" />}>
+        <DashboardsPage search={s} />
       </Suspense>
     );
   },
@@ -287,6 +326,23 @@ const hosts = toAdvanced("/hosts");
 const patterns = plain("/patterns", "the patterns", PatternsPage);
 const health = plain("/health", "the health", HealthPage);
 const glossary = plain("/glossary", "the glossary", GlossaryPage);
+const accountLookup = createRoute({
+  getParentRoute: () => root,
+  path: "/account-lookup",
+  validateSearch: (raw: Record<string, unknown>): { account?: string } => {
+    const account = first(raw.account)?.trim();
+    return account !== undefined && /^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$/.test(account) ? { account } : {};
+  },
+  component: function AccountLookupRoute() {
+    const { account } = accountLookup.useSearch();
+    return (
+      <Suspense fallback={<Loading what="the look-up" />}>
+        <DirectoryPageLazy account={account} />
+      </Suspense>
+    );
+  },
+  errorComponent: Failed,
+});
 const metrics = createRoute({
   getParentRoute: () => root,
   path: "/metrics",
@@ -336,7 +392,7 @@ const quality = createRoute({
 /** The app's router; tests give it a memory history. */
 export function createAppRouter(history?: RouterHistory) {
   const made = createRouter({
-    routeTree: root.addChildren([home, design, confirmed, settings, aiAgents, threatIntel, costs, users, setup, dashboard, overview, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity]),
+    routeTree: root.addChildren([home, design, confirmed, settings, aiAgents, threatIntel, costs, users, setup, dashboard, overview, dashboards, alerts, inbox, search, investigation, alertGroup, proposals, cases, caseDetail, incidents, incidentDetail, approvals, reports, reportDetail, rules, hosts, patterns, health, glossary, metrics, tuning, gold, quality, entity, accountLookup]),
     basepath: BASE,
     defaultPreload: false,
     scrollRestoration: false,

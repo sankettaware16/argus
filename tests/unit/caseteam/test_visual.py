@@ -156,21 +156,21 @@ def test_a_case_with_nothing_to_draw_still_says_its_numbers() -> None:
 
 
 def test_the_two_cases_get_their_charts_on_the_fields_their_shape_uses() -> None:
-    campus = comment(kit.amadey())  # one campus device reaching four outside servers
+    ours = comment(kit.amadey())  # one campus device reaching four outside servers
     outside = comment(kit.git())  # three outside scanners against one campus site
-    a = blocks(campus)
+    a = blocks(ours)
     assert [fields_of(b)[0] for b in a] == [
         "@timestamp",
         "destination.ip",
         "kibana.alert.rule.name",
     ]
-    assert "**Servers reached**\n\n!{lens" in campus
-    assert "**Top campus devices**\n\n- " in campus  # one device: a list, not a one-bar chart
+    assert "**Servers reached**\n\n!{lens" in ours
+    assert "**Top campus devices**\n\n- " in ours  # one device: a list, not a one-bar chart
     b = blocks(outside)
     assert [fields_of(x)[0] for x in b] == ["@timestamp", "source.ip", "kibana.alert.rule.name"]
     assert "**Top outside addresses**\n\n!{lens" in outside
     assert "**Campus sites reached**\n\n- ` home.example.edu `: 22 alerts" in outside
-    for text in (campus, outside):
+    for text in (ours, outside):
         assert "**Alerts over time, by rule**\n\n!{lens" in text
         assert "**Rules that raised the alerts**\n\n!{lens" in text
         assert fields_of(blocks(text)[0]) == ["@timestamp", "___records___", RULE]
@@ -421,7 +421,7 @@ def test_targets_of_another_list_are_said_not_compared_and_unknown_is_not_active
 
 
 def scan_report() -> m.IncidentReport:
-    return build.build(incident_kit.scanners(), incident_kit.ctx(campus_domains=("example.edu",)))
+    return build.build(incident_kit.scanners(), incident_kit.ctx(own_domains=("example.edu",)))
 
 
 def news_of(report: m.IncidentReport, before: visual.Seen) -> str:

@@ -71,6 +71,44 @@ describe("the case page", () => {
   });
 });
 
+describe("the incident's tabs", () => {
+  // the fixture's campus device is 10.0.0.1: its sign-ins name the probable user
+  const onDevice: SigninsOut = { ...SIGNINS, devices: SIGNINS.devices.map((d) => ({ ...d, address: "10.0.0.1" })) };
+
+  it("the overview says who used the device, as an account chip", async () => {
+    serveCase(onDevice);
+    renderApp(`/incidents/${CASE_ID}`);
+    const who = await screen.findByRole("region", { name: "Who used the device" });
+    expect(within(who).getByText("Probable user")).toBeTruthy();
+    const chips = within(who).getAllByTestId("entity-chip");
+    expect(chips.map((c) => c.getAttribute("data-noun"))).toEqual(["Device", "Account"]);
+    expect(chips[1]?.textContent).toContain("user-ar6-alpha");
+  });
+
+  it("the entities tab puts the user on the device's card", async () => {
+    serveCase(onDevice);
+    renderApp(`/incidents/${CASE_ID}?tab=entities`);
+    const campus = await screen.findByTestId("own-side");
+    const card = await within(campus).findByTestId("device-user");
+    expect(card.textContent).toContain("Probable user");
+    expect(card.textContent).toContain("user-ar6-alpha");
+  });
+
+  it("the evidence tab has the sign-ins card", async () => {
+    serveCase(onDevice);
+    renderApp(`/incidents/${CASE_ID}?tab=evidence`);
+    const card = await screen.findByRole("region", { name: "Who used this device" });
+    expect(card.textContent).toContain("user-ar6-alpha");
+  });
+
+  it("the overview has no such part without sign-ins", async () => {
+    serveCase(null);
+    renderApp(`/incidents/${CASE_ID}`);
+    await screen.findByRole("heading", { level: 1, name: /Regular beaconing/ });
+    expect(screen.queryByRole("region", { name: /Who used/ })).toBeNull();
+  });
+});
+
 describe("the investigation page", () => {
   it("has the card on its overview", async () => {
     server.use(

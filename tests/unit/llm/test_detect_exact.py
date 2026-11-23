@@ -10,14 +10,14 @@ from typing import Any
 import pytest
 
 from argus.llm import detect
-from argus.llm.detect import Campus, Found, find
+from argus.llm.detect import Found, OwnSpace, find
 
 pytestmark = pytest.mark.unit
 V4 = ipaddress.IPv4Address
 
 
-def spans(text: str, campus: Campus | None = None) -> list[tuple[int, int, str, str]]:
-    return [(f.start, f.end, f.kind, f.value) for f in find(text, campus or Campus())]
+def spans(text: str, ours: OwnSpace | None = None) -> list[tuple[int, int, str, str]]:
+    return [(f.start, f.end, f.kind, f.value) for f in find(text, ours or OwnSpace())]
 
 
 @pytest.mark.parametrize(
@@ -77,13 +77,13 @@ def test_embedded(address: str, embedded: list[str]) -> None:
 
 
 def test_campus_defaults_and_equality() -> None:
-    campus = Campus()
-    assert campus.domains == ("example.edu", "example-univ.org")  # the site's own_domains
-    assert campus.campus_domain("A.EXAMPLE.EDU.")
-    assert not campus.campus_domain("example.edu.x")
-    assert Campus(is_internal=lambda ip: True) == Campus(is_internal=lambda ip: False)
-    assert hash(Campus()) == hash(Campus(is_internal=lambda ip: True))
-    shown = repr(Campus(assets=frozenset({"aa1"}), hosts=frozenset({"bb2"}),
+    ours = OwnSpace()
+    assert ours.domains == ("example.edu", "example-univ.org")  # the site's own_domains
+    assert ours.own_domain("A.EXAMPLE.EDU.")
+    assert not ours.own_domain("example.edu.x")
+    assert OwnSpace(is_internal=lambda ip: True) == OwnSpace(is_internal=lambda ip: False)
+    assert hash(OwnSpace()) == hash(OwnSpace(is_internal=lambda ip: True))
+    shown = repr(OwnSpace(assets=frozenset({"aa1"}), hosts=frozenset({"bb2"}),
                         users=frozenset({"cc3"}), ordinary=frozenset({"dd4"})))  # fmt: skip
     for name in ("aa1", "bb2", "cc3", "dd4"):
         assert name not in shown
@@ -94,8 +94,8 @@ def test_found_defaults() -> None:
 
 
 def test_name_index_shape() -> None:
-    campus = Campus(assets=frozenset({"Geology Lab", "geology", "ab"}), hosts=frozenset({"h1"}))
-    assert campus.name_index == {"geology": (("geology", "lab"), ("geology",)), "h1": (("h1",),)}
+    ours = OwnSpace(assets=frozenset({"Geology Lab", "geology", "ab"}), hosts=frozenset({"h1"}))
+    assert ours.name_index == {"geology": (("geology", "lab"), ("geology",)), "h1": (("h1",),)}
 
 
 @pytest.mark.parametrize(
@@ -118,8 +118,8 @@ def test_name_index_shape() -> None:
     ],
 )
 def test_dotted_and_dashed(text: str, expected: list[Any]) -> None:
-    campus = Campus(networks=(ipaddress.ip_network("198.51.100.0/24"),))
-    assert [s for s in spans(text, campus) if s[2] == "ip"] == expected
+    ours = OwnSpace(networks=(ipaddress.ip_network("198.51.100.0/24"),))
+    assert [s for s in spans(text, ours) if s[2] == "ip"] == expected
 
 
 @pytest.mark.parametrize(
@@ -213,8 +213,8 @@ def test_encodings_are_undone_three_deep_not_four() -> None:
 
     three = b64(b64(b64("10.1.2.3")))
     four = b64(three)
-    assert any(f.kind == "ip" for f in find(three, Campus()))
-    assert not any(f.kind == "ip" for f in find(four, Campus()))
+    assert any(f.kind == "ip" for f in find(three, OwnSpace()))
+    assert not any(f.kind == "ip" for f in find(four, OwnSpace()))
     assert detect.DEPTH == 3
 
 
@@ -287,18 +287,18 @@ def test_email_edges() -> None:
 
 
 def test_name_edges() -> None:
-    campus = Campus(assets=frozenset({"Geology Lab", "geology"}), hosts=frozenset({"tp8"}))
-    assert [s[3] for s in spans("geology xyz", campus) if s[2] == "name"] == ["geology"]
-    assert [s[3] for s in spans("geology.lab", campus) if s[2] == "name"] == ["geology.lab"]
-    dotted = Campus(users=frozenset({"asha.k"}))  # an account is often first.last
+    ours = OwnSpace(assets=frozenset({"Geology Lab", "geology"}), hosts=frozenset({"tp8"}))
+    assert [s[3] for s in spans("geology xyz", ours) if s[2] == "name"] == ["geology"]
+    assert [s[3] for s in spans("geology.lab", ours) if s[2] == "name"] == ["geology.lab"]
+    dotted = OwnSpace(users=frozenset({"asha.k"}))  # an account is often first.last
     assert [s[3] for s in spans("user asha.k signed in", dotted) if s[2] == "name"] == ["asha.k"]
     assert [s[3] for s in spans("asha_k and asha k", dotted) if s[2] == "name"] == [
         "asha_k", "asha k",
     ]  # fmt: skip
     assert [s for s in spans("asha/k", dotted) if s[2] == "name"] == []
-    assert [s[3] for s in spans("geology lab", campus) if s[2] == "name"] == ["geology lab"]
-    assert [s[3] for s in spans("tp8 and I1.IP_1", campus) if s[2] == "name"] == ["tp8"]
-    only = Campus(assets=frozenset({"Geology Lab"}))
+    assert [s[3] for s in spans("geology lab", ours) if s[2] == "name"] == ["geology lab"]
+    assert [s[3] for s in spans("tp8 and I1.IP_1", ours) if s[2] == "name"] == ["tp8"]
+    only = OwnSpace(assets=frozenset({"Geology Lab"}))
     assert [s for s in spans("geology xyz", only) if s[2] == "name"] == []
 
 
@@ -314,17 +314,17 @@ def test_base64_between_long_path_parts() -> None:
 
 
 def test_punycode_is_decoded() -> None:
-    campus = Campus(hosts=frozenset({"tp8"}))
+    ours = OwnSpace(hosts=frozenset({"tp8"}))
     puny = "tp8ü.example".encode("idna").decode()
     assert puny.startswith("xn--")
-    found = [f for f in find(puny, campus) if f.kind == "name"]
+    found = [f for f in find(puny, ours) if f.kind == "name"]
     assert (0, len(puny), True) in {(f.start, f.end, f.encoded) for f in found}
 
 
 def test_a_segment_of_a_decoded_text_spans_the_whole_text() -> None:
     hidden = base64.b64encode(b"10.1.2.3").decode()
     text = "a%20" + hidden
-    whole = [f for f in find(text, Campus()) if f.encoded and f.kind == "ip"]
+    whole = [f for f in find(text, OwnSpace()) if f.encoded and f.kind == "ip"]
     assert (0, len(text)) in {(f.start, f.end) for f in whole}
 
 

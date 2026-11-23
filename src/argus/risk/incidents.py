@@ -6,7 +6,7 @@ request, no model, and nothing of today's queue or cases is written (``case_id``
 The **retro-hunt**: an outside thing the engine sees flagged for the first time (an outside
 detection, a threat-list hit named by a group, a campaign) is joined against the observations
 of ``retro_days`` (a GIN index on their outside things): every alert group that touched it is
-read again at the next pass, so its evidence (the flag) is scored, and every campus object that
+read again at the next pass, so its evidence (the flag) is scored, and every internal object that
 touched it can link through it."""
 
 from __future__ import annotations

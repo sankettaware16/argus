@@ -80,12 +80,12 @@ def test_contain_is_refused_with_the_reason_and_status_says_where_the_case_stand
     refused = _run("case", "contain", "1", "--as", "asha", "--attest", "the host was cleaned")
     assert refused.exit_code == 1
     assert "refused (unavailable): not contained:" in refused.stderr
-    assert "not switched on yet (Q-F1)" in refused.stderr
+    assert "not switched on yet" in refused.stderr
     status = _ok(_run("case", "watch", "status", "1"))
     assert status.startswith("watch mode: off")
     assert "the watch has never run" in status  # review R17: and when it last ran, otherwise
     assert "quiet for 72 hours: no:" in status
-    assert "not switched on yet (Q-F1)" in status
+    assert "not switched on yet" in status
     missing = _run("case", "watch", "status", "99")
     assert missing.exit_code == 1
 

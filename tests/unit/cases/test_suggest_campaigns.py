@@ -310,9 +310,9 @@ def test_several_cases_holding_it_are_each_offered_it_as_a_tie() -> None:
 
 def test_shared_rare_targets_an_open_case_holds_make_no_new_case() -> None:
     targets = (("url", "/~hostel5/.git"), ("url", "/~hostel9/.git"))
-    scout = seen(1, rule="scan", actors=(("ip", "185.220.101.5"),), campus=False, targets=targets,
+    scout = seen(1, rule="scan", actors=(("ip", "185.220.101.5"),), ours=False, targets=targets,
                  severity="high")  # fmt: skip
-    collector = seen(2, rule="volume", actors=(("ip", "185.220.101.4"),), campus=False,
+    collector = seen(2, rule="volume", actors=(("ip", "185.220.101.4"),), ours=False,
                      targets=targets)  # fmt: skip
     assert len(opened(suggest.plan([scout, collector], [], now=NOW))) == 1
     case = Live(uuid.UUID(int=777), 3, "open", frozenset({("ip", "185.220.101.5")}),
@@ -336,7 +336,7 @@ def test_the_devices_a_campaign_found_behind_a_key_that_names_none_are_the_actor
     """A DNS rule's key lists every source address, so ``Seen.actors`` is empty; the campaign
     found the devices among the entities and the suggester treats them as its actors."""
     case = live(hosts=(1, 2))
-    blank = [replace(member(n), actors=frozenset(), campus=frozenset()) for n in (21, 22, 23)]
+    blank = [replace(member(n), actors=frozenset(), ours=frozenset()) for n in (21, 22, 23)]
     devices = {
         uuid.UUID(int=21): frozenset({device(1), device(2)}),  # both known to the case
         uuid.UUID(int=22): frozenset({device(2), device(9)}),  # one new

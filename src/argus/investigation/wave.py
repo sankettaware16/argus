@@ -69,7 +69,7 @@ class Env:
     gateway: Gateway | None
     packs: PackRegistry
     switches: Switches
-    is_campus: Callable[[str], bool]
+    is_own: Callable[[str], bool]
     history: timedelta = timedelta(days=5)
     caps: Caps = field(default_factory=Caps)
     per_day: int = 120
@@ -149,7 +149,7 @@ async def admit(
     if name in batch1.TEMPLATES:
         return await batch1.admit(
             conn, env.state, task, enabled=env.switches.templates, now=now, history=env.history,
-            is_campus=env.is_campus, health_config=env.health_config,
+            is_own=env.is_own, health_config=env.health_config,
         )  # fmt: skip
     if quiet(now):
         return batch1.Refusal("quiet_hours")
@@ -158,7 +158,7 @@ async def admit(
     if memory.state is not HealthState.NORMAL:
         return batch1.Refusal("not_normal", str(memory.state))
     for key in _keys(task):
-        seen = await batch1.prevalence(conn, key, now - env.history, env.is_campus)
+        seen = await batch1.prevalence(conn, key, now - env.history, env.is_own)
         if batch1.too_common(key, seen):
             return batch1.Refusal("too_common", key.kind)
     if _keys(task) and await spent_in_lane(conn, name, now) >= batch1.DAILY_CAP_MS:
@@ -264,7 +264,7 @@ async def plan_check(
     refused."""
     words = catalogue.CHECKS[template].said if template in catalogue.CHECKS else template
     reason = f"{words} — a person asked"
-    task = checks.build(template, entity, prep.material, env.switches, env.is_campus)
+    task = checks.build(template, entity, prep.material, env.switches, env.is_own)
     if isinstance(task, TaskSpec):
         task = await retried(conn, prep.current.investigation_id, prep.current.version, task)
 
@@ -323,7 +323,7 @@ async def _dispatch(env: Env, task: TaskSpec, deadline: datetime) -> Result:
         async with env.engine.connect() as conn:
             sent = await batch1.send(
                 conn, env.gateway, task, enabled=env.switches.templates, history=env.history,
-                is_campus=env.is_campus, deadline=deadline, health_config=env.health_config,
+                is_own=env.is_own, deadline=deadline, health_config=env.health_config,
                 purpose=PURPOSE, component=COMPONENT,
             )  # fmt: skip
         if isinstance(sent, batch1.Refusal):

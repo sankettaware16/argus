@@ -1,7 +1,7 @@
 """The typed contract of ``/api/v1`` (Phase 3 plan §4, §7.5; Q-A1): what every classic page
 shows and does, for the app at ``/app`` and its generated client.
 
-Words (DQ23, D-110): an *investigation* is one rule, one actor and one IST day (what the
+Words (DQ23, D-110): an *investigation* is one rule, one actor and one site day (what the
 classic dashboard called a case); a *case* is one real problem across days, hosts and rules
 (Q-C1); an *incident* is a case a person confirmed. Text from alerts, logs or models is
 returned as stored: the client shows it as untrusted text. Every error is ``ErrorOut``."""
@@ -123,6 +123,9 @@ class SessionOut(Out):
     setup_pending: bool = False
     """The first-time setup is not finished on this host (D-328): an administrator is led to it,
     anyone else told an administrator still has to finish it."""
+    directory: str | None = None
+    """The site's account directory, by its name, when it has one and the person may see
+    account names (D-337): the app then shows its look-up page."""
 
 
 class KeyField(Out):
@@ -172,6 +175,15 @@ class StanceOut(Out):
     pattern_alerts: int | None
 
 
+class InCaseOut(Out):
+    """The incident (case) an alert group belongs to: it is decided there, not on its own."""
+
+    id: uuid.UUID
+    number: int
+    title: str
+    state: Literal["suspected", "open", "assigned", "contained", "closed"]
+
+
 class InvestigationOut(Out):
     id: uuid.UUID
     rule_id: str
@@ -200,6 +212,9 @@ class InvestigationOut(Out):
     reasons: list[str]  # reasons to look, never verdicts
     ai: AiVerdictOut | None
     known: KnownRefOut | None  # the notified case that counts it as a known infection
+    # the incident it belongs to, in a list (the Alerts page); None: in none. One alone has it
+    # on its detail (``InvestigationDetail.case``)
+    case: InCaseOut | None = None
 
 
 class InvestigationPage(Out):
@@ -414,7 +429,7 @@ class ReportsOut(Out):
 
 
 class SamePatternOut(Out):
-    """The investigator's run on another investigation of the same pattern and IST day (AR2),
+    """The investigator's run on another investigation of the same pattern and site day (AR2),
     shown as "same pattern as <id>". Display only: it is not this investigation's assessment, so
     it cannot be accepted and nothing is scored, closed or written back from it."""
 
@@ -484,15 +499,6 @@ class SigninsOut(Out):
     states: list[SigninStateCountOut]  # devices by state, for the whole set
     devices: list[SigninDeviceOut]  # at most 100: the ones with a probable user first
     devices_total: int
-
-
-class InCaseOut(Out):
-    """The incident (case) an alert group belongs to: it is decided there, not on its own."""
-
-    id: uuid.UUID
-    number: int
-    title: str
-    state: Literal["suspected", "open", "assigned", "contained", "closed"]
 
 
 class InvestigationDetail(Out):
@@ -719,7 +725,7 @@ class PatternPageOut(Out):
 
 class PatternBriefOut(Out):
     """A pattern ARGUS recommends closing, as Home shows it (AR4 review, D-186): the investigations
-    one run of the AI investigator stands for on an IST day, counted now (not reviewed, not a
+    one run of the AI investigator stands for on a site day, counted now (not reviewed, not a
     known infection's). ``covered`` of ``investigations`` have a proposal; the rest have none yet
     and are left out of a close. Real totals: no dossier is read and nothing is sampled."""
 
@@ -981,7 +987,7 @@ class DashboardKpis(Out):
 
 
 class SeriesPoint(Out):
-    at: datetime  # the bucket's start, in IST
+    at: datetime  # the bucket's start, in the site's zone
     counts: dict[str, int]  # alerts by severity
 
 

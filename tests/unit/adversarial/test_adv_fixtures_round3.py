@@ -58,7 +58,7 @@ HOST = "secret-host-x9"
 SCRIPT = REPO_ROOT / "scripts" / "sanitize_fixtures.py"
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=(CAMPUS,),
+    own_domains=(CAMPUS,),
     keep_domains=("vendor-cdn.example",),
     literals={"Campus University": "Example University"},
     fields={
@@ -137,7 +137,7 @@ class Env:
     def policy(self, **override: Any) -> None:
         data: dict[str, Any] = {
             "site_prefixes": ["192.0.2.0/24"],
-            "campus_domains": ["campus.example.edu"],
+            "own_domains": ["campus.example.edu"],
             "keep_domains": ["example.org"],
             "literals": {"Campus University": "Example University"},
             "fields": {
@@ -475,7 +475,7 @@ def test_fxh04_end_to_end_campus_wildcard_passes_verify(env: Env) -> None:
     harvested spellings do. A KQL exclusion is the only place this corpus names the campus, so
     the raw campus domain is written into the fixture and ``verify`` passes it.
 
-    Fix (scanner side, cheap): ``build()`` adds ``policy.campus_domains`` and their first labels
+    Fix (scanner side, cheap): ``build()`` adds ``policy.own_domains`` and their first labels
     to the denylist."""
     env.sample(
         {

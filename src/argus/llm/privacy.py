@@ -30,7 +30,7 @@ from argus.assets.assetmap import AssetMap
 from argus.assets.classify import IpClass, IpClassifier
 from argus.context import display
 from argus.llm import egress
-from argus.llm.detect import LOOKALIKE, TOKEN, Campus, Found, canonical, find, outermost
+from argus.llm.detect import LOOKALIKE, TOKEN, Found, OwnSpace, canonical, find, outermost
 from argus.outside import facts as outside
 
 POLICY = Path(__file__).resolve().parents[3] / "config" / "llm_data_policy.yaml"
@@ -55,12 +55,15 @@ _GLUE = re.compile(r"[\w.-]")
 _FORGED = "[pseudonym-like text]"
 
 
+OLDER_KEY = "campus_domains"  # what ``own_domains`` was called: still read from a policy file
+
+
 class Policy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     version: int = Field(ge=1)
     # extra own domains besides ``site.own_domains``; the privacy layer uses both
-    campus_domains: tuple[str, ...] = ()
+    own_domains: tuple[str, ...] = ()
     asset_fields: tuple[str, ...] = ()
     # index patterns whose URL query values are sent; None (left out): the site's web families
     query_values_for: tuple[str, ...] | None = None
@@ -90,13 +93,13 @@ def query_patterns(policy: Policy) -> tuple[str, ...]:
 
 def own_domains_of(policy: Policy) -> tuple[str, ...]:
     """The organisation's own domains the privacy layer replaces and keeps out of outside lookups:
-    ``site.own_domains`` and the policy's ``campus_domains``, each once. A layer that knows none
+    ``site.own_domains`` and the policy's ``own_domains``, each once. A layer that knows none
     would let ``example.org`` through to a cloud provider, so it refuses to run."""
-    domains = site.own_domains(policy.campus_domains)
+    domains = site.own_domains(policy.own_domains)
     if not domains:
         raise PrivacyConfigError(
             "the privacy layer needs at least one domain of the organisation: list them in"
-            " site.own_domains (or campus_domains in config/llm_data_policy.yaml). Until then"
+            " site.own_domains (or own_domains in config/llm_data_policy.yaml). Until then"
             " no text is built for a model."
         )
     return domains
@@ -104,9 +107,16 @@ def own_domains_of(policy: Policy) -> tuple[str, ...]:
 
 def load_policy(path: Path = POLICY, *, require_domains: bool = True) -> Policy:
     """The data policy. It refuses (``PrivacyConfigError``) while the organisation's domains are
-    unknown: ``site.own_domains`` and its ``campus_domains`` together name none. ``require_domains``
+    unknown: ``site.own_domains`` and its ``own_domains`` together name none. ``require_domains``
     False is for a reader that sends nothing to a model (the case titles read the list)."""
-    policy = Policy.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict) and OLDER_KEY in data:  # the key's name before the neutral one
+        if "own_domains" in data:
+            raise PrivacyConfigError(
+                f"{path} has both own_domains and its older name {OLDER_KEY}: keep own_domains"
+            )
+        data["own_domains"] = data.pop(OLDER_KEY)
+    policy = Policy.model_validate(data)
     if require_domains:
         own_domains_of(policy)
     return policy
@@ -214,15 +224,15 @@ class Request:
     omitted: tuple[str, ...]  # built but cut by the size limit
     failed: tuple[str, ...]  # bodies that could not be read: never sent
     truncated: tuple[str, ...]  # rendered items with untrusted text cut
-    campus: Campus = field(repr=False)
+    ours: OwnSpace = field(repr=False)
     _maps: dict[str, Pseudonyms] = field(repr=False, default_factory=dict)
 
     def validate(self) -> egress.Verdict:
-        return egress.check(self.text, self.campus, ordinary=template_words())
+        return egress.check(self.text, self.ours, ordinary=template_words())
 
     def check(self, body: bytes) -> egress.Verdict:
         """The validator on the exact bytes a provider would receive."""
-        return egress.check(body, self.campus, ordinary=template_words())
+        return egress.check(body, self.ours, ordinary=template_words())
 
     def unknown(self, answer: str, about: str) -> list[str]:
         """Pseudonyms in ``answer`` that are not ``about``'s own, or that it never had."""
@@ -245,7 +255,7 @@ class Request:
         return TOKEN.sub(lambda m: own.value(m.group(0)) or m.group(0), answer)
 
 
-def _label(found: Found, campus: Campus) -> str:
+def _label(found: Found, ours: OwnSpace) -> str:
     match found.kind:
         case "ip":
             return "IP"
@@ -254,7 +264,7 @@ def _label(found: Found, campus: Campus) -> str:
         case "domain":
             return "SITE"
         case "name":
-            return "USER" if campus.name_kind(found.value) == "user" else "HOST"
+            return "USER" if ours.name_kind(found.value) == "user" else "HOST"
         case "email":
             return "EMAIL"
         case "user_path" | "roll_number":
@@ -295,41 +305,41 @@ class Privacy:
     space: Callable[[str], Pseudonyms] = Pseudonyms
     scrub: type[_Scrub]
 
-    def __init__(self, policy: Policy, classifier: IpClassifier, campus: Campus) -> None:
+    def __init__(self, policy: Policy, classifier: IpClassifier, ours: OwnSpace) -> None:
         self.policy = policy
         self.classifier = classifier
-        self.campus = campus
+        self.ours = ours
 
     @classmethod
     def build(
         cls,
         policy: Policy,
         assets: AssetMap | None,
-        campus_prefixes: Sequence[ipaddress.IPv4Network | ipaddress.IPv6Network] = (),
+        own_prefixes: Sequence[ipaddress.IPv4Network | ipaddress.IPv6Network] = (),
     ) -> Privacy:
         """Fails closed without an asset map: without it, asset names cannot be recognised."""
         if assets is None:
             raise ValueError("the privacy layer needs the asset map")
-        campus = Campus(
-            networks=tuple(campus_prefixes),
+        ours = OwnSpace(
+            networks=tuple(own_prefixes),
             domains=own_domains_of(policy),
             assets=frozenset(e.name for e in assets.entries),
             is_internal=lambda ip: assets.match(ip) is not None,
         )
-        return cls(policy, IpClassifier(assets, campus_prefixes), campus)
+        return cls(policy, IpClassifier(assets, own_prefixes), ours)
 
     # -- the request ----------------------------------------------------------------------
 
     def request(self, bodies: Sequence[Any], max_chars: int = 60_000) -> Request:
         """Items for ``bodies`` (dossier bodies) rendered as one text of at most ``max_chars``;
         an item that does not fit is left out whole, and so is every one after it."""
-        campus = self.campus_for(bodies)
+        ours = self.ours_for(bodies)
         items: list[Item] = []
         failed: list[str] = []
         ids = [f"I{n}" for n in range(1, len(bodies) + 1)]
         for item_id, body in zip(ids, bodies, strict=True):
             try:
-                item = self._item(body, item_id, campus)
+                item = self._item(body, item_id, ours)
             except Exception:  # an unreadable body is left out, never sent half-built
                 failed.append(item_id)
                 continue
@@ -351,12 +361,12 @@ class Privacy:
             omitted=tuple(i.id for i in items[len(kept) :]),
             failed=tuple(failed),
             truncated=tuple(i.id for i in kept if i.truncated),
-            campus=campus,
+            ours=ours,
             _maps={i.id: i.pseudonyms for i in kept},
         )
 
-    def campus_for(self, bodies: Iterable[Any]) -> Campus:
-        """The base campus plus every host and user name these dossiers mention: entities,
+    def ours_for(self, bodies: Iterable[Any]) -> OwnSpace:
+        """The base own space plus every host and user name these dossiers mention: entities,
         fields and grouping keys whose policy action is ``host`` or ``user``. Public so that
         outside lookups refuse exactly what the model's view of an item scrubs."""
         hosts: set[str] = set()
@@ -382,14 +392,12 @@ class Privacy:
             except Exception:  # noqa: S112 - such a body fails in _item and is never sent
                 continue
         hosts = {h for h in hosts if not self._is_public_address(h)}
-        return replace(self.campus, hosts=frozenset(hosts), users=frozenset(users))
+        return replace(self.ours, hosts=frozenset(hosts), users=frozenset(users))
 
     def _is_public_address(self, value: str) -> bool:
         """A public address names no internal host."""
         c = self.classifier.classify(value)
-        return c.ip_class is IpClass.PUBLIC and not self.campus.internal(
-            ipaddress.ip_address(value)
-        )
+        return c.ip_class is IpClass.PUBLIC and not self.ours.internal(ipaddress.ip_address(value))
 
     @staticmethod
     def _key_pairs(key: Any) -> list[tuple[Any, Any]]:
@@ -401,7 +409,7 @@ class Privacy:
 
     # -- one item -------------------------------------------------------------------------
 
-    def _item(self, body: Any, item_id: str, campus: Campus) -> Item:
+    def _item(self, body: Any, item_id: str, ours: OwnSpace) -> Item:
         if not isinstance(body, Mapping):
             raise TypeError("a dossier body is a mapping")
         ps = self.space(item_id)
@@ -411,7 +419,7 @@ class Privacy:
         pack = _map(context.get("pack"))
         indices = [str(i) for i in _seq(pack.get("indices"))]
         query = any(fnmatch.fnmatch(i, p) for i in indices for p in query_patterns(self.policy))
-        cx = self.scrub(self, campus, ps, _when(facts.get("first_event_at")), query)
+        cx = self.scrub(self, ours, ps, _when(facts.get("first_event_at")), query)
         lines: list[str] = []
 
         lines.append(
@@ -701,10 +709,10 @@ class _Scrub:
     rescan = True  # look again after replacing (a comparison arm's fakes would be found again)
 
     def __init__(
-        self, privacy: Privacy, campus: Campus, ps: Pseudonyms, t0: datetime | None, query: bool
+        self, privacy: Privacy, ours: OwnSpace, ps: Pseudonyms, t0: datetime | None, query: bool
     ) -> None:
         self.p = privacy
-        self.campus = campus
+        self.ours = ours
         self.ps = ps
         self.t0 = t0
         self.query = query  # URL query values are sent (the policy's query_values_for)
@@ -744,7 +752,7 @@ class _Scrub:
         if value is None:
             return "?"
         text = str(value)
-        if _NAME.fullmatch(text) and not find(text, self.campus):
+        if _NAME.fullmatch(text) and not find(text, self.ours):
             return text
         return self.text(text, 80)
 
@@ -768,7 +776,7 @@ class _Scrub:
         """A signal for the registry's sentence (ARGUS's own words), its name, reason and
         value cleaned first."""
         name = str(signal.get("name") or "?")
-        plain = _NAME.fullmatch(name) is not None and not find(name, self.campus)
+        plain = _NAME.fullmatch(name) is not None and not find(name, self.ours)
         out: dict[str, Any] = {
             "name": name if plain else self.text(name, 80),
             "status": signal.get("status"),
@@ -827,7 +835,7 @@ class _Scrub:
         c = self.p.classifier.classify(value)
         if c.address is None:
             return self.text(str(value), 80)
-        internal = self.campus.internal(ipaddress.ip_address(c.address))
+        internal = self.ours.internal(ipaddress.ip_address(c.address))
         if c.ip_class in (IpClass.PUBLIC, IpClass.SPECIAL) and not internal:
             return c.address
         return self.ps.token("IP", c.address, self._ip_legend(c.ip_class, c.asset))
@@ -838,11 +846,11 @@ class _Scrub:
             parts = []
             for name in self.p.policy.asset_fields:
                 value = entry.fields.get(name)
-                if value and not find(value, self.campus):
+                if value and not find(value, self.ours):
                     parts.append(f"{name.split('.')[-1]} {quote(value)}")
             detail = f" ({', '.join(parts)})" if parts else ""
             return f"{site.a_own('device')} in the asset map{detail}"
-        if ip_class is IpClass.CAMPUS:
+        if ip_class is IpClass.OWN:
             return f"{site.a_own('public address')} (not in the asset map)"
         return "an internal address (not in the asset map)"
 
@@ -850,7 +858,7 @@ class _Scrub:
         host = value.strip().lower().rstrip(".")
         if _is_ip(host):
             return self.ip(host)
-        if self.campus.campus_domain(host) and not any(c.isspace() for c in host):
+        if self.ours.own_domain(host) and not any(c.isspace() for c in host):
             return self.ps.token("SITE", host, site.a_own("site"))
         return self.text(value, 120, quoted=quoted)
 
@@ -864,7 +872,7 @@ class _Scrub:
         parts = _split(value)
         if parts is not None and parts.scheme and parts.hostname:
             scheme, host = parts.scheme.lower(), parts.hostname
-            if _SCHEME.fullmatch(scheme) and not find(scheme, self.campus):
+            if _SCHEME.fullmatch(scheme) and not find(scheme, self.ours):
                 shown = self.ip(host) if _is_ip(host) else self.domain(host, quoted=False)
                 cred = "[credentials]@" if parts.username is not None or parts.password else ""
                 port = f":{parts.port}" if parts.port else ""
@@ -887,7 +895,7 @@ class _Scrub:
         for pattern in _TIMES:
             plain = pattern.sub(lambda m: self.time(m.group(0)), plain)
         for _ in range(4):
-            found = outermost(find(plain, self.campus))
+            found = outermost(find(plain, self.ours))
             if not found:
                 break
             plain = self._replace(plain, found)
@@ -914,7 +922,7 @@ class _Scrub:
             elif f.kind == "credentials":
                 token = "://" + self.ps.token("CRED", f.value, "credentials in a URL") + "@"
             else:
-                label = _label(f, self.campus)
+                label = _label(f, self.ours)
                 legend = _LEGENDS.get(label, "part of an internal address")
                 token = self.ps.token(label, f.value, legend)
             shown = f"[encoded: {token}]" if f.encoded else token

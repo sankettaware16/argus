@@ -53,7 +53,7 @@ class Links(_Model):
 
 
 class Caps(_Model):
-    objects: int = Field(ge=2, le=1000)  # risk objects: devices, accounts and campus sites
+    objects: int = Field(ge=2, le=1000)  # risk objects: devices, accounts and own sites
     campaign_objects: int = Field(ge=2, le=5000)
     groups: int = Field(ge=10, le=5000)
 

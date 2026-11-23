@@ -21,7 +21,7 @@ Safety:
 
 Roles (D-029): ``admin_connect``, ``empty_engine`` and ``migrated_engine`` log in as the schema
 owner (``database.owner_user``), like ``argus db``; ``app_engine`` logs in as the runtime role,
-like ARGUS itself; ``web_engine`` as a throwaway web login (``argus_web``, Q-A2), like the web.
+like ARGUS itself; ``web_engine`` as a throwaway web login (``argus_web``), like the web.
 The session starts by doing what ``argus db bootstrap`` does for the roles (idempotent, with the
 passwords from .env).
 """
@@ -334,7 +334,7 @@ async def web_engine(
     migrated_engine: AsyncEngine,
 ) -> AsyncIterator[AsyncEngine]:
     """The engine the web app gets in tests: a throwaway web login (``argus_web``'s grants
-    only, Q-A2), on the same database at head, so the web suite runs as production's web does
+    only), on the same database at head, so the web suite runs as production's web does
     once ``web.database_role`` is ``api``."""
     login = await make_api_login()
     engine = create_engine(login, database=test_database, role="api")

@@ -6,7 +6,7 @@ StartLimitIntervalSec=0
 
 [Service]
 WorkingDirectory=@ROOT@
-# D-104: HTTPS on the campus network; only these clients (and this machine) and host names
+# D-104: HTTPS on the internal network; only these clients (and this machine) and host names
 Environment=ARGUS_WEB__HOST=@WEB_HOST@
 Environment=ARGUS_WEB__TLS_CERT=@WEB_TLS_CERT@
 Environment=ARGUS_WEB__TLS_KEY=@WEB_TLS_KEY@

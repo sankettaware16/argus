@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS collector (custody layout, Q-A5)
+Description=ARGUS collector (custody layout)
 After=network-online.target docker.service
 Wants=network-online.target
 StartLimitIntervalSec=0

@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS soak sample (Phase 2 soak, D-092)
+Description=ARGUS soak sample
 
 [Service]
 Type=oneshot

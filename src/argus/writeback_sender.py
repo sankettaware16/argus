@@ -106,6 +106,11 @@ class Row:
     closure_request_id: int | None
     previous: Mapping[str, str]
 
+    @property
+    def dismissal(self) -> bool:
+        """A person's dismissal of a possible incident: a case with no closure request."""
+        return self.review_id is None and self.closure_request_id is None
+
 
 @dataclass(frozen=True)
 class Step:
@@ -157,6 +162,7 @@ class AlertSender:
         run_limit: int = 50,
         f1_audited: bool = False,
         operator: Operator | None = None,
+        own_accounts: bool = False,
         accepted_residual: Iterable[str] = (),
         key_selftest: bool = True,
         clock: Callable[[], datetime] = utcnow,
@@ -168,6 +174,7 @@ class AlertSender:
         self.run_limit = run_limit
         self.f1_audited = f1_audited
         self.operator = operator
+        self.own_accounts = own_accounts  # writeback.own_accounts (D-336)
         self.accepted_residual = tuple(accepted_residual)
         self.key_selftest = key_selftest
         self.clock = clock
@@ -450,7 +457,7 @@ class AlertSender:
         async with self.engine.begin() as conn:
             now_standing = await writeback.standing(
                 conn, review_id=row.review_id, investigation_id=row.investigation_id,
-                case_id=row.case_id,
+                case_id=row.case_id, dismissed=row.dismissal, own=self.own_accounts,
             )  # fmt: skip
             needs = now_standing is not None and now_standing.needs_operator
             who = self.operator.username if needs and self.operator else None
@@ -704,7 +711,7 @@ class AlertSender:
             return _Hold("skip", stale)
         now = await writeback.standing(
             conn, review_id=row.review_id, investigation_id=row.investigation_id,
-            case_id=row.case_id,
+            case_id=row.case_id, dismissed=row.dismissal, own=self.own_accounts,
         )  # fmt: skip
         if now is None:
             return _Hold("skip", "the decision it was made from cannot be found")
@@ -712,8 +719,12 @@ class AlertSender:
             return _Hold("skip", "its author is not a person")
         if now.needs_operator and not self._operator_fresh():
             return _Hold("wait", f"row {row.id} needs an operator signed in with their own account")
+        if now.settles_at is not None and self.clock() < now.settles_at:
+            return _Hold("wait", f"row {row.id} waits out the dismissal's undo window")
         if now.held is not None and not self.f1_audited:
-            return _Hold("wait", f"row {row.id} waits for the audit of Q-F1 ({now.held})")
+            return _Hold(
+                "wait", f"row {row.id} waits for the audit of the freshness answers ({now.held})"
+            )
         return None
 
     async def _superseded(self, conn: Any, row: Row) -> str | None:
@@ -736,11 +747,13 @@ class AlertSender:
             await conn.execute(
                 text(
                     "SELECT 1 FROM cases WHERE id = :c AND state = 'closed'"
-                    " AND closure_request_id = :r"
+                    " AND closure_request_id IS NOT DISTINCT FROM :r"
+                    " AND (CAST(:r AS bigint) IS NOT NULL OR closure_reason = ANY(:reasons))"
                 ),
-                {"c": row.case_id, "r": row.closure_request_id},
+                {"c": row.case_id, "r": row.closure_request_id,
+                 "reasons": sorted(writeback.DISMISSAL_CLOSES)},
             )
-        ).first()
+        ).first()  # fmt: skip
         return None if open_ is not None else "the case was reopened"
 
     def _operator_fresh(self) -> bool:

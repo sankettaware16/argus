@@ -22,7 +22,7 @@ KEY = b"k" * 32
 TOKENS = Tokenizer(KEY)
 POLICY = FixturePolicy(
     site_prefixes=("192.0.2.0/24",),
-    campus_domains=("campus.ac.in",),
+    own_domains=("campus.ac.in",),
     keep_domains=("vendor-cdn.example",),
     literals={"Campus University": "Example University"},
     fields={
@@ -184,7 +184,7 @@ def test_a_match_no_literal_spelling_accounts_for_is_left_as_it_is(text: str) ->
 
 
 def test_the_longest_campus_domain_wins() -> None:
-    policy = POLICY.model_copy(update={"campus_domains": ("campus.ac", "campus.ac.in")})
+    policy = POLICY.model_copy(update={"own_domains": ("campus.ac", "campus.ac.in")})
     s = Sanitizer(policy, KEY)
     assert s.map_text("see www.campus.ac.in now") == f"see {s.domains.map('www.campus.ac.in')} now"
     assert s.domains.map("www.campus.ac.in") != s.domains.map("www.campus.ac") + ".in"

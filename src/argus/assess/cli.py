@@ -22,7 +22,7 @@ from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.llm.privacy import Privacy, PrivacyConfigError, load_policy, privacy_map
 from argus.ops.stopping import until_stopped
 
-assess_app = typer.Typer(no_args_is_help=True, help="Assessments: proposed outcomes (Phase 2).")
+assess_app = typer.Typer(no_args_is_help=True, help="Assessments: proposed outcomes.")
 
 
 def _run[T](work: Coroutine[Any, Any, T]) -> T:
@@ -345,7 +345,7 @@ async def _incident_prose(settings: Any, privacy: Privacy, db: Any) -> tuple[Any
         return None, None, True
 
     async def words(report: Any) -> Any:
-        return await prose.improve(report, gateway.complete, privacy.campus)
+        return await prose.improve(report, gateway.complete, privacy.ours)
 
     return words, transport.aclose, False
 

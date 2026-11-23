@@ -1,7 +1,7 @@
 /**
  * The dashboard's filters (D-103), read from the address and written back to it the way the
  * classic page does (Filters.params in src/argus/web/dashboard.py), with the server's bounds
- * (src/argus/web/params.py): a range, or a custom span of IST days (both dates, at most 366
+ * (src/argus/web/params.py): a range, or a custom span of site days (both dates, at most 366
  * days, within 2020 to 2100), then "any of" lists, a rule, and a host/IP/domain/user. Anything
  * invalid is left out, never an error: an old link still opens. Pure (tests/dashboardFilters.test.ts).
  */
@@ -31,7 +31,7 @@ export const MAX_VALUE = 300;
 
 export interface Filters {
   range: Range;
-  start: string | null; // an IST day, YYYY-MM-DD; with end, a custom span
+  start: string | null; // a site day, YYYY-MM-DD; with end, a custom span
   end: string | null;
   severity: string[];
   state: string[];

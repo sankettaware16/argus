@@ -16,7 +16,7 @@ from argus import site
 from argus.incident import discover, evidence, targets
 from argus.incident import model as m
 from argus.incident.book import Book, cut
-from argus.incident.scene import Scene, campus, first_of, is_ip, top
+from argus.incident.scene import Scene, first_of, is_ip, ours, top
 from argus.incident.words import count, dwell, ist_date, ist_moment, plural
 from argus.outside import facts as outside_facts
 from argus.signins import attribute as attributes
@@ -137,9 +137,7 @@ def roles(scene: Scene, stats: dict[str, dict[str, Any]]) -> dict[str, tuple[str
     check, else alerts; the words say which."""
     out: dict[str, tuple[str, str]] = {}
     outside = {
-        v: st
-        for v, st in stats.items()
-        if st["kind"] == "ip" and not campus(v, scene.ctx.classifier)
+        v: st for v, st in stats.items() if st["kind"] == "ip" and not ours(v, scene.ctx.classifier)
     }
     for value, st in stats.items():
         if value in outside:
@@ -217,7 +215,7 @@ def actors(scene: Scene, book: Book) -> tuple[tuple[m.ReportActor, ...], int]:
     named_roles = roles(scene, stats)
     answered = targets.answers(scene)
     outside_ips = [
-        st for v, st in stats.items() if st["kind"] == "ip" and not campus(v, scene.ctx.classifier)
+        st for v, st in stats.items() if st["kind"] == "ip" and not ours(v, scene.ctx.classifier)
     ]
     by_requests = bool(outside_ips) and all(st["requests"] is not None for st in outside_ips)
 
@@ -234,7 +232,7 @@ def actors(scene: Scene, book: Book) -> tuple[tuple[m.ReportActor, ...], int]:
             3,
         )
         net, country = _network(scene, value) if kind == "ip" else (None, None)
-        outside = kind == "ip" and not campus(value, scene.ctx.classifier)
+        outside = kind == "ip" and not ours(value, scene.ctx.classifier)
         got, served, exact = answered.of_ip(value) if outside else (None, (), True)
         text = f"{value} ({role}): {plural(st['alerts'], 'alert')}"
         numbers = [st["alerts"]]
@@ -249,7 +247,7 @@ def actors(scene: Scene, book: Book) -> tuple[tuple[m.ReportActor, ...], int]:
                 kind=kind,
                 role=role,
                 role_words=cut(words, 400),
-                inside=kind != "ip" or campus(value, scene.ctx.classifier),
+                inside=kind != "ip" or ours(value, scene.ctx.classifier),
                 network=net,
                 country=country,
                 user_agents=tuple(cut(a, m.UNTRUSTED) for a in agents),

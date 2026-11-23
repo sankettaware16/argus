@@ -1164,8 +1164,9 @@ class SoakSample(Base):
 
 
 class WritebackItem(Base):
-    """A planned change of alert status in Kibana: from a person's review, or from
-    an approved case closure. Sent at most once per alert (``sent_count`` is the position in
+    """A planned change of alert status in Kibana: from a person's review, from an approved
+    case closure, or from a person's dismissal of a possible incident (a case with no closure
+    request). Sent at most once per alert (``sent_count`` is the position in
     ``alert_ids``; ``written_count`` the alerts Kibana changed and the read-back confirmed;
     ``previous`` the status each of them had before)."""
 
@@ -1208,8 +1209,7 @@ class WritebackItem(Base):
         CheckConstraint(
             "(review_id IS NOT NULL AND investigation_id IS NOT NULL"
             " AND closure_request_id IS NULL AND case_id IS NULL)"
-            " OR (review_id IS NULL AND investigation_id IS NULL"
-            " AND closure_request_id IS NOT NULL AND case_id IS NOT NULL)",
+            " OR (review_id IS NULL AND investigation_id IS NULL AND case_id IS NOT NULL)",
             name="source_valid",
         ),
         CheckConstraint("held IS NULL OR held = 'f1_zeros'", name="held_valid"),
@@ -3825,7 +3825,7 @@ RISK_CATEGORIES = (
 
 
 class RiskObject(Base):
-    """A campus thing that accrues risk (P4-F E1, shadow): a device, an account or a campus site.
+    """An internal thing that accrues risk (P4-F E1, shadow): a device, an account or an own site.
     ``lanes``: the lanes that held it at the last scoring; ``held``: where it stood otherwise;
     ``item_at``: when its current item began (it entered a lane after a quiet period)."""
 
@@ -3904,7 +3904,7 @@ class RiskGroup(Base):
 
 class RiskEntity(Base):
     """An entity of an alert group with its role (P4-F E0): actor, target, threat or other, and
-    the ECS fields it came from. Threat values link campus objects later (E2)."""
+    the ECS fields it came from. Threat values link internal objects later (E2)."""
 
     __tablename__ = "risk_entities"
 
@@ -3928,7 +3928,7 @@ class RiskEntity(Base):
 
 
 class RiskObservation(Base):
-    """The risk ledger: one scored fact on one campus object, from one alert group (a rule's or
+    """The risk ledger: one scored fact on one internal object, from one alert group (a rule's or
     an evidence kind's). ``score`` = base * outcome * prevalence * fidelity, before decay."""
 
     __tablename__ = "risk_observations"
@@ -4051,7 +4051,7 @@ EXPOSURE_VERDICTS = (
 
 
 class ExposureCheck(Base):
-    """What the engine's checking lane found (P4-F E3), kept 180 days: the campus sites an
+    """What the engine's checking lane found (P4-F E3), kept 180 days: the own sites an
     outside address reached (``sites``), a site's soft-404 check (``catchall``), what an outside
     address got for the paths it tried (``paths``) and how much it took (``take``)."""
 
@@ -4108,7 +4108,7 @@ RISK_EVIDENCE_VERDICTS = (
 
 class RiskEvidence(Base):
     """What the checking lane found for an engine incident's material version (D-323), kept
-    180 days: a device's timing to an outside address (``pair``), how many campus devices
+    180 days: a device's timing to an outside address (``pair``), how many internal devices
     reached it that day (``contact``), a device's lookups (``dns``). ``took_ms`` empty: no
     request (an answer reused, or ARGUS's own alerts')."""
 
@@ -4182,7 +4182,7 @@ RISK_LINK_VIAS = ("lane", "host", "account", "flagged", "campaign", "rare", "bar
 
 
 class RiskIncident(Base):
-    """An incident of the engine v2 (P4-F E2, shadow): linked campus objects and the alert
+    """An incident of the engine v2 (P4-F E2, shadow): linked internal objects and the alert
     groups on them. ``version`` rises on a material change only (``changed`` says what);
     ``parent_id``: the incident it overflows (past the group cap); ``follows_id``: the sealed
     incident it continues; ``case_id``: the case that presents it (empty in shadow)."""
@@ -4265,7 +4265,7 @@ class RiskIncident(Base):
 
 
 class RiskIncidentObject(Base):
-    """A campus object of an incident: ``actor`` (it acted) or ``affected`` (it was acted on)."""
+    """An internal object of an incident: ``actor`` (it acted) or ``affected`` (it was acted on)."""
 
     __tablename__ = "risk_incident_objects"
 
@@ -4393,7 +4393,7 @@ class RiskAlias(Base):
 
 
 class RiskGrayItem(Base):
-    """The gray band (P4-F E5): a campus object just under a lane, with its priority and engine
+    """The gray band (P4-F E5): an internal object just under a lane, with its priority and engine
     view, replaced at each pass (Today shows five)."""
 
     __tablename__ = "risk_gray_items"

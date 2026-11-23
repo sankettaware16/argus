@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.config.settings import OutsideSettings
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.outside import facts, providers, read, store
 from argus.outside.eligible import Eligibility
 from argus.outside.read import View
@@ -152,13 +152,13 @@ class Outside:
 
     async def lookup(
         self, source: str, kind: str, value: str, *, purpose: str = "agent",
-        day_cap: int | None = None, campus: Campus | None = None,
+        day_cap: int | None = None, ours: OwnSpace | None = None,
         fresh: Callable[[str, Mapping[str, Any]], bool] | None = None,
     ) -> Outcome:  # fmt: skip
         """Ask ``source`` about one indicator (see the module's docstring for the order).
-        ``campus`` is the caller's view of the campus for this one item (the base campus plus
-        the host and user names it mentions): the indicator is checked against it. ``fresh``: a
-        cached answer it calls out of date (an older shape) is asked again."""
+        ``ours`` is the caller's view of the organisation's network for this one item (the base
+        own space plus the host and user names it mentions): the indicator is checked against
+        it. ``fresh``: a cached answer it calls out of date (an older shape) is asked again."""
         provider = self.providers.get(source)
         indicator = facts.canonical(kind, value)
         shown = value if indicator is None else indicator
@@ -170,7 +170,7 @@ class Outside:
             return say(REFUSED, f"{facts.NAMES.get(source, source)} does not take a {kind}")
         if indicator is None:
             return say(REFUSED, f"not a valid {facts.THIS.get(kind, kind)}")
-        eligibility = self.eligibility if campus is None else self.eligibility.with_campus(campus)
+        eligibility = self.eligibility if ours is None else self.eligibility.with_ours(ours)
         why = eligibility.check(kind, indicator)
         if why is not None:
             return say(REFUSED, f"never looked up outside: {why}")

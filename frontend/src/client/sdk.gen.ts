@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, EndUserSessionsData, EndUserSessionsErrors, EndUserSessionsResponses, GetAdminJobData, GetAdminJobErrors, GetAdminJobResponses, GetAiData, GetAiErrors, GetAiResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetServicesData, GetServicesErrors, GetServicesResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingChangesData, GetSettingChangesErrors, GetSettingChangesResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, GetUsageData, GetUsageErrors, GetUsageResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, ImportAssetsData, ImportAssetsErrors, ImportAssetsResponses, InspectTlsData, InspectTlsErrors, InspectTlsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, ListUsersData, ListUsersErrors, ListUsersResponses, MakeUserLinkData, MakeUserLinkErrors, MakeUserLinkResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SaveSettingsData, SaveSettingsErrors, SaveSettingsResponses, SearchData, SearchErrors, SearchResponses, SetUserAccessData, SetUserAccessErrors, SetUserAccessResponses, SetUserCapabilitiesData, SetUserCapabilitiesErrors, SetUserCapabilitiesResponses, StartCheckData, StartCheckErrors, StartCheckResponses, StartSetupData, StartSetupErrors, StartSetupResponses, SwitchLlmData, SwitchLlmErrors, SwitchLlmResponses, SwitchServiceData, SwitchServiceErrors, SwitchServiceResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
+import type { AcceptProposalData, AcceptProposalErrors, AcceptProposalResponses, AddCaseNoteData, AddCaseNoteErrors, AddCaseNoteResponses, AddEntityNoteData, AddEntityNoteErrors, AddEntityNoteResponses, AnswerGoldData, AnswerGoldErrors, AnswerGoldResponses, AnswerSpotCheckData, AnswerSpotCheckErrors, AnswerSpotCheckResponses, ApproveCaseTeamData, ApproveCaseTeamErrors, ApproveCaseTeamResponses, ApproveGroupData, ApproveGroupErrors, ApproveGroupResponses, AskInvestigatorData, AskInvestigatorErrors, AskInvestigatorResponses, AssignCaseData, AssignCaseErrors, AssignCaseResponses, BulkDismissCasesData, BulkDismissCasesErrors, BulkDismissCasesResponses, ConfirmCaseData, ConfirmCaseErrors, ConfirmCaseReportData, ConfirmCaseReportErrors, ConfirmCaseReportResponses, ConfirmCaseResponses, ConfirmProposalsData, ConfirmProposalsErrors, ConfirmProposalsResponses, ContainCaseData, ContainCaseErrors, ContainCaseResponses, CreateReviewData, CreateReviewErrors, CreateReviewResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DecideApprovalData, DecideApprovalErrors, DecideApprovalResponses, DismissCaseData, DismissCaseErrors, DismissCaseResponses, DismissReminderData, DismissReminderErrors, DismissReminderResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, EndSessionData, EndSessionErrors, EndSessionResponses, EndUserSessionsData, EndUserSessionsErrors, EndUserSessionsResponses, GetAdminJobData, GetAdminJobErrors, GetAdminJobResponses, GetAiData, GetAiErrors, GetAiResponses, GetBlocklistCsvData, GetBlocklistCsvErrors, GetBlocklistCsvResponses, GetBlocklistData, GetBlocklistErrors, GetBlocklistResponses, GetBlocklistTextData, GetBlocklistTextErrors, GetBlocklistTextResponses, GetCaseData, GetCaseErrors, GetCaseReportData, GetCaseReportErrors, GetCaseReportFileData, GetCaseReportFileErrors, GetCaseReportFileResponses, GetCaseReportResponses, GetCaseResponses, GetCaseTeamData, GetCaseTeamErrors, GetCaseTeamResponses, GetCostData, GetCostErrors, GetCostResponses, GetCountsData, GetCountsErrors, GetCountsResponses, GetDashboardData, GetDashboardErrors, GetDashboardResponses, GetDirectoryAccountData, GetDirectoryAccountErrors, GetDirectoryAccountResponses, GetEntityData, GetEntityErrors, GetEntityResponses, GetGlossaryData, GetGlossaryErrors, GetGlossaryResponses, GetGoldSetData, GetGoldSetErrors, GetGoldSetResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestigationData, GetInvestigationErrors, GetInvestigationResponses, GetMetricsData, GetMetricsErrors, GetMetricsResponses, GetPatternClosingData, GetPatternClosingErrors, GetPatternClosingResponses, GetPatternSummaryData, GetPatternSummaryErrors, GetPatternSummaryResponses, GetPerformanceData, GetPerformanceErrors, GetPerformanceResponses, GetQueueData, GetQueueErrors, GetQueueResponses, GetRawAlertData, GetRawAlertErrors, GetRawAlertResponses, GetReportData, GetReportErrors, GetReportResponses, GetReportsData, GetReportsErrors, GetReportsResponses, GetServicesData, GetServicesErrors, GetServicesResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingChangesData, GetSettingChangesErrors, GetSettingChangesResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSinceData, GetSinceErrors, GetSinceResponses, GetThreatListsData, GetThreatListsErrors, GetThreatListsResponses, GetTodayData, GetTodayErrors, GetTodayResponses, GetUsageData, GetUsageErrors, GetUsageResponses, HoldCaseData, HoldCaseErrors, HoldCaseResponses, ImportAssetsData, ImportAssetsErrors, ImportAssetsResponses, InspectTlsData, InspectTlsErrors, InspectTlsResponses, ListAlertsData, ListAlertsErrors, ListAlertsResponses, ListApprovalsData, ListApprovalsErrors, ListApprovalsResponses, ListCasesData, ListCasesErrors, ListCasesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListEntitiesData, ListEntitiesErrors, ListEntitiesResponses, ListEntityNotesData, ListEntityNotesErrors, ListEntityNotesResponses, ListIncidentReportsData, ListIncidentReportsErrors, ListIncidentReportsResponses, ListInvestigationsData, ListInvestigationsErrors, ListInvestigationsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListReportsData, ListReportsErrors, ListReportsResponses, ListRulesData, ListRulesErrors, ListRulesResponses, ListTuningData, ListTuningErrors, ListTuningResponses, ListUsersData, ListUsersErrors, ListUsersResponses, MakeUserLinkData, MakeUserLinkErrors, MakeUserLinkResponses, MarkActionDoneData, MarkActionDoneErrors, MarkActionDoneResponses, MarkCaseSeenData, MarkCaseSeenErrors, MarkCaseSeenResponses, MarkCaughtUpData, MarkCaughtUpErrors, MarkCaughtUpResponses, MarkReportSentData, MarkReportSentErrors, MarkReportSentResponses, MergeCaseData, MergeCaseErrors, MergeCaseResponses, PreviewClosureData, PreviewClosureErrors, PreviewClosureResponses, PreviewMergeData, PreviewMergeErrors, PreviewMergeResponses, RecordBlockData, RecordBlockErrors, RecordBlockResponses, RecordNoticeData, RecordNoticeErrors, RecordNoticeResponses, RejectCaseReportData, RejectCaseReportErrors, RejectCaseReportResponses, ReleaseCaseData, ReleaseCaseErrors, ReleaseCaseResponses, ReleaseHoldData, ReleaseHoldErrors, ReleaseHoldResponses, ReopenCaseData, ReopenCaseErrors, ReopenCaseResponses, RequestCheckData, RequestCheckErrors, RequestCheckResponses, RequestClosureData, RequestClosureErrors, RequestClosureResponses, ReviewCaseMembersData, ReviewCaseMembersErrors, ReviewCaseMembersResponses, ReviewPatternData, ReviewPatternErrors, ReviewPatternResponses, SaveSettingsData, SaveSettingsErrors, SaveSettingsResponses, SearchData, SearchErrors, SearchResponses, SetUserAccessData, SetUserAccessErrors, SetUserAccessResponses, SetUserCapabilitiesData, SetUserCapabilitiesErrors, SetUserCapabilitiesResponses, StartCheckData, StartCheckErrors, StartCheckResponses, StartSetupData, StartSetupErrors, StartSetupResponses, SwitchLlmData, SwitchLlmErrors, SwitchLlmResponses, SwitchServiceData, SwitchServiceErrors, SwitchServiceResponses, TakeCaseData, TakeCaseErrors, TakeCaseResponses, UndoDismissalData, UndoDismissalErrors, UndoDismissalResponses, WithdrawNoticeData, WithdrawNoticeErrors, WithdrawNoticeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1179,6 +1179,24 @@ export const getThreatLists = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
+ * Get Directory Account
+ *
+ * Who an account belongs to, from the site's own account directory (D-337): the name,
+ * the kind of account and the department, with what the account's name alone says. Needs
+ * ``see_logs``, as an account's page does; each question is audited (who asked, never the
+ * answer). The answer is not stored. 404 when the site has no directory.
+ */
+export const getDirectoryAccount = <ThrowOnError extends boolean = false>(options: Options<GetDirectoryAccountData, ThrowOnError>): RequestResult<GetDirectoryAccountResponses, GetDirectoryAccountErrors, ThrowOnError> => (options.client ?? client).get<GetDirectoryAccountResponses, GetDirectoryAccountErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/directory/{account}',
+    ...options
+});
+
+/**
  * List Entities
  *
  * The hosts and addresses in the most investigations.
@@ -1196,7 +1214,7 @@ export const listEntities = <ThrowOnError extends boolean = false>(options?: Opt
 /**
  * Get Entity
  *
- * What ARGUS knows of a device, an account, a campus site or an outside address: the
+ * What ARGUS knows of a device, an account, an own site or an outside address: the
  * asset map's entry, its incidents and alert groups, a timeline, its days (and for an
  * address, each day's host names and sign-ins: whether the host names show a different
  * device on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),
@@ -1316,8 +1334,10 @@ export const listIncidentReports = <ThrowOnError extends boolean = false>(option
  * List Investigations
  *
  * The Inbox: a view (attention, open, reviewed, all), optionally one rule or one
- * entity (kind and value together). Without ``sort``: newest alert first, and the
- * reviewed view by newest decision (the classic Inbox's order, D-095). ``sort=queue`` is
+ * entity (kind and value together), optionally only the alert groups that belong to an
+ * incident or to none. Each row names the incident it belongs to (``case``). Without
+ * ``sort``: newest alert first, and the reviewed view by newest decision (the classic
+ * Inbox's order, D-095). ``sort=queue`` is
  * the order Home's queue walks: changed since a notice, then raised by ARGUS's evidence,
  * then a follow-up, then the rule's severity, then the last alert (AR4 review, D-186).
  * Pages reach 10,000 investigations deep at most: past that, narrow the list (a view, a
@@ -1607,6 +1627,23 @@ export const getPatternSummary = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
+ * Get Performance
+ *
+ * How fast alerts became decisions (D-340): for the incidents raised in the span, the
+ * time to detect, to a person's first decision and to close, each against the site's
+ * targets by priority (``sla.*``), and what is past its target now.
+ */
+export const getPerformance = <ThrowOnError extends boolean = false>(options?: Options<GetPerformanceData, ThrowOnError>): RequestResult<GetPerformanceResponses, GetPerformanceErrors, ThrowOnError> => (options?.client ?? client).get<GetPerformanceResponses, GetPerformanceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'argus_session',
+            type: 'apiKey'
+        }],
+    url: '/api/v1/performance',
+    ...options
+});
+
+/**
  * List Proposals
  *
  * Proposals waiting for a person, grouped by what decided them, the largest group
@@ -1649,7 +1686,7 @@ export const confirmProposals = <ThrowOnError extends boolean = false>(options: 
  *
  * What needs a person, in order (AR4): ARGUS's open cases that need one (suggested
  * cases and cases with a change since the owner was told first), each with its verdict or
- * reading, its campus devices and its outside addresses (apart) and why it is here; then
+ * reading, its internal devices and its outside addresses (apart) and why it is here; then
  * the single investigations in Needs attention that belong to no case; and the order the
  * app's "Next" walks through them. The patterns to close are ``/patterns``; the numbers of
  * new and known work are ``/counts``.

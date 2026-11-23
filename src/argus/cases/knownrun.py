@@ -66,8 +66,8 @@ class Context:
     eligible: Eligibility | None = None
     history: timedelta = timedelta(days=5)
 
-    def is_campus(self, value: str) -> bool:
-        return self.classifier.classify(value).ip_class in opener.CAMPUS
+    def is_own(self, value: str) -> bool:
+        return self.classifier.classify(value).ip_class in opener.OWN_CLASSES
 
     def site_type(self, value: str) -> str | None:
         return site_type(self.classifier, value)
@@ -290,7 +290,7 @@ async def subjects(
             k for k in found if k in outside_keys and not (k[0] == "domain" and k[1] in popular)
         )
         services = frozenset(
-            k for k in found if k[0] == "ip" and ctx.is_campus(k[1])
+            k for k in found if k[0] == "ip" and ctx.is_own(k[1])
             and known.managed([ctx.site_type(k[1])], ctx.rules)
         )  # fmt: skip
         flagged = {
@@ -300,9 +300,7 @@ async def subjects(
         }
         dossier = dossiers.get(investigation_id)
         listed = dossier.listed if dossier is not None and isinstance(dossier.listed, list) else []
-        flagged |= {
-            k for v in listed if (k := listed_key(v)) is not None and not _campus_key(ctx, k)
-        }
+        flagged |= {k for v in listed if (k := listed_key(v)) is not None and not _own_key(ctx, k)}
         stored = row.flags if isinstance(row.flags, list) else []
         out[investigation_id] = Subject(
             investigation_id, int(row.version), frozenset(keys), destinations,
@@ -314,7 +312,7 @@ async def subjects(
     return out
 
 
-def _campus_key(ctx: Context, key: Key) -> bool:
+def _own_key(ctx: Context, key: Key) -> bool:
     """An internal or private address: never a destination of a case, whatever a list says."""
     return key[0] == "ip" and ctx.classifier.classify(key[1]).ip_class is not IpClass.PUBLIC
 
@@ -695,7 +693,7 @@ def _fresh_addresses(ctx: Context, fp: Print, subject: Subject) -> list[Key]:
     """The internal addresses of an investigation that the case does not hold as devices (an
     internal service is not one)."""
     extra = subject.devices - fp.devices - subject.services
-    return sorted(k for k in extra if k[0] == "ip" and ctx.is_campus(k[1]))
+    return sorted(k for k in extra if k[0] == "ip" and ctx.is_own(k[1]))
 
 
 def _again(case: Tracked, fp: Print, subject: Subject, rules: Rules) -> known.Verdict:

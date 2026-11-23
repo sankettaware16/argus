@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from argus import site
 from argus.llm import privacy as privacy_module
-from argus.llm.detect import Campus, Found
+from argus.llm.detect import Found, OwnSpace
 from argus.llm.privacy import (
     Policy,
     Privacy,
@@ -57,7 +57,7 @@ def test_the_ist_hour_at_its_edges(privacy: Privacy, first: str, hour: int) -> N
      ("a" * 33, "ID"), ("123e4567-e89b-12d3-a456-426614174000", "ID")],
 )  # fmt: skip
 def test_hash_or_id(value: str, label: str) -> None:
-    assert _label(Found(0, 1, "hex_id", value), Campus()) == label
+    assert _label(Found(0, 1, "hex_id", value), OwnSpace()) == label
 
 
 @pytest.mark.parametrize(
@@ -66,13 +66,13 @@ def test_hash_or_id(value: str, label: str) -> None:
      ("roll_number", "USER"), ("secret", "CRED"), ("url_token", "CRED"), ("credentials", "CRED")],
 )  # fmt: skip
 def test_labels(kind: Any, label: str) -> None:
-    assert _label(Found(0, 1, kind, "x"), Campus()) == label
+    assert _label(Found(0, 1, kind, "x"), OwnSpace()) == label
 
 
 def test_names_are_hosts_or_users() -> None:
-    campus = Campus(hosts=frozenset({"tp8"}), users=frozenset({"alice"}))
-    assert _label(Found(0, 1, "name", "Alice"), campus) == "USER"
-    assert _label(Found(0, 1, "name", "tp8"), campus) == "HOST"
+    ours = OwnSpace(hosts=frozenset({"tp8"}), users=frozenset({"alice"}))
+    assert _label(Found(0, 1, "name", "Alice"), ours) == "USER"
+    assert _label(Found(0, 1, "name", "tp8"), ours) == "HOST"
 
 
 @pytest.mark.parametrize(
@@ -98,7 +98,7 @@ def test_policy_bounds_allowed(change: dict[str, Any]) -> None:
 
 
 def test_policy_defaults_and_frozen() -> None:
-    minimal = Policy.model_validate({"version": 1, "campus_domains": ["x.in"], "fields": {}})
+    minimal = Policy.model_validate({"version": 1, "own_domains": ["x.in"], "fields": {}})
     assert (minimal.text_chars, minimal.top_values, minimal.entities, minimal.ti_answers) == (
         300, 5, 10, 10,
     )  # fmt: skip
@@ -127,27 +127,25 @@ def test_the_asset_map_message() -> None:
 
 def test_reprs_hold_no_campus_or_map(privacy: Privacy) -> None:
     shown = repr(privacy.request([dossier()]))
-    assert "Campus(" not in shown
+    assert "OwnSpace(" not in shown
     assert "Pseudonyms(" not in shown
 
 
 def test_campus_domains_are_normalised() -> None:
-    policy = Policy.model_validate(
-        {**load_policy().model_dump(), "campus_domains": [".EXAMPLE.edu."]}
-    )
+    policy = Policy.model_validate({**load_policy().model_dump(), "own_domains": [".EXAMPLE.edu."]})
     with site.using(SiteSettings()):  # the policy's domains alone, cleaned
-        assert Privacy.build(policy, ASSETS).campus.domains == ("example.edu",)
+        assert Privacy.build(policy, ASSETS).ours.domains == ("example.edu",)
 
 
 def test_the_campus_domains_are_the_sites_and_the_policys() -> None:
-    policy = Policy.model_validate({**load_policy().model_dump(), "campus_domains": ["x.in"]})
-    assert Privacy.build(policy, ASSETS).campus.domains == (
+    policy = Policy.model_validate({**load_policy().model_dump(), "own_domains": ["x.in"]})
+    assert Privacy.build(policy, ASSETS).ours.domains == (
         "example.edu",
         "example-univ.org",
         "x.in",
     )
     with site.using(SiteSettings(own_domains=("a.example", "b.example"))):
-        assert Privacy.build(policy, ASSETS).campus.domains == ("a.example", "b.example", "x.in")
+        assert Privacy.build(policy, ASSETS).ours.domains == ("a.example", "b.example", "x.in")
     # none configured: the layer refuses (D-285)
     with site.using(SiteSettings()), pytest.raises(PrivacyConfigError, match="at least one domain"):
         Privacy.build(load_policy(require_domains=False), ASSETS)
@@ -182,9 +180,9 @@ def test_the_campus_collects_request_names(privacy: Privacy) -> None:
     body["facts"]["group_key"] = json.dumps([["host.name", "gk1"], ["user.name", "carol"]])
     body["context"]["pack"]["fields"]["host.name"]["top"] = [["fld1", 1], ["8.8.4.4", 1]]
     body["context"]["pack"]["fields"]["user.name"] = {"top": [["dave", 1]]}
-    campus = privacy.campus_for([body, "not a body", {"facts": {"entities": "x"}}])
-    assert campus.hosts == {"web7", "10.1.2.3", "gk1", "fld1", "tp8"} - {"tp8"} | set()
-    assert campus.users == {"bob", "carol", "dave"}
+    ours = privacy.ours_for([body, "not a body", {"facts": {"entities": "x"}}])
+    assert ours.hosts == {"web7", "10.1.2.3", "gk1", "fld1", "tp8"} - {"tp8"} | set()
+    assert ours.users == {"bob", "carol", "dave"}
 
 
 def test_grouping_keys_need_pairs(privacy: Privacy) -> None:

@@ -79,7 +79,7 @@ class Seen:
     day: date  # its local day
     at: datetime  # its last alert
     actors: frozenset[Key]  # who acted: addresses and hosts, never accounts
-    campus: frozenset[Key]  # the actors that are internal hosts
+    ours: frozenset[Key]  # the actors that are internal hosts
     flags: tuple[str, ...]  # the evidence's generic flags (investigation_raises)
     targets: frozenset[Key]  # what it reached: ("ip" | "domain" | "url", value)
     held: Held | None = None
@@ -187,7 +187,7 @@ def _hosts(seen: Sequence[Seen]) -> list[_Evidence]:
     (``raises``): the pair without a raise was most of the noise."""
     by_host: dict[Key, list[Seen]] = defaultdict(list)
     for s in seen:
-        for host in s.campus:
+        for host in s.ours:
             by_host[host].append(s)
     out = []
     for host in sorted(by_host):
@@ -310,13 +310,13 @@ def _facts(
     """What the title can say from the investigations alone (:mod:`argus.cases.naming`): their
     rules and flags, who acted, a campaign's flagged servers (``keys``) and the names reached.
     The title that is stored is made again from the database's facts (:func:`run`)."""
-    campus = frozenset(a for a in actors if any(a in s.campus for s in members))
+    ours = frozenset(a for a in actors if any(a in s.ours for s in members))
     rules = Counter(s.rule for s in members if s.rule)
     return naming.Facts(
         rules=tuple(sorted(rules.items(), key=lambda kv: (-kv[1], kv[0]))),
         flags=frozenset(f for s in members for f in s.flags),
-        devices=tuple(naming.Device(v, k) for k, v in sorted(campus) if k in ("ip", "host")),
-        outsiders=tuple(v for k, v in sorted(actors - campus) if k == "ip"),
+        devices=tuple(naming.Device(v, k) for k, v in sorted(ours) if k in ("ip", "host")),
+        outsiders=tuple(v for k, v in sorted(actors - ours) if k == "ip"),
         servers=tuple(v for k, v in sorted(keys) if k in ("ip", "domain")),
         domains=tuple(v for k, v in sorted(targets) if k == "domain"),
         paths=tuple(v for k, v in sorted(targets) if k == "url"),
@@ -334,14 +334,14 @@ def _indicators(keys: Iterable[Key], role: Literal["actor", "indicator"]) -> tup
 def _with_devices(s: Seen, devices: Mapping[uuid.UUID, frozenset[Key]]) -> Seen:
     """``s`` with the internal devices a campaign found behind it as actors too."""
     extra = devices.get(s.investigation_id)
-    return replace(s, actors=s.actors | extra, campus=s.campus | extra) if extra else s
+    return replace(s, actors=s.actors | extra, ours=s.ours | extra) if extra else s
 
 
 def _unshared(s: Seen, shared: Shared) -> Seen:
     """``s`` without the actors that are shared infrastructure: an address in a content-delivery or
     cloud network, or a value in very many investigations, says nothing about who is behind it."""
     drop = {a for a in s.actors if shared.reason(*a) is not None}
-    return replace(s, actors=s.actors - drop, campus=s.campus - drop) if drop else s
+    return replace(s, actors=s.actors - drop, ours=s.ours - drop) if drop else s
 
 
 def _why(group: Iterable[_Evidence], kept: Sequence[Seen]) -> str:
@@ -453,7 +453,7 @@ def plan(
                 SuggestMembers(h.case_id, h.number, "also", tuple(first), _why(group, first))
                 for h in sorted(active, key=lambda h: h.number)
             )  # fmt: skip
-        elif (campaign and len({d for s in free for d in s.campus}) >= MIN_SERVER_HOSTS) or (
+        elif (campaign and len({d for s in free for d in s.ours}) >= MIN_SERVER_HOSTS) or (
             not campaign and len(free) >= 2
         ):  # a campaign still meets its threshold with the free members only
             case = _open(last, actors, targets, _why(group, last), campaign=campaign, keys=keys,
@@ -699,9 +699,9 @@ async def load_seen(conn: AsyncConnection, now: datetime, classifier: IpClassifi
     for r in rows:
         indicators, _ = opener.actors_of(r.group_key, classifier)
         actors = {(a.kind, a.value) for a in indicators if a.kind in ("ip", "host")}
-        campus = {
+        ours = {
             key for key in actors
-            if key[0] == "host" or classifier.classify(key[1]).ip_class in opener.CAMPUS
+            if key[0] == "host" or classifier.classify(key[1]).ip_class in opener.OWN_CLASSES
         }  # fmt: skip
         flags = tuple(f for f in r.flags or () if isinstance(f, str))
         held = None if r.case_id is None else Held(r.case_id, int(r.number), r.state, r.cause)
@@ -713,7 +713,7 @@ async def load_seen(conn: AsyncConnection, now: datetime, classifier: IpClassifi
                 day_of(r.bucket_start),
                 r.last_event_at,
                 frozenset(actors),
-                frozenset(campus),
+                frozenset(ours),
                 flags,
                 frozenset(
                     t

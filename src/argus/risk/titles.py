@@ -9,7 +9,7 @@ facts from the engine's tables (Postgres only: no SIEM request, no model).
   host name a host link ties to it, are one device, but days of one address that host links tie
   to different hosts are those hosts: a reused DHCP address is not one machine), never alert
   rows; a count is the devices whose own alert groups carry the activity's evidence ("4 of 7
-  campus devices"), and M counts the devices a capped read did not reach.
+  internal devices"), and M counts the devices a capped read did not reach.
 - **Where it went** is an outside thing the linker's links carry, or one a device's own
   beacon-timed alert group names; "the server of case N" is an earlier incident whose links
   carry it (or that holds the far end of a link the caps kept apart), by its case number.
@@ -353,7 +353,7 @@ def naming_facts(f: IncidentFacts) -> naming.Facts:
     # the sites at risk and who attacked them (inbound: the outside actors of their groups)
     site_names = sorted({_site_name(r) for r in sites if not r.key.startswith("ip:")},
                         key=lambda s: (-site_weight[s], s))  # fmt: skip
-    campus_servers = sum(1 for r in sites if r.key.startswith("ip:"))
+    own_servers = sum(1 for r in sites if r.key.startswith("ip:"))
     outsiders = sorted(
         {v for g in site_groups for k, v, role in g.entities if _attacker(k, v, role)}
     )
@@ -393,7 +393,7 @@ def naming_facts(f: IncidentFacts) -> naming.Facts:
         servers=tuple(servers),
         domains=tuple(domains),
         sites=tuple(site_names),
-        campus_servers=campus_servers,
+        own_servers=own_servers,
         listed=tuple(listed),
         labels=tuple(dict.fromkeys(labels)),
         labelled=MappingProxyType(labelled),
@@ -440,7 +440,7 @@ def _labelled(
 
 
 def _attacker(kind: str, value: str, role: str) -> bool:
-    """An outside address that acted on a campus site (not one of the site's own networks)."""
+    """An outside address that acted on an own site (not one of the site's own networks)."""
     return role == "actor" and kind == "ip" and not naming.own_address(value)
 
 

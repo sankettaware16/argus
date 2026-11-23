@@ -1,4 +1,4 @@
-"""Identity (P4-F E4): which campus device an address is, at a time, and which account was behind
+"""Identity (P4-F E4): which internal device an address is, at a time, and which account was behind
 it. Pure, except :func:`signin_accounts`, which reads the stored SSO sign-ins.
 
 - **Device keys.** An address of a /32 (or /128) entry of the asset map is the device itself; so
@@ -37,7 +37,7 @@ from argus.assets.assetmap import IPNetwork, parse_address
 from argus.assets.classify import IpClassifier
 from argus.risk.incident_config import Identity as IdentityConfig
 from argus.risk.observe import ObjectRef
-from argus.risk.roles import CAMPUS_CLASSES, GENERIC_ACCOUNTS, account
+from argus.risk.roles import GENERIC_ACCOUNTS, OWN_CLASSES, account
 from argus.signins import attribute
 from argus.signins import model as signin_model
 from argus.signins import store as signin_store
@@ -158,11 +158,11 @@ class Identity:
 
     def fingerprint(self) -> str:
         """A digest of what decides device keys and hubs (the settings, the hub roles, the
-        resolvers, the campus networks and the asset map): a change reads every group again."""
+        resolvers, the internal networks and the asset map): a change reads every group again."""
         assets = self.classifier.assets
         raw = json.dumps([
             self.config.model_dump(mode="json"), sorted(self.hub_roles),
-            [str(n) for n in self.resolvers], [str(n) for n in self.classifier.campus_prefixes],
+            [str(n) for n in self.resolvers], [str(n) for n in self.classifier.own_prefixes],
             assets.sha256 if assets is not None else None,
         ], sort_keys=True)  # fmt: skip
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
@@ -222,8 +222,8 @@ class Identity:
 
         return of
 
-    def campus(self, address: str) -> bool:
-        return self.classifier.classify(address).ip_class in CAMPUS_CLASSES
+    def ours(self, address: str) -> bool:
+        return self.classifier.classify(address).ip_class in OWN_CLASSES
 
     def criticality(self, ref: ObjectRef) -> float:
         address = address_of(ref)

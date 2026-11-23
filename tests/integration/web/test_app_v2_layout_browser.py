@@ -9,8 +9,8 @@ interception; everything else is the server's.
 - An incident at 1440 x 900 and 390 x 844: the decision bar in the first screen, and still after
   scrolling to the end of the Overview (I-1); the Overview ends within 2 screens at 1440 x 900 and
   4 at 390 x 844 (I-3, I-4).
-- No sideways page scroll at 320 x 640 on Today, Incidents, the incident's tabs, Search, Reports
-  and an entity page (G-2).
+- No sideways page scroll at 320 x 640 on Today, Incidents, the incident's tabs, Search, Reports,
+  an entity page, Alerts and the four dashboards (G-2).
 """
 
 from __future__ import annotations
@@ -186,7 +186,9 @@ async def test_no_page_scrolls_sideways_at_320(live: Live) -> None:
     paths = ["/app", "/app/incidents", *(f"/app/incidents/{ids[0]}?tab={t}" for t in
              ("overview", "story", "evidence", "entities", "alert-groups", "report", "activity")),
              "/app/search?q=203.0.113.40", "/app/reports", "/app/entities/device/lab-pc-17",
-             "/app/entities/outside/203.0.113.40"]  # fmt: skip
+             "/app/entities/outside/203.0.113.40", "/app/alerts", "/app/dashboards",
+             *(f"/app/dashboards?d={d}" for d in ("detections", "operations", "costs")),
+             ]  # fmt: skip
     wide: list[tuple[str, int]] = []
     async with async_playwright() as play:
         browser, context = await open_context(

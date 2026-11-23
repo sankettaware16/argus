@@ -10,7 +10,7 @@ window, and decide the lanes.
   evidence fact adds a stage only outside its own alert group's rule's stages (the beacon rule's
   own beacon is no second stage).
 - **Persistence**: an object reaching one rare outside destination on several days.
-- **Lanes**: L1 decisive, L2 burst, L3 slow (``config/risk.yaml``), on campus objects that act.
+- **Lanes**: L1 decisive, L2 burst, L3 slow (``config/risk.yaml``), on internal objects that act.
   L2 and L3 need an anchor (an evidence fact or a person's verdict); a rule on probation may add
   weight but no lane may need it; just under a lane, anchored, is the gray band. Everything else
   is the digest's.
@@ -113,7 +113,7 @@ class Verdict:
 @dataclass(frozen=True)
 class Stats:
     """What scoring an object needs beyond its own observations, computed once per evaluation:
-    each source's factors, how many campus objects reached each outside value, and which objects
+    each source's factors, how many internal objects reached each outside value, and which objects
     a person's true-positive verdict anchors."""
 
     factors: Mapping[tuple[str, str], Factors] = field(default_factory=dict)
@@ -162,7 +162,7 @@ def factors(
 
 
 def reach(observations: Iterable[Observation], now: datetime, days: int) -> dict[str, int]:
-    """How many campus objects acting outward reached each outside value in the last ``days``."""
+    """How many internal objects acting outward reached each outside value in the last ``days``."""
     since = now - timedelta(days=days)
     seen: dict[str, set[ObjectRef]] = defaultdict(set)
     for o in observations:
@@ -376,7 +376,7 @@ def evaluate(
     role: str = "actor", criticality: float = 1.0, ref: ObjectRef | None = None,
 ) -> Verdict:  # fmt: skip
     """One object's windows and lanes at ``now``. ``obs`` are its observations (any time; those
-    after ``now`` are not seen yet). Lanes are for objects that act (``role`` actor); a campus
+    after ``now`` are not seen yet). Lanes are for objects that act (``role`` actor); an own
     site's lanes come with the exposure lane (E3)."""
     derived = list(obs)
     lane_span = timedelta(hours=config.windows["7d"].hours)

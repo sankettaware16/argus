@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS notices every 10 minutes (Q-H4; off until the user approves the relay)
+Description=ARGUS notices every 10 minutes (off until the mail relay is approved)
 
 [Timer]
 OnBootSec=5min

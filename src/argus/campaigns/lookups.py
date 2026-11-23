@@ -22,7 +22,7 @@ from argus.assets.classify import IpClassifier
 from argus.campaigns import analysis, load
 from argus.campaigns.families import Family, candidates, families_of
 from argus.cases.membership import Shared
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.outside import facts, prefetch, service, store
 from argus.outside.eligible import Eligibility
 from argus.outside.read import View
@@ -80,14 +80,14 @@ def usable_address(outside: Outside, shared: Shared) -> Callable[[str], bool]:
 
 async def cleared(
     conn: AsyncConnection, outside: Outside, parent: str, holders: set[uuid.UUID]
-) -> tuple[bool, Campus | None]:  # fmt: skip
+) -> tuple[bool, OwnSpace | None]:  # fmt: skip
     """Whether ``parent`` may go out for the investigations that hold a name under it, and the
     view to ask under (the first holder's). It may not when the internal view of any holder
     (its host and user names, as the privacy layer scrubs them) finds an internal name in it."""
-    first: Campus | None = None
+    first: OwnSpace | None = None
     for holder in sorted(holders)[:MAX_HOLDERS]:
-        view = await prefetch.campus_of(conn, holder, outside)
-        eligibility = outside.eligibility if view is None else outside.eligibility.with_campus(view)
+        view = await prefetch.ours_of(conn, holder, outside)
+        eligibility = outside.eligibility if view is None else outside.eligibility.with_ours(view)
         if eligibility.check("domain", parent) is not None:
             return False, None
         if first is None:
@@ -137,11 +137,11 @@ async def look_up(
         used = await store.used_today(conn, facts.VIRUSTOTAL, "families", outside.clock())
     room = s.families_per_day - used  # when it is spent, no candidate's internal view is prepared
 
-    async def ask(kind: str, value: str, campus: Campus | None = None) -> service.Outcome:
+    async def ask(kind: str, value: str, ours: OwnSpace | None = None) -> service.Outcome:
         nonlocal spent
         got = await outside.lookup(
             facts.VIRUSTOTAL, kind, value, purpose="families", day_cap=s.families_per_day,
-            campus=campus, fresh=analysis.current if kind == "domain" else None,
+            ours=ours, fresh=analysis.current if kind == "domain" else None,
         )  # fmt: skip
         if got.status in (service.FETCHED, service.FAILED):
             spent += 1
@@ -161,10 +161,10 @@ async def look_up(
             if outside.failed_lately(facts.VIRUSTOTAL, "domain", parent):
                 continue
             async with db.connect() as conn:
-                ok, campus = await cleared(conn, outside, parent, set(family.investigations))
+                ok, ours = await cleared(conn, outside, parent, set(family.investigations))
             if not ok:
                 continue
-            got = await ask("domain", parent, campus)
+            got = await ask("domain", parent, ours)
             if not _tally(report, got):
                 return
             if not got.has_answer:

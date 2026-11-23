@@ -101,7 +101,7 @@ def link_setup(
     campaigns = None
     if assets is not None:
         privacy = Privacy.build(load_policy(), assets, settings.site.own_networks)
-        eligibility = Eligibility(privacy.classifier, privacy.campus, privacy.campus_for)
+        eligibility = Eligibility(privacy.classifier, privacy.ours, privacy.ours_for)
         window = timedelta(hours=linking.campaign.hours)
 
         async def campaigns(now: datetime) -> Any:
@@ -190,10 +190,10 @@ def risk_check(
     ] = None,
     config: ConfigOption = None,
 ) -> None:
-    """The checking lane (P4-F E3): find the campus site of thin inbound alerts and check only
+    """The checking lane (P4-F E3): find the own site of thin inbound alerts and check only
     the exposure candidates (soft-404, served paths, bulk takes), then gather the deciding
     evidence of the engine's presented outbound incidents (D-323: a device's timing to its
-    destination, how many campus devices reach it, its lookups), on the gateway's checking lane
+    destination, how many internal devices reach it, its lookups), on the gateway's checking lane
     (NORMAL only, never in the quiet hours, at most ``exposure.day_ms`` a day). Only the checks
     ``exposure.templates`` and ``enrichment.templates`` switch on are sent."""
     from argus.context import batch1
@@ -207,7 +207,7 @@ def risk_check(
         raise typer.Exit(2) from None
     exposure = engine_config.exposure
     classifier = IpClassifier(load_asset_map(settings.assets.map_path), settings.site.own_networks)
-    is_campus = batch1.private_or(lambda v: classifier.classify(v).ip_class)
+    is_own = batch1.private_or(lambda v: classifier.classify(v).ip_class)
 
     async def main() -> int:
         engine = engine_for(settings)
@@ -239,7 +239,7 @@ def risk_check(
                     engine, gateway, store.health, now=datetime.now(UTC),
                     config=engine_config.outbound, lane_day_ms=exposure.day_ms,
                     enabled=settings.enrichment.templates, clock=gateway.clock,
-                    is_campus=is_campus, history=settings.history.window, health_config=cfg,
+                    is_own=is_own, history=settings.history.window, health_config=cfg,
                     check=batch1.send_check(store, cfg),
                 )  # fmt: skip
 

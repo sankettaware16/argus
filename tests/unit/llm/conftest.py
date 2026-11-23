@@ -8,7 +8,7 @@ import ipaddress
 import pytest
 
 from argus.assets import parse_asset_map
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.privacy import Privacy, load_policy
 
 ASSETS = parse_asset_map(
@@ -38,5 +38,5 @@ def privacy() -> Privacy:
 
 
 @pytest.fixture(scope="session")
-def campus(privacy: Privacy) -> Campus:
-    return privacy.campus
+def ours(privacy: Privacy) -> OwnSpace:
+    return privacy.ours

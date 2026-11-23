@@ -58,7 +58,7 @@ What is replaced, always:
 - **Your own domains and everything under them** become `SITE_n`.
 
 What stays readable, on purpose: **outside** addresses and domains, the paths requested there,
-ports, counts, times, the rule's name, and general words about the place (`hostel`, `lab`,
+ports, counts, times, the rule's name, and general words about the place (`office`, `lab`,
 `server`) when your asset map gives them. These are the evidence. A model that cannot see that a
 device talked to `203.0.113.40` on a path named `/ext/cookies` cannot say anything useful about
 it, and none of it identifies a person or a machine of yours.

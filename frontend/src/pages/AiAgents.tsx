@@ -118,7 +118,7 @@ function Spending({ ai, all, state }: { ai: AiOut; all: ReadonlyMap<string, Sett
 
 const TRUST: Record<string, string> = {
   cloud: "On the internet: only pseudonymized text is sent",
-  campus: "A machine of your organisation",
+  self_hosted: "A machine of your organisation",
 };
 
 function Provider({ p, all, state }: { p: AiProviderOut; all: ReadonlyMap<string, SettingOut>; state: SettingsSave }) {

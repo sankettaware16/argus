@@ -102,7 +102,7 @@ SPECS: dict[str, TaskSpec] = {
         SUMMARY, "summary@1", llm_prompts.strict_object(summary={"type": "string"}), 400,
         SUMMARY_TEXT,
     ),
-    NOTES: TaskSpec(NOTES, "notes@2", SPECIALIST_SCHEMA, 600),  # intel is specialist@2
+    NOTES: TaskSpec(NOTES, "notes@2", SPECIALIST_SCHEMA, 600),  # specialist@2 and @3: see D-338
     FALLBACK: TaskSpec(
         FALLBACK, llm_prompts.ASSESS_V1, llm_prompts.ASSESS_V1_SCHEMA, 800,
         llm_prompts.ASSESS_V1_TEXT,

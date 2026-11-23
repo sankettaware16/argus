@@ -135,11 +135,14 @@ def test_each_pin_names_the_tag_that_approves_it() -> None:
     new version's pin names its own component's approval tag, which the lead creates when
     approving it, never an existing one."""
     tags = {pin.approved for versions in PINS.values() for pin in versions.values()}
-    # Q-H1's files, Q-H2's responder, Q-H3's reporter and AR3's outside tools (D-165)
-    assert tags == {"q-h1-approved", "q-h2-approved", "q-h3-approved", "ar3-approved"}
+    # Q-H1's files, Q-H2's responder, Q-H3's reporter, AR3's outside tools (D-165) and the
+    # site's words in every file (D-338)
+    assert tags == {
+        "q-h1-approved", "q-h2-approved", "q-h3-approved", "ar3-approved", "site-words-approved",
+    }  # fmt: skip
     for tag in tags:
         assert drift.TAG.fullmatch(tag)
-        assert re.fullmatch(r"(?:q-[a-z][0-9]+|ar[0-9]+)-approved", tag)
+        assert re.fullmatch(r"(?:q-[a-z][0-9]+|ar[0-9]+|site-words)-approved", tag)
     assert drift.approvals() == tags
 
 
@@ -149,14 +152,16 @@ def test_the_enabled_versions_are_the_approved_ones() -> None:
     gap (McNemar alpha 0.05, no loss of true-positive recall, 0 true positives proposed
     benign) and a DECISIONS entry; then this test changes with it, naming the entry."""
     assert dict(ENABLED) == {
-        "investigator": "coordinator@4",  # D-165: coordinator@3 (D-095, P6) + the outside tools
-        "web": "specialist@1",
-        "proxy": "specialist@1",
-        "intel": "specialist@2",  # D-165: the same two tools
+        # D-165: coordinator@3 (D-095, P6) + the outside tools; D-338: the same instructions
+        # with the site's words, which on the gold items' site read as coordinator@4 did
+        "investigator": "coordinator@5",
+        "web": "specialist@2",
+        "proxy": "specialist@2",
+        "intel": "specialist@3",  # D-165: the same two tools; D-338
         "responder": None,  # Q-H2: off until the user reviews the owners and the wording
         "reporter": None,  # Q-H3: off until the user has read two reports and asks for prose
     }
-    assert dict(GOLD_RUNS) == {"no_tools": "98aa90f205fd", "tools": "0232557c5055"}
+    assert dict(GOLD_RUNS) == {"no_tools": "8962e42b9863", "tools": "bf01507f7984"}
 
 
 def test_the_tables_are_read_only() -> None:

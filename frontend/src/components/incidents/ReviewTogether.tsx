@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { togetherRows, type Row } from "../../lib/incidents";
+import { ownSide } from "../../lib/site";
 import { parse } from "../../lib/time";
 import { shortDay } from "../../lib/when";
 import { usePhone } from "../../lib/viewport";
@@ -8,7 +9,7 @@ import { Button } from "../ui/button";
 import { BulkDismiss, BulkMerge } from "./Bulk";
 
 /**
- * Review together (docs/p4f-ui-spec.md §6.6, F3): one row per campus-side object, what answered
+ * Review together (docs/p4f-ui-spec.md §6.6, F3): one row per own-side object, what answered
  * before the outside sources (the attacker axis goes last), a "Different" word on a row whose band
  * or outcome differs from the rest, and one decision for all; rows where something answered are
  * left out of "Scan or attempt", and the line says so.
@@ -33,7 +34,7 @@ export function ReviewTogether({ rows, onClose }: { rows: Row[]; onClose: () => 
           {lines.map((l, i) => (
             <li key={i} className="flex flex-col rounded-card bg-surface p-3 text-sm" data-testid="together-row">
               <span className="font-medium">
-                <UntrustedText value={l.campus} limits={{ maxChars: 120, maxLines: 1 }} />
+                <UntrustedText value={l.ours} limits={{ maxChars: 120, maxLines: 1 }} />
               </span>
               <span>
                 <UntrustedText value={l.outcome} limits={{ maxChars: 160, maxLines: 2 }} />
@@ -49,7 +50,7 @@ export function ReviewTogether({ rows, onClose }: { rows: Row[]; onClose: () => 
         <table className="w-full border-collapse text-sm" data-testid="together-table">
           <thead>
             <tr className="border-b border-border text-left text-muted">
-              <th className="py-1 pr-3 font-medium">Campus side</th>
+              <th className="py-1 pr-3 font-medium">{ownSide()}</th>
               <th className="py-1 pr-3 font-medium">What answered</th>
               <th className="py-1 pr-3 font-medium">
                 <span className="sr-only">Differs</span>
@@ -65,7 +66,7 @@ export function ReviewTogether({ rows, onClose }: { rows: Row[]; onClose: () => 
               return (
                 <tr key={i} className="border-b border-border" data-testid="together-row">
                   <td className="py-1.5 pr-3">
-                    <UntrustedText value={l.campus} limits={{ maxChars: 120, maxLines: 1 }} />
+                    <UntrustedText value={l.ours} limits={{ maxChars: 120, maxLines: 1 }} />
                   </td>
                   <td className="py-1.5 pr-3">
                     <UntrustedText value={l.outcome} limits={{ maxChars: 160, maxLines: 2 }} />

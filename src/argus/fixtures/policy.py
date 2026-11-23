@@ -62,8 +62,8 @@ class FixturePolicy(BaseModel):
 
     version: int = 1
     site_prefixes: tuple[str, ...] = ()
-    campus_domains: tuple[str, ...] = ()
-    campus_replacement: str = "univ.example"
+    own_domains: tuple[str, ...] = ()
+    own_replacement: str = "univ.example"
     keep_domains: tuple[str, ...] = ()
     keep_names: tuple[str, ...] = DEFAULT_KEEP_NAMES
     literals: dict[str, str] = Field(default_factory=dict)
@@ -81,7 +81,7 @@ class FixturePolicy(BaseModel):
         _check_patterns(self.field_patterns())
         if any(not key.strip() for key in self.literals):
             raise ValueError("a literal must not be blank")
-        _check_domains(self.campus_domains, self.keep_domains, self.campus_replacement)
+        _check_domains(self.own_domains, self.keep_domains, self.own_replacement)
         _check_keep_lists(self)
         allocate_sites(self.site_prefixes)  # raises IPMapError (a ValueError) for a bad prefix
 
@@ -158,19 +158,19 @@ def _check_keep_lists(policy: FixturePolicy) -> None:
     organisation name or a literal (compared as the sanitizer compares them: squashed, decoded,
     by containment), and no literal may be a kept domain (the text and the domain fields would
     then disagree)."""
-    campus = [_norm(c) for c in policy.campus_domains]
+    ours = [_norm(c) for c in policy.own_domains]
     terms: set[str] = set()
-    for domain in campus:
+    for domain in ours:
         for form in (domain, _decoded(domain)):
             terms |= {_squash(form.split(".")[0]), _squash(form)}
     terms |= {_squash(literal) for literal in policy.literals}
     terms = {t for t in terms if len(t) >= _MIN_TERM}
     for name in policy.keep_names:
         if any(t in _squash(name) for t in terms):
-            raise ValueError(f"keep name {name!r} holds a campus name or a literal")
+            raise ValueError(f"keep name {name!r} holds an own name or a literal")
     for kept in (_norm(k) for k in policy.keep_domains):
         if any(t in _squash(_decoded(kept)) for t in terms):
-            raise ValueError(f"keep domain {kept} holds a campus name or a literal")
+            raise ValueError(f"keep domain {kept} holds an own name or a literal")
         for literal in policy.literals:
             with contextlib.suppress(UnicodeError):
                 text = _norm(literal)
@@ -182,21 +182,21 @@ def _under(name: str, parent: str) -> bool:
     return name == parent or name.endswith("." + parent)
 
 
-def _check_domains(campus: tuple[str, ...], keep: tuple[str, ...], replacement: str) -> None:
-    campus_names = [_norm(c) for c in campus]
-    for c in campus_names:
-        for other in campus_names:
+def _check_domains(ours: tuple[str, ...], keep: tuple[str, ...], replacement: str) -> None:
+    own_names = [_norm(c) for c in ours]
+    for c in own_names:
+        for other in own_names:
             if c != other and _under(c, other):
-                raise ValueError(f"campus domain {c} is inside campus domain {other}; list {other}")
+                raise ValueError(f"own domain {c} is inside own domain {other}; list {other}")
         for k in (_norm(k) for k in keep):
             if _under(k, c) or _under(c, k):
-                raise ValueError(f"keep domain {k} overlaps campus domain {c}")
+                raise ValueError(f"keep domain {k} overlaps own domain {c}")
         if _under(_norm(replacement), c):
-            raise ValueError(f"campus_replacement {replacement} is inside campus domain {c}")
+            raise ValueError(f"own_replacement {replacement} is inside own domain {c}")
     # The replacement is written as it is, so it must already be a plain lower-case host name.
     if not _LDH_NAME.fullmatch(replacement) or replacement.rsplit(".", 1)[1] not in _RESERVED_TLDS:
         raise ValueError(
-            f"campus_replacement {replacement!r} must be a lower-case host name under a reserved "
+            f"own_replacement {replacement!r} must be a lower-case host name under a reserved "
             f"TLD ({', '.join('.' + t for t in _RESERVED_TLDS)}), e.g. univ.example"
         )
 
@@ -221,10 +221,19 @@ class _UniqueKeyLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)  # type: ignore[arg-type]
 
 
+# The keys' names before the site-neutral ones: a file that still uses them goes on working.
+OLDER_KEYS = {"campus_domains": "own_domains", "campus_replacement": "own_replacement"}
+
+
 def _mapping(path: Path, raw: bytes) -> dict[str, Any]:
     data = yaml.load(raw, Loader=_UniqueKeyLoader) or {}  # noqa: S506 - a SafeLoader subclass
     if not isinstance(data, dict):
         raise ValueError(f"{path} must contain a mapping")
+    for older, name in OLDER_KEYS.items():
+        if older in data:
+            if name in data:
+                raise ValueError(f"{path} has both {name} and its older name {older}: keep {name}")
+            data[name] = data.pop(older)
     return data
 
 

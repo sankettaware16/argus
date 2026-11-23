@@ -1,4 +1,4 @@
-"""Step 6 of the engine (E2): the graph. Campus objects in a lane (and the campaign lane's) are
+"""Step 6 of the engine (E2): the graph. Internal objects in a lane (and the campaign lane's) are
 joined into **components**, one per incident, through what they share. Pure: the pass and the
 replay run it unchanged.
 
@@ -9,12 +9,12 @@ replay run it unchanged.
    then never through one several hosts held on one day), nor a host seen on many addresses;
 2. one **account** behind both (a ``likely`` SSO sign-in in the same hour), 24 hours;
 3. a **flagged** outside thing (an outside detection, threat intel, an operator's campaign, a
-   person), 7 days, reached by at most 500 campus objects;
-4. a **rare** domain (or hash, sender, path pattern): reached by at most 6 campus objects and
+   person), 7 days, reached by at most 500 internal objects;
+4. a **rare** domain (or hash, sender, path pattern): reached by at most 6 internal objects and
    not a popular site, 48 hours;
-5. a **bare** outside address (not flagged): reached by at most 3 campus objects, 8 hours.
+5. a **bare** outside address (not flagged): reached by at most 3 internal objects, 8 hours.
 
-Objects acting on an outside thing and campus targets it acted on are linked apart: targets only
+Objects acting on an outside thing and own targets it acted on are linked apart: targets only
 to targets, flagged or rare within the rare limit (threat lists hold every internet scanner),
 and never through a bare address (inbound scanning is the digest's until the exposure lane).
 
@@ -23,7 +23,7 @@ things), shared infrastructure (dropped when observed), or a noisy source (its o
 score, never a link). An object outside every lane joins only through links 1-3 and at most
 ``depth`` steps from one in a lane. **Caps**: risk objects per incident (devices, accounts and
 sites; a campaign may hold more); past a cap a link is kept as a recommendation only. The
-**campaign lane** (L4): a flagged outside thing reached by several campus devices, or a campaign
+**campaign lane** (L4): a flagged outside thing reached by several internal devices, or a campaign
 of ``argus.campaigns``, makes its devices candidates bound together.
 """
 
@@ -71,7 +71,7 @@ class Flag:
 
 @dataclass(frozen=True)
 class Binding:
-    """A campaign (L4): campus objects bound by flagged outside things."""
+    """A campaign (L4): internal objects bound by flagged outside things."""
 
     key: str
     objects: frozenset[ObjectRef]
@@ -336,7 +336,7 @@ def edges(
         if len(everyone) < 2:
             continue
         flag = world.flags.get(threat)
-        # those acting on it (reach: every campus object it touched), and the campus targets it
+        # those acting on it (reach: every internal object it touched), and the own targets it
         # acted on, linked only to one another (reach: the targets)
         acting = {r: c for r, c in everyone.items() if "actor" in c.roles}
         reached = {r: c for r, c in everyone.items() if "actor" not in c.roles}
@@ -425,7 +425,7 @@ def campaign_lane(
     world: World, hubs: Collection[ObjectRef],
 ) -> list[Binding]:  # fmt: skip
     """The campaigns: those of ``argus.campaigns`` (``world.bindings``), and each flagged outside
-    thing that several campus devices acting outward reached in the campaign window."""
+    thing that several internal devices acting outward reached in the campaign window."""
     since = now - timedelta(hours=config.campaign.hours)
     reached: dict[str, set[ObjectRef]] = defaultdict(set)
     for o in obs:

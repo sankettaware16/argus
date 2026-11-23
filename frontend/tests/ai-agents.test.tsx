@@ -281,19 +281,17 @@ describe("AI and agents", () => {
   });
 
   it("is in the menu under Administration, after Settings, for an administrator only", async () => {
-    const user = userEvent.setup();
     serveAi();
     const view = renderApp("/");
-    await user.click(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("button", { name: /More/ }));
-    const more = within(screen.getByTestId("more-list"));
-    const links = more.getAllByRole("link").map((a) => a.textContent?.trim());
-    expect(links.indexOf("AI and agents")).toBe(links.indexOf("Settings") + 1);
-    expect(more.getByRole("link", { name: "AI and agents" }).getAttribute("href")).toBe("/app/ai");
+    const section = within(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("region", { name: "Administration" }));
+    const links = section.getAllByRole("link").map((a) => a.textContent?.trim());
+    expect(links).toEqual(["Settings", "Users and roles", "AI and agents", "Threat intel"]);
+    expect(section.getByRole("link", { name: "AI and agents" }).getAttribute("href")).toBe("/app/ai");
     view.unmount();
     server.use(...shellHandlers(sessionWith(["view"])));
     renderApp("/");
-    await user.click(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("button", { name: /More/ }));
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }));
     // a development build shows the administration entries to everyone (the API still refuses)
-    expect(within(screen.getByTestId("more-list")).queryByRole("link", { name: "AI and agents" }) !== null).toBe(import.meta.env.DEV);
+    expect(nav.queryByRole("link", { name: "AI and agents" }) !== null).toBe(import.meta.env.DEV);
   });
 });

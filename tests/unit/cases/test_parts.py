@@ -224,11 +224,11 @@ def test_only_identity_fields_with_specific_values_are_actors() -> None:
         ["host.name", "-"], ["user.name", "alice"], ["host.name", "lab-pc-7"],
         ["source.ip", "10.0.0.7"],
     ])  # fmt: skip
-    actors, campus = opener._actors(key, IpClassifier(None))
+    actors, ours = opener._actors(key, IpClassifier(None))
     assert sorted((a.kind, a.value) for a in actors) == [
         ("host", "lab-pc-7"), ("ip", "10.0.0.7"), ("user", "alice"),
     ]  # fmt: skip
-    assert campus
+    assert ours
 
 
 def test_a_persons_verdict_confirms_the_suspected_case_it_is_in_or_links_to() -> None:
@@ -300,13 +300,13 @@ def test_only_w3_writes_close_a_kibana_case() -> None:
 
 
 def test_the_campus_test_alone_is_the_openers_own() -> None:
-    """``opener.is_campus_actor`` (Q-H4 review R5) answers without a query what ``_actors`` says."""
+    """``opener.is_own_actor`` (Q-H4 review R5) answers without a query what ``_actors`` says."""
     import ipaddress
     import json
 
     from argus.assets.classify import IpClassifier
 
-    classifier = IpClassifier(None, campus_prefixes=[ipaddress.ip_network("10.8.0.0/16")])
+    classifier = IpClassifier(None, own_prefixes=[ipaddress.ip_network("10.8.0.0/16")])
     for pairs, expected in (
         ([["source.ip", "10.201.7.13"]], True),
         ([["source.ip", "8.8.8.8"]], False),
@@ -315,6 +315,6 @@ def test_the_campus_test_alone_is_the_openers_own() -> None:
         ([], False),
     ):
         key = json.dumps(pairs)
-        assert opener.is_campus_actor(key, classifier) is expected
+        assert opener.is_own_actor(key, classifier) is expected
         assert opener._actors(key, classifier)[1] is expected
-    assert opener.is_campus_actor("not json", classifier) is False
+    assert opener.is_own_actor("not json", classifier) is False

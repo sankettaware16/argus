@@ -197,7 +197,7 @@ class QuietWindow:
 
 
 NO_QUIET_WINDOW = QuietWindow(
-    False, "a quiet window cannot be verified before known negatives are on (Q-F1)"
+    False, "a quiet window cannot be verified before known negatives are on"
 )
 
 

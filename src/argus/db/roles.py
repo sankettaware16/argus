@@ -2189,7 +2189,7 @@ def check_api_settings(settings: DatabaseSettings) -> None:
     if user in (settings.user, settings.owner_user):
         raise ConfigError(
             "database.api_user must be a role of its own, neither database.user nor"
-            " database.owner_user: the web logs in with only the grants it needs (Q-A2)"
+            " database.owner_user: the web logs in with only the grants it needs"
         )
     if user in (RUNTIME_ROLE, API_ROLE) or user.startswith("pg_") or user in _RESERVED_NAMES:
         raise ConfigError(
@@ -2257,7 +2257,7 @@ def check_writer_settings(settings: DatabaseSettings) -> None:
     if user in (settings.user, settings.owner_user, settings.api_user):
         raise ConfigError(
             "database.writer_user must be a role of its own, none of database.user,"
-            " database.owner_user and database.api_user (Q-D4)"
+            " database.owner_user and database.api_user"
         )
     if (
         user in (RUNTIME_ROLE, API_ROLE, WRITER_ROLE, APPROVALS_ROLE, PURGE_ROLE)

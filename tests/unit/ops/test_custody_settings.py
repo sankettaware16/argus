@@ -41,6 +41,7 @@ VALUES = {
     "outside.virustotal_api_key": "Synthetic-VirusTotal-12",  # AR3
     "outside.shodan_api_key": "Synthetic-Shodan-13",
     "outside.censys_api_key": "Synthetic-Censys-14",
+    "directory.session": "SyntheticDirectorySession15",
 }
 
 
@@ -230,7 +231,7 @@ def test_a_secret_an_account_must_not_hold_stops_it(
     with pytest.raises(ConfigError) as error:
         load(tmp_path, monkeypatch, folder, **env)
     text = str(error.value)
-    assert f"{secret} is given to the {role} account, which must not hold it (Q-A5)" in text
+    assert f"{secret} is given to the {role} account, which must not hold it" in text
     assert VALUES[secret] not in text
 
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=ARGUS write-back: people's decisions as alert status in Kibana
+# Started by argus-writeback.timer. Stop it: writeback.auto false in its file, or
+# `argus siem stop --component writeback` (docs/runbooks/writeback.md).
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+# The switches: the writer's own file (never the shared .env). The alert writer's key and the
+# writer's database login: credential files (0600; plan §3 rule 11, Q-A5).
+EnvironmentFile=@ROOT@/local/argus-writer.env
+Environment=CREDENTIALS_DIRECTORY=@ROOT@/local/creds-writer
+ExecStart=@UV@ run argus writeback run --unattended
+TimeoutStartSec=3h
+MemoryMax=512M
+Nice=10

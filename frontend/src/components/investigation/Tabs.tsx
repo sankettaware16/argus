@@ -19,7 +19,7 @@ import { own, theNoun } from "../../lib/site";
 export function Facts({ dossier }: { dossier: DossierOut }) {
   const ADDRESS: Record<string, string> = {
     asset: own("asset"),
-    campus: own("address"),
+    campus: own("address"), // the class as the server stores it: one of the organisation's public prefixes
     internal: "private address",
     public: `outside ${theNoun()}`,
     special: "special-use address",

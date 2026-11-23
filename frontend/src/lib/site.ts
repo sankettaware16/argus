@@ -64,13 +64,13 @@ export function offsetLabel(minutes: number): string {
 const DETERMINERS = ["the ", "your ", "our ", "my "];
 const startsWithDeterminer = (word: string) => DETERMINERS.some((d) => word.toLowerCase().startsWith(d));
 
-/** The word for the organisation's own network as a modifier: "campus device", "your network device". */
+/** The word for the organisation's own network as a modifier: "internal device", "your network device". */
 export function noun(): string {
   const word = current.own_network_noun;
   return word.toLowerCase().startsWith("the ") ? word.slice(4) : word;
 }
 
-/** With "the": "the campus", "your network" (a noun that begins with the, your, our or my is used as it stands). */
+/** With "the": "the organisation's network", "your network" (a noun that begins with the, your, our or my is used as it stands). */
 export function theNoun(): string {
   const word = current.own_network_noun;
   return startsWithDeterminer(word) ? word : `the ${word}`;
@@ -94,11 +94,33 @@ export function nounCapital(): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-/** `thing` that belongs to the organisation's own network: "campus names", "names of your network". */
+/** `thing` that belongs to the organisation's own network: "internal names", "names of your network". */
 export function own(thing: string): string {
   const word = current.own_network_noun;
   if (/^(your|our|my) /i.test(word)) return `${thing} of ${word}`;
   return `${noun()} ${thing}`;
+}
+
+/** `own(thing)` with a capital first letter, for a label or a heading: "Own site", "Site of your network". */
+export function ownCapital(thing: string): string {
+  const phrase = own(thing);
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+}
+
+/** `own(thing)` with its article: "an own site", "an office network site", "a site of your network". */
+export function aOwn(thing: string): string {
+  const phrase = own(thing);
+  return `${article(phrase)} ${phrase}`;
+}
+
+/**
+ * The organisation's own side of an incident, as a label beside "Other side": "Own side",
+ * "Plant side"; "Your side" for a noun that begins with your, our or my.
+ */
+export function ownSide(): string {
+  const whose = /^(your|our|my) /i.exec(current.own_network_noun);
+  if (whose?.[1]) return `${whose[1].charAt(0).toUpperCase()}${whose[1].slice(1).toLowerCase()} side`;
+  return `${nounCapital()} side`;
 }
 
 /** What kind of organisation it is, lower case: "university", "organisation". */

@@ -72,7 +72,7 @@ class Call:
 def _create(ctx: Context) -> Any:
     return {
         "title": f"ARGUS cost measurement {ctx.run}",
-        "description": "Made by measure_capacity.py on the local tier (Q-A3).",
+        "description": "Made by measure_capacity.py on the local tier.",
         "tags": [TAG, f"run:{ctx.run}"],
         "owner": OWNER,
         "severity": "low",

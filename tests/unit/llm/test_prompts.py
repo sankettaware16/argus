@@ -9,13 +9,13 @@ import json
 import pytest
 
 from argus.llm import egress, prompts
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.privacy import template_words
 
 
-def test_the_prompt_passes_the_validator_and_asks_for_json(campus: Campus) -> None:
+def test_the_prompt_passes_the_validator_and_asks_for_json(ours: OwnSpace) -> None:
     for text in prompts.PROMPTS.values():
-        assert egress.check(text, campus, ordinary=template_words()).allowed
+        assert egress.check(text, ours, ordinary=template_words()).allowed
         assert "JSON" in text
         for outcome in prompts.OUTCOMES:
             assert outcome in text

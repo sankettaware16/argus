@@ -152,7 +152,7 @@ def test_the_body_is_an_openai_chat_body(call: Call) -> None:
     assert "response_format" not in free
     no_json = cfg.providers[1].model_copy(update={"json_mode": False})
     assert "response_format" not in json.loads(body_for(no_json, call))
-    raw = body_for(cfg.providers[0], Call(Request("é", (), (), (), (), call.request.campus),
+    raw = body_for(cfg.providers[0], Call(Request("é", (), (), (), (), call.request.ours),
                                           "x", "t"))  # fmt: skip
     assert "é".encode() in raw
     assert b", " not in raw
@@ -167,7 +167,7 @@ async def test_the_ledger_never_holds_the_content(call: Call) -> None:
 
 
 async def test_a_request_that_fails_the_validator_is_never_sent(privacy: Privacy) -> None:
-    leaky = Request("host 10.20.3.4 called", (), (), (), (), privacy.campus)
+    leaky = Request("host 10.20.3.4 called", (), (), (), (), privacy.ours)
     gw, fake, store, _ = make()
     with pytest.raises(Refused, match="did not pass the validator"):
         await gw.complete(Call(leaky, "Answer in JSON.", "assess"))
@@ -509,7 +509,7 @@ async def test_simulated_days_never_exceed_a_budget(call: Call, seed: int) -> No
                 raise reply
             return reply
 
-    small = Request("Assess I1.", ("I1",), (), (), (), call.request.campus)
+    small = Request("Assess I1.", ("I1",), (), (), (), call.request.ours)
     gw, _fake, store, clock = make(Random(), cfg)
     priorities = list(budget.Priority)
     end = NOW + timedelta(days=3)

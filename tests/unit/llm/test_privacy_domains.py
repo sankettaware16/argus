@@ -1,5 +1,5 @@
 """P4-D1 part 2 review F4 (D-285): the privacy layer fails closed. The organisation's domains
-(``site.own_domains`` and the policy's ``campus_domains``, together) must name at least one, or no
+(``site.own_domains`` and the policy's ``own_domains``, together) must name at least one, or no
 text for a model is built: a layer that replaces no domain would send ``example.org`` to a cloud
 provider with every other check green."""
 
@@ -25,8 +25,8 @@ NEUTRAL = SiteSettings()
 
 
 def test_acmes_configuration_names_its_domains() -> None:
-    assert site.own_domains(load_policy().campus_domains) == ("example.edu", "example-univ.org")
-    assert Privacy.build(load_policy(), ASSETS).campus.domains == (
+    assert site.own_domains(load_policy().own_domains) == ("example.edu", "example-univ.org")
+    assert Privacy.build(load_policy(), ASSETS).ours.domains == (
         "example.edu",
         "example-univ.org",
     )
@@ -44,14 +44,14 @@ def test_the_neutral_site_refuses_to_load_the_policy_or_build_the_layer() -> Non
 
 def test_one_domain_in_either_list_is_enough() -> None:
     bare = load_policy(require_domains=False)
-    assert bare.campus_domains == ()  # the shipped policy lists none: the site's are the list
+    assert bare.own_domains == ()  # the shipped policy lists none: the site's are the list
     with site.using(SiteSettings(own_domains=("example.org",))):
-        assert Privacy.build(load_policy(), ASSETS).campus.domains == ("example.org",)
-    listed = Policy.model_validate({**bare.model_dump(), "campus_domains": ["example.edu"]})
+        assert Privacy.build(load_policy(), ASSETS).ours.domains == ("example.org",)
+    listed = Policy.model_validate({**bare.model_dump(), "own_domains": ["example.edu"]})
     with site.using(NEUTRAL):
-        assert Privacy.build(listed, ASSETS).campus.domains == ("example.edu",)
+        assert Privacy.build(listed, ASSETS).ours.domains == ("example.edu",)
     # entries that clean to nothing are no domain
-    blank = Policy.model_validate({**bare.model_dump(), "campus_domains": ["..", " "]})
+    blank = Policy.model_validate({**bare.model_dump(), "own_domains": ["..", " "]})
     with site.using(NEUTRAL), pytest.raises(PrivacyConfigError):
         Privacy.build(blank, ASSETS)
 
@@ -60,7 +60,7 @@ def test_the_case_titles_still_read_the_list_without_a_domain() -> None:
     titling._policy_domains.cache_clear()
     try:
         with site.using(NEUTRAL):
-            assert titling.default_campus_domains() == ()  # nothing is sent: no refusal
+            assert titling.default_own_domains() == ()  # nothing is sent: no refusal
     finally:
         titling._policy_domains.cache_clear()
 

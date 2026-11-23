@@ -4,8 +4,8 @@
 # Field actions (applied to each top value of a field in the context pack):
 #   send    - the value as text; identifiers in it are still replaced by pseudonyms
 #   number  - a count or size: exact below 100, else rounded to 2 significant figures
-#   ip      - public addresses as they are; private, campus and asset-map ones pseudonymized
-#   domain  - campus domains pseudonymized (SITE_n), others as they are
+#   ip      - public addresses as they are; private, own and asset-map ones pseudonymized
+#   domain  - own domains pseudonymized (SITE_n), others as they are
 #   url     - host as for ip/domain; the path and query values with identifiers replaced
 #   host    - always pseudonymized (HOST_n)
 #   user    - always pseudonymized (USER_n)
@@ -17,7 +17,7 @@ version: 1
 # Domains listed here are pseudonymized as well; none by default. The two lists together must name
 # at least one domain: with none, ARGUS builds no text for a model (the privacy layer refuses,
 # `argus doctor` says so).
-campus_domains: []
+own_domains: []
 
 # What an address in the asset map may say about itself (a generalisation, never its name).
 asset_fields: [site.type, site.zone]

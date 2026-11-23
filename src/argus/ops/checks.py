@@ -448,7 +448,7 @@ def write_key_result(problems: list[str], configured: bool) -> CheckResult:
             "write keys",
             False,
             "; ".join(problems)
-            + ": a write key belongs only to the writer's own credential (Q-A5); remove it",
+            + ": a write key belongs only to the writer's own credential; remove it",
         )
     if configured:
         return CheckResult("write keys", True, "configured, and in no shared place")
@@ -925,13 +925,13 @@ def toolchain_result(directory: Path | None = None) -> CheckResult:
 def build_result(frontend_dir: Path, build_dir: Path) -> CheckResult:
     """Whether the committed build is the build of the current ``frontend/``."""
     if not (frontend_dir / "package.json").is_file():
-        return CheckResult("frontend build", True, "no frontend yet (Q-B1)")
+        return CheckResult("frontend build", True, "no frontend yet")
     made = frontend.read_manifest(build_dir)
     if made is None:
         return CheckResult(
             "frontend build",
             False,
-            f"no build in {build_dir}: run scripts/frontend_gate.sh and commit the build (DQ25)",
+            f"no build in {build_dir}: run scripts/frontend_gate.sh and commit the build",
         )
     now = frontend.sources_sha256(frontend_dir)
     if made["sources_sha256"] != now:
@@ -1010,7 +1010,7 @@ async def stored_results(settings: Settings, now: datetime) -> list[CheckResult]
                     name,
                     True,
                     f"stale: the newest indicator is {days} days old ({source.newest:%Y-%m-%d});"
-                    " its 'no match' answers are unknown until it is synced (plan §13)",
+                    " its 'no match' answers are unknown until it is synced",
                     warn=True,
                 )
             )
@@ -1043,7 +1043,7 @@ async def stored_results(settings: Settings, now: datetime) -> list[CheckResult]
             CheckResult(
                 "probe readings",
                 True,
-                f"{day} in the last 24 h, newest {newest:%Y-%m-%d %H:%M} UTC (kept for Q-A3)",
+                f"{day} in the last 24 h, newest {newest:%Y-%m-%d %H:%M} UTC",
             )
         )
     return results

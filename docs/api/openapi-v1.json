@@ -2030,14 +2030,66 @@
         "title": "BacklogOut",
         "type": "object"
       },
+      "BandOut": {
+        "additionalProperties": false,
+        "description": "One priority: what was raised in the span, its two targets and how each was kept.",
+        "properties": {
+          "band": {
+            "enum": [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "raised": {
+            "title": "Raised",
+            "type": "integer"
+          },
+          "resolve": {
+            "$ref": "#/components/schemas/KeptOut"
+          },
+          "resolve_target_s": {
+            "title": "Resolve Target S",
+            "type": "number"
+          },
+          "triage": {
+            "$ref": "#/components/schemas/KeptOut"
+          },
+          "triage_median_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triage Median S"
+          },
+          "triage_target_s": {
+            "title": "Triage Target S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "band",
+          "raised",
+          "triage_target_s",
+          "resolve_target_s",
+          "triage",
+          "resolve",
+          "triage_median_s"
+        ],
+        "title": "BandOut",
+        "type": "object"
+      },
       "BlockEntryOut": {
         "additionalProperties": false,
         "description": "One thing to block, with the outside evidence ARGUS holds for it.",
         "properties": {
-          "campus_devices": {
-            "title": "Campus Devices",
-            "type": "integer"
-          },
           "engines_flagging": {
             "anyOf": [
               {
@@ -2076,7 +2128,7 @@
             ],
             "title": "Evidence Checked"
           },
-          "first_seen_on_campus": {
+          "first_seen_on_own_network": {
             "anyOf": [
               {
                 "format": "date-time",
@@ -2086,7 +2138,11 @@
                 "type": "null"
               }
             ],
-            "title": "First Seen On Campus"
+            "title": "First Seen On Own Network"
+          },
+          "own_devices": {
+            "title": "Own Devices",
+            "type": "integer"
           },
           "owner": {
             "anyOf": [
@@ -2132,8 +2188,8 @@
           "engines_total",
           "owner",
           "registered",
-          "first_seen_on_campus",
-          "campus_devices",
+          "first_seen_on_own_network",
+          "own_devices",
           "evidence_checked"
         ],
         "title": "BlockEntryOut",
@@ -4742,7 +4798,7 @@
         "additionalProperties": false,
         "properties": {
           "target": {
-            "pattern": "^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}|outside:(virustotal|shodan|censys))$",
+            "pattern": "^(siem|kibana:(reader|cases|alerts)|llm:[a-z][a-z0-9_-]{0,31}|outside:(virustotal|shodan|censys)|directory)$",
             "title": "Target",
             "type": "string"
           }
@@ -5542,6 +5598,144 @@
         "title": "DecisionRecordOut",
         "type": "object"
       },
+      "DirectoryLineOut": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "title": "DirectoryLineOut",
+        "type": "object"
+      },
+      "DirectoryOut": {
+        "additionalProperties": false,
+        "description": "One account in the site's directory (D-337). ``outcome``: ``found``; ``not_found`` (the\ndirectory has no such account); ``expired`` (the directory no longer accepts the saved\nsession: an administrator saves a new one in Settings); ``error`` (no answer). ``person``\nis set when found; ``described`` is what the account's name alone says, whatever the\noutcome.",
+        "properties": {
+          "account": {
+            "title": "Account",
+            "type": "string"
+          },
+          "described": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DirectoryPersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "found",
+              "not_found",
+              "expired",
+              "error"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DirectoryPersonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "required": [
+          "account",
+          "directory",
+          "outcome",
+          "why",
+          "person",
+          "described"
+        ],
+        "title": "DirectoryOut",
+        "type": "object"
+      },
+      "DirectoryPersonOut": {
+        "additionalProperties": false,
+        "description": "What the site's account directory says of an account. ``name`` is None in what the\naccount's name alone says (no request was made, or it failed).",
+        "properties": {
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/DirectoryLineOut"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "department",
+          "details"
+        ],
+        "title": "DirectoryPersonOut",
+        "type": "object"
+      },
       "DismissChoiceOut": {
         "additionalProperties": false,
         "properties": {
@@ -6121,7 +6315,7 @@
       },
       "EntityPageOut": {
         "additionalProperties": false,
-        "description": "What ARGUS knows of a device, account, campus site or outside address: its incidents, its\nalert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps\nalert detail (it keeps every incident and decision).",
+        "description": "What ARGUS knows of a device, account, own site or outside address: its incidents, its\nalert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps\nalert detail (it keeps every incident and decision).",
         "properties": {
           "address_class": {
             "anyOf": [
@@ -8822,6 +9016,16 @@
             "title": "Bucket Start",
             "type": "string"
           },
+          "case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InCaseOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "continues_id": {
             "anyOf": [
               {
@@ -9227,6 +9431,43 @@
           "finished_at"
         ],
         "title": "JobOut",
+        "type": "object"
+      },
+      "KeptOut": {
+        "additionalProperties": false,
+        "description": "How a target was kept. ``met`` and ``missed`` are settled (an incident still waiting past\nits target is missed already); ``pending`` still has time. ``share``: met of those settled,\n0 to 1, or null with nothing settled.",
+        "properties": {
+          "met": {
+            "title": "Met",
+            "type": "integer"
+          },
+          "missed": {
+            "title": "Missed",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          }
+        },
+        "required": [
+          "met",
+          "missed",
+          "pending",
+          "share"
+        ],
+        "title": "KeptOut",
         "type": "object"
       },
       "KeyField": {
@@ -10469,9 +10710,76 @@
         "title": "OutcomeCountOut",
         "type": "object"
       },
+      "OverdueOut": {
+        "additionalProperties": false,
+        "description": "An incident past its target now: undecided past its time to a first decision\n(``triage``), or confirmed and not closed past its time to close (``resolve``).",
+        "properties": {
+          "band": {
+            "enum": [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "triage",
+              "resolve"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "suspected",
+              "open",
+              "assigned",
+              "contained"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "target_s": {
+            "title": "Target S",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "waited_s": {
+            "title": "Waited S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "state",
+          "band",
+          "kind",
+          "waited_s",
+          "target_s"
+        ],
+        "title": "OverdueOut",
+        "type": "object"
+      },
       "PatternBriefOut": {
         "additionalProperties": false,
-        "description": "A pattern ARGUS recommends closing, as Home shows it (AR4 review, D-186): the investigations\none run of the AI investigator stands for on an IST day, counted now (not reviewed, not a\nknown infection's). ``covered`` of ``investigations`` have a proposal; the rest have none yet\nand are left out of a close. Real totals: no dossier is read and nothing is sampled.",
+        "description": "A pattern ARGUS recommends closing, as Home shows it (AR4 review, D-186): the investigations\none run of the AI investigator stands for on a site day, counted now (not reviewed, not a\nknown infection's). ``covered`` of ``investigations`` have a proposal; the rest have none yet\nand are left out of a close. Real totals: no dossier is read and nothing is sampled.",
         "properties": {
           "alerts": {
             "title": "Alerts",
@@ -10910,6 +11218,94 @@
           "items"
         ],
         "title": "PatternSummaryOut",
+        "type": "object"
+      },
+      "PerformanceOut": {
+        "additionalProperties": false,
+        "description": "How fast alerts became decisions for the incidents raised in the span. ``detect``: from\nan incident's first alert to ARGUS raising it (the mean is the mean time to detect);\n``triage``: from there to a person's first decision (to acknowledge); ``resolve``: from a\nconfirmation to the closure (to resolve). ``overdue`` is what is past its target now,\nwhenever it was raised, the furthest past first; ``due_soon`` counts those with three\nquarters of their time used.",
+        "properties": {
+          "bands": {
+            "items": {
+              "$ref": "#/components/schemas/BandOut"
+            },
+            "title": "Bands",
+            "type": "array"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "detect": {
+            "$ref": "#/components/schemas/TimesOut"
+          },
+          "dismissed": {
+            "title": "Dismissed",
+            "type": "integer"
+          },
+          "due_soon": {
+            "title": "Due Soon",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "overdue": {
+            "items": {
+              "$ref": "#/components/schemas/OverdueOut"
+            },
+            "title": "Overdue",
+            "type": "array"
+          },
+          "overdue_total": {
+            "title": "Overdue Total",
+            "type": "integer"
+          },
+          "raised": {
+            "title": "Raised",
+            "type": "integer"
+          },
+          "resolve": {
+            "$ref": "#/components/schemas/TimesOut"
+          },
+          "resolve_kept": {
+            "$ref": "#/components/schemas/KeptOut"
+          },
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "triage": {
+            "$ref": "#/components/schemas/TimesOut"
+          },
+          "triage_kept": {
+            "$ref": "#/components/schemas/KeptOut"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "raised",
+          "confirmed",
+          "dismissed",
+          "waiting",
+          "detect",
+          "triage",
+          "resolve",
+          "triage_kept",
+          "resolve_kept",
+          "bands",
+          "overdue",
+          "overdue_total",
+          "due_soon"
+        ],
+        "title": "PerformanceOut",
         "type": "object"
       },
       "PersonRef": {
@@ -13045,7 +13441,7 @@
       },
       "ReportFact": {
         "additionalProperties": false,
-        "description": "One verified fact: a sentence written by code from stored data, with the figures it\nstates (``numbers``) so a check can hold any sentence that cites it to them. ``source`` says\nwhere ARGUS read it; ``from_logs`` marks a fact derived from log content (an account without\nlog access sees it hidden). ``safe`` is the same fact without a campus address, host or\naccount, the only form a model is ever shown (None: it cannot be said without one).",
+        "description": "One verified fact: a sentence written by code from stored data, with the figures it\nstates (``numbers``) so a check can hold any sentence that cites it to them. ``source`` says\nwhere ARGUS read it; ``from_logs`` marks a fact derived from log content (an account without\nlog access sees it hidden). ``safe`` is the same fact without an internal address, host or\naccount, the only form a model is ever shown (None: it cannot be said without one).",
         "properties": {
           "from_logs": {
             "default": false,
@@ -13996,7 +14392,7 @@
       },
       "ReportTarget": {
         "additionalProperties": false,
-        "description": "A campus web site or host that outside actors went against (D-240): where the alerts say\nthe attack was aimed, with the alerts that named it and, when a stored web check or an alert's\nown record shows it, the successful (2xx) answers it gave and the paths they were for.",
+        "description": "An own web site or host that outside actors went against (D-240): where the alerts say\nthe attack was aimed, with the alerts that named it and, when a stored web check or an alert's\nown record shows it, the successful (2xx) answers it gave and the paths they were for.",
         "properties": {
           "actors": {
             "default": 0,
@@ -15060,7 +15456,7 @@
       },
       "SamePatternOut": {
         "additionalProperties": false,
-        "description": "The investigator's run on another investigation of the same pattern and IST day (AR2),\nshown as \"same pattern as <id>\". Display only: it is not this investigation's assessment, so\nit cannot be accepted and nothing is scored, closed or written back from it.",
+        "description": "The investigator's run on another investigation of the same pattern and site day (AR2),\nshown as \"same pattern as <id>\". Display only: it is not this investigation's assessment, so\nit cannot be accepted and nothing is scored, closed or written back from it.",
         "properties": {
           "assessment": {
             "$ref": "#/components/schemas/AssessmentOut"
@@ -15514,6 +15910,17 @@
           "csrf_token": {
             "title": "Csrf Token",
             "type": "string"
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
           },
           "expires_at": {
             "format": "date-time",
@@ -17573,6 +17980,57 @@
         "title": "TimelineItemOut",
         "type": "object"
       },
+      "TimesOut": {
+        "additionalProperties": false,
+        "description": "A set of durations, in seconds: how many there were, their median, their mean and the\nvalue 90 % of them stayed at or under. With none, the three are null.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "mean_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean S"
+          },
+          "median_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median S"
+          },
+          "p90_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 S"
+          }
+        },
+        "required": [
+          "count",
+          "median_s",
+          "mean_s",
+          "p90_s"
+        ],
+        "title": "TimesOut",
+        "type": "object"
+      },
       "TodayCardOut": {
         "additionalProperties": false,
         "description": "One card of Today (the spec's ``Card``): the case that presents the incident (kind\n``incident``); in shadow (``risk.present`` off) there is none, and the card is the engine's\nown incident (kind ``shadow``, ``id`` its incident id); a gray item is kind ``gray``.",
@@ -18593,7 +19051,7 @@
     }
   },
   "info": {
-    "description": "The typed API of ARGUS's web app (Phase 3, Q-A1).\n\n**Signing in** happens only on the server-rendered page `/signin` (and confirming it is you,\nbefore an approval, on `/stepup`): no password ever passes through this API. A session is an\nHttpOnly, SameSite=Strict cookie (`__Host-argus_session` under TLS, `argus_session` on the plain\nloopback). `GET /api/v1/session` says who is signed in, what they may do and when the session\nends, and gives the CSRF token: send it as `X-CSRF-Token` on every change, and keep it in\nmemory only.\n\n**Every change** (POST, PUT, PATCH, DELETE) must also come from this site's own page: an\n`Origin` header equal to this server's origin (or `Sec-Fetch-Site: same-origin`). Requests that\nbrowsers mark as coming from another site are refused on every `/api/` path.\n\n**Background requests** (polls, refreshes nobody asked for) send `X-Argus-Background: 1`:\nthey are answered as usual, but never keep a session alive. A session ends after its idle\ntime without a request of the person's own, and at its absolute end whatever happens.\n\n**Errors** are always `ErrorOut {detail, code}`. On 401 send the person to\n`/signin?next=<the app's path>`; on 403 `csrf` read the session again once; on 409 `conflict`\nread the thing again; 429 and 503 are said plainly and never retried by the client.\n\n**Words** (DQ23): an *investigation* is one rule, one actor and one IST day; a *case* is one\nreal problem across days, hosts and rules; an *incident* is a case a person confirmed.\n",
+    "description": "The typed API of ARGUS's web app.\n\n**Signing in** happens only on the server-rendered page `/signin` (and confirming it is you,\nbefore an approval, on `/stepup`): no password ever passes through this API. A session is an\nHttpOnly, SameSite=Strict cookie (`__Host-argus_session` under TLS, `argus_session` on the plain\nloopback). `GET /api/v1/session` says who is signed in, what they may do and when the session\nends, and gives the CSRF token: send it as `X-CSRF-Token` on every change, and keep it in\nmemory only.\n\n**Every change** (POST, PUT, PATCH, DELETE) must also come from this site's own page: an\n`Origin` header equal to this server's origin (or `Sec-Fetch-Site: same-origin`). Requests that\nbrowsers mark as coming from another site are refused on every `/api/` path.\n\n**Background requests** (polls, refreshes nobody asked for) send `X-Argus-Background: 1`:\nthey are answered as usual, but never keep a session alive. A session ends after its idle\ntime without a request of the person's own, and at its absolute end whatever happens.\n\n**Errors** are always `ErrorOut {detail, code}`. On 401 send the person to\n`/signin?next=<the app's path>`; on 403 `csrf` read the session again once; on 409 `conflict`\nread the thing again; 429 and 503 are said plainly and never retried by the client.\n\n**Words**: an *investigation* is one rule, one actor and one day in the site's time\nzone; a *case* is one real problem across days, hosts and rules; an *incident* is a case a\nperson confirmed.\n",
     "title": "ARGUS API",
     "version": "1.0.0"
   },
@@ -25436,6 +25894,99 @@
         ]
       }
     },
+    "/api/v1/directory/{account}": {
+      "get": {
+        "description": "Who an account belongs to, from the site's own account directory (D-337): the name,\nthe kind of account and the department, with what the account's name alone says. Needs\n``see_logs``, as an account's page does; each question is audited (who asked, never the\nanswer). The answer is not stored. 404 when the site has no directory.",
+        "operationId": "getDirectoryAccount",
+        "parameters": [
+          {
+            "description": "the account's name, as the site's directory knows it",
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "description": "the account's name, as the site's directory knows it",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$",
+              "title": "Account",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "no such thing"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Directory Account",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
     "/api/v1/entities": {
       "get": {
         "description": "The hosts and addresses in the most investigations.",
@@ -25509,7 +26060,7 @@
     },
     "/api/v1/entities/{kind}/{value}": {
       "get": {
-        "description": "What ARGUS knows of a device, an account, a campus site or an outside address: the\nasset map's entry, its incidents and alert groups, a timeline, its days (and for an\naddress, each day's host names and sign-ins: whether the host names show a different\ndevice on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),\nwhat outside sources said, and people's notes. An account's page needs ``see_logs``. A\nvalue ARGUS has no record of answers with empty lists, never 404.",
+        "description": "What ARGUS knows of a device, an account, an own site or an outside address: the\nasset map's entry, its incidents and alert groups, a timeline, its days (and for an\naddress, each day's host names and sign-ins: whether the host names show a different\ndevice on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),\nwhat outside sources said, and people's notes. An account's page needs ``see_logs``. A\nvalue ARGUS has no record of answers with empty lists, never 404.",
         "operationId": "getEntity",
         "parameters": [
           {
@@ -26120,7 +26671,7 @@
     },
     "/api/v1/investigations": {
       "get": {
-        "description": "The Inbox: a view (attention, open, reviewed, all), optionally one rule or one\nentity (kind and value together). Without ``sort``: newest alert first, and the\nreviewed view by newest decision (the classic Inbox's order, D-095). ``sort=queue`` is\nthe order Home's queue walks: changed since a notice, then raised by ARGUS's evidence,\nthen a follow-up, then the rule's severity, then the last alert (AR4 review, D-186).\nPages reach 10,000 investigations deep at most: past that, narrow the list (a view, a\nrule, an entity) or turn the sort around.",
+        "description": "The Inbox: a view (attention, open, reviewed, all), optionally one rule or one\nentity (kind and value together), optionally only the alert groups that belong to an\nincident or to none. Each row names the incident it belongs to (``case``). Without\n``sort``: newest alert first, and the reviewed view by newest decision (the classic\nInbox's order, D-095). ``sort=queue`` is\nthe order Home's queue walks: changed since a notice, then raised by ARGUS's evidence,\nthen a follow-up, then the rule's severity, then the last alert (AR4 review, D-186).\nPages reach 10,000 investigations deep at most: past that, narrow the list (a view, a\nrule, an entity) or turn the sort around.",
         "operationId": "listInvestigations",
         "parameters": [
           {
@@ -26190,6 +26741,21 @@
               "maxLength": 300,
               "pattern": "^[^\\x00]*$",
               "title": "Value",
+              "type": "string"
+            }
+          },
+          {
+            "description": "only alert groups that belong to an incident, or to none",
+            "in": "query",
+            "name": "incident",
+            "required": false,
+            "schema": {
+              "description": "only alert groups that belong to an incident, or to none",
+              "enum": [
+                "in",
+                "none"
+              ],
+              "title": "Incident",
               "type": "string"
             }
           },
@@ -27509,12 +28075,12 @@
             }
           },
           {
-            "description": "its IST day",
+            "description": "its day, in the site's time zone",
             "in": "query",
             "name": "day",
             "required": true,
             "schema": {
-              "description": "its IST day",
+              "description": "its day, in the site's time zone",
               "format": "date",
               "title": "Day",
               "type": "string"
@@ -27749,6 +28315,91 @@
         ]
       }
     },
+    "/api/v1/performance": {
+      "get": {
+        "description": "How fast alerts became decisions (D-340): for the incidents raised in the span, the\ntime to detect, to a person's first decision and to close, each against the site's\ntargets by priority (``sla.*``), and what is past its target now.",
+        "operationId": "getPerformance",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "default": "7d",
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "title": "Range",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "not signed in, or the session ended: sign in at /signin"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "refused: a missing X-CSRF-Token (csrf), a capability the account lacks (forbidden), or not this site's own page (origin)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "the request does not match this contract"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "unavailable: ARGUS cannot reach its database (any operation), or the AI investigator is not on this server"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Performance",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
     "/api/v1/proposals": {
       "get": {
         "description": "Proposals waiting for a person, grouped by what decided them, the largest group\nfirst; each with its audit sample (a random order fixed for the day).",
@@ -27920,7 +28571,7 @@
     },
     "/api/v1/queue": {
       "get": {
-        "description": "What needs a person, in order (AR4): ARGUS's open cases that need one (suggested\ncases and cases with a change since the owner was told first), each with its verdict or\nreading, its campus devices and its outside addresses (apart) and why it is here; then\nthe single investigations in Needs attention that belong to no case; and the order the\napp's \"Next\" walks through them. The patterns to close are ``/patterns``; the numbers of\nnew and known work are ``/counts``.",
+        "description": "What needs a person, in order (AR4): ARGUS's open cases that need one (suggested\ncases and cases with a change since the owner was told first), each with its verdict or\nreading, its internal devices and its outside addresses (apart) and why it is here; then\nthe single investigations in Needs attention that belong to no case; and the order the\napp's \"Next\" walks through them. The patterns to close are ``/patterns``; the numbers of\nnew and known work are ``/counts``.",
         "operationId": "getQueue",
         "responses": {
           "200": {

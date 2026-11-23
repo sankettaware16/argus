@@ -29,8 +29,8 @@ CLASSIFIER = IpClassifier(MAP, CAMPUS)
         ("10.20.3.4", IpClass.ASSET, AssetLookup.MATCHED),
         ("198.51.100.9", IpClass.ASSET, AssetLookup.MATCHED),
         ("127.0.0.1", IpClass.ASSET, AssetLookup.MATCHED),  # the map wins over everything
-        ("198.51.100.1", IpClass.CAMPUS, AssetLookup.NOT_FOUND),
-        ("2001:db8:5::1", IpClass.CAMPUS, AssetLookup.NOT_FOUND),
+        ("198.51.100.1", IpClass.OWN, AssetLookup.NOT_FOUND),
+        ("2001:db8:5::1", IpClass.OWN, AssetLookup.NOT_FOUND),
         ("10.21.0.1", IpClass.INTERNAL, AssetLookup.NOT_FOUND),
         ("172.31.255.255", IpClass.INTERNAL, AssetLookup.NOT_FOUND),
         ("192.168.0.1", IpClass.INTERNAL, AssetLookup.NOT_FOUND),

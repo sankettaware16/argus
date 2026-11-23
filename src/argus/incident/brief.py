@@ -5,7 +5,7 @@ device's owner, the network team) needs what an analyst writes first: what is ha
 points that matter, why it is judged real, what is at risk and the steps asked for. A large model
 writes that from the report's own facts, and code decides what is kept:
 
-- the model sees the report's facts (:func:`facts_of`), pseudonymised by the privacy layer (campus
+- the model sees the report's facts (:func:`facts_of`), pseudonymised by the privacy layer (internal
   addresses, hosts, accounts and sites become tokens) and checked by the egress validator;
 - every line cites the facts it rests on; code drops a line that cites none or an unknown one,
   names a token it was not given or an identifier no cited fact holds, states a number its facts do
@@ -222,10 +222,10 @@ class Shown:
 
 def shown(facts: Sequence[Fact], privacy: Privacy, report: m.IncidentReport) -> Shown:
     users, hosts = names_of(report)
-    campus = replace(privacy.campus, users=privacy.campus.users | users,
-                     hosts=privacy.campus.hosts | hosts)  # fmt: skip
+    ours = replace(privacy.ours, users=privacy.ours.users | users,
+                     hosts=privacy.ours.hosts | hosts)  # fmt: skip
     space = privacy.space(ITEM)
-    scrub = privacy.scrub(privacy, campus, space, None, False)
+    scrub = privacy.scrub(privacy, ours, space, None, False)
     sent = {f.id: scrub.text(f.text, MAX_FACT) for f in facts}
     whole = "\n".join(sent.values()).lower()
     for name in sorted(users | hosts):  # the last check: a name the scrubber did not find
@@ -237,7 +237,7 @@ def shown(facts: Sequence[Fact], privacy: Privacy, report: m.IncidentReport) -> 
             raise ValueError("an account or host name is still in the facts")
     lines = [f'<item id="{ITEM}">', "facts:", *(f"{k}: {v}" for k, v in sent.items()), "</item>"]
     request = Request(text="\n".join(lines), items=(ITEM,), omitted=(), failed=(), truncated=(),
-                      campus=campus, _maps={ITEM: space})  # fmt: skip
+                      ours=ours, _maps={ITEM: space})  # fmt: skip
     return Shown({f.id: f for f in facts}, sent, request)
 
 

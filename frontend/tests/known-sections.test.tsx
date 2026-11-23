@@ -409,8 +409,8 @@ describe("the block list", () => {
   const LIST: BlocklistOut = {
     case_number: 12, title: "Beaconing", skipped: 2, cut: false, notified_at: "2026-10-20T04:00:00Z", blocked_at: null,
     entries: [
-      { type: "family", value: "fast-dns-host.com", evidence: "7 of 94 engines flag it", engines_flagging: 7, engines_total: 94, owner: null, registered: "2026-09-01", first_seen_on_campus: "2026-10-15T04:00:00Z", campus_devices: 47, evidence_checked: "2026-10-26T04:00:00Z" },
-      { type: "address", value: "203.0.113.9", evidence: "no outside record yet", engines_flagging: null, engines_total: null, owner: "Private Layer", registered: null, first_seen_on_campus: null, campus_devices: 1, evidence_checked: null },
+      { type: "family", value: "fast-dns-host.com", evidence: "7 of 94 engines flag it", engines_flagging: 7, engines_total: 94, owner: null, registered: "2026-09-01", first_seen_on_own_network: "2026-10-15T04:00:00Z", own_devices: 47, evidence_checked: "2026-10-26T04:00:00Z" },
+      { type: "address", value: "203.0.113.9", evidence: "no outside record yet", engines_flagging: null, engines_total: null, owner: "Private Layer", registered: null, first_seen_on_own_network: null, own_devices: 1, evidence_checked: null },
     ],
   };
 

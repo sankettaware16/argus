@@ -521,7 +521,7 @@ def worker_template_check(
                     return await batch1.admit(
                         conn, state, task, enabled={name}, now=datetime.now(UTC),
                         history=settings.history.window,
-                        is_campus=batch1.private_or(lambda v: classifier.classify(v).ip_class),
+                        is_own=batch1.private_or(lambda v: classifier.classify(v).ip_class),
                         health_config=health_config(settings.siem),
                     )  # fmt: skip
 

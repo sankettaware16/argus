@@ -27,7 +27,7 @@ NOW = datetime.now(UTC)
 
 
 def local(**over: Any) -> LlmConfig:
-    provider = {"name": "local", "trust": "campus", "base_url": "https://127.0.0.1:28443/v1",
+    provider = {"name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:28443/v1",
                 "keys": ["K"], "ca_file": "/x.crt", "timeout_s": 900, "concurrency": 1,
                 "tasks": ["evaluate", "ping"], "schema_output": True, "schema_required": True,
                 "models": {"small": {"name": "cp", "context_tokens": 16384,

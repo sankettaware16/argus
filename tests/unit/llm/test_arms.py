@@ -42,7 +42,7 @@ def test_a_fake_holds_no_real_value_and_no_pseudonym(privacy: Privacy) -> None:
     for raw in RAW:
         assert raw.lower() not in shown.lower(), raw
     assert "I1." not in shown
-    for fake in ("10.200.0.1", "host-1", "user1", "moodle.campus.example"):
+    for fake in ("10.200.0.1", "host-1", "user1", "moodle.internal.example"):
         assert fake in shown, fake
     assert '- 10.200.0.1: a campus device in the asset map (type "lab", zone "north")' in shown
     assert "[credential removed]" in shown
@@ -66,7 +66,7 @@ def test_a_real_holds_real_values_but_no_secret(privacy: Privacy) -> None:
         ("C-ips", "10.200.0.1", "I1.HOST_1"),
         ("C-hosts", "host-1", "I1.IP_1"),
         ("C-users", "user1", "I1.IP_1"),
-        ("C-sites", "moodle.campus.example", "I1.IP_1"),
+        ("C-sites", "moodle.internal.example", "I1.IP_1"),
     ],
 )
 def test_c_arms_loosen_one_kind(privacy: Privacy, name: str, fake: str, token: str) -> None:
@@ -110,14 +110,14 @@ def test_fakes_are_consistent_and_of_the_same_kind() -> None:
     assert fakes.token("IP", "fd00::1") == "fd00:fa:ce::3"
     assert fakes.token("IP", "198.51.100.4", "a campus public address") == "203.0.113.5"
     assert fakes.token("IP", "not an address") == "10.200.0.5"
-    assert fakes.token("SITE", "example.edu") == "campus.example"
-    assert fakes.token("SITE", "a.b.EXAMPLE.edu.") == "part1.part2.campus.example"
-    assert fakes.token("SITE", "moodle.cse.example.edu") == "moodle.part3.campus.example"
-    assert fakes.token("SITE", "www.b.example.edu") == "www.part2.campus.example"
-    assert fakes.token("SITE", "other.example") == "site5.campus.example"
+    assert fakes.token("SITE", "example.edu") == "internal.example"
+    assert fakes.token("SITE", "a.b.EXAMPLE.edu.") == "part1.part2.internal.example"
+    assert fakes.token("SITE", "moodle.cse.example.edu") == "moodle.part3.internal.example"
+    assert fakes.token("SITE", "www.b.example.edu") == "www.part2.internal.example"
+    assert fakes.token("SITE", "other.example") == "site5.internal.example"
     assert fakes.token("HOST", "tp8") == "host-1"
     assert fakes.token("USER", "alice") == "user1"
-    assert fakes.token("EMAIL", "a@b.org") == "user1@campus.example"
+    assert fakes.token("EMAIL", "a@b.org") == "user1@internal.example"
     assert fakes.token("MAC", "00:1a:2b:3c:4d:5e") == "02:00:5e:00:00:01"
     assert len(fakes.token("HASH", "a" * 40)) == 40
     assert fakes.token("ID", "x") == "00000000-0000-0000-0000-000000000001"
@@ -144,7 +144,7 @@ def test_the_arm_list() -> None:
         "B", "A-fake", "A-real", "C-ips", "C-hosts", "C-users", "C-sites", "C-ids",
         "C-counts", "C-times",
     )  # fmt: skip
-    assert arms.FAKE_DOMAIN == "campus.example"
+    assert arms.FAKE_DOMAIN == "internal.example"
 
 
 def test_the_generic_labels() -> None:
@@ -176,7 +176,7 @@ def test_c_users_fakes_emails_and_c_ids_hashes(privacy: Privacy) -> None:
     body = dossier()
     body["report"]["steps"][0]["text"] = "mail a.b@x.org hash " + "d" * 32
     users = render(privacy, "C-users", [body]).text
-    assert "user1@campus.example" in users
+    assert "user1@internal.example" in users
     ids = render(privacy, "C-ids", [body]).text
     assert "I1.HASH" not in ids
     assert "d" * 32 not in ids
@@ -233,7 +233,7 @@ def test_a_fake_arm_passes_as_the_policy_text_with_fakes(privacy: Privacy, name:
     request = _fake_request(privacy, name)
     assert request.proven()
     assert request.validate().allowed
-    assert not egress.check(request.text, privacy.campus).allowed or name in (
+    assert not egress.check(request.text, privacy.ours).allowed or name in (
         "C-hosts",
         "C-sites",
         "C-ids",
@@ -327,12 +327,12 @@ def test_a_fake_arm_through_arm_is_the_rendered_one(privacy: Privacy, name: str)
 def test_arm_configures_fakes_for_every_kind_or_one(privacy: Privacy) -> None:
     every = arm(privacy, "A-fake").request([dossier()]).text
     assert "I1." not in every
-    for fake in ("10.200.0.1", "host-1", "user1", "moodle.campus.example"):
+    for fake in ("10.200.0.1", "host-1", "user1", "moodle.internal.example"):
         assert fake in every, fake
     ips = arm(privacy, "C-ips").request([dossier()]).text
     assert "10.200.0.1" in ips
     assert "I1.HOST_1" in ips
-    assert "moodle.campus.example" not in ips
+    assert "moodle.internal.example" not in ips
 
 
 def test_the_unknown_arm_message_of_render(privacy: Privacy) -> None:

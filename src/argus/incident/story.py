@@ -333,7 +333,7 @@ def actions(scene: Scene, book: Book) -> m.ReportActions:
             "case",
             f"The still-active watch calls a case quiet after {WATCH_QUIET_DAYS} whole UTC days "
             "without activity.",
-            "the case rules (Q-C2)",
+            "the case rules",
             (WATCH_QUIET_DAYS,),
         )
         close = book.because(

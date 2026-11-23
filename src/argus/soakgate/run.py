@@ -147,7 +147,7 @@ def _notes(made: list[Line]) -> list[str]:
         for check in line.checks:
             if check.id == "6d" and check.verdict is Verdict.PENDING and check.n:
                 out.append(
-                    "the read-back mirror does not cover the case team's cases yet (P4-B1): line 6"
+                    "the read-back mirror does not cover the case team's cases yet: line 6"
                     " cannot see a person's edit, close or delete of them"
                 )
     return out

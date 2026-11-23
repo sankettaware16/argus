@@ -138,9 +138,7 @@ def policy_problems(frontend: Path = FRONTEND_DIR) -> list[str]:
             if isinstance(spec, str) and spec.startswith("npm:"):  # an alias: npm:<name>@<v>
                 real = spec.removeprefix("npm:").rpartition("@")[0] or spec.removeprefix("npm:")
                 if _banned(real):
-                    problems.append(
-                        f"{section}: {name} is an alias of the banned package {real} (plan §7.5)"
-                    )
+                    problems.append(f"{section}: {name} is an alias of the banned package {real}")
     for script in ("typecheck", "lint", "test", "build"):
         if script not in (package.get("scripts") or {}):
             problems.append(f"package.json has no {script!r} script (the gate runs it)")
@@ -170,9 +168,9 @@ def policy_problems(frontend: Path = FRONTEND_DIR) -> list[str]:
         name = recorded if isinstance(recorded, str) and recorded else folder
         if _banned(name):
             alias = f" (as {folder})" if name != folder else ""
-            problems.append(f"banned package in the lockfile: {name}{alias} (plan §7.5)")
+            problems.append(f"banned package in the lockfile: {name}{alias}")
         elif name != folder and _banned(folder):
-            problems.append(f"banned package in the lockfile: {folder} (plan §7.5)")
+            problems.append(f"banned package in the lockfile: {folder}")
     return problems
 
 

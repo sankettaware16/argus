@@ -52,7 +52,7 @@ def contact(dest: str = "203.0.113.9", hosts: tuple[str, ...] = ()) -> TaskSpec:
     return TaskSpec(beacon.ProxyContact(), params)
 
 
-async def plant(owner: AsyncEngine, value: str, investigations: int, campus: int = 0,
+async def plant(owner: AsyncEngine, value: str, investigations: int, ours: int = 0,
                 last: datetime = T) -> None:  # fmt: skip
     """``investigations`` investigations naming ``value`` (an ip entity), the first
     ``campus`` of them with one more campus address each."""
@@ -69,7 +69,7 @@ async def plant(owner: AsyncEngine, value: str, investigations: int, campus: int
                  "e": last + timedelta(hours=22), "last": last},
             )  # fmt: skip
             rows = [{"i": inv, "v": value}]
-            if n < campus:
+            if n < ours:
                 rows.append({"i": inv, "v": f"10.77.{n // 250}.{n % 250 + 1}"})
             rows.append({"i": inv, "v": "8.8.8.8"})  # a public one: never campus
             await conn.execute(
@@ -83,7 +83,7 @@ async def plant(owner: AsyncEngine, value: str, investigations: int, campus: int
 
 async def admit(engine: AsyncEngine, task: TaskSpec, **kw: Any) -> batch1.Refusal | None:
     options: dict[str, Any] = {"enabled": ON, "now": T, "history": HISTORY,
-                               "is_campus": batch1.private_or(None)}  # fmt: skip
+                               "is_own": batch1.private_or(None)}  # fmt: skip
     options.update(kw)
     state = options.pop("state", healthy(options["now"]))
     async with engine.connect() as conn:
@@ -115,8 +115,8 @@ async def test_planted_popular_values_are_refused(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine
 ) -> None:
     await plant(migrated_engine, "203.0.113.50", 50)  # a destination in 50 investigations
-    await plant(migrated_engine, "203.0.113.60", 30, campus=25)  # 25 campus hosts reach it
-    await plant(migrated_engine, "203.0.113.70", 30, campus=24)
+    await plant(migrated_engine, "203.0.113.60", 30, ours=25)  # 25 campus hosts reach it
+    await plant(migrated_engine, "203.0.113.70", 30, ours=24)
     await plant(migrated_engine, "10.0.0.66", 50)  # a shared campus address (a NAT)
     await plant(migrated_engine, "10.0.0.67", 49)
     await plant(migrated_engine, "203.0.113.80", 60, last=T - HISTORY - timedelta(hours=1))
@@ -142,7 +142,7 @@ async def test_planted_popular_values_are_refused(
     assert await admit(app_engine, rows) is None  # rows, not an aggregation: no gate
     # with the asset map's classes, only its campus classes count
     public = batch1.private_or(lambda v: "public")
-    assert await admit(app_engine, contact("203.0.113.60"), is_campus=public) is None
+    assert await admit(app_engine, contact("203.0.113.60"), is_own=public) is None
     async with app_engine.connect() as conn:
         seen = await batch1.prevalence(conn, batch1.Key("destination", "203.0.113.60"),
                                        T - HISTORY, batch1.private_or(None))  # fmt: skip
@@ -155,7 +155,7 @@ async def test_planted_popular_values_are_refused(
 async def test_very_many_addresses_beside_a_destination_are_common(
     app_engine: AsyncEngine, migrated_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await plant(migrated_engine, "203.0.113.90", 6, campus=3)  # 3 campus + 8.8.8.8 beside it
+    await plant(migrated_engine, "203.0.113.90", 6, ours=3)  # 3 campus + 8.8.8.8 beside it
     monkeypatch.setattr(batch1, "CO_ADDRESSES", 4)
     async with app_engine.connect() as conn:
         seen = await batch1.prevalence(conn, batch1.Key("destination", "203.0.113.90"),

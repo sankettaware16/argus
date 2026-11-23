@@ -1,6 +1,6 @@
 # Fixture sanitization policy. Contains no secrets and no identifiers. The keyed pseudonyms come
 # from data/keys/fixtures.key. The organisation's own names, ranges and hosts (site_prefixes,
-# campus_domains, literals, denylist_extra) go in the private overlay config/fixtures.local.yaml
+# own_domains, literals, denylist_extra) go in the private overlay config/fixtures.local.yaml
 # beside this file: scripts/sanitize_fixtures.py lays its top-level keys over these.
 version: 1
 
@@ -8,8 +8,8 @@ version: 1
 # fixtures, so they stay recognisably the organisation's addresses.
 site_prefixes: []
 
-campus_domains: []
-campus_replacement: univ.example
+own_domains: []
+own_replacement: univ.example
 
 # Public vendor/CDN domains kept verbatim (evidence packs need to recognise them).
 keep_domains:

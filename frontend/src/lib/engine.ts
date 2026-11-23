@@ -5,6 +5,7 @@
  * does not know is left out, never shown raw; a block without a priority and a band is "not
  * scored yet" (§2.4).
  */
+import { aOwn, ownCapital } from "./site";
 
 export type Band = "P1" | "P2" | "P3" | "P4";
 export type Lane = "decisive" | "burst" | "slow" | "campaign" | "exposure";
@@ -436,7 +437,11 @@ export const LANE_WORDS: Readonly<Record<Lane, string>> = {
   burst: "A sudden burst",
   slow: "A slow build-up",
   campaign: "The same activity on many devices",
-  exposure: "A campus site may be exposed",
+  // the site's own word, read when shown (the session sets it after this module loads)
+  get exposure() {
+    const words = aOwn("site");
+    return `${words.charAt(0).toUpperCase()}${words.slice(1)} may be exposed`;
+  },
 };
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
@@ -447,7 +452,7 @@ export function isIp(value: string): boolean {
   return IPV4.test(v) || (IPV6.test(v) && v.includes(":") && v.split(":").length >= 3);
 }
 
-/** A private, loopback or link-local address: a campus device's, never an outside one. */
+/** A private, loopback or link-local address: an internal device's, never an outside one. */
 export function isPrivateIp(value: string): boolean {
   const v = value.trim().toLowerCase();
   if (IPV4.test(v)) {
@@ -459,7 +464,7 @@ export function isPrivateIp(value: string): boolean {
 
 /** The noun of an entity chip (§12.3): an actor is never called "Device", whatever its kind. */
 export function nounFor(o: Pick<EngineObject, "kind" | "role" | "label">): string {
-  if (o.role === "affected") return o.kind === "device" ? "Device" : o.kind === "account" ? "Account" : "Campus site";
+  if (o.role === "affected") return o.kind === "device" ? "Device" : o.kind === "account" ? "Account" : ownCapital("site");
   if (o.kind === "account") return "Outside account";
   if (o.kind === "site") return "Outside site";
   return isIp(o.label) ? "Outside address" : "Outside host";
@@ -491,7 +496,7 @@ export function outcomeOf(engine: Engine | null, title: string): string | null {
 const ANSWERED = /HTTP 200|\bserved\b|\bsuccessful answers?\b|\bgot 2\d\d\b/i;
 const NOTHING_ANSWERED = /only ordinary pages|no HTTP 200|\bno successful answers?\b/i;
 
-/** Whether these words say a campus server answered, and do not rule it out. */
+/** Whether these words say an own server answered, and do not rule it out. */
 function saysAnswered(words: string | null | undefined): boolean {
   return typeof words === "string" && ANSWERED.test(words) && !NOTHING_ANSWERED.test(words);
 }
@@ -524,9 +529,9 @@ interface OldReport {
 
 /**
  * The two sides of a case without the engine (§12.3), from its incident report and indicators: the
- * report's devices, accounts and sites on the campus side; the actor and command-server
- * indicators on the other side, except a campus address (a private one, or one the report names
- * as ours), which is a device on the campus side and never an outside address.
+ * report's devices, accounts and sites on the own side; the actor and command-server
+ * indicators on the other side, except an internal address (a private one, or one the report names
+ * as ours), which is a device on the own side and never an outside address.
  */
 export function sidesWithoutEngine(indicators: readonly OldIndicator[], report: OldReport | null): EngineObject[] {
   const out: EngineObject[] = [];

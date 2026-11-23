@@ -79,7 +79,7 @@ export const FILE_KINDS: Readonly<Record<string, string>> = {
   accounts_csv: "CSV",
 };
 
-/** "Thu 15 Oct" for an IST day the report gives as 2026-10-15. */
+/** "Thu 15 Oct" for a site day the report gives as 2026-10-15. */
 export function dayLabel(day: string): string {
   const at = new Date(`${day}T12:00:00Z`);
   if (Number.isNaN(at.getTime())) return day;

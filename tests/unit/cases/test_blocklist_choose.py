@@ -39,8 +39,8 @@ def test_a_campus_private_or_loopback_address_is_never_a_block(address: str) -> 
 
 
 def test_an_address_of_the_campus_prefixes_is_never_a_block() -> None:
-    campus = IpClassifier(None, [ipaddress.ip_network("131.21.124.0/22")])
-    out = blocklist.choose([("ip", "131.21.125.9"), ("ip", "185.9.9.9")], Shared(), campus)
+    ours = IpClassifier(None, [ipaddress.ip_network("131.21.124.0/22")])
+    out = blocklist.choose([("ip", "131.21.125.9"), ("ip", "185.9.9.9")], Shared(), ours)
     assert out.ips == ("185.9.9.9",)
 
 

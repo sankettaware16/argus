@@ -40,7 +40,7 @@ def configure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, privacy: Privacy,
     keys.write_text(f"LOCAL_LLM_API_KEY={ls.KEY}\n", encoding="utf-8")
     model = {"name": ls.MODEL, "context_tokens": 16384, "thinking_tokens": 2048,
              "max_output": 6144, "max_prompt_tokens": 12000}  # fmt: skip
-    provider = {"name": "local", "enabled": False, "trust": "campus",
+    provider = {"name": "local", "enabled": False, "trust": "self_hosted",
                 "base_url": f"https://127.0.0.1:{port}/v1", "keys": ["LOCAL_LLM_API_KEY"],
                 "ca_file": str(cert), "timeout_s": 30, "concurrency": 1,
                 "tasks": ["evaluate", "ping"], "probe": True, "schema_output": True,

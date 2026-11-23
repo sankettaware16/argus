@@ -85,6 +85,8 @@ def _point_cli_at(
     for key, value in values.items():
         monkeypatch.setenv(f"ARGUS_DATABASE__{key}", value)
     monkeypatch.setenv("ARGUS_LOGGING__LEVEL", "DEBUG")
+    # no units on this host to compare (a CI runner has none): empty runs none
+    monkeypatch.setenv("ARGUS_UNITS__RUN", "")
     # an organisation domain, as THROWAWAY_SITE gives: a checkout with no site yet fails doctor
     monkeypatch.setenv("ARGUS_SITE__OWN_DOMAINS", "example.test")
     # Safety: the CLI must only ever touch the throwaway database.

@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS weekly report every Monday at 7:50 AM IST (Q-H3; off until the user has read two reports)
+Description=ARGUS weekly report every Monday at 02:20 UTC
 
 [Timer]
 OnCalendar=Mon *-*-* 02:20:00 UTC

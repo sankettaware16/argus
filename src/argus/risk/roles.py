@@ -1,11 +1,11 @@
-"""Entity roles (E0): who acted, what was at risk on campus, and what outside thing was involved,
+"""Entity roles (E0): who acted, what was at risk inside, and what outside thing was involved,
 from ECS field namespaces and address classes only (never a rule's name).
 
-- **actor**: the side that acted (``source.*``, ``client.*``, ``user.*``, a campus sender);
-- **target**: a campus thing acted on (an internal destination address, a campus domain or
+- **actor**: the side that acted (``source.*``, ``client.*``, ``user.*``, an internal sender);
+- **target**: an internal thing acted on (an internal destination address, an own domain or
   recipient, the host of an inbound event);
 - **threat**: an outside thing involved (a public destination, an outside domain or sender, a
-  URL pattern, a file hash). Threat objects never accrue incident risk; later they link campus
+  URL pattern, a file hash). Threat objects never accrue incident risk; later they link internal
   objects (E2);
 - **other**: anything else (special addresses, an outbound event's own host).
 
@@ -53,7 +53,7 @@ FIELDS: tuple[tuple[Kind, str], ...] = (
 )
 FIELD_KIND = {field: kind for kind, field in FIELDS}
 ACTOR_NAMESPACES = frozenset({"source", "client", "user"})  # who acted (ECS)
-CAMPUS_CLASSES = frozenset({IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL})
+OWN_CLASSES = frozenset({IpClass.ASSET, IpClass.OWN, IpClass.INTERNAL})
 MAX_VALUES = 16  # per field, as the normalizer
 MAX_VALUE = 512
 # Values many unrelated actors share; never an account (compared in lower case).
@@ -96,7 +96,7 @@ def url_pattern(path: str) -> str | None:
     return head[:200]
 
 
-def campus_domain(value: str, domains: Iterable[str]) -> bool:
+def own_domain(value: str, domains: Iterable[str]) -> bool:
     name = value.strip().rstrip(".").lower()
     return any(name == d or name.endswith("." + d) for d in domains)
 
@@ -124,19 +124,19 @@ def _values(raw: Sequence[object]) -> list[str]:
 
 
 def direction(actor_classes: Iterable[IpClass], target_classes: Iterable[IpClass]) -> Direction:
-    """Outbound: a campus actor and no campus target; lateral: campus to campus; inbound: an
+    """Outbound: an internal actor and no own target; lateral: inside to inside; inbound: an
     outside actor; unknown: no actor address."""
     actors = set(actor_classes)
-    if not actors & (CAMPUS_CLASSES | {IpClass.PUBLIC}):
+    if not actors & (OWN_CLASSES | {IpClass.PUBLIC}):
         return "unknown"
-    if actors & CAMPUS_CLASSES:
-        return "lateral" if set(target_classes) & CAMPUS_CLASSES else "outbound"
+    if actors & OWN_CLASSES:
+        return "lateral" if set(target_classes) & OWN_CLASSES else "outbound"
     return "inbound"
 
 
 def roles(
     fields: Mapping[str, Sequence[object]], classifier: IpClassifier,
-    campus_domains: Sequence[str],
+    own_domains: Sequence[str],
 ) -> tuple[Direction, tuple[RoleEntity, ...]]:  # fmt: skip
     """The group's direction and its entities with their roles. ``fields``: each ECS field's
     values across the group's alerts (actor key values included)."""
@@ -156,7 +156,7 @@ def roles(
     for kind, field in FIELDS:
         namespace = field.split(".", 1)[0]
         for value in _values(fields.get(field, ())):
-            entity = _entity(kind, field, namespace, value, way, classifier, campus_domains)
+            entity = _entity(kind, field, namespace, value, way, classifier, own_domains)
             if entity is not None:
                 out.add(entity)
     return way, tuple(sorted(out))
@@ -164,7 +164,7 @@ def roles(
 
 def _entity(
     kind: Kind, field: str, namespace: str, value: str, way: Direction,
-    classifier: IpClassifier, campus_domains: Sequence[str],
+    classifier: IpClassifier, own_domains: Sequence[str],
 ) -> RoleEntity | None:  # fmt: skip
     role: Role
     if kind == "ip":
@@ -173,8 +173,8 @@ def _entity(
             return None
         value = found.address
         if namespace in ACTOR_NAMESPACES:
-            role = "actor" if found.ip_class in CAMPUS_CLASSES | {IpClass.PUBLIC} else "other"
-        elif found.ip_class in CAMPUS_CLASSES:
+            role = "actor" if found.ip_class in OWN_CLASSES | {IpClass.PUBLIC} else "other"
+        elif found.ip_class in OWN_CLASSES:
             role = "target"
         elif found.ip_class is IpClass.PUBLIC:
             role = "threat"
@@ -184,10 +184,10 @@ def _entity(
         value = value.strip().rstrip(".").strip().lower()
         if not value:  # the root ('.') or dots only: no name
             return None
-        role = "target" if campus_domain(value, campus_domains) else "threat"
+        role = "target" if own_domain(value, own_domains) else "threat"
     elif kind == "host":
         value = value.strip().lower()
-        # ECS host: where the event happened; the campus server of an inbound event (an
+        # ECS host: where the event happened; the own server of an inbound event (an
         # outbound event's host is often the device that logged it)
         role = "target" if way == "inbound" else "other"
     elif kind == "user":
@@ -203,13 +203,13 @@ def _entity(
             return None
         value = name
         domain = name.rsplit("@", 1)[1]
-        campus = campus_domain(domain, campus_domains)
+        ours = own_domain(domain, own_domains)
         if field == "email.to.address":
-            role = "target" if campus else "threat"
+            role = "target" if ours else "threat"
         elif field == "user.email":
             role = "actor"
         else:
-            role = "actor" if campus else "threat"
+            role = "actor" if ours else "threat"
     elif kind == "url_pattern":
         pattern = url_pattern(value)
         if pattern is None:

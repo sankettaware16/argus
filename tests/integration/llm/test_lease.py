@@ -46,7 +46,7 @@ CHILD = textwrap.dedent(
     async def main():
         site.activate(example_site())  # the privacy layer needs the organisation's domains (D-285)
         privacy = Privacy.build(load_policy(), ASSETS, (CAMPUS_PREFIX,))
-        request = Request("Assess I1.", ("I1",), (), (), (), privacy.campus)
+        request = Request("Assess I1.", ("I1",), (), (), (), privacy.ours)
         gateway = LlmGateway(config(local()), KEYS, Hang(), PgLlmStore(engine_for(load(None))))
         await gateway.complete(Call(request, "x", "ping"))
 
@@ -72,7 +72,7 @@ async def test_the_lease_holds_across_processes_and_a_crashed_holders_expires(
         (holder, until), = (await store.state()).leases["local"].items()  # fmt: skip
         assert holder.endswith("/1")
         assert started - timedelta(seconds=60) < until - timedelta(seconds=660) <= started
-        request = Request("Assess I1.", ("I1",), (), (), (), privacy.campus)
+        request = Request("Assess I1.", ("I1",), (), (), (), privacy.ours)
         fake = Fake()
         here = LlmGateway(config(local()), KEYS, fake, store)
         with pytest.raises(NoCapacity, match=r"local: busy \(1 of 1 calls\)") as caught:

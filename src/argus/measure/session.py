@@ -880,7 +880,7 @@ def verify(
     attributed = until > end + MINUTE
     if attributed:
         facts.append(f"ARGUS used more than {limits.attribution_ms} ms in a minute: readings up"
-                     f" to {until:%H:%M:%S} UTC count against the session (plan §7.8)")  # fmt: skip
+                     f" to {until:%H:%M:%S} UTC count against the session")  # fmt: skip
     readings = sorted((p for p in probes if start <= p.at <= until), key=lambda p: p.at)
     if not readings:
         problems.append("no probe reading during the session")

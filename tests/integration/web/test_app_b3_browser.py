@@ -21,6 +21,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -59,7 +60,7 @@ async def live(
 
 
 async def sign_in_as(page: Any, base: str, user: str, next_path: str = "/app") -> None:
-    await page.goto(f"{base}/signin?next={next_path}")
+    await page.goto(f"{base}/signin?next={quote(next_path, safe='/')}")
     await page.fill("#username", user)
     await page.fill("#password", PASSWORD)
     async with page.expect_navigation(url=re.compile(re.escape(base + next_path) + r"/?$")):
@@ -258,7 +259,7 @@ async def test_hostile_values_stay_inert_and_a_comment_is_a_persons_not_arguss(
         )  # fmt: skip
     async with async_playwright() as play:
         browser, _, page, watch = await person(play, name, live.url, "mina", everything(case))
-        await page.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
+        await page.locator("main h1").first.wait_for()
         for body in (hostile, "ARGUS: approved " + hostile):
             await page.get_by_role("textbox", name=re.compile("Add a note to this case")).fill(body)
             await (
@@ -289,8 +290,8 @@ async def test_hostile_values_stay_inert_and_a_comment_is_a_persons_not_arguss(
             .map(e => e.textContent).filter(t => t.includes('this case is approved'))""")
         assert spoken == []
         assert len(await world.rows("SELECT id FROM case_notes")) == 2
-        await page.goto(f"{live.url}/app/cases")
-        await page.get_by_role("table", name="Cases").wait_for()
+        await page.goto(f"{live.url}/app/incidents?view=all")
+        await page.get_by_test_id("incident-row").first.wait_for()
         assert await page.evaluate("window.__pwned") is None
         assert await page.locator("main img").count() == 0
         assert await watch.violations(page) == []
@@ -308,7 +309,7 @@ async def test_a_view_only_account_sees_actions_disabled_and_a_moved_case_is_sai
     case = await world.open_case(1)
     async with async_playwright() as play:
         browser, _, vera, _ = await person(play, name, live.url, "vera", everything(case))
-        await vera.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
+        await vera.get_by_role("heading", level=1, name=re.compile("Regular beaconing")).wait_for()
         region = vera.get_by_role("region", name="Actions")
         buttons = region.get_by_role("button")
         assert await buttons.count() == 7
@@ -324,7 +325,7 @@ async def test_a_view_only_account_sees_actions_disabled_and_a_moved_case_is_sai
         await browser.close()
         # a case that moved while a person looked at it
         browser, _, mina, _ = await person(play, name, live.url, "mina", everything(case))
-        await mina.get_by_role("heading", level=1, name=re.compile("Case 1:")).wait_for()
+        await mina.get_by_role("heading", level=1, name=re.compile("Regular beaconing")).wait_for()
         with httpx.Client(base_url=live.url, headers={"Origin": live.url}) as other:
             made = other.post("/api/login", json={"username": "nora", "password": PASSWORD})  # noqa: ASYNC212
             assert made.status_code == 200, made.text
@@ -415,7 +416,7 @@ async def served_pages(live: Live) -> list[tuple[str, str]]:
                                    "payload_hash": seen.json()["payload_hash"]})  # fmt: skip
             assert done.status_code == 201, done.text
     return [
-        ("cases", "/app/cases"),
+        ("cases", "/app/incidents?view=open"),
         ("cases, searched", "/app/cases?view=all&q=beacon"),
         ("case", f"/app/incidents/{case}?tab=all"),
         ("approvals", "/app/approvals"),
@@ -448,9 +449,9 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
                     await page.goto(live.url + where)
                     await page.locator("main").wait_for()
                     await page.wait_for_load_state("networkidle")
-                    if "/cases/" in where:
+                    if "/incidents/" in where:
                         await page.get_by_role(
-                            "heading", level=1, name=re.compile("Case 1:")
+                            "heading", level=1, name=re.compile("Beaconing to the lab printer")
                         ).wait_for()
                         await page.get_by_role("button", name="Request closure").click()
                         await page.get_by_role(
@@ -460,10 +461,10 @@ async def test_axe_finds_nothing_serious_on_the_new_pages_light_dark_narrow_and_
                         await page.get_by_test_id("fingerprint").wait_for()
                     elif where == "/app/approvals":
                         await page.get_by_test_id("request").first.wait_for()
-                    elif "investigations/" in where:
+                    elif "alert-groups/" in where:
                         await page.get_by_role("region", name="Check more").wait_for()
                     else:
-                        await page.get_by_role("table", name="Cases").wait_for()
+                        await page.get_by_test_id("incident-row").first.wait_for()
                     await page.evaluate(
                         "() => document.querySelectorAll('details')"
                         ".forEach((d) => { d.open = true; })"

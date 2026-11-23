@@ -17,6 +17,7 @@ from typing import Any
 
 from pydantic import Field
 
+from argus.assets.classify import IpClass
 from argus.context.evidence import SignalValue, canonical, derived, from_logs
 from argus.context.packs import TaskSpec
 from argus.context.sourced import SourcedParams
@@ -45,7 +46,7 @@ SLOT = timedelta(minutes=10)
 MARGIN = timedelta(minutes=15)  # ingest: never read the last minutes
 MAX_WINDOW = timedelta(hours=24)
 AGG_DAYS = 1  # daily indices one aggregation may read
-INTERNAL = frozenset({"asset", "campus", "internal"})
+INTERNAL = frozenset({IpClass.ASSET.value, IpClass.OWN.value, IpClass.INTERNAL.value})
 
 
 def iso(at: datetime) -> str:

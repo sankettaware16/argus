@@ -228,9 +228,9 @@ class Sanitizer:
         self.ips = IPMapper(key, policy.site_prefixes)
         self.domains = DomainMapper(
             self.tokens,
-            policy.campus_domains,
+            policy.own_domains,
             policy.keep_domains,
-            policy.campus_replacement,
+            policy.own_replacement,
             sensitive_terms=policy.literals,
         )
         self._kinds = policy.field_kinds()
@@ -254,7 +254,7 @@ class Sanitizer:
         self._path_words = {w.lower() for p, _ in self._patterns for w in p.split(".")} | {
             w.lower() for p in self._kinds for w in p.split(".")
         }
-        domain_names = sorted({*self.domains.campus, *self.domains.keep}, key=len, reverse=True)
+        domain_names = sorted({*self.domains.ours, *self.domains.keep}, key=len, reverse=True)
         self._domain_re = (
             re.compile(
                 r"(?i)(?:(?<![\w.%-])(?<!%[0-9A-Fa-f])"

@@ -177,8 +177,8 @@ def build(raw_docs: list[dict[str, Any]]) -> tuple[Sanitizer, LeakScanner, int]:
         # A network that maps to itself (a whole private class) identifies nothing.
         if ident not in every_name and sanitizer.map_text(ident) != ident:
             denylist.add(ident)
-    # The campus domains themselves, even if the raw sources never spelled them out.
-    denylist |= set(policy.denylist_extra) | set(policy.literals) | set(policy.campus_domains)
+    # The own domains themselves, even if the raw sources never spelled them out.
+    denylist |= set(policy.denylist_extra) | set(policy.literals) | set(policy.own_domains)
     ambiguous = len(denylist & sanitizer.pseudonyms)
     return sanitizer, LeakScanner(denylist, networks=policy.site_prefixes), ambiguous
 
@@ -244,7 +244,7 @@ def cmd_samples(args: argparse.Namespace) -> int:
     files: dict[str, Any] = {}
     for path, doc in zip(SAMPLES, raw, strict=True):
         clean = sanitizer.sanitize(doc)
-        # Name the file from the SANITIZED rule name: raw rule names can contain campus names.
+        # Name the file from the SANITIZED rule name: raw rule names can contain internal names.
         source = clean["_source"]
         rule_type = source.get("kibana.alert.rule.type", "unknown")
         name = f"{rule_type}__{slug(source.get('kibana.alert.rule.name', 'unnamed'))}.json"

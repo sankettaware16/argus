@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus.caseteam.service import post_config
 from argus.config.settings import Settings, operator_of
 from argus.db.errors import DB_ERRORS, short_db_error
+from argus.directory import load as load_directory
 from argus.gateway.cli import ConfigOption, engine_for, load
 from argus.ops.stopping import quiet_after_uvicorn
 from argus.web import auth
@@ -87,7 +88,7 @@ def web(config: ConfigOption = None) -> None:
 
         shared = load_shared()
         eligible = (
-            Eligibility(privacy.classifier, privacy.campus, privacy.campus_for)
+            Eligibility(privacy.classifier, privacy.ours, privacy.ours_for)
             if privacy is not None
             else None
         )
@@ -97,7 +98,9 @@ def web(config: ConfigOption = None) -> None:
                              shared.reason("domain", parent) is None
                              and (eligible is None or eligible.check("domain", parent) is None)
                          )), team=post_config(settings),
-                         signins=signins_reading(settings, privacy, watch))  # fmt: skip
+                         signins=signins_reading(settings, privacy, watch),
+                         directory=load_directory(settings.directory),
+                         sla=settings.sla)  # fmt: skip
     except KeyFileError as exc:  # the approval key named in web.approval_key_file
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(2) from None

@@ -16,7 +16,7 @@ benign, accepted or attempt closure is expected, so those are not watched). One 
 1. **Membership.** An investigation that alerted after the case's reference time (its opening;
    its containment; its closure) joins the case when it strongly matches the case's actors or
    indicators and no other case matches as well:
-   - a campus host, account or attacker address in common is an *actor* match; a C2 or other
+   - an internal host, account or attacker address in common is an *actor* match; a C2 or other
      indicator address or name in common is a *c2* or *indicator* match (actor first);
    - a match through **shared infrastructure** is only *suggested*, never joined: an address in a
      content-delivery or cloud network or a name on one of their services
@@ -54,7 +54,7 @@ benign, accepted or attempt closure is expected, so those are not watched). One 
    **closed** one on every day since its containment or closure (up to 14 days), however long
    the watch was down.
 3. **The proxy logs** (`cases.watch: on`): per address of the case (a public `c2` or `indicator`
-   address) and finished day not yet decided, one `proxy.contact` request with the case's campus
+   address) and finished day not yet decided, one `proxy.contact` request with the case's internal
    hosts watched (at most 10 a request), window 01:40-22:59 UTC (one daily index; Q-F1's readings
    stop at 00:00 and resume at 01:30, so an earlier start has no anchor). A day the alerts already
    show active is not asked. When contact is seen, one `proxy.pair` request reads its rhythm. A

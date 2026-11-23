@@ -1,6 +1,6 @@
 [Unit]
-Description=ARGUS web (custody layout, Q-A5)
-# D-104: HTTPS on the campus network; only these clients (and this machine) and host names.
+Description=ARGUS web (custody layout)
+# D-104: HTTPS on the internal network; only these clients (and this machine) and host names.
 # Its TLS key is a credential (systemd puts this unit's in /run/credentials/argus-web.service);
 # it logs in as argus_api.
 After=network-online.target docker.service

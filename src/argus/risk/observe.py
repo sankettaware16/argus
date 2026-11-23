@@ -1,5 +1,5 @@
 """Step 1 of the engine (E1): an alert group, with its newest dossier's signals, becomes scored
-**observations** on campus **objects** (devices, accounts, campus sites). A pure function: the
+**observations** inside **objects** (devices, accounts, own sites). A pure function: the
 replay runs it unchanged.
 
 - One **rule observation** per (object, alert group): the rule's lineage is the source, its
@@ -7,11 +7,11 @@ replay runs it unchanged.
   a rule that reads several families, the family of the group's own alerts' index).
 - One **evidence observation** per (object, evidence kind) the dossier or the stored flags show
   (``config/risk.yaml``'s ``evidence``): a threat-list hit, an outside detection, a beacon...
-- Objects come from the group's actor key: a campus address is a device, a host name a device, an
-  account an account. An inbound group (an outside actor) puts its observations on the campus
-  **target** instead (a site); with no target named, on the sites the exposure step found for it
-  (E3), and with none found it has no object and only the digest counts it. Outside things are
-  threat values on the observation (linking is E2).
+- Objects come from the group's actor key: an internal address is a device, a host name a
+  device, an account an account. An inbound group (an outside actor) puts its observations on
+  the organisation's own **target** instead (a site); with no target named, on the sites the
+  exposure step found for it (E3), and with none found it has no object and only the digest
+  counts it. Outside things are threat values on the observation (linking is E2).
 - A group a notified case holds as a known infection gives no observation (its case has it).
 """
 
@@ -30,8 +30,8 @@ from argus.outside.psl import registered_parent
 from argus.risk.config import RiskConfig, passes, stage_bit
 from argus.risk.roles import (
     ACTOR_NAMESPACES,
-    CAMPUS_CLASSES,
     MAX_VALUE,
+    OWN_CLASSES,
     Direction,
     RoleEntity,
     account,
@@ -70,7 +70,7 @@ class Group:
     flags: Sequence[str] = ()  # the stored raise flags
     known: bool = False  # held as a known infection by a notified case
     indices: Sequence[str] = ()  # the concrete indices its alerts were made from
-    # the campus sites an inbound group reached when its alerts name none (E3: its stored web
+    # the own sites an inbound group reached when its alerts name none (E3: its stored web
     # evidence, else the checking lane's lookup)
     sites: Sequence[str] = ()
 
@@ -109,7 +109,7 @@ class Observed:
     objects: tuple[ObjectRef, ...]
     observations: tuple[Observation, ...]
     entities: tuple[RoleEntity, ...]
-    hubs: tuple[str, ...] = ()  # why campus actors were left out as hubs (identity, E4)
+    hubs: tuple[str, ...] = ()  # why internal actors were left out as hubs (identity, E4)
     aliases: tuple[tuple[ObjectRef, ObjectRef], ...] = ()  # (address, host) the group shows
 
 
@@ -117,7 +117,7 @@ class Observed:
 class Context:
     config: RiskConfig
     classifier: IpClassifier
-    campus_domains: Sequence[str] = ()
+    own_domains: Sequence[str] = ()
     fresh_feeds: frozenset[str] = frozenset({"mirror", "lookup"})  # modes with a fresh feed
     shared: Shared = NO_SHARED
     families: Sequence[LogFamily] = ()  # the site's log families
@@ -205,8 +205,8 @@ def objects_of(
     group: Group, direction: Direction, entities: Sequence[RoleEntity], ctx: Context,
     hubs: list[str] | None = None,
 ) -> list[tuple[ObjectRef, ObsRole]]:  # fmt: skip
-    """The group's campus objects and their role: its campus actors (addresses, hosts and
-    accounts of the key, and the accounts that acted), or, for an inbound group, the campus
+    """The group's internal objects and their role: its internal actors (addresses, hosts and
+    accounts of the key, and the accounts that acted), or, for an inbound group, the own
     targets it names. A hub address (identity) is left out, its reason added to ``hubs``."""
     found: dict[ObjectRef, ObsRole] = {}
     limit = ctx.config.max_actors
@@ -218,7 +218,7 @@ def objects_of(
             ref: ObjectRef | None = None
             if name.endswith(".ip"):
                 c = ctx.classifier.classify(value)
-                if c.address is not None and c.ip_class in CAMPUS_CLASSES:
+                if c.address is not None and c.ip_class in OWN_CLASSES:
                     ref = ObjectRef("device", f"ip:{c.address}")
                     if ctx.devices is not None:
                         ref, hub = ctx.devices(c.address, group.day)
@@ -264,7 +264,7 @@ def observe(group: Group, rule: RuleMeta | None, ctx: Context) -> Observed:
     for name, raw in key_pairs(group.key):  # the key's values are the group's too
         fields.setdefault(name, [])
         fields[name] = list(dict.fromkeys([*raw, *fields[name]]))
-    direction, entities = roles(fields, ctx.classifier, ctx.campus_domains)
+    direction, entities = roles(fields, ctx.classifier, ctx.own_domains)
     outcome = outcome_factor(group.outcomes)
     if group.known:
         return Observed(group.id, direction, outcome, (), (), entities)
@@ -306,14 +306,14 @@ def host_aliases(
     group: Group, ctx: Context,
 ) -> tuple[tuple[ObjectRef, ObjectRef], ...]:  # fmt: skip
     """(address, host) when the group's key names one host and its alerts give that host exactly
-    one campus address of its own (``host.ip``): the host had that address that day (identity,
+    one internal address of its own (``host.ip``): the host had that address that day (identity,
     E4). Never a peer's address: a login to a server names its client in ``source.ip``."""
     hosts = [r for r, role in objects if r.kind == "device" and r.key.startswith("host:")]
     if len(hosts) != 1:
         return ()
     addresses = {
         c.address for v in fields.get(HOST_ADDRESS, ())
-        if (c := ctx.classifier.classify(v)).address is not None and c.ip_class in CAMPUS_CLASSES
+        if (c := ctx.classifier.classify(v)).address is not None and c.ip_class in OWN_CLASSES
     }  # fmt: skip
     if len(addresses) != 1:
         return ()
@@ -326,8 +326,8 @@ def host_aliases(
     return ((ref, hosts[0]),)
 
 
-def is_campus(classifier: IpClassifier, value: str) -> bool:
-    return classifier.classify(value).ip_class in CAMPUS_CLASSES
+def is_own(classifier: IpClassifier, value: str) -> bool:
+    return classifier.classify(value).ip_class in OWN_CLASSES
 
 
 def public(classifier: IpClassifier, value: str) -> bool:

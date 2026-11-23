@@ -44,8 +44,20 @@ Each needs a decision and a person present for its first run at a new site:
   watch; off again on any CAUTION that ARGUS causes.
 - The alert status write-back in real use, after its canary.
 - A local model for helper tasks, each task only after its evaluation against the gold set.
+- **A demo without a SIEM**: one command that fills a local database with made-up alerts and
+  incidents (the data behind the documentation's screenshots) and opens the app on it.
+- **A container image**, so that trying ARGUS does not need systemd.
+- A second kind of site in the test suite's main fixtures (today the suite's own made-up site
+  is a university; a second made-up site, a manufacturer, checks the words).
 
 ## Known gaps
+
+- ARGUS reads Elastic Security alerts only: there is no other alert source.
+- It has run at one organisation. Evidence packs are written against ECS field names with
+  per-family overrides (`site.log_families[].fields`); a site whose logs differ more than that
+  will see "could not tell" where a pack does not fit.
+- Some messages of `argus doctor` and the command line still carry the project's internal
+  work-item labels (`Q-A2`, `DQ29`).
 
 - The Kibana read-back unit expects two files under `local/` (the first site's layout); a
   standard install creates them by hand ([kibana.md](kibana.md#the-read-back)).

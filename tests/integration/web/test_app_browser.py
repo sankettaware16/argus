@@ -20,6 +20,7 @@ import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import pytest
 from sqlalchemy import text
@@ -75,7 +76,7 @@ class Watch:
 
 
 async def sign_in(page: Any, base: str, next_path: str = "/app") -> None:
-    await page.goto(f"{base}/signin?next={next_path}")
+    await page.goto(f"{base}/signin?next={quote(next_path, safe='/')}")
     await page.fill("#username", "asha")
     await page.fill("#password", PASSWORD)
     async with page.expect_navigation(url=re.compile(re.escape(base + next_path) + r"/?$")):

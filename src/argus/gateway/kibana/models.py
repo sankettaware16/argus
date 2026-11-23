@@ -254,7 +254,7 @@ class ClosePatch(CasesPatch):
     def _closure(self) -> ClosePatch:
         change = self.cases[0]
         if change.status != "closed" or change.tags is None or closing_tags(change.tags) is None:
-            raise ValueError("a closure sets status closed and its reason tags (plan §7.1)")
+            raise ValueError("a closure sets status closed and its reason tags")
         if any(v is not None for v in (change.title, change.description, change.severity)):
             raise ValueError("a closure changes status and tags only")
         return self

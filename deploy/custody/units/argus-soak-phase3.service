@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS soak gate (P4-A1: the Phase 3 exit gate judged from the store and saved under soak.dir; custody layout, Q-A5)
+Description=ARGUS soak gate: the exit gate judged from the store and saved under soak.dir (custody layout)
 # Started by argus-soak-phase3.timer. Reads the local database and a few local files only (no
 # request to the SIEM, no model call); writes its report to its own state folder. Off until the
 # lead switches it on.

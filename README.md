@@ -61,7 +61,9 @@ AI keys it uses **free providers first** and caps paid use per day and per month
 ## A short tour
 
 The screenshots show a demo installation on made-up data, never a real one, in the order you
-meet them. More in the [Web UI guide](docs/web-ui-guide.md).
+meet them. The demo's organisation is a company called Northwind Logistics: its name, "your
+network", the time zone's label and the incident numbers are that site's settings, and yours
+replace them. More in the [Web UI guide](docs/web-ui-guide.md).
 
 ### Set it up in minutes
 
@@ -89,7 +91,11 @@ meet them. More in the [Web UI guide](docs/web-ui-guide.md).
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/screenshots/reports.png" alt="Reports: incident reports first, then the daily and weekly summaries"/><br/><sub><b>10 · Reports</b>: incident reports, then daily and weekly summaries</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/images/screenshots/alerts.png" alt="Alerts: every alert group, newest first, with the incident each one belongs to"/><br/><sub><b>11 · Alerts</b>: every alert group, and the incident it belongs to</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshots/dashboards.png" alt="The security overview dashboard: the figures, the alerts over time with a readout, and how far ARGUS narrows them down"/><br/><sub><b>12 · Dashboards</b>: a security overview that reads by pointing, by keys or as a table</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/dashboards-detections.png" alt="The detections dashboard: every rule that fired, the loud ones that never found anything and the ones that did"/><br/><sub><b>13 · Detections</b>: which rules matter, and which are only loud</sub></td>
   </tr>
 </table>
 
@@ -97,23 +103,23 @@ meet them. More in the [Web UI guide](docs/web-ui-guide.md).
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/settings.png" alt="Settings: every setting with its help, and a connection check"/><br/><sub><b>11 · Settings</b>: every setting with its help, applied for you</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/users.png" alt="Users and roles: who may sign in and what they may do"/><br/><sub><b>12 · Users and roles</b>: people, roles and one-time links</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/settings.png" alt="Settings: every setting with its help, and a connection check"/><br/><sub><b>14 · Settings</b>: every setting with its help, applied for you</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/users.png" alt="Users and roles: who may sign in and what they may do"/><br/><sub><b>15 · Users and roles</b>: people, roles and one-time links</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/ai-agents.png" alt="AI and agents: ARGUS's team, the providers, their keys and spending limits"/><br/><sub><b>13 · AI and agents</b>: ARGUS's tested team; free providers first, paid ones capped</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/threat-intel.png" alt="Threat intel: VirusTotal, Shodan and Censys with their keys, limits and a test"/><br/><sub><b>14 · Threat intel</b>: free keys, their limits and a test</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/ai-agents.png" alt="AI and agents: ARGUS's team, the providers, their keys and spending limits"/><br/><sub><b>16 · AI and agents</b>: ARGUS's tested team; free providers first, paid ones capped</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/threat-intel.png" alt="Threat intel: VirusTotal, Shodan and Censys with their keys, limits and a test"/><br/><sub><b>17 · Threat intel</b>: free keys, their limits and a test</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/costs.png" alt="Costs and usage: the AI's spend a day, the month against its cap, and the lookups"/><br/><sub><b>15 · Costs and usage</b>: every dollar and lookup against its limit</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/system-health.png" alt="System health with ARGUS's services and timers"/><br/><sub><b>16 · System health</b>: is data arriving; the services, on or off</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/costs.png" alt="Costs and usage: the AI's spend a day, the month against its cap, and the lookups"/><br/><sub><b>18 · Costs and usage</b>: every dollar and lookup against its limit</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/system-health.png" alt="System health with ARGUS's services and timers"/><br/><sub><b>19 · System health</b>: is data arriving; the services, on or off</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/today-dark.png" alt="Today in dark mode"/><br/><sub><b>17 · Dark mode</b>: follows the system setting</sub></td>
-    <td width="50%"><img src="docs/images/screenshots/incidents-dark.png" alt="Incidents in dark mode"/><br/><sub><b>18 · Incidents, dark</b>: the same queue at night</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/today-dark.png" alt="Today in dark mode"/><br/><sub><b>20 · Dark mode</b>: follows the system setting</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/incidents-dark.png" alt="Incidents in dark mode"/><br/><sub><b>21 · Incidents, dark</b>: the same queue at night</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/screenshots/signin.png" alt="The sign-in page"/><br/><sub><b>19 · Sign in</b>: a page that runs no script</sub></td>
+    <td width="50%"><img src="docs/images/screenshots/signin.png" alt="The sign-in page"/><br/><sub><b>22 · Sign in</b>: a page that runs no script</sub></td>
     <td width="50%"></td>
   </tr>
 </table>
@@ -124,12 +130,12 @@ meet them. More in the [Web UI guide](docs/web-ui-guide.md).
   a configurable history (`history.window`, 5 days by default), reconciles hourly so nothing is
   lost between reviews, and quarantines (never drops) an alert it cannot read.
 - **Incidents, not alerts** — an incident engine scores every alert group and evidence fact on the
-  campus side (device, account, site), links them across rules, days and log families by shared
+  organisation's own side (device, account, site), links them across rules, days and log families by shared
   hosts, accounts, flagged or rare indicators and campaigns (never through hubs such as NAT,
   proxies or resolvers), and puts in front of a person only what crosses a lane (decisive, burst,
   slow, campaign, exposure). Each incident carries a priority (P1–P4), a certainty word, a "why"
   line whose points add up, what was checked, and the benign explanations it ruled out; plain
-  internet scanning goes to a "handled by ARGUS" digest. A campus site that really served a file
+  internet scanning goes to a "handled by ARGUS" digest. A site of yours that really served a file
   is verified by a capped checking lane before anyone reads "served".
 - **Groups before people look** — one investigation per rule, actor and day; alike investigations
   form patterns a reviewer decides at once. Thousands of alerts become hundreds of decisions.
@@ -200,6 +206,35 @@ flowchart LR
 Every arrow into the SIEM goes through the Elastic Gateway; every arrow to a model goes through
 the LLM gateway and its privacy layer. Full diagrams (the gateway, health states, the privacy
 layer, the database, the services): [docs/architecture.md](docs/architecture.md).
+
+## Is ARGUS for you?
+
+Read this before you spend an afternoon on it.
+
+- **It needs Elastic Security with alerts.** ARGUS reads the alerts your detection rules write
+  in one Kibana space and the logs behind them. Without an Elastic SIEM that already raises
+  alerts there is nothing for it to do, and it reads no other SIEM. It runs on one Linux machine
+  with systemd and Docker.
+- **It has run at one organisation so far**: a university network of about 12,000 alerts a day,
+  in production since November 2026, and on the project's own Elastic 8.19 test stack. Nothing
+  in it assumes that organisation: the words on its pages and in its AI prompts ("campus", "the
+  plant", "your network"; a university, a company) come from your settings, the log families
+  from your own indices, and the test suite checks both on a second, made-up site. A second
+  real installation will still find things the first did not: please open an issue.
+- **You cannot try it without installing it yet.** There is no hosted demo and no container
+  image. The [short tour](#a-short-tour) below is screenshots of the real app on made-up data;
+  a demo you can run locally without a SIEM is on the [roadmap](docs/roadmap.md).
+- **It is a set of small services, not one program.** A default install runs five (the
+  collector, the worker, the assessments, the web app and the settings service) and two backup
+  timers: about 1.1 GB of memory at the first site (1.7 GB with the Kibana features on), and a
+  PostgreSQL database of about 2 GB after two weeks. The other units in `deploy/systemd/` are optional features, off until
+  you switch them on (Kibana read-back, the case team, reports, e-mail notices, alert
+  write-back). They are separate so that each one has its own database login, its own secrets
+  and its own share of the SIEM load budget. `./install.sh` creates them, **Settings** starts
+  and stops them, and `argus doctor` says what is wrong.
+- **It is pre-1.0, with one maintainer.** The last tagged release is 0.2.0; `main` is the
+  development version of 0.4.0 ([changelog](CHANGELOG.md)). CI runs the unit, integration,
+  Kibana-contract and frontend suites on every push.
 
 ## Getting Started
 
@@ -440,7 +475,7 @@ Details: [docs/architecture.md](docs/architecture.md#tech-stack).
 | [The case team](docs/case-team.md) | The seven Kibana users, provisioning, switching posting on, the canary, the read-back |
 | [Operations](docs/operations.md) | Services and timers, `argus doctor`, logs, backups, retention, kill switches, key rotation, certificates |
 | [Web UI Guide](docs/web-ui-guide.md) | Sign-in, every page, approvals, Settings, Users and roles, ELK sign-in |
-| [Reviewers' guide](docs/guide-ta-ra.md) | One page for the people who review alerts every day |
+| [Reviewers' guide](docs/guide-reviewers.md) | One page for the people who review alerts every day |
 | [Kibana integration](docs/kibana.md) | The reader key, the read-back, the self-test, write classes (off by default) |
 | [Upgrading](docs/upgrading.md) | A verified backup, migrate, reinstall the units, restart; rolling back |
 | [Troubleshooting](docs/troubleshooting.md) | Real messages and their fixes |
@@ -472,6 +507,7 @@ Highlights; the full list is in [docs/roadmap.md](docs/roadmap.md):
   measured.
 - Alert status write-back to Kibana in real use, after its canary.
 - A local model for helper tasks, each task only after its evaluation against the gold set.
+- A demo you can run without a SIEM, and a container image.
 
 ## Contributing
 

@@ -55,7 +55,7 @@ def task(start: datetime = NOW - timedelta(hours=6), end: datetime = NOW - timed
 
 async def send(conn: Any, gateway: Any, spec: TaskSpec, **kw: Any) -> Any:
     return await batch1.send(conn, gateway, spec, enabled={"proxy.pair"}, history=HISTORY,
-                             is_campus=batch1.private_or(None),
+                             is_own=batch1.private_or(None),
                              deadline=gateway.clock() + timedelta(seconds=60), **kw)  # fmt: skip
 
 

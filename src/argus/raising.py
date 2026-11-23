@@ -178,7 +178,7 @@ def titles_for(settings: Any, privacy: Any) -> titling.Context | None:
     as :func:`outside_for`: ``assess`` never imports it."""
     if not settings.cases.retitle:
         return None
-    return titling.Context(getattr(privacy, "classifier", None), tuple(privacy.campus.domains))
+    return titling.Context(getattr(privacy, "classifier", None), tuple(privacy.ours.domains))
 
 
 def known_for(
@@ -191,7 +191,7 @@ def known_for(
     classifier = getattr(privacy, "classifier", None)
     if classifier is None:
         return None
-    eligible = Eligibility(classifier, privacy.campus, privacy.campus_for)
+    eligible = Eligibility(classifier, privacy.ours, privacy.ours_for)
     return knownrun.context_for(settings, classifier, shared=shared, view=view, eligible=eligible)
 
 
@@ -207,7 +207,7 @@ def outside_for(
     shared = load_shared()
     outside = Outside(
         db, settings.outside, transport,
-        Eligibility(privacy.classifier, privacy.campus, privacy.campus_for),
+        Eligibility(privacy.classifier, privacy.ours, privacy.ours_for),
         parent_ok=lambda parent: shared.reason("domain", parent) is None,
     )  # fmt: skip
     return outside, shared, transport.aclose

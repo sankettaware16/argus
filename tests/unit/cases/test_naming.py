@@ -331,7 +331,7 @@ def test_two_kinds_of_a_quarter_each_or_a_plain_web_scan() -> None:
 
 
 def test_a_threat_listed_prober_of_campus_servers() -> None:
-    f = Facts(outsiders=("203.0.113.51",), listed=("203.0.113.51",), campus_servers=3)
+    f = Facts(outsiders=("203.0.113.51",), listed=("203.0.113.51",), own_servers=3)
     assert title(f) == "Suspected probing of 3 campus servers by 203.0.113.51 (on a threat list)"
 
 
@@ -656,7 +656,7 @@ facts_st = st.builds(
         hostile | st.sampled_from([f"r{i}.fast.example" for i in range(4)]), max_size=10
     ).map(tuple),
     sites=st.lists(sites_st, max_size=5).map(tuple),
-    campus_servers=st.integers(0, 40),
+    own_servers=st.integers(0, 40),
     listed=st.lists(st.sampled_from([*SERVERS, *ATTACKERS]) | hostile, max_size=5).map(tuple),
     labels=st.lists(
         hostile | st.sampled_from(["amadey", "PS1Bot C2", "cobalt strike"]), max_size=3

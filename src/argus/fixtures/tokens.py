@@ -250,35 +250,35 @@ class DomainMapper:
     * the organisation's own domains (``*.example.edu``) become ``<label tokens>.univ.example``; a
       second one becomes ``<label tokens>.c2.univ.example`` and so on, in policy order;
     * every other label becomes an 8-character keyed token; the public suffix is kept, unless it
-      carries one of the organisation's names itself (``printer.campus``).
+      carries one of the organisation's names itself (``printer.internal``).
     """
 
     def __init__(
         self,
         tokenizer: Tokenizer,
-        campus_domains: Iterable[str],
+        own_domains: Iterable[str],
         keep_domains: Iterable[str],
-        campus_replacement: str = "univ.example",
+        own_replacement: str = "univ.example",
         sensitive_terms: Iterable[str] = (),
     ) -> None:
         self._tokens = tokenizer
-        ordered = list(dict.fromkeys(_norm(d) for d in campus_domains if _norm(d)))
+        ordered = list(dict.fromkeys(_norm(d) for d in own_domains if _norm(d)))
         self._replacements = {
-            domain: campus_replacement if i == 0 else f"c{i + 1}.{campus_replacement}"
+            domain: own_replacement if i == 0 else f"c{i + 1}.{own_replacement}"
             for i, domain in enumerate(ordered)
         }
-        self.campus = tuple(sorted(ordered, key=len, reverse=True))
+        self.ours = tuple(sorted(ordered, key=len, reverse=True))
         self.keep = tuple(
             sorted({_norm(d) for d in keep_domains if _norm(d)}, key=len, reverse=True)
         )
         terms = {_squash(t) for t in sensitive_terms}
-        for campus in ordered:
-            decoded = _unpuny(campus)  # an IDN name is compared as its letters
+        for ours in ordered:
+            decoded = _unpuny(ours)  # an IDN name is compared as its letters
             terms |= {
-                _squash(campus.split(".")[0]),
+                _squash(ours.split(".")[0]),
                 _squash(decoded.split(".")[0]),
             }  # the first label
-            terms |= {_squash(campus), _squash(decoded)}  # the whole domain: example-edu
+            terms |= {_squash(ours), _squash(decoded)}  # the whole domain: example-edu
         self._sensitive = tuple(sorted(t for t in terms if len(t) >= 3))
 
     def map(self, domain: str) -> str:
@@ -288,10 +288,10 @@ class DomainMapper:
             return self._tokens.token("domain", domain.strip().lower(), "d-", 12) + ".invalid"
         if not name:
             return domain
-        for campus in self.campus:
-            if _under(name, campus):
-                head = name[: -len(campus)].rstrip(".")
-                return self._join(head, self._replacements[campus])
+        for ours in self.ours:
+            if _under(name, ours):
+                head = name[: -len(ours)].rstrip(".")
+                return self._join(head, self._replacements[ours])
         for kept in self.keep:
             if _under(name, kept):
                 head = name[: -len(kept)].rstrip(".")

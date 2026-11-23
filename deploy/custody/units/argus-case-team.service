@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS case team (AR8, D-214: person-confirmed cases to Kibana; custody layout, Q-A5)
+Description=ARGUS case team: posts person-confirmed cases to Kibana (custody layout)
 # Started by argus-case-team.timer. Posts only with case_team.post true and class WC switched on
 # in /etc/argus/argus.env (docs/runbooks/kibana-case-team.md); the six keys are this unit's alone.
 After=network-online.target docker.service

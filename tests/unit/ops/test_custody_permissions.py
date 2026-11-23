@@ -141,6 +141,8 @@ def test_the_kernel_keeps_every_credential_from_every_service_user(tmp_path: Pat
         ("outside.virustotal_api_key", "Synthetic-VirusTotal-12"),
         ("outside.shodan_api_key", "Synthetic-Shodan-13"),
         ("outside.censys_api_key", "Synthetic-Censys-14"),
+        # the account directory's session (D-337): optional, only where the site has a directory
+        ("directory.session", "SyntheticDirectorySession15"),
     ):
         (base / "etc" / "credentials" / name).write_text(value)
         (base / "etc" / "credentials" / name).chmod(0o600)

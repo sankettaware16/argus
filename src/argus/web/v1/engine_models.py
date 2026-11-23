@@ -88,7 +88,7 @@ class EngineOut(Out):
     why_line: str  # the why items in one line: "+49 outside detection · x1.2 still active"
     checks: list[EngineCheckOut]
     alternatives: list[AlternativeOut]
-    objects: list[EngineObjectOut]  # the campus objects, those that acted first (at most 50)
+    objects: list[EngineObjectOut]  # the internal objects, those that acted first (at most 50)
     raised_by_ai: bool  # the AI's gray-band judge put it in front of a person
     active: bool  # an observation in the last 72 hours
     first_seen: datetime

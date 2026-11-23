@@ -152,14 +152,14 @@ def alert_doc(n: int, rule: Rule, at: datetime, src: str, dst: str, port: int,
         "kibana.alert.rule.threat": list(rule.threat),
         "kibana.alert.rule.tags": ["Demo", rule.family],
         "kibana.alert.rule.indices": [f"acme-logs-{rule.family}-*"],
-        "kibana.alert.rule.author": ["Example University"],
+        "kibana.alert.rule.author": ["Northwind SOC"],
         "kibana.alert.reason": f"{rule.name}: {src} to {dst}:{port}",
     }.items():  # fmt: skip
         source[key] = value
     params.update(rule_id=rule.rule_id, severity=rule.severity, risk_score=rule.risk,
                   description=rule.about, note=source["kibana.alert.rule.note"],
                   threat=list(rule.threat), index=[f"acme-logs-{rule.family}-*"],
-                  author=["Example University"])  # fmt: skip
+                  author=["Northwind SOC"])  # fmt: skip
     source["source"] = {"ip": src, "port": 40000 + n % 20000}
     source["destination"] = {"ip": dst, "port": port}
     source["host"] = {"name": host or "proxy-01"}
@@ -190,7 +190,7 @@ def demo_docs(now: datetime) -> list[dict[str, Any]]:
         443,
         1,
         9,
-        host="lab-ws-17",
+        host="ops-ws-17",
         domain="update-check.example.net",
     )
     add(
@@ -200,10 +200,10 @@ def demo_docs(now: datetime) -> list[dict[str, Any]]:
         443,
         3,
         6,
-        host="lab-ws-23",
+        host="ops-ws-23",
         domain="update-check.example.net",
     )
-    add("demo-raw-ip-post", "10.20.4.17", "203.0.113.45", 80, 2, 4, host="lab-ws-17")
+    add("demo-raw-ip-post", "10.20.4.17", "203.0.113.45", 80, 2, 4, host="ops-ws-17")
     add(
         "demo-malware-download",
         "10.20.7.88",
@@ -211,7 +211,7 @@ def demo_docs(now: datetime) -> list[dict[str, Any]]:
         80,
         5,
         3,
-        host="hostel-pc-88",
+        host="depot-pc-88",
         domain="files.example.org",
     )
     add("demo-raw-ip-post", "10.20.8.40", "192.0.2.200", 80, 7, 5, host="office-pc-40")
@@ -222,7 +222,7 @@ def demo_docs(now: datetime) -> list[dict[str, Any]]:
         80,
         9,
         2,
-        host="lab-ws-5",
+        host="ops-ws-5",
         domain="cdn-files.example.net",
     )
     add("demo-c2-beacon", "10.20.15.9", "203.0.113.77", 443, 2, 8, host="research-ws-9")
@@ -240,7 +240,7 @@ def demo_docs(now: datetime) -> list[dict[str, Any]]:
             443,
             h,
             5,
-            host=f"lab-ws-{30 + i * 7}",
+            host=f"ops-ws-{30 + i * 7}",
         )
     for i, h in enumerate((12, 36, 80)):
         add(
@@ -375,7 +375,7 @@ async def work_the_cases(app: AsyncEngine, now: datetime) -> None:
         if confirm is not None:
             await service.apply(who, confirm, Confirm(), expected_version=None)
             await service.apply(who, confirm, Take(), expected_version=None)
-            await service.apply(who, confirm, Notify("The lab's IT team", "email"),
+            await service.apply(who, confirm, Notify("The depot's IT team", "email"),
                                 expected_version=None)  # fmt: skip
         if dismiss is not None:
             await service.apply(who, dismiss, Dismiss("attempt_no_impact", "Blocked at the edge."),

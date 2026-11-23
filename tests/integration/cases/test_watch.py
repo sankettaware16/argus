@@ -524,7 +524,7 @@ async def test_without_verified_zeros_a_quiet_window_is_never_reached(
     assert {v for k, v in (await world.rows(case_id)).items() if k[1] == CONTACT} == {"unverified"}
     with pytest.raises(CaseRefused) as refused:
         await world.contain(off, asha, case_id, at(4, 4))
-    assert "not switched on yet (Q-F1)" in refused.value.message
+    assert "not switched on yet" in refused.value.message
     # switched on later: the days already decided stay as they were; three new days are needed
     on = context(asker)
     for n in (5, 6):

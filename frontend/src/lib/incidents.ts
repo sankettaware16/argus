@@ -7,6 +7,7 @@ import type { CaseRowOut } from "../client/types.gen";
 import type { CaseViewName } from "./cases";
 import { BANDS, byPriority, engineOf, isPrivateIp, outcomeOf, scanReasonBlocked, shownCertainty, type Band, type Engine } from "./engine";
 import { first } from "./search";
+import { ownCapital } from "./site";
 
 export const INCIDENT_VIEWS = ["needs-you", "mine", "open", "owner-told", "closed", "all"] as const;
 export type IncidentView = (typeof INCIDENT_VIEWS)[number];
@@ -32,7 +33,14 @@ export const VIEW_API: Readonly<Record<IncidentView, CaseViewName>> = {
 
 export const CERTAINTY_FILTERS = ["Likely", "Suspected", "Unclear", "Likely harmless", "Confirmed"] as const;
 export const SIDE_FILTERS = ["device", "account", "site"] as const;
-export const SIDE_WORDS: Readonly<Record<(typeof SIDE_FILTERS)[number], string>> = { device: "Devices", account: "Accounts", site: "Campus sites" };
+export const SIDE_WORDS: Readonly<Record<(typeof SIDE_FILTERS)[number], string>> = {
+  device: "Devices",
+  account: "Accounts",
+  // the site's own word, read when shown
+  get site() {
+    return ownCapital("sites");
+  },
+};
 export const SORTS = ["priority", "waiting", "activity"] as const;
 export const SORT_WORDS: Readonly<Record<(typeof SORTS)[number], string>> = { priority: "Priority", waiting: "Waiting longest", activity: "Last activity" };
 export const KIBANA_FILTERS = ["in", "waiting", "failing"] as const;
@@ -192,7 +200,7 @@ export function titleSources(title: string): number | null {
 }
 
 export interface TogetherRow {
-  campus: string;
+  ours: string;
   outcome: string;
   band: string;
   number: number;
@@ -205,18 +213,18 @@ export interface TogetherRow {
 }
 
 /**
- * Review together's rows (§6.6): one per campus-side object, with what answered; the outside
+ * Review together's rows (§6.6): one per own-side object, with what answered; the outside
  * sources last; "Different" on a row whose band or outcome differs from the majority.
  */
 export function togetherRows(rows: readonly Row[]): TogetherRow[] {
   const out: TogetherRow[] = [];
   for (const r of rows) {
-    const campus = r.engine?.objects.filter((o) => o.role === "affected") ?? [];
+    const ours = r.engine?.objects.filter((o) => o.role === "affected") ?? [];
     const sources = r.engine ? r.engine.objects.filter((o) => o.role === "actor").length : titleSources(r.row.title);
     const outcome = outcomeWords(r) ?? "not known";
     const blocked = scanReasonBlocked(r.engine, r.row.title);
-    for (const c of campus.length > 0 ? campus.map((o) => o.label) : ["not known"]) {
-      out.push({ campus: c, outcome, band: r.engine?.band ?? "—", number: r.row.number, id: r.row.id, sources, last: r.engine?.last_seen ?? r.row.last_alert_at, different: false, blocked });
+    for (const c of ours.length > 0 ? ours.map((o) => o.label) : ["not known"]) {
+      out.push({ ours: c, outcome, band: r.engine?.band ?? "—", number: r.row.number, id: r.row.id, sources, last: r.engine?.last_seen ?? r.row.last_alert_at, different: false, blocked });
     }
   }
   const tally = (key: (t: TogetherRow) => string) => {

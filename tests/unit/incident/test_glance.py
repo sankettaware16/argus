@@ -118,7 +118,7 @@ def overlapping() -> m.IncidentReport:
     f = kit.scanners(count=2)
     first = f.docs[0]
     both = replace(first, alert_id="a-x", fields={**first.fields, "url.domain": (kit.SITES[1],)})
-    return build(replace(f, docs=(*f.docs, both)), kit.ctx(campus_domains=("example.edu",)))
+    return build(replace(f, docs=(*f.docs, both)), kit.ctx(own_domains=("example.edu",)))
 
 
 def test_targets_whose_counts_overlap_are_named_not_counted_or_drawn_as_bars() -> None:
@@ -378,14 +378,14 @@ def test_a_verdict_of_some_reviews_says_how_many_never_a_persons_verdict() -> No
     expected activity (a person's verdict)", so the other fifteen looked decided."""
     f = kit.scanners()
     members = (replace(f.members[0], reviewed_outcome="benign_expected"), *f.members[1:])
-    report = build(replace(f, members=members), kit.ctx(campus_domains=("example.edu",)))
+    report = build(replace(f, members=members), kit.ctx(own_domains=("example.edu",)))
     assert (report.verdict.kind, report.verdict.reviewed) == ("person", 1)
     assert report.verdict.investigations == len(members) == 16
     call = g.glance_of(report).call
     assert call == "Benign: expected activity (people reviewed 1 of 16 investigations)"
     assert "a person's verdict" not in call
     every = tuple(replace(x, reviewed_outcome="benign_expected") for x in f.members)
-    done = build(replace(f, members=every), kit.ctx(campus_domains=("example.edu",)))
+    done = build(replace(f, members=every), kit.ctx(own_domains=("example.edu",)))
     assert g.glance_of(done).call == "Benign: expected activity (a person's verdict)"
     unread = build(replace(f, members=every, members_total=40), kit.ctx())
     assert "people reviewed 16 of 40 investigations" in g.glance_of(unread).call

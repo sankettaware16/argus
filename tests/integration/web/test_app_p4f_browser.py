@@ -158,7 +158,11 @@ async def test_axe_finds_nothing_serious_on_the_v2_pages_light_dark_narrow_and_w
              ("alert group", f"/app/alert-groups/{world.investigations[8]}"),
              ("today", "/app"), ("incidents", "/app/incidents"),
              ("search", "/app/search?q=10.0.0.1"), ("reports", "/app/reports"),
-             ("entity", "/app/entities/device/10.0.0.1")]  # fmt: skip
+             ("entity", "/app/entities/device/10.0.0.1"),
+             ("alerts", "/app/alerts"), ("dashboards", "/app/dashboards"),
+             ("detections", "/app/dashboards?d=detections"),
+             ("operations", "/app/dashboards?d=operations"),
+             ("costs", "/app/dashboards?d=costs")]  # fmt: skip
     axe = Axe()
     problems: list[Any] = []
     watch = Watch()

@@ -44,7 +44,7 @@ def task_run(task: str, **over: Any) -> TaskRun:
 def good(**over: Any) -> Measures:
     """A model that passes every rung of every helper task."""
     data: dict[str, Any] = {
-        "provider": "local", "model": "cyber-prime-1.2", "trust": "campus", "licence": "D-120",
+        "provider": "local", "model": "cyber-prime-1.2", "trust": "self_hosted", "licence": "D-120",
         "hardening": dict.fromkeys(ladder.HARDENING, True),
         "robustness": {"control": Case(outcome="answered"),
                        **{c: Case(outcome=w, wait_s=300.0 if w == "deferred" else None)
@@ -92,7 +92,7 @@ def test_no_gold_set_no_promotion() -> None:
     rung = next(r for r in result.rungs if r.name == "task")
     assert rung.state is State.MISSING
     assert "argus gold task --task extract" in rung.lines[0]
-    nothing = Measures(provider="local", model="m", trust="campus")
+    nothing = Measures(provider="local", model="m", trust="self_hosted")
     for task in HELPERS:
         r = ladder.judge(task, nothing)
         assert not r.ready
@@ -248,7 +248,7 @@ def test_p95_is_the_nearest_rank() -> None:
 @settings(deadline=None)
 @given(
     st.sampled_from([*HELPERS, "fallback", "assess"]),
-    st.sampled_from(["cloud", "campus"]),
+    st.sampled_from(["cloud", "self_hosted"]),
     st.booleans(), st.booleans(), st.booleans(),
     st.integers(0, 3), st.integers(0, 2), st.integers(0, 3),
     st.integers(0, 300), st.integers(0, 300),
@@ -283,13 +283,13 @@ def test_ready_only_when_every_rung_passes_on_campus(
     result = ladder.judge(task, m)
     passing = all(r.state in (State.PASS, State.NA) for r in result.rungs[:-1])
     if result.ready:
-        assert trust == "campus"
+        assert trust == "self_hosted"
         assert task in HELPER_TASKS
         assert passing
         assert all((licence, hardened, robust))
         assert (tp_benign, flips, failed) == (0, 0, 0)
         assert shadow_items >= 200
-    expected = (trust == "campus" and task in HELPER_TASKS and licence and hardened and robust
+    expected = (trust == "self_hosted" and task in HELPER_TASKS and licence and hardened and robust
                 and tp_benign == 0 and flips == 0 and failed == 0 and shadow_items >= 200
                 and (calls + shadow_items) >= 100)  # fmt: skip
     assert result.ready is expected
@@ -310,22 +310,22 @@ def test_a_worse_measure_never_makes_a_task_ready(task: str, worse: int) -> None
 # -- the configuration's side (providers.py) ----------------------------------------------
 
 
-def campus(**over: Any) -> dict[str, Any]:
-    return {"name": "local", "trust": "campus", "base_url": "https://127.0.0.1:18443/v1",
+def ours(**over: Any) -> dict[str, Any]:
+    return {"name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:18443/v1",
             "keys": ["LOCAL_LLM_API_KEY"], "ca_file": "data/tls/local-llm.crt",
             "tasks": ["evaluate", "ping"], "models": {"small": {"name": "cp"}},
             "limits": {"rpd": 300}, **over}  # fmt: skip
 
 
 def cfg(**over: Any) -> LlmConfig:
-    return LlmConfig.model_validate({"providers": [campus(**over)]})
+    return LlmConfig.model_validate({"providers": [ours(**over)]})
 
 
 @pytest.mark.parametrize(
     ("over", "message"),
     [({"tasks": ["evaluate", "assess"]}, "never serves assess"),
      ({"tasks": ["ping", "tune"]}, "never serves tune"),
-     ({"tasks": ["evaluate", "triage"]}, "triage: a campus provider serves a helper task only"),
+     ({"tasks": ["evaluate", "triage"]}, "triage: a self-hosted provider serves a helper task"),
      ({"tasks": ["triage"], "promoted": {"triage": "D-200"}}, "licence"),
      ({"tasks": ["triage"], "promoted": {"triage": "D-200", "extract": "D-201"},
        "licence": "D-100"}, "extract, not a helper task it serves"),
@@ -350,7 +350,7 @@ def test_a_promoted_task_with_its_licence_loads_and_cloud_providers_cannot_be_pr
     cloud = {"name": "c", "base_url": "https://c.example/v1", "keys": ["K"],
              "models": {"small": {"name": "m"}}, "tasks": ["triage"],
              "promoted": {"triage": "D-200"}}  # fmt: skip
-    with pytest.raises(ValidationError, match="campus provider's helper tasks"):
+    with pytest.raises(ValidationError, match="self-hosted provider's helper tasks"):
         LlmConfig.model_validate({"providers": [cloud]})
     assert LlmConfig.model_validate({"providers": [{**cloud, "promoted": {}}]})
 

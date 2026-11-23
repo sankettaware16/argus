@@ -41,13 +41,13 @@ TITLE_CHARS = frozenset(string.ascii_letters + string.digits + " .,:()/&+-—→
 
 
 def seen(n: int, *, rule: str = "rule-a", hours: float = 1, day: int = 24,
-         actors: tuple[tuple[str, str], ...] = (HOST,), campus: bool = True,
+         actors: tuple[tuple[str, str], ...] = (HOST,), ours: bool = True,
          flags: tuple[str, ...] = (), targets: tuple[tuple[str, str], ...] = (),
          severity: str = "low", held: Held | None = None) -> Seen:  # fmt: skip
     return Seen(
         uuid.UUID(int=n), rule, severity,  # type: ignore[arg-type]
         date(2026, 10, day), NOW - timedelta(hours=hours), frozenset(actors),
-        frozenset(actors if campus else ()), flags, frozenset(targets), held,
+        frozenset(actors if ours else ()), flags, frozenset(targets), held,
     )  # fmt: skip
 
 
@@ -130,8 +130,8 @@ def test_only_the_last_72_hours_count() -> None:
 
 
 def test_an_outside_address_is_not_a_host_story() -> None:
-    items = [seen(1, rule="a", flags=RAISING, campus=False),
-             seen(2, rule="b", flags=RAISING, campus=False)]  # fmt: skip
+    items = [seen(1, rule="a", flags=RAISING, ours=False),
+             seen(2, rule="b", flags=RAISING, ours=False)]  # fmt: skip
     assert plan(items) == []
 
 
@@ -164,9 +164,9 @@ def paths(*names: str) -> tuple[tuple[str, str], ...]:
 
 
 def git(shared: tuple[str, ...] = ("hostel5", "hostel9", "rsapcouncil")) -> list[Seen]:
-    scout = seen(1, rule="scan", actors=(("ip", GIT[1]),), campus=False, severity="high",
+    scout = seen(1, rule="scan", actors=(("ip", GIT[1]),), ours=False, severity="high",
                  targets=paths(*shared), hours=40)  # fmt: skip
-    collector = seen(2, rule="volume", actors=(("ip", GIT[0]),), campus=False, severity="high",
+    collector = seen(2, rule="volume", actors=(("ip", GIT[0]),), ours=False, severity="high",
                      targets=paths(*shared, "elsewhere"), hours=20)  # fmt: skip
     return [scout, collector]
 
@@ -188,10 +188,10 @@ def test_actors_at_the_same_rare_targets_need_one_investigation_in_needs_attenti
     (D-170). The rule still takes a high or critical one (the Git exfiltration) and a raised one."""
 
     def story(first: Seen) -> list[Seen]:
-        return [first, seen(2, actors=(("ip", GIT[1]),), campus=False, targets=paths("a", "b"))]
+        return [first, seen(2, actors=(("ip", GIT[1]),), ours=False, targets=paths("a", "b"))]
 
     def one(**more: object) -> Seen:
-        return seen(1, actors=(("ip", GIT[0]),), campus=False, targets=paths("a", "b"), **more)  # type: ignore[arg-type]
+        return seen(1, actors=(("ip", GIT[0]),), ours=False, targets=paths("a", "b"), **more)  # type: ignore[arg-type]
 
     assert plan(story(one())) == []  # low, no flag
     assert plan(story(one(flags=(BEACON,)))) == []  # a flag alone raises nothing
@@ -209,7 +209,7 @@ def test_one_shared_target_is_a_coincidence_two_are_a_story() -> None:
 
 
 def test_a_target_many_actors_reach_is_not_rare() -> None:
-    crowd = [seen(10 + k, actors=(("ip", f"198.51.100.{k}"),), campus=False, severity="high",
+    crowd = [seen(10 + k, actors=(("ip", f"198.51.100.{k}"),), ours=False, severity="high",
                   targets=paths("a", "b")) for k in range(suggest.MAX_RARE_ACTORS + 1)]  # fmt: skip
     assert plan(crowd) == []
     few = crowd[: suggest.MAX_RARE_ACTORS]
@@ -219,8 +219,8 @@ def test_a_target_many_actors_reach_is_not_rare() -> None:
 def test_shared_infrastructure_is_never_a_target() -> None:
     both = tuple(SERVERS[:2])
     items = [
-        seen(1, actors=(("ip", GIT[0]),), campus=False, targets=both, severity="high"),
-        seen(2, actors=(("ip", GIT[1]),), campus=False, targets=both),
+        seen(1, actors=(("ip", GIT[0]),), ours=False, targets=both, severity="high"),
+        seen(2, actors=(("ip", GIT[1]),), ours=False, targets=both),
     ]
     assert len(opened(plan(items))) == 1  # a rare control server joins the two
     common = Shared().with_common(SERVERS[:2])
@@ -229,14 +229,14 @@ def test_shared_infrastructure_is_never_a_target() -> None:
 
 def test_the_same_actor_hitting_targets_twice_is_not_two_actors() -> None:
     items = [
-        seen(1, actors=(("ip", GIT[0]),), campus=False, targets=paths("a", "b")),
-        seen(2, actors=(("ip", GIT[0]),), campus=False, targets=paths("a", "b"), hours=3),
+        seen(1, actors=(("ip", GIT[0]),), ours=False, targets=paths("a", "b")),
+        seen(2, actors=(("ip", GIT[0]),), ours=False, targets=paths("a", "b"), hours=3),
     ]
     assert plan(items) == []
 
 
 def test_a_third_actor_with_one_shared_target_stays_out() -> None:
-    third = seen(3, actors=(("ip", GIT[2]),), campus=False, targets=paths("hostel5"))
+    third = seen(3, actors=(("ip", GIT[2]),), ours=False, targets=paths("hostel5"))
     (case,) = opened(plan([*git(), third]))
     assert {m.investigation_id.int for m in case.members} == {1, 2}
 
@@ -376,7 +376,7 @@ seens = st.builds(
     actors=st.lists(st.sampled_from(HOSTS + OUTSIDE), min_size=1, max_size=2, unique=True).map(
         tuple
     ),
-    campus=st.booleans(),
+    ours=st.booleans(),
     flags=st.sampled_from([(), (BEACON,), (LISTED,), (BEACON, LISTED)]),
     targets=st.lists(st.sampled_from(TARGETS), max_size=4, unique=True).map(tuple),
     severity=st.sampled_from(SEVERITIES),
@@ -443,7 +443,7 @@ def chosen(actions: list[Action]) -> set[int]:
 def test_the_budget_goes_to_flagged_stories_first_then_the_most_severe_then_the_newest() -> None:
     # two stories without any flag (actors at the same rare directories) have the lowest ids
     plain = [
-        seen(10 * k + n, actors=(("ip", f"198.51.100.{10 * k + n}"),), campus=False,
+        seen(10 * k + n, actors=(("ip", f"198.51.100.{10 * k + n}"),), ours=False,
              targets=paths("p", "q"), severity="critical")
         for k in (1, 2) for n in (1, 2)
     ]  # fmt: skip
@@ -553,7 +553,7 @@ CLOUD = Shared(networks=(ipaddress.ip_network("104.16.0.0/13"),))
 
 def test_an_actor_in_a_shared_network_joins_nothing_later() -> None:
     case = raised_case(actor=CDN)
-    arrival = seen(7, actors=(CDN,), campus=False, hours=0.1)
+    arrival = seen(7, actors=(CDN,), ours=False, hours=0.1)
     (link,) = plan([arrival], [case])  # an ordinary address would join the case
     assert isinstance(link, LinkCase)
     assert plan([arrival], [case], shared=CLOUD) == []
@@ -561,8 +561,8 @@ def test_an_actor_in_a_shared_network_joins_nothing_later() -> None:
 
 def test_an_actor_in_a_shared_network_is_no_story_with_others() -> None:
     both = paths("a", "b")
-    items = [seen(1, actors=(CDN,), campus=False, targets=both, severity="high"),
-             seen(2, actors=(("ip", GIT[0]),), campus=False, targets=both)]  # fmt: skip
+    items = [seen(1, actors=(CDN,), ours=False, targets=both, severity="high"),
+             seen(2, actors=(("ip", GIT[0]),), ours=False, targets=both)]  # fmt: skip
     assert len(opened(plan(items))) == 1
     assert plan(items, shared=CLOUD) == []
     assert plan(items, shared=Shared().with_common([CDN])) == []  # in very many investigations

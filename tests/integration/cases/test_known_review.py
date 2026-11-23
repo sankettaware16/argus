@@ -567,10 +567,10 @@ async def test_the_block_list_holds_public_addresses_and_names_only_and_counting
             )),
             expected_version=None,
         )  # fmt: skip
-    campus = IpClassifier(None, [ipaddress.ip_network("77.221.155.152/31")])
+    ours = IpClassifier(None, [ipaddress.ip_network("77.221.155.152/31")])
     async with app_engine.connect() as conn:
-        listing = await blocklist.build(conn, case, classifier=campus)
-        counted = await blocklist.count(conn, case, classifier=campus)
+        listing = await blocklist.build(conn, case, classifier=ours)
+        counted = await blocklist.count(conn, case, classifier=ours)
         plain = await blocklist.build(conn, case)
     assert listing is not None
     assert plain is not None

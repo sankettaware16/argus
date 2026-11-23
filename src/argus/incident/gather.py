@@ -110,7 +110,7 @@ class EntityRow:
 
 @dataclass(frozen=True)
 class InvDay:
-    """The alerts of one member investigation on one IST day."""
+    """The alerts of one member investigation on one site day."""
 
     investigation_id: uuid.UUID
     day: str

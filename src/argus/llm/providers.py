@@ -1,9 +1,9 @@
 """The LLM gateway's configuration (``config/llm.yaml``) and its keys. Keys are read by name from
 ``keys_file`` into ``SecretStr`` and registered for log redaction; a missing key leaves its
 provider out; only names are ever printed. Each provider has its own trust (``cloud`` or
-``campus``: an on-premises model that must be on this machine, pinned, limited to named tasks and
-capped per day), certificate, timeout, concurrency, task allowlist, probe, output mode, cost caps
-and token estimate; each model its context and output limits."""
+``self_hosted``: an on-premises model that must be on this machine, pinned, limited to named
+tasks and capped per day), certificate, timeout, concurrency, task allowlist, probe, output
+mode, cost caps and token estimate; each model its context and output limits."""
 
 from __future__ import annotations
 
@@ -38,7 +38,12 @@ class Tier(StrEnum):
 
 class Trust(StrEnum):
     CLOUD = "cloud"  # a provider on the internet: pseudonymized text only
-    CAMPUS = "campus"  # a machine of the organisation: the privacy rules still apply
+    SELF_HOSTED = "self_hosted"  # a machine of the organisation: the privacy rules still apply
+
+    @classmethod
+    def _missing_(cls, value: object) -> Trust | None:
+        # the word before the site-neutral names: a configuration that says it goes on working
+        return cls.SELF_HOSTED if value == "campus" else None
 
 
 # The tasks a call may name (``Call.purpose``); a provider may serve only some of them.
@@ -55,11 +60,11 @@ TASKS = (
 )
 EVALUATE = "evaluate"
 PING = "ping"  # the connection test: a fixed text, no site data
-# What a campus provider serves without a promotion: evaluation runs and the connection test.
+# What an own provider serves without a promotion: evaluation runs and the connection test.
 UNPROMOTED = frozenset({EVALUATE, PING})
-# Never on a campus provider: verdicts (floor signals, conflicts, true-positive advice) and
+# Never on an own provider: verdicts (floor signals, conflicts, true-positive advice) and
 # rule tuning.
-NEVER_ON_CAMPUS = frozenset({"assess", "tune"}) | READING_TASKS | BRIEF_TASKS
+NEVER_SELF_HOSTED = frozenset({"assess", "tune"}) | READING_TASKS | BRIEF_TASKS
 _DECISION = r"^D-\d{3,}$"
 
 
@@ -266,7 +271,7 @@ class ProviderConfig(_Model):
     tasks: tuple[str, ...] | None = None  # None: every task
     probe: bool = False  # ask GET /v1/models before calls (a machine that is sometimes off)
     slow_s: float = Field(default=120.0, gt=0)  # median latency above this: the model is slow
-    # Each helper task a campus provider serves names the decision that promoted it.
+    # Each helper task an own provider serves names the decision that promoted it.
     promoted: dict[str, Annotated[str, Field(pattern=_DECISION)]] = {}
     licence: Annotated[str, Field(pattern=_DECISION)] | None = None
     # Its own paid spend caps (USD), under the overall ones; None: the overall cap only.
@@ -297,27 +302,27 @@ class ProviderConfig(_Model):
             unknown = sorted(set(self.tasks) - TASKS)
             if unknown or not self.tasks:
                 raise ValueError(f"tasks must be some of {', '.join(sorted(TASKS))}")
-        if self.trust is Trust.CAMPUS:
+        if self.trust is Trust.SELF_HOSTED:
             if not _loopback(self.base_url):
-                raise ValueError("a campus provider is reached on this machine (127.0.0.1)")
+                raise ValueError("a self-hosted provider is reached on this machine (127.0.0.1)")
             if self.ca_file is None:
-                raise ValueError("a campus provider needs its own certificate (ca_file)")
+                raise ValueError("a self-hosted provider needs its own certificate (ca_file)")
             if self.tasks is None:
-                raise ValueError("a campus provider needs its task allowlist (tasks)")
+                raise ValueError("a self-hosted provider needs its task allowlist (tasks)")
             if not self._day_capped():
-                raise ValueError("a campus provider needs a daily cap (limits.rpd)")
-            never = sorted(set(self.tasks) & NEVER_ON_CAMPUS)
+                raise ValueError("a self-hosted provider needs a daily cap (limits.rpd)")
+            never = sorted(set(self.tasks) & NEVER_SELF_HOSTED)
             if never:
-                raise ValueError(f"a campus provider never serves {', '.join(never)} in Phase 3")
+                raise ValueError(f"a self-hosted provider never serves {', '.join(never)}")
             unearned = sorted(set(self.tasks) - UNPROMOTED - set(self.promoted))
             if unearned:
                 raise ValueError(
-                    f"{', '.join(unearned)}: a campus provider serves a helper task only once a"
-                    " decision promoted it (promoted: {task: D-NNN})"
+                    f"{', '.join(unearned)}: a self-hosted provider serves a helper task only"
+                    " once a decision promoted it (promoted: {task: D-NNN})"
                 )
         if self.promoted:
-            if self.trust is not Trust.CAMPUS:
-                raise ValueError("promoted is for a campus provider's helper tasks")
+            if self.trust is not Trust.SELF_HOSTED:
+                raise ValueError("promoted is for a self-hosted provider's helper tasks")
             stray = sorted(set(self.promoted) - (set(self.tasks or ()) & HELPER_TASKS))
             if stray:
                 raise ValueError(f"promoted names {', '.join(stray)}, not a helper task it serves")

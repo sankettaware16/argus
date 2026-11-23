@@ -82,10 +82,10 @@ def test_the_fixture_policy_overlay_replaces_keys_and_is_hashed(tmp_path: Path) 
     shipped = _write(tmp_path, "fixtures.yaml", "version: 1\ncampus_domains: []\nliterals: {}\n")
     overlay = tmp_path / "fixtures.local.yaml"
     alone, digest = load_policy(shipped, overlay)  # no overlay file: the shipped policy
-    assert (alone.campus_domains, digest) == ((), load_policy(shipped)[1])
-    _write(tmp_path, "fixtures.local.yaml", "campus_domains: [campus.example]\n")
+    assert (alone.own_domains, digest) == ((), load_policy(shipped)[1])
+    _write(tmp_path, "fixtures.local.yaml", "own_domains: [campus.example]\n")
     laid, both = load_policy(shipped, overlay)
-    assert laid.campus_domains == ("campus.example",)
+    assert laid.own_domains == ("campus.example",)
     assert both != digest
     _write(tmp_path, "fixtures.local.yaml", "- not a mapping\n")
     with pytest.raises(ValueError, match="must contain a mapping"):

@@ -1884,10 +1884,10 @@ EQUIVALENT: dict[str, dict[str, str]] = {
         '<module>: "roll_number", "secret", @15: "secret" -> "XXsecretXX"': (
             "a type alias: Literal values are not checked at run time"
         ),
-        'Campus.campus_domain: host = host.lower().rstrip(".") @27: "." -> "XX.XX"': (
+        'OwnSpace.own_domain: host = host.lower().rstrip(".") @27: "." -> "XX.XX"': (
             "the host is lower-cased first: no upper-case X is left to strip"
         ),
-        'Campus.name_index: if not words or len(" ".join(words)) < least: @20: " " -> "XX XX"': (
+        'OwnSpace.name_index: if not words or len(" ".join(words)) < least: @20: " " -> "XX XX"': (
             "two or more words are at least three characters with any separator; one word has none"
         ),
         '_base64: bare = chunk.rstrip("=") @20: "=" -> "XX=XX"': (
@@ -2036,7 +2036,7 @@ EQUIVALENT: dict[str, dict[str, str]] = {
             "every Item is built with its truncated flag"
         ),
         "Item: withheld: int = 0 @16: 0 -> 1": ("every Item is built with its withheld count"),
-        "Privacy._campus_for: continue @0: continue -> pass": ("the loop goes on either way"),
+        "Privacy.ours_for: continue @0: continue -> pass": ("the loop goes on either way"),
         'Privacy._item: raise TypeError("a dossier body is a mapping") @0: raise TypeError("'
         'a dossier body is a mapping") -> pass': (
             "a body that is no mapping fails on its first .get just after: the item is left out"
@@ -2056,7 +2056,7 @@ EQUIVALENT: dict[str, dict[str, str]] = {
         '0: "text" -> "XXtextXX"': (
             "these lists hold strings, which render the same through either path"
         ),
-        'Privacy.build: domains=tuple(d.lower().strip(".") for d in policy.campus_domains), @'
+        'Privacy.build: domains=tuple(d.lower().strip(".") for d in policy.own_domains), @'
         '30: "." -> "XX.XX"': ("the domain is lower-cased first: no upper-case X is left to strip"),
         "Privacy.request: for item_id, body in zip(ids, bodies, strict=True): @45: True -> False": (
             "ids is made from bodies: the same length"
@@ -2141,7 +2141,7 @@ EQUIVALENT: dict[str, dict[str, str]] = {
         ),
         'Fakes.token: self._fakes[key] = self._fake(label, value, n, legend or "") @57: "" '
         '-> "XXXX"': (
-            "only 'campus public' in the legend matters: an empty legend and XXXX hold neither"
+            "only a legend that starts with the site's public-address words matters: neither does"
         ),
         "render: raise ValueError(f\"unknown arm {name!r}; arms: {', '.join(ARMS)}\") @0: raise"
         " ValueError(f\"unknown arm {name!r}; arms: {', '.join(ARMS)}\") -> pass": (
@@ -2588,7 +2588,7 @@ EQUIVALENT: dict[str, dict[str, str]] = {
         "_stretch: while len(out) < length: @15: < -> <=": (
             "one block more is cut off again by out[:length]"
         ),
-        'DomainMapper.map: head = name[: -len(campus)].rstrip(".") @35: "." -> "XX.XX"': (
+        'DomainMapper.map: head = name[: -len(ours)].rstrip(".") @33: "." -> "XX.XX"': (
             "the name is normalised to lower case: it holds no X to strip"
         ),
         'DomainMapper.map: head = name[: -len(kept)].rstrip(".") @33: "." -> "XX.XX"': (

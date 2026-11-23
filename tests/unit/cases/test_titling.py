@@ -209,12 +209,12 @@ def test_the_newest_outside_answer_is_the_one_read() -> None:
 def test_the_campus_domain_pattern_matches_the_domain_and_what_is_below_it() -> None:
     import re
 
-    pattern = re.compile(titling._campus_pattern(("example.edu", "example-univ.org")), re.I)
+    pattern = re.compile(titling._own_pattern(("example.edu", "example-univ.org")), re.I)
     assert pattern.search("www.example.edu")
     assert pattern.search("EXAMPLE.EDU")
     assert not pattern.search("example.edu.evil.com")
     assert not pattern.search("notexample.edu")
-    assert not re.compile(titling._campus_pattern(())).search("anything")
+    assert not re.compile(titling._own_pattern(())).search("anything")
 
 
 # -- the verdicts ----------------------------------------------------------------------------------

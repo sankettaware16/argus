@@ -55,10 +55,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # The sections a throwaway config file carries when its test runs `argus doctor`: the privacy
 # layer refuses to run without an organisation domain (D-285), as production's check does; and a
-# made-up checkout for the units, so this machine's installed units are never taken for its own.
+# made-up checkout for the units, so this machine's installed units are never taken for its own,
+# and none run, so doctor never asks for units a CI runner cannot have.
 THROWAWAY_SITE = (
     "site:\n  own_domains: [example.test]\n"
-    "units:\n  root: /home/dev/argus\n  uv: /home/dev/.local/bin/uv\n"
+    "units:\n  root: /home/dev/argus\n  uv: /home/dev/.local/bin/uv\n  run: []\n"
 )
 TESTS_DIR = REPO_ROOT / "tests"
 # The public tree (D-238) leaves out the site's private pack: its runbooks, decisions and own

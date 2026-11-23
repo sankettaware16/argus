@@ -380,7 +380,7 @@ async def test_slow_unexplained_and_unmirrored_changes_show_on_line_6(
     assert "1 unresolved" in c["6c"].detail
     assert "1 more were resolved" in c["6c"].detail
     assert c["6d"].verdict is PENDING
-    assert any("P4-B1" in note for note in report.notes)
+    assert any("does not cover the case team's cases yet" in note for note in report.notes)
 
 
 async def test_an_argus_write_after_a_persons_change_is_a_revert(

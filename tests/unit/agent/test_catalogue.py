@@ -54,8 +54,8 @@ def test_proxy_host_on_a_campus_address_with_the_packs_window() -> None:
         ip="10.20.3.4", start=FIRST.replace(minute=0) - timedelta(hours=1),
         end=FIRST.replace(minute=0) + timedelta(hours=2),
     )  # fmt: skip
-    for campus in ("I1.IP_4",):
-        assert isinstance(build("proxy.host", campus), TaskSpec)
+    for ours in ("I1.IP_4",):
+        assert isinstance(build("proxy.host", ours), TaskSpec)
     assert build("proxy.host", "I1.IP_2") == Refusal("proxy.host takes a campus address")
 
 

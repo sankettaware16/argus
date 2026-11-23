@@ -262,20 +262,20 @@ def test_fxg08b_a_short_campus_label_with_dashes_survives_in_a_kept_domain() -> 
 def test_fxg09_campus_replacement_is_not_validated(replacement: str) -> None:
     """DEFECT FXG-09: only "inside a campus domain" is refused. A replacement that is a public
     suffix makes campus pseudonyms collide with the pseudonyms of real non-campus domains: with
-    ``campus_replacement: ac.in``, ``foo.a.ac.in`` (campus) and ``foo.ac.in`` (another
+    ``own_replacement: ac.in``, ``foo.a.ac.in`` (campus) and ``foo.ac.in`` (another
     university) both become ``vicsqzx5.ac.in``. An empty replacement maps the campus domain
     itself to the empty string. The replacement should be a non-empty name under a reserved TLD
     (``.example``, ``.invalid``, ``.test``)."""
-    with pytest.raises(ValueError, match="campus_replacement"):
-        FixturePolicy(campus_domains=("a.ac.in",), campus_replacement=replacement)
+    with pytest.raises(ValueError, match="own_replacement"):
+        FixturePolicy(own_domains=("a.ac.in",), own_replacement=replacement)
 
 
 @pytest.mark.parametrize(
     "data",
     [
-        {"campus_domains": ("campus.ac.in",), "keep_names": ("root", "campus")},
+        {"own_domains": ("campus.ac.in",), "keep_names": ("root", "campus")},
         {"literals": {"CampusU": "Univ"}, "keep_names": ("root", "campusu")},
-        {"campus_domains": ("campus.ac.in",), "keep_domains": ("campus-cdn.com",)},
+        {"own_domains": ("campus.ac.in",), "keep_domains": ("campus-cdn.com",)},
         {"literals": {"CampusU": "Univ"}, "keep_domains": ("campusu-cdn.net",)},
         {"keep_domains": ("github.com",), "literals": {"github.com": "vendor"}},
     ],
@@ -592,11 +592,11 @@ def test_lockin_domain_forms_that_held_up() -> None:
         "fields: {host: [1]}\n",
         "site_prefixes: 10.0.0.0/8\n",
         "keep_names: root\n",
-        "campus_domains: campus.ac.in\n",
+        "own_domains: campus.ac.in\n",
         "literals: {CampusU: null}\n",
         "keep_domains: [1.5]\n",
         "literals: {yes: no}\n",
-        "campus_replacement: 12\n",
+        "own_replacement: 12\n",
     ],
 )
 def test_lockin_non_string_yaml_values_are_refused(text: str, tmp_path: Path) -> None:

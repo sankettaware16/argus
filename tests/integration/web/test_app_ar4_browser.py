@@ -125,7 +125,7 @@ async def test_the_ta_walks_the_queue_confirms_with_c_and_lands_on_the_next_with
         stance = await first_case.get_by_test_id("queue-stance").inner_text()
         assert stance == "ARGUS's call: Real: act on it (80%)"
         assert "Possible incident" in await first_case.inner_text()
-        assert (await page.title()) == "Home · ARGUS"
+        assert (await page.title()) == "Today · ARGUS"
         headings = await page.locator("main h2").all_inner_texts()
         assert [h for h in headings if re.match(r"\d\. ", h)] == [
             "1. Possible incidents and incidents that need you",
@@ -336,16 +336,18 @@ async def test_home_holds_the_whole_queue_in_order_and_its_lists_equal_the_apis(
             ).count()
             == 1
         )
-        # the same cards are the case list's "queue" view
+        # every case of the queue is an incident of the list. Its "Needs you" is Today's set
+        # since UI v2 (a worked case with new work is under Mine and Open), so: the whole list
         cards = await page.get_by_test_id("queue-case").evaluate_all(
-            "(items) => items.map((i) => i.querySelector('a').textContent)"
+            "(items) => items.map("
+            "(i) => i.querySelector('a').getAttribute('href').split('/').pop())"
         )
-        await page.get_by_role("link", name="These cases in the cases list").click()
-        table = page.get_by_role("table", name="Cases")
-        await table.get_by_role("link", name=re.compile("^Case ")).first.wait_for()
-        assert page.url.endswith("/app/incidents?view=needs-you")
-        listed = await table.get_by_role("link", name=re.compile("^Case ")).all_inner_texts()
-        assert sorted(listed) == sorted(cards)
+        await page.goto(f"{live.url}/app/incidents?view=all")
+        rows = page.get_by_test_id("incident-row")
+        await rows.first.wait_for()
+        listed = await rows.evaluate_all("(items) => items.map((i) => i.dataset.id)")
+        assert cards
+        assert set(cards) <= set(listed)
         # and the singles' link is the Inbox in the same order
         async with page.expect_response(
             re.compile(r"/api/v1/investigations\?.*sort=queue")
@@ -567,8 +569,7 @@ async def test_a_notice_is_recorded_listed_blocked_downloaded_and_withdrawn(
         )  # nothing of it is known yet
         assert await page.get_by_test_id("queue-case").count() == 0
         await page.get_by_role("link", name="the list").click()
-        table = page.get_by_role("table", name="Cases")
-        await table.get_by_role("link", name=re.compile("Case 1:")).wait_for()
+        await page.locator(f'[data-testid="incident-row"][data-id="{case}"]').wait_for()
         assert page.url.endswith("/app/incidents?view=owner-told")
         # a reminder is suggested by the pass; the person sees it and dismisses it
         async with world.runtime.begin() as conn:
@@ -760,7 +761,7 @@ async def test_axe_finds_nothing_serious_on_the_new_screens_light_dark_narrow_an
                         await section.get_by_text("View the list").click()
                         await section.get_by_role("table", name="Block list").wait_for()
                     elif what == "cases":
-                        await page.get_by_role("table", name="Cases").wait_for()
+                        await page.get_by_test_id("incident-row").first.wait_for()
                     elif what == "dashboard":
                         await page.get_by_role("table", name="Notified cases").wait_for()
                     else:
@@ -789,7 +790,13 @@ async def test_axe_finds_nothing_serious_on_the_new_screens_light_dark_narrow_an
                             "document.documentElement.scrollWidth"
                             " - document.documentElement.clientWidth"
                         )
-                        assert wide <= 0, (label, wide)
+                        culprits = await page.evaluate(
+                            "() => [...document.querySelectorAll('body *')]"
+                            ".filter((e) => e.getBoundingClientRect().right > innerWidth + 1)"
+                            ".slice(0, 6).map((e) => e.tagName + '.' + e.className.toString()"
+                            ".slice(0, 80) + ' ' + Math.round(e.getBoundingClientRect().right))"
+                        )
+                        assert wide <= 0, (label, width, wide, culprits)
                 assert await watch.violations(page) == [], (scheme, width)
                 await browser.close()
     assert not problems, "\n".join(map(str, problems))

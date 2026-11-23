@@ -436,7 +436,7 @@ class Init:
 
         if custody.marker() is not None:
             raise InitError(
-                "custody is installed here (Q-A5): its secrets are root's credentials; argus init"
+                "custody is installed here: its secrets are root's credentials; argus init"
                 " sets up the shared layout only"
             )
         env = files.read_env(self.o.env_file)
@@ -535,7 +535,7 @@ class Init:
             and files.get(local, "units.web.database_role") is None
         ):
             files.update_yaml(self.o.local_file, {"web.database_role": "api"})
-            self.say("   the web logs in with its own login (web.database_role: api, Q-A2)")
+            self.say("   the web logs in with its own login (web.database_role: api)")
 
     def web_credentials(self) -> Path | None:
         """The web unit's credentials folder when it holds the web's database password and .env

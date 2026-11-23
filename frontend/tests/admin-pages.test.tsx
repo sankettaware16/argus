@@ -605,14 +605,13 @@ describe("Today and the menu", () => {
   });
 
   it("lists Settings, AI and agents and Users and roles under Administration, for an administrator only", async () => {
-    const user = userEvent.setup();
     server.use(...shellHandlers(ADMIN), http.get(`${BASE}/api/v1/admin/settings`, () => HttpResponse.json(settingsOut())));
     renderApp("/");
-    await user.click(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("button", { name: /More/ }));
-    const more = within(screen.getByTestId("more-list"));
-    expect(more.getByText("Administration")).toBeTruthy();
-    expect(more.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe("/app/settings");
-    expect(more.getByRole("link", { name: "Users and roles" }).getAttribute("href")).toBe("/app/users");
-    expect(more.getByRole("link", { name: "AI and agents" }).getAttribute("href")).toBe("/app/ai");
+    // shown directly, under their own heading: no click on More
+    const section = within(within(await screen.findByRole("navigation", { name: "Main" })).getByRole("region", { name: "Administration" }));
+    expect(section.getByText("Administration")).toBeTruthy();
+    expect(section.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe("/app/settings");
+    expect(section.getByRole("link", { name: "Users and roles" }).getAttribute("href")).toBe("/app/users");
+    expect(section.getByRole("link", { name: "AI and agents" }).getAttribute("href")).toBe("/app/ai");
   });
 });

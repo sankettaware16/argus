@@ -16,7 +16,7 @@ version: 1
 owners:
   network_team:
     name: Network team
-    does: Changes to the campus network, the firewall and the proxy, and taking a computer off the network.
+    does: Changes to the network, the firewall and the proxy, and taking a computer off the network.
   site_owner:
     name: Website owner
     does: The person or group that runs the affected website or application.
@@ -25,14 +25,14 @@ owners:
     does: Accounts, logins and servers of the affected department.
   mail_admin:
     name: Mail administrator
-    does: The campus mail and sign-in accounts.
+    does: The organisation's mail and sign-in accounts.
   siem_team:
     name: SIEM team
     does: The detection rules and their tuning.
 
 families:
   c2_beacon:
-    title: A campus computer is contacting an attacker's server
+    title: An internal computer is contacting an attacker's server
     when: [c2_indicator]
     actions:
       isolate_host:
@@ -40,7 +40,7 @@ families:
         owner: network_team
         title: Take the computers off the network
         say: >-
-          Take each campus computer in this case off the network (unplug it or disable its port)
+          Take each internal computer in this case off the network (unplug it or disable its port)
           so it cannot reach the attacker, then have it cleaned or rebuilt.
         verify:
           template: proxy.contact

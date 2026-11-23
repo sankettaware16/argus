@@ -32,6 +32,14 @@ pytestmark = pytest.mark.unit
 KEYS = {"LOCAL_LLM_API_KEY": SecretStr(ls.KEY)}
 
 
+def test_the_certificate_command_is_the_setup_scripts() -> None:
+    """These tests make their certificates with ``local_server.OPENSSL``; where the first
+    installation's setup script exists, that is the script's own command, word for word."""
+    import shlex
+
+    assert ls.script_command() == shlex.split(ls.OPENSSL)
+
+
 @pytest.fixture(scope="module")
 def certs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     """The setup script's certificate (pinned), a second run's (another key), and one for
@@ -50,7 +58,7 @@ def certs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
 
 def config(port: int, ca: Path, **over: Any) -> LlmConfig:
     provider: dict[str, Any] = {
-        "name": "local", "trust": "campus", "base_url": f"https://127.0.0.1:{port}/v1",
+        "name": "local", "trust": "self_hosted", "base_url": f"https://127.0.0.1:{port}/v1",
         "keys": ["LOCAL_LLM_API_KEY"], "ca_file": str(ca), "timeout_s": 30, "concurrency": 1,
         "tasks": ["evaluate", "ping"], "probe": True, "max_tokens_field": "max_tokens",
         "models": {"small": {"name": ls.MODEL, "context_tokens": 16384, "thinking_tokens": 2048,
@@ -74,7 +82,7 @@ def port(certs: dict[str, Path], machine: ls.Machine) -> Iterator[int]:
 
 def ping(privacy: Privacy, **over: Any) -> Call:
     request = Request("Connection test from ARGUS. Reply in JSON.", (), (), (), (),
-                      privacy.campus)  # fmt: skip
+                      privacy.ours)  # fmt: skip
     return Call(request, 'Answer with the JSON object {"ok": true} only.', "ping", **over)
 
 

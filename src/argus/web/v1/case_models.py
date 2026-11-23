@@ -750,8 +750,8 @@ class BlockEntryOut(Out):
     engines_total: int | None
     owner: str | None  # the network's owner, for an address
     registered: str | None  # the day a domain was registered
-    first_seen_on_campus: datetime | None
-    campus_devices: int
+    first_seen_on_own_network: datetime | None
+    own_devices: int
     evidence_checked: datetime | None
 
 

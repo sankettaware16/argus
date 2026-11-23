@@ -102,7 +102,7 @@ describe("Entities", () => {
   it("I-16: two columns, Campus side and Other side; the actor IP is on the Other side", async () => {
     serve();
     renderApp(`/incidents/${P1_ID}?tab=entities`);
-    const campus = await screen.findByTestId("campus-side");
+    const campus = await screen.findByTestId("own-side");
     const other = screen.getByTestId("other-side");
     expect(within(campus).getByRole("heading").textContent).toBe("Campus side");
     expect(within(other).getByRole("heading").textContent).toBe("Other side");

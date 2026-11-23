@@ -86,7 +86,7 @@ class GatewayAsker:
         *,
         enabled: Iterable[str],
         history: timedelta,
-        is_campus: Callable[[str], bool],
+        is_own: Callable[[str], bool],
         health_config: HealthConfig | None = None,
         reservations: batch1.Reservations = batch1.RESERVED,
         timeout: timedelta = timedelta(seconds=60),
@@ -95,7 +95,7 @@ class GatewayAsker:
         self.engine = engine
         self.enabled = frozenset(enabled)
         self.history = history
-        self.is_campus = is_campus
+        self.is_own = is_own
         self.health_config = health_config
         self.reservations = reservations
         self.timeout = timeout
@@ -109,7 +109,7 @@ class GatewayAsker:
             async with self.engine.connect() as conn:
                 refused = await batch1.admit(
                     conn, self.gateway.state, task, enabled=self.enabled, now=now,
-                    history=self.history, is_campus=self.is_campus,
+                    history=self.history, is_own=self.is_own,
                     health_config=self.health_config, reservations=self.reservations,
                 )  # fmt: skip
             if refused is not None:
@@ -162,8 +162,8 @@ class Context:
     # the notified cases' rules: which asset-map site types are organisation-managed machines
     rules: known.Rules = field(default_factory=known.Rules)
 
-    def is_campus(self, value: str) -> bool:
-        return self.classifier.classify(value).ip_class in opener.CAMPUS
+    def is_own(self, value: str) -> bool:
+        return self.classifier.classify(value).ip_class in opener.OWN_CLASSES
 
 
 def context_for(settings: Any, asker: Asker | None = None) -> Context:
@@ -809,9 +809,7 @@ async def logs_check(
     first = watch.utc_day(case.opened_at if case.state != "closed" else (case.closed_at or now))
     seen: dict[date, tuple[datetime | None, list[str], str]] = {}
     async with engine.connect() as conn:
-        wanted = watch.subjects(
-            await case_indicators(conn, case.id), ctx.is_campus, ctx.shared.reason
-        )
+        wanted = watch.subjects(await case_indicators(conn, case.id), ctx.is_own, ctx.shared.reason)
         decided = {
             key for key, outcome in (await _decided(conn, case.id, first)).items()
             if outcome != "not_checked"
@@ -1159,7 +1157,7 @@ class Finder:
         window_start = today - timedelta(days=watch.QUIET_DAYS)
         stored = await rows(self.conn, case.id, window_start)
         wanted = watch.subjects(
-            ((i.kind, i.value, i.role) for i in case.indicators), self.ctx.is_campus,
+            ((i.kind, i.value, i.role) for i in case.indicators), self.ctx.is_own,
             self.ctx.shared.reason,
         )  # fmt: skip
         found = await scan(self.conn, self.ctx, now, only=case.id)
@@ -1206,7 +1204,7 @@ async def status(
     if case is None:
         return []
     wanted = watch.subjects(
-        ((i.kind, i.value, i.role) for i in case.indicators), ctx.is_campus, ctx.shared.reason
+        ((i.kind, i.value, i.role) for i in case.indicators), ctx.is_own, ctx.shared.reason
     )
     since = today - timedelta(days=watch.BACKLOG_DAYS)
     lines = [watch.last_run_words(await last_run(conn), now)]

@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS writer (Phase 3, Q-D4/Q-D5: Kibana case and alert writes from the outbox)
+Description=ARGUS writer: Kibana case and alert writes from the outbox
 # Disabled: writes need the user's approval of each class at its canary (plan §7.1, D-109).
 # Q-A5 moves the writer to its own system user with its key from a root-owned credential
 # (LoadCredential=); a writer key never goes into the shared .env (plan §3 rule 11). Until its

@@ -294,6 +294,82 @@ async def test_an_alert_group_names_the_incident_it_belongs_to(world: World) -> 
     assert outside["case"] is None
 
 
+async def test_the_alert_group_list_names_each_ones_incident_and_filters_by_it(
+    world: World,
+) -> None:
+    """The Alerts page: every alert group with the incident it belongs to, and the two halves
+    of the list (in an incident, in none) apart."""
+    case = await world.open_suspected(4, "Possible beacon")
+    member = str(world.investigations[4])
+    async with world.app() as http:
+        await sign_in(http, "vera")
+
+        async def rows(**params: str) -> dict[str, Any]:
+            got = await http.get(f"{V1}/investigations", params={"view": "all", **params})
+            assert got.status_code == 200, got.text
+            return {r["id"]: r["case"] for r in got.json()["items"]}
+
+        everything = await rows()
+        inside, outside = await rows(incident="in"), await rows(incident="none")
+        refused = await http.get(f"{V1}/investigations", params={"incident": "maybe"})
+    assert everything[member] == {"id": str(case), "number": everything[member]["number"],
+                                  "title": "Possible beacon", "state": "suspected"}  # fmt: skip
+    assert [i for i, c in everything.items() if c is not None] == [member]
+    assert inside == {member: everything[member]}
+    assert member not in outside
+    assert set(outside) == set(everything) - {member}
+    assert all(c is None for c in outside.values())
+    assert refused.status_code == 422
+
+
+async def test_the_response_figures_count_what_was_raised_decided_and_is_past_its_target(
+    world: World,
+) -> None:
+    """D-340: of two possible incidents, one a person dismissed and one still waiting; with the
+    shipped targets nothing is late, and with a target of five minutes ... nothing is either
+    (the wait is seconds); the figures name each and the route refuses a range it does not
+    know."""
+    from datetime import timedelta as delta
+
+    from argus.config.settings import SlaSettings
+
+    users = {name: await world.user_id(name) for name in PEOPLE}
+    waiting = await world.open_suspected(2, "Still waiting")
+    dismissed = await world.open_suspected(3, "Dismissed by omar")
+    opened = await world.open_case(1, start=0, title="Opened by a person")
+    async with world.runtime.begin() as conn:
+        service = await CaseService.start(conn)
+        omar = Actor.person(users["omar"], LOCAL_CAPABILITIES | {"manage_cases"}, via="test")
+        await service.apply(omar, dismissed, Dismiss("benign_expected", note="A scheduled job."),
+                            expected_version=1)  # fmt: skip
+    async with world.app() as http:
+        await sign_in(http, "vera")
+        got = await http.get(f"{V1}/performance", params={"range": "7d"})
+        refused = await http.get(f"{V1}/performance", params={"range": "1y"})
+    assert got.status_code == 200, got.text
+    body = got.json()
+    assert (body["raised"], body["confirmed"], body["dismissed"], body["waiting"]) == (3, 1, 1, 1)
+    assert body["triage"]["count"] == 1  # the one a person opened was never triaged
+    assert 0 <= body["triage"]["median_s"] < 300
+    assert body["detect"]["count"] == 2
+    assert body["triage_kept"] == {"met": 1, "missed": 0, "pending": 1, "share": 1.0}
+    assert body["resolve_kept"] == {"met": 0, "missed": 0, "pending": 1, "share": None}
+    assert [b["band"] for b in body["bands"]] == ["P1", "P2", "P3", "P4"]
+    assert sum(b["raised"] for b in body["bands"]) == 3
+    assert (body["overdue"], body["overdue_total"]) == ([], 0)
+    assert refused.status_code == 422
+    # a site whose every target is five minutes, read a moment later: still in time, and the
+    # targets are the site's (the shortest a setting takes)
+    strict = SlaSettings(**{f"{k}_p{n}": delta(minutes=5) for k in ("triage", "resolve")
+                            for n in (1, 2, 3, 4)})  # fmt: skip
+    async with world.app(sla=strict) as http:
+        await sign_in(http, "vera")
+        tight = (await http.get(f"{V1}/performance")).json()
+    assert {b["triage_target_s"] for b in tight["bands"]} == {300.0}
+    assert tight["overdue_total"] == 0
+    assert {str(waiting), str(opened)}.isdisjoint({o["id"] for o in tight["overdue"]})
+
+
 # --------------------------------------------------------------------------- A10 filters
 
 

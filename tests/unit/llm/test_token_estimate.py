@@ -69,7 +69,7 @@ def gateway(cfg: LlmConfig, fake: Fake) -> tuple[LlmGateway, MemoryLlmStore, Clo
 
 def call(privacy: Privacy, size: int, tier: Tier = Tier.SMALL) -> Call:
     """An assess call whose instructions make its body about ``size`` bytes."""
-    request = Request("Assess I1.", ("I1",), (), (), (), privacy.campus)
+    request = Request("Assess I1.", ("I1",), (), (), (), privacy.ours)
     words = "Weigh the evidence. " * (size // 20)
     return Call(request, words, "assess", tier, max_output=MAX_OUTPUT[tier])
 

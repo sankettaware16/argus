@@ -32,7 +32,7 @@ def build_env(
 ) -> Env:
     """The wave's environment. ``gateway`` None: a dry run, nothing can be sent."""
     inv = settings.investigation
-    campus = batch1.private_or(
+    ours = batch1.private_or(
         None if classifier is None else lambda v: classifier.classify(v).ip_class
     )
     return Env(
@@ -46,7 +46,7 @@ def build_env(
             proxy_aggregations=settings.enrichment.proxy_aggregations,
         ),
         switches=catalogue.switches_of(settings),
-        is_campus=campus,
+        is_own=ours,
         history=settings.history.window,
         caps=Caps(inv.item_requests, inv.item_heavy, inv.item_server_ms),
         per_day=inv.wave_per_day,

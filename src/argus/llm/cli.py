@@ -224,7 +224,7 @@ def llm_ping(
     settings = load(config)
     privacy = _privacy(settings)
     llm = _chosen(load_config(), provider)
-    request = Request(PING_TEXT, (), (), (), (), privacy.campus)
+    request = Request(PING_TEXT, (), (), (), (), privacy.ours)
     call = ping_call(request, tier)
 
     async def use() -> str:
@@ -331,14 +331,14 @@ def llm_drill(
     settings = load(config)
     privacy = _privacy(settings)
     llm = _chosen(load_config(), provider)
-    if llm.providers[0].trust is not Trust.CAMPUS:
-        typer.echo("error: the drill checks the campus machine (trust: campus)", err=True)
+    if llm.providers[0].trust is not Trust.SELF_HOSTED:
+        typer.echo("error: the drill checks the self-hosted machine (trust: self_hosted)", err=True)
         raise typer.Exit(1)
     keys = load_keys(llm.keys_file, set(llm.providers[0].keys))
     if not any(k in keys for k in llm.providers[0].keys):
         typer.echo(f"error: no key for {provider} in {llm.keys_file}", err=True)
         raise typer.Exit(1)
-    result = asyncio.run(robustness.drill(llm, keys, privacy.campus, HttpxLlmTransport))
+    result = asyncio.run(robustness.drill(llm, keys, privacy.ours, HttpxLlmTransport))
     where = qg2.folder(measures, provider) / "drill.json"
     qg2.write(where, result.as_json(datetime.now(UTC)))
     for check, ok in result.hardening.items():
@@ -346,7 +346,7 @@ def llm_drill(
     for case, got in result.cases.items():
         wait = f" ({got.wait_s:.0f} s)" if got.wait_s is not None else ""
         typer.echo(f"{case}: {got.outcome}{wait}: {got.detail}")
-    measured = ladder.Measures(provider=provider, model=result.model, trust="campus",
+    measured = ladder.Measures(provider=provider, model=result.model, trust="self_hosted",
                                hardening=result.hardening, robustness=result.cases)  # fmt: skip
     rung = ladder.robustness_rung(measured)
     typer.echo(f"measure written to {where}")
@@ -393,7 +393,7 @@ def llm_shadow(
         # the shadow is never shown; the runtime login the web uses until then may read it
         typer.echo("error: shadow answers are never shown, and the web logs in as"
                    f" {settings.database.user}, which may read llm_shadow: give the web its own"
-                   " login first (Q-A2: ARGUS_DATABASE__API_PASSWORD, `argus db bootstrap`,"
+                   " login first (ARGUS_DATABASE__API_PASSWORD, `argus db bootstrap`,"
                    " web.database_role: api)", err=True)  # fmt: skip
         raise typer.Exit(1)
     model = llm.providers[0].models[Tier.SMALL].name

@@ -32,7 +32,7 @@ MAX_ROWS = 200_000  # domain names read in one pass (a scanner can hold thousand
 # organisation's own addresses. Private space that no network of the asset map covers
 # (INTERNAL) is infrastructure (a resolver, a gateway) as often as a device, and the entities
 # do not say which side of the traffic an address was on, so it is not counted as a device here.
-DEVICE_CLASSES = frozenset({IpClass.ASSET, IpClass.CAMPUS})
+DEVICE_CLASSES = frozenset({IpClass.ASSET, IpClass.OWN})
 # The fields of a grouping key that name who asked (the source side of the traffic). A DNS rule
 # groups by the rare domain and lists every source address in its key.
 SOURCE_FIELDS = frozenset({"source.ip", "client.ip"})
@@ -79,7 +79,7 @@ def listed_sources(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
         values = pair[1] if isinstance(pair[1], list) else []
         for value in values[:MAX_LISTED]:
             got = classifier.classify(value) if isinstance(value, str) else None
-            if got is not None and got.address is not None and got.ip_class in opener.CAMPUS:
+            if got is not None and got.address is not None and got.ip_class in opener.OWN_CLASSES:
                 out.add(("ip", got.address))
     return frozenset(out)
 
@@ -92,7 +92,7 @@ def actors_of(group_key: str, classifier: IpClassifier) -> frozenset[Key]:
         (a.kind, a.value)
         for a in actors
         if a.kind == "host"
-        or (a.kind == "ip" and classifier.classify(a.value).ip_class in opener.CAMPUS)
+        or (a.kind == "ip" and classifier.classify(a.value).ip_class in opener.OWN_CLASSES)
     )
     return named | listed_sources(group_key, classifier)
 

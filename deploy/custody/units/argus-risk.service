@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS incident engine pass (P4-F, D-317; custody layout, Q-A5)
+Description=ARGUS incident engine pass: observes, scores, links and, when risk.present is on, presents (custody layout)
 After=network-online.target docker.service
 Wants=network-online.target
 

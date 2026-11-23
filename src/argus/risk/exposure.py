@@ -1,7 +1,7 @@
-"""Inbound exposure (P4-F E3), pure: for an inbound attack the campus **site** is the thing at
-risk and the outside address a threat; what the checking lane found turns into facts on it.
+"""Inbound exposure (P4-F E3), pure: for an inbound attack the organisation's own **site** is the
+thing at risk and the outside address a threat; what the checking lane found turns into facts on it.
 
-- **The site** of an inbound alert group: the campus target its alerts name; failing that, the
+- **The site** of an inbound alert group: the own target its alerts name; failing that, the
   sites of its own stored web evidence (the client's 2xx answers, ``web.followups``); failing
   that, the hourly batched lookup's answer for its source and day (``web.source_sites``).
 - **The facts** of an outside address on a site, from the stored checks. Nothing is verified
@@ -403,7 +403,7 @@ def group_sites(
 def lanes(
     verdicts: Mapping[ObjectRef, Verdict], config: Exposure,
 ) -> dict[ObjectRef, Verdict]:  # fmt: skip
-    """L5 on the campus sites: a site whose 7-day window holds a lane kind's evidence (a served
+    """L5 on the own sites: a site whose 7-day window holds a lane kind's evidence (a served
     file, a bulk take, shared rare paths) is in the exposure lane; one that gave a 2xx it has not
     verified (the ``success`` kind) is a checking candidate (gray). Other objects unchanged."""
     out = dict(verdicts)

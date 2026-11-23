@@ -37,15 +37,15 @@ def no_wave(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def pinned_narrowing(tmp_path: Path, triggers: str) -> tuple[Path, Any, Any]:
-    """A directory whose investigator takes only ``triggers``, as coordinator@4, with the
+    """A directory whose investigator takes only ``triggers``, as coordinator@5, with the
     pins and enabled versions that make it load."""
     d = copy(tmp_path / "agents")
-    text = header(header(FILES["investigator"], "triggers", triggers), "version", "coordinator@4")
+    text = header(header(FILES["investigator"], "triggers", triggers), "version", "coordinator@5")
     (d / "investigator.md").write_text(text)
     got = loader.read(d / "investigator.md")
-    pins = {**PINS, "investigator": {"coordinator@4": Pin(got.file_sha256, got.prompt_sha256,
+    pins = {**PINS, "investigator": {"coordinator@5": Pin(got.file_sha256, got.prompt_sha256,
                                                           "test")}}  # fmt: skip
-    return d, pins, {**ENABLED, "investigator": "coordinator@4"}
+    return d, pins, {**ENABLED, "investigator": "coordinator@5"}
 
 
 def test_allows_follows_the_files_triggers(tmp_path: Path) -> None:
@@ -71,7 +71,7 @@ def test_a_refused_file_is_why_the_agent_is_off(
     assert str(why) == "intel.md: tier medium is above what code allows intel (small)"
     monkeypatch.setattr(loader, "DIRECTORY", loader.ROOT / "config" / "agents")
     agents, why = assess_cli._agents()
-    assert (agents.coordinator.version, why) == ("coordinator@4", None)
+    assert (agents.coordinator.version, why) == ("coordinator@5", None)
 
     def broken(*a: Any, **kw: Any) -> Any:
         raise OSError(5, "Input/output error\r", "/x\udce9")  # a library's own text
@@ -220,7 +220,7 @@ def test_a_refused_file_turns_the_agent_off_and_the_engine_keeps_running(
     assert ran == ["engine@1", "pass 0", "engine@1", "pass 1", "engine@1", "agent@1", "pass 2",
                    "engine@1", "agent@1", "pass 3"]  # fmt: skip
     assert len(built) == 1  # built once
-    assert built[0].coordinator.version == "coordinator@4"
+    assert built[0].coordinator.version == "coordinator@5"
     out = capsys.readouterr()
     assert out.out.splitlines()[1:4] == [
         "agent: off (its files are refused)", "queued 0 requeued 0",
@@ -328,7 +328,7 @@ def test_the_health_pages_view_of_the_investigator(monkeypatch: pytest.MonkeyPat
     assert app._investigator_state() == {
         "ready": True,
         "state": "ready",
-        "detail": "investigator coordinator@4; web, proxy specialist@1; intel specialist@2",
+        "detail": "investigator coordinator@5; web, proxy specialist@2; intel specialist@3",
     }
 
     def broken(*a: Any, **kw: Any) -> Any:
@@ -380,7 +380,7 @@ def test_the_service_says_when_the_agent_is_switched_off_in_code(
     out = capsys.readouterr()
     assert out.out.splitlines()[-1] == "agent: off (switched off in code)"
     assert out.err == (
-        "warning: the investigation agent is off: investigator.md: holds coordinator@4, but"
+        "warning: the investigation agent is off: investigator.md: holds coordinator@5, but"
         " investigator is off (argus.agent.registry.ENABLED). The decision engine runs"
         " without it; what waits for the agent stays queued.\n"
     )

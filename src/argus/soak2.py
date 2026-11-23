@@ -262,7 +262,7 @@ async def report(
     )
     out.append(
         Line(
-            "6. a TA/RA task test",
+            "6. a reviewer task test",
             "OPEN",
             "walked through by the lead (D-092); a person's own time needs the user",
         )

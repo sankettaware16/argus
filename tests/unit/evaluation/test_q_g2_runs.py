@@ -29,7 +29,7 @@ NOW = datetime(2026, 10, 23, 18, tzinfo=UTC)
 def local(**over: Any) -> LlmConfig:
     model = {"name": "cp", "context_tokens": 16384, "thinking_tokens": 2048, "max_output": 6144,
              "max_prompt_tokens": 12000, "read_tps": 45, "write_tps": 11}  # fmt: skip
-    provider = {"name": "local", "trust": "campus", "base_url": "https://127.0.0.1:28443/v1",
+    provider = {"name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:28443/v1",
                 "keys": ["K"], "ca_file": "/x.crt", "timeout_s": 900, "concurrency": 1,
                 "tasks": ["evaluate", "ping"], "schema_output": True, "schema_required": True,
                 "models": {"small": model}, "limits": {"rpd": 375}, **over}  # fmt: skip

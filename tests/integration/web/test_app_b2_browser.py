@@ -329,6 +329,8 @@ async def test_a_review_whose_investigation_moved_on_is_refused_and_keeps_what_w
         done = review_as(server, "ravi", racy, "benign_expected")
         assert done.status_code == 201, done.text
         await page.get_by_role("button", name="Save decision").click()
+        # marking it real says what that does first (docs/p4f-ui-spec.md §8, F6)
+        await page.get_by_role("button", name="Mark it real").click()
         conflict = page.get_by_text(
             "Someone else reviewed this, or new alerts arrived, while you were reading."
             " Nothing was saved."
@@ -353,6 +355,7 @@ async def test_a_review_whose_investigation_moved_on_is_refused_and_keeps_what_w
         assert await reviews_of(seeded, racy.id) == [("ravi", "reviewed", "benign_expected")]
         await page.get_by_role("button", name="I have looked at what changed").click()
         await page.get_by_role("button", name="Save decision").click()
+        await page.get_by_role("button", name="Mark it real").click()
         await page.get_by_text("Saved: your decision.").first.wait_for()
         assert await reviews_of(seeded, racy.id) == [
             ("ravi", "reviewed", "benign_expected"),
@@ -484,6 +487,7 @@ async def test_the_gold_box_saves_the_answer_and_a_review_can_save_it_too(
         assert not await also.is_checked()
         await also.check()
         await page.get_by_role("button", name="Save decision").click()
+        await page.get_by_role("button", name="Mark it real").click()
         await page.get_by_text("Also saved as your gold-set answer.").first.wait_for()
         async with seeded.connect() as conn:
             labels = (
@@ -656,7 +660,7 @@ async def test_failures_are_said_plainly_and_never_retried(
         await page.goto(f"{server}/app/search?advanced=1&view=open")
         await page.wait_for_url(re.compile(r"/signin\?"))
         assert "why=ended" in page.url
-        assert "next=%2Fapp%2Finbox%3Fview%3Dopen" in page.url
+        assert "next=%2Fapp%2Fsearch%3Fadvanced%3D1%26view%3Dopen" in page.url
         await browser.close()
 
 

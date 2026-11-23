@@ -636,7 +636,7 @@ def case_notify(
             actor, case_id, Notify(told, how, when, note, managed),  # type: ignore[arg-type]
             expected_version=version,
         )  # fmt: skip
-        kind = "campus-managed" if managed else "personal or unmanaged"
+        kind = site.say("{kind}-managed") if managed else "personal or unmanaged"
         return (
             f"case {applied.case.number}: owner notified ({kind}); version {applied.case.version}"
         )
@@ -848,7 +848,9 @@ def known_status(config: ConfigOption = None) -> None:
         out = []
         for c in await knownview.notified(conn, datetime.now(UTC)):
             kind = (
-                "" if c.managed is None else (" [campus-managed]" if c.managed else " [personal]")
+                ""
+                if c.managed is None
+                else (site.say(" [{kind}-managed]") if c.managed else " [personal]")
             )
             out.append(f"case {c.number}{kind}: {c.line(ist_day)}")
             out.append(
@@ -1089,7 +1091,7 @@ def case_suggest(
                     classifier=classifier,
                     view=view_of(settings.outside,
                                  lambda parent: shared.reason("domain", parent) is None),
-                    eligibility=Eligibility(privacy.classifier, privacy.campus, privacy.campus_for),
+                    eligibility=Eligibility(privacy.classifier, privacy.ours, privacy.ours_for),
                     shared=shared, resolvers=settings.campaigns.resolvers,
                 )  # fmt: skip
                 found = result.campaigns
@@ -1359,7 +1361,7 @@ def watch_run(
                 gateway, _state = _gateway(settings, engine)
                 asker = watchrun.GatewayAsker(
                     gateway, engine, enabled=settings.enrichment.templates,
-                    history=settings.history.window, is_campus=ctx.is_campus,
+                    history=settings.history.window, is_own=ctx.is_own,
                     health_config=health_config(settings.siem),
                 )  # fmt: skip
                 ctx = replace(ctx, asker=asker)

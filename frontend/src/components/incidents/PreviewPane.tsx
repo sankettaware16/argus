@@ -4,6 +4,7 @@ import { useEffect, useRef, type MutableRefObject } from "react";
 import type { IncidentReport } from "../../client/types.gen";
 import { mergedAlternatives, side, stateWords, ALT_WORDS } from "../../lib/engine";
 import { caseOptions, caseReportOptions } from "../../lib/queries";
+import { ownSide } from "../../lib/site";
 import { Loading, Problem } from "../Problem";
 import { UntrustedText } from "../UntrustedText";
 import { Button } from "../ui/button";
@@ -118,7 +119,7 @@ export function PreviewPane({
           )}
           {engine && (
             <div className="flex flex-col gap-1 text-sm">
-              <ChipRow objects={side(engine, "affected")} label="Campus side" />
+              <ChipRow objects={side(engine, "affected")} label={ownSide()} />
               <ChipRow objects={side(engine, "actor")} label="Other side" />
             </div>
           )}

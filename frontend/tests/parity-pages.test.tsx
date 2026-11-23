@@ -284,22 +284,25 @@ describe("Gold set", () => {
 });
 
 describe("the menu", () => {
-  it("S-1: has four pages, the rest under More and the person's entries under their name", async () => {
+  it("S-1: has the daily pages, the work and health pages shown directly, the rest under More and the person's entries under their name", async () => {
     const user = userEvent.setup();
     server.use(get("/tuning", { items: [] }));
     renderApp("/tuning");
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    const top = within(nav).getAllByRole("link").map((a) => [a.textContent?.replace(/\s+/g, " ").trim(), a.getAttribute("href")]);
-    expect(top).toEqual([
+    const all = within(nav).getAllByRole("link").map((a) => [a.textContent?.replace(/\s+/g, " ").trim(), a.getAttribute("href")]);
+    expect(all.slice(0, 6)).toEqual([
       ["Today", "/app/"],
       ["Incidents", "/app/incidents?view=needs-you"],
+      ["Alerts", "/app/alerts"],
+      ["Dashboards", "/app/dashboards"],
       ["Search", "/app/search"],
       ["Reports", "/app/reports"],
     ]);
+    expect(Object.fromEntries(all)).toMatchObject({ Approvals: "/app/approvals", "Rule tuning": "/app/tuning", "ARGUS quality": "/app/quality?tab=metrics", "System health": "/app/health" });
     await user.click(within(nav).getByRole("button", { name: /More/ }));
     const more = Object.fromEntries(within(screen.getByTestId("more-list")).getAllByRole("link").map((a) => [a.textContent?.trim(), a.getAttribute("href")]));
-    expect(more).toMatchObject({ Overview: "/app/overview", Approvals: "/app/approvals", "Rule tuning": "/app/tuning", "ARGUS quality": "/app/quality?tab=metrics", "System health": "/app/health", "Help & glossary": "/app/glossary", Patterns: "/app/patterns", Proposals: "/app/proposals" });
-    expect(within(screen.getByTestId("more-list")).getByText("More queues")).toBeTruthy();
+    expect(more).toMatchObject({ "Help & glossary": "/app/glossary", Patterns: "/app/patterns", Proposals: "/app/proposals" });
+    expect(Object.keys(more)).not.toContain("Approvals");
     await user.click(screen.getByTestId("account-menu"));
     const account = within(screen.getByTestId("account-items"));
     expect(account.getByRole("link", { name: "Your access" }).getAttribute("href")).toBe("/access");

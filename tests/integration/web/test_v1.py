@@ -34,7 +34,7 @@ def body_for(other: uuid.UUID) -> dict[str, Any]:
             "steps": [
                 {"number": 1, "text": "Check the source address", "fields": ["source.ip"],
                  "shown": ["source.ip"], "status": "answered",
-                 "sentence": "Answered from the alerts: see source.ip (R12).", "needs": []},
+                 "sentence": "Answered from the alerts: see source.ip.", "needs": []},
                 {"number": 2, "text": "Ask the host's owner", "fields": [], "shown": [],
                  "status": "manual", "sentence": "For a person to decide or do."},
                 {"number": 3, "text": "Odd step", "fields": [], "shown": ["nowhere"],
@@ -163,7 +163,7 @@ async def test_the_inbox_list(seeded: AsyncEngine, web_engine: AsyncEngine) -> N
             "alert_count", "duplicate_count", "first_event_at", "last_event_at", "severity",
             "risk_score", "version", "created_at", "continues_id", "human_state",
             "latest_review", "new_since_review", "last_outcome", "last_reviewed_at",
-            "last_reviewer", "reasons", "ai", "known"}  # fmt: skip
+            "last_reviewer", "reasons", "ai", "known", "case"}  # fmt: skip
         assert first["key_fields"][0]["field"] == "source.ip"
         # naming v2: the row's two lines come from its own facts, never the rule's name
         flags = [f for f in every[0].raised_flags or () if isinstance(f, str)]

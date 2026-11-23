@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { QueueCaseOut, QueueSingleOut } from "../../client/types.gen";
 import { count, plural } from "../../lib/format";
+import { ownCapital } from "../../lib/site";
 import { stanceHeadline } from "../../lib/verdict";
 import { StateChip } from "../chips";
 import { Time } from "../Time";
@@ -41,7 +42,7 @@ function Few({ label, values, total }: { label: string; values: readonly string[
   );
 }
 
-/** A case that needs a person: ARGUS's call, its campus devices and the outside addresses (never "devices", P4-F U13), its severity, and why it is here. */
+/** A case that needs a person: ARGUS's call, its internal devices and the outside addresses (never "devices", P4-F U13), its severity, and why it is here. */
 export function QueueCase({ c }: { c: QueueCaseOut }) {
   const [tone, kind] = KIND_WORDS[c.kind];
   return (
@@ -76,7 +77,7 @@ export function QueueCase({ c }: { c: QueueCaseOut }) {
         </ul>
       )}
       <p className="m-0 text-sm text-muted">
-        {c.devices.length > 0 && <Few label={c.devices_total === 1 ? "Campus device" : "Campus devices"} values={c.devices} total={c.devices_total} />}
+        {c.devices.length > 0 && <Few label={ownCapital(c.devices_total === 1 ? "device" : "devices")} values={c.devices} total={c.devices_total} />}
         {(c.outside ?? []).length > 0 && <Few label={c.outside_total === 1 ? "Outside address" : "Outside addresses"} values={c.outside ?? []} total={c.outside_total ?? 0} />}
         {c.devices.length === 0 && (c.outside ?? []).length === 0 && "No device or address named yet · "}
         {count(c.investigations)} {plural(c.investigations, "alert group")}, {count(c.unreviewed)} to decide · {count(c.alerts)} {plural(c.alerts, "alert")}

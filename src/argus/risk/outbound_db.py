@@ -236,7 +236,7 @@ def _day(g: Group) -> date:
 
 def signals_of(g: Group, answers: Sequence[Stored]) -> dict[str, Any]:
     """The signals the stored answers give one alert group (pure; only those it lacks): a
-    regular rhythm of its actor to an address it names (``pair.period_s``), how many campus
+    regular rhythm of its actor to an address it names (``pair.period_s``), how many internal
     devices reached an address it names that day (``contact.hosts``, the fewest, of a whole day
     only: a count so far may be the device alone), a tunnel's shape in its actor's lookups
     (``dns.tunnel_suspected``). Answers within a day of the group's last alert count."""

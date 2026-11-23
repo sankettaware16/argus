@@ -19,14 +19,14 @@ SUCCESS = "successful answers after the attack"
 
 def cand(
     *actors: Indicator,
-    campus: bool = True,
+    ours: bool = True,
     keys: frozenset[tuple[str, str]] = frozenset(),
     listed: tuple[str, ...] = (),
     rule: str | None = "Rule",
 ) -> Candidate:
     return Candidate(
-        "review", 1, uuid.UUID(int=1), True, NOW, rule, "medium", actors, campus, frozenset(),
-        listed, campus_keys=keys,
+        "review", 1, uuid.UUID(int=1), True, NOW, rule, "medium", actors, ours, frozenset(),
+        listed, own_keys=keys,
     )  # fmt: skip
 
 
@@ -64,18 +64,18 @@ def test_the_campus_keys_tell_a_device_from_an_outside_address() -> None:
 
 
 def test_an_outside_address_whose_attack_got_answers() -> None:
-    c = cand(ip("203.0.113.44"), campus=False)
+    c = cand(ip("203.0.113.44"), ours=False)
     assert opener.title(c, [SUCCESS]) == (
         "Suspected web scan by 203.0.113.44 — got HTTP 200, not verified"
     )
 
 
 def test_the_rule_names_what_has_no_shape_quoted_and_attributed() -> None:
-    c = cand(Indicator("user", "someone@example.org", "actor"), campus=False, rule="Odd login")
+    c = cand(Indicator("user", "someone@example.org", "actor"), ours=False, rule="Odd login")
     assert opener.title(c, ["severity high"]) == (
         "Suspected: alerts of rule 'Odd login' for a user account"
     )
-    assert opener.title(cand(rule=None, campus=False), []) == "Alert"
+    assert opener.title(cand(rule=None, ours=False), []) == "Alert"
 
 
 def test_a_value_that_is_not_an_address_never_reaches_the_title() -> None:

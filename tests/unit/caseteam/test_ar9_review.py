@@ -29,7 +29,7 @@ PIPE = "\N{DIVIDES}"
 
 
 def scanners(count: int = 16) -> m.IncidentReport:
-    ctx = kit.ctx(catalogue=CATALOGUE, campus_domains=("example.edu",))
+    ctx = kit.ctx(catalogue=CATALOGUE, own_domains=("example.edu",))
     return build.build(kit.scanners(count=count), ctx)
 
 
@@ -403,7 +403,7 @@ def test_f9_the_affected_row_counts_the_actors_not_the_ones_listed() -> None:
 
 
 def test_f10_a_person_review_is_said_as_a_review_with_its_outcome() -> None:
-    ctx = kit.ctx(catalogue=CATALOGUE, campus_domains=("example.edu",))
+    ctx = kit.ctx(catalogue=CATALOGUE, own_domains=("example.edu",))
     for outcome, words in (
         ("true_positive", "a true positive"),
         ("benign_expected", "benign: expected activity"),

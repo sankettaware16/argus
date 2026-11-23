@@ -15,7 +15,7 @@ from tests.conftest import REPO_ROOT
 
 KEY = b"k" * 32
 POLICY = FixturePolicy(
-    campus_domains=("campus.ac.in",),
+    own_domains=("campus.ac.in",),
     keep_domains=("mitre.org",),
     fields={
         "host": ("host.name",),

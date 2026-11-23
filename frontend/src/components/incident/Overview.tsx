@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import type { CaseDetail, CaseReportOut, IncidentReport } from "../../client/types.gen";
 import { bandWords, sidesWithoutEngine, stillFitsLine, type Alternative, type Engine } from "../../lib/engine";
 import { reportAlternatives, reportCall } from "../../lib/incident";
+import { ownSide } from "../../lib/site";
 import { usePhone } from "../../lib/viewport";
 import { plainWords } from "../../lib/plainWords";
 import { Loading, Problem } from "../Problem";
@@ -13,9 +14,11 @@ import { Button } from "../ui/button";
 import { AiReadingSection } from "./AiReading";
 import { AlternativesList, CheckList } from "./CheckList";
 import { cisoSent, CisoDraftDialog } from "./Ciso";
-import { ChangedStrip, ChipRow } from "./Parts";
+import { ChangedStrip, ChipRow, EntityChip } from "./Parts";
 import { WhyPoints } from "./WhyPoints";
+import { DeviceUser, signinsOf } from "../signins/SigninsCard";
 
+const WHO_SHOWN = 3;
 const SEEN_WORDS: Record<string, string> = { path: "Paths", domain: "Domains", user_agent: "User agent", file: "Files", size: "Size" };
 
 function Region({ name, title, aside, children }: { name: string; title?: string; aside?: ReactNode; children: ReactNode }) {
@@ -138,6 +141,10 @@ export function Overview({ detail, engine, report }: { detail: CaseDetail; engin
   const sides = engine ? engine.objects : sidesWithoutEngine(detail.indicators, body);
   const affected = sides.filter((o) => o.role === "affected");
   const actors = sides.filter((o) => o.role === "actor");
+  const users = affected.filter((o) => o.kind === "device").flatMap((o) => {
+    const d = signinsOf(detail.signins, o.label);
+    return d && d.state !== "none_seen" ? [{ o, d }] : [];
+  });
   const alternatives: Alternative[] = engine ? engine.alternatives : reportAlternatives(body);
   const call = reportCall(body?.verdict);
   return (
@@ -185,6 +192,21 @@ export function Overview({ detail, engine, report }: { detail: CaseDetail; engin
             </p>
           )}
           <WhyPoints engine={engine} top={phone ? 3 : undefined} />
+        </Region>
+      )}
+      {users.length > 0 && (
+        <Region name="who" title={users.length === 1 ? "Who used the device" : "Who used the devices"}>
+          <ul className="m-0 flex list-none flex-col gap-3 p-0" data-testid="overview-who">
+            {users.slice(0, WHO_SHOWN).map(({ o, d }, i) => (
+              <li key={o.label} className="flex flex-col gap-1">
+                <EntityChip object={o} />
+                <DeviceUser device={d} directory={i < 2} />
+              </li>
+            ))}
+          </ul>
+          <Link to="/incidents/$id" params={{ id: detail.case.id }} search={{ tab: "evidence" }} hash="evidence-signins" className="self-end text-sm">
+            {users.length > WHO_SHOWN ? `All ${users.length} devices` : "The sign-ins"} in Evidence ›
+          </Link>
         </Region>
       )}
       {engine && engine.seen.length > 0 && (
@@ -244,7 +266,7 @@ export function Overview({ detail, engine, report }: { detail: CaseDetail; engin
       {(affected.length > 0 || actors.length > 0) && (
         <Region name="sides">
           <div className="flex flex-col gap-1.5 text-sm" data-testid="sides">
-            {affected.length > 0 && <ChipRow objects={affected} max={3} label="Campus side (affected)" />}
+            {affected.length > 0 && <ChipRow objects={affected} max={3} label={`${ownSide()} (affected)`} />}
             {actors.length > 0 && <ChipRow objects={actors} max={3} label="Other side (actor)" />}
           </div>
         </Region>

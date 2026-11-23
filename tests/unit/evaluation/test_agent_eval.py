@@ -226,17 +226,17 @@ def test_the_specialists_version_names_one_shared_version_or_each() -> None:
     (as before the port), else each specialist's by name; no specialists, nothing."""
     import dataclasses
 
-    # AR3 (D-165): intel is specialist@2 (the outside tools), the others specialist@1
+    # AR3 (D-165): intel is a version ahead (the outside tools); D-338 moved all three by one
     assert agent_eval.specialists_version(AGENTS) == (
-        "intel=specialist@2,proxy=specialist@1,web=specialist@1"
+        "intel=specialist@3,proxy=specialist@2,web=specialist@2"
     )
-    intel = dataclasses.replace(AGENTS.by_name["intel"], version="specialist@1")
+    intel = dataclasses.replace(AGENTS.by_name["intel"], version="specialist@2")
     shared = loader.Agents({**AGENTS.by_name, "intel": intel})
-    assert agent_eval.specialists_version(shared) == "specialist@1"
-    web = dataclasses.replace(AGENTS.by_name["web"], version="specialist@2")
-    mixed = loader.Agents({**shared.by_name, "web": web})
+    assert agent_eval.specialists_version(shared) == "specialist@2"
+    web = dataclasses.replace(AGENTS.by_name["web"], version="specialist@1")
+    mixed = loader.Agents({**AGENTS.by_name, "web": web})
     assert agent_eval.specialists_version(mixed) == (
-        "intel=specialist@1,proxy=specialist@1,web=specialist@2"
+        "intel=specialist@3,proxy=specialist@2,web=specialist@1"
     )
     lead = dataclasses.replace(AGENTS.coordinator, specialists=())
     alone = loader.Agents({**AGENTS.by_name, "investigator": lead})

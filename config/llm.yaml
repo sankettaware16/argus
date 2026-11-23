@@ -4,7 +4,7 @@
 # ARGUS uses `margin` of them. Prices are USD per million tokens (check the providers' pages);
 # the gpt-5.5 price is set high on purpose, so the monthly cap errs on the safe side.
 #
-# Per provider, optionally: trust (cloud | campus), ca_file (trust that certificate only),
+# Per provider, optionally: trust (cloud | self_hosted), ca_file (trust that certificate only),
 # timeout_s (one call's deadline), concurrency (calls in flight across every ARGUS process),
 # tasks (the allowlist of Call.purpose; default every task), probe (GET /v1/models before calls),
 # schema_output, slow_s (a model whose median latency is above it cools down for 30 minutes),
@@ -118,7 +118,7 @@ providers:
   # An optional self-hosted OpenAI-compatible model. Off by default; see docs/llm.md.
   - name: local
     enabled: false
-    trust: campus
+    trust: self_hosted
     base_url: https://127.0.0.1:18443/v1
     keys: [LOCAL_LLM_API_KEY]
     ca_file: data/tls/local-llm.crt

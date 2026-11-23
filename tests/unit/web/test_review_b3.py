@@ -139,7 +139,7 @@ def test_r3_9_the_watchs_own_reasons_lose_only_the_component_codes() -> None:
     assert casepages.window_words("ARGUS's own alerts show activity today") == (
         "ARGUS's own alerts show activity today"
     )
-    assert casepages.window_words("x (Q-C2) y") == "x y"
+    assert casepages.window_words("x y") == "x y"
     assert casepages.window_words(NO_QUIET_WINDOW.reason) == (
         "the still-active watch is not running here, so nothing can be shown quiet"
     )

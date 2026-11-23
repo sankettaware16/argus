@@ -90,6 +90,45 @@ class HistorySettings(_Section):
     """How far back ARGUS looks: backfill depth and entity-history lookback."""
 
 
+_SlaTime = Annotated[Duration, bounded_duration(timedelta(minutes=5), timedelta(days=90))]
+
+
+class SlaSettings(_Section):
+    """How long a person has, by an incident's priority (P1 the most urgent). ARGUS enforces
+    none of it: the dashboards measure the time to a first decision and the time to close
+    against these, and name what is past its time."""
+
+    triage_p1: _SlaTime = timedelta(hours=1)
+    """A P1 possible incident is confirmed or dismissed within this, counted from the moment
+    ARGUS raised it."""
+    triage_p2: _SlaTime = timedelta(hours=4)
+    """The same for a P2."""
+    triage_p3: _SlaTime = timedelta(hours=24)
+    """The same for a P3."""
+    triage_p4: _SlaTime = timedelta(hours=72)
+    """The same for a P4."""
+    resolve_p1: _SlaTime = timedelta(hours=24)
+    """A confirmed P1 incident is closed within this, counted from its confirmation."""
+    resolve_p2: _SlaTime = timedelta(hours=72)
+    """The same for a P2."""
+    resolve_p3: _SlaTime = timedelta(days=7)
+    """The same for a P3."""
+    resolve_p4: _SlaTime = timedelta(days=14)
+    """The same for a P4."""
+
+    def triage(self, band: str) -> timedelta:
+        """The time to a first decision for ``band`` (an unknown band has P4's)."""
+        return {"P1": self.triage_p1, "P2": self.triage_p2, "P3": self.triage_p3}.get(
+            band, self.triage_p4
+        )
+
+    def resolve(self, band: str) -> timedelta:
+        """The time to close for ``band`` (an unknown band has P4's)."""
+        return {"P1": self.resolve_p1, "P2": self.resolve_p2, "P3": self.resolve_p3}.get(
+            band, self.resolve_p4
+        )
+
+
 class MemorySettings(_Section):
     window: Annotated[Duration, bounded_duration(timedelta(days=1), timedelta(days=3650))] = (
         timedelta(days=90)
@@ -225,12 +264,12 @@ class DatabaseSettings(_Section):
         if self.api_user in (self.user, self.owner_user):
             raise ValueError(
                 "api_user must be a role of its own, neither user nor owner_user: the web logs"
-                " in with only the grants it needs (Q-A2)"
+                " in with only the grants it needs"
             )
         if self.writer_user in (self.user, self.owner_user, self.api_user):
             raise ValueError(
                 "writer_user must be a role of its own: the writer logs in with the grants only"
-                " it may hold (Q-D4)"
+                " it may hold"
             )
         return self
 
@@ -477,7 +516,7 @@ def _public_url(value: str | None) -> str | None:
     ):
         raise ValueError("public_url is a scheme and a host name only, e.g. https://argus.example")
     if parts.scheme == "http" and host not in LOOPBACK:
-        raise ValueError("public_url uses https unless it is the loopback (DQ29)")
+        raise ValueError("public_url uses https unless it is the loopback")
     return f"{parts.scheme}://{host}" + (f":{port}" if port is not None else "")
 
 
@@ -666,6 +705,33 @@ class OutsideSettings(_Section):
         return self.key_of(source) is not None or (source == "shodan" and self.shodan_internetdb)
 
 
+class DirectorySettings(_Section):
+    """The site's own account directory (D-337): who an account name belongs to, asked of the
+    organisation's own system. ``provider`` names the site's code for it
+    (``package.module:attribute``); **empty, the feature is off** and nothing is asked.
+    ``session`` is what the directory accepts from ARGUS (a signed-in person's session, a key):
+    only in ``.env`` (``ARGUS_DIRECTORY__SESSION``) or saved in Settings, where it can be changed
+    whenever the directory stops accepting it. An answer names a person: it is shown only to
+    people who may see account names and kept in the web's memory for ``cache_window``, never
+    stored."""
+
+    provider: Annotated[
+        str, Field(max_length=200, pattern=r"^([A-Za-z_][\w.]*:[A-Za-z_]\w*)?$")
+    ] = ""
+    session: SecretStr | None = None
+    timeout: Annotated[Duration, bounded_duration(timedelta(seconds=2), timedelta(seconds=30))] = (
+        timedelta(seconds=10)
+    )
+    cache_window: Annotated[Duration, bounded_duration(timedelta(minutes=1), timedelta(days=7))] = (
+        timedelta(hours=12)
+    )
+
+    def secret(self) -> str | None:
+        """The saved session, or None when there is none (blank counts as none)."""
+        value = self.session.get_secret_value().strip() if self.session is not None else ""
+        return value or None
+
+
 BatchTemplate = Literal[
     "proxy.pair", "proxy.contact", "dns.host_domains", "web.path_outcomes", "logs.source_events"
 ]
@@ -842,8 +908,9 @@ class WritebackSettings(_Section):
     """Writing people's review results back to the alerts in Kibana: **off**. A real run also
     needs ``kibana.write_classes`` to name ``WA``, the alert writer's key
     (``kibana.alert_writer_api_key``, with a recorded expiry) and a person at a terminal who types
-    the confirmation. The first run writes at most 5 alerts; after that a call names ``batch``
-    alerts (at most 100), at least 60 s apart, inside the lane's daily alert-mutation cap."""
+    the confirmation, or ``auto`` for the timer's runs once a person made the first. The first
+    run writes at most 5 alerts; after that a call names ``batch`` alerts (at most 100), at least
+    60 s apart, inside the lane's daily alert-mutation cap."""
 
     enabled: bool = False
     batch: Annotated[int, Field(ge=1, le=100)] = 5
@@ -853,6 +920,13 @@ class WritebackSettings(_Section):
     f1_audited: bool = False
     """Set once the audit of the freshness "nothing found" answers has passed: until then a
     benign verdict resting on one waits."""
+    own_accounts: bool = False
+    """A decision made by a person signed in with one of ARGUS's own accounts (not an ELK
+    account) reaches Kibana without an operator, and so does a person's dismissal of a possible
+    incident (D-336). The person holds ARGUS's review capability; ELK never checked them."""
+    auto: bool = False
+    """``argus writeback run --unattended`` (argus-writeback.timer) plans and sends with nobody
+    at a terminal (D-336). The first run, of at most 5 alerts, stays a person's."""
 
 
 class LoggingSettings(_Section):
@@ -933,7 +1007,8 @@ CUSTODY_SECRETS: dict[str, frozenset[str]] = {
             "outside.censys_api_key",
         }
     ),
-    "web": frozenset({"database.api_password"}),
+    # the account directory is asked by the web alone (D-337)
+    "web": frozenset({"database.api_password", "directory.session"}),
     # the writer's own database login; the Kibana writer keys and the Kibana
     # reader key its write runs check Kibana with
     "writer": frozenset(
@@ -1452,6 +1527,7 @@ class Settings(BaseSettings):
 
     environment: Literal["dev", "test", "prod"] = "dev"
     history: HistorySettings = HistorySettings()
+    sla: SlaSettings = SlaSettings()
     memory: MemorySettings = MemorySettings()
     retention: RetentionSettings = RetentionSettings()
     database: DatabaseSettings = DatabaseSettings()
@@ -1463,6 +1539,7 @@ class Settings(BaseSettings):
     reference: ReferenceSettings = ReferenceSettings()
     enrichment: EnrichmentSettings = EnrichmentSettings()
     outside: OutsideSettings = OutsideSettings()
+    directory: DirectorySettings = DirectorySettings()
     writeback: WritebackSettings = WritebackSettings()
     backup: BackupSettings = BackupSettings()
     soak: SoakSettings = SoakSettings()
@@ -1787,7 +1864,7 @@ def custody_problems(settings: Settings, others: Sequence[Layer]) -> list[str]:
             if origin is not None:
                 problems.append(
                     f"{setting} is set by {origin}: under custody (custody.role {role}) a secret"
-                    " comes only from its credential (LoadCredential=, Q-A5)"
+                    " comes only from its credential (LoadCredential=)"
                 )
     for setting in secrets:
         section, _, key = setting.partition(".")
@@ -1796,7 +1873,7 @@ def custody_problems(settings: Settings, others: Sequence[Layer]) -> list[str]:
             continue
         holders = sorted(name for name, held in CUSTODY_SECRETS.items() if setting in held)
         problems.append(
-            f"{setting} is given to the {role} account, which must not hold it (Q-A5): only"
+            f"{setting} is given to the {role} account, which must not hold it: only"
             f" {' and '.join(holders) or 'no account'} may"
         )
     if role == "web" and settings.web.database_role != "api":

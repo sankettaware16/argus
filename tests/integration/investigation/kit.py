@@ -173,6 +173,6 @@ def env(
         gateway.now = now
     return Env(
         engine=engine, state=held, gateway=gateway,  # type: ignore[arg-type]
-        packs=default_registry(), switches=switches, is_campus=batch1.private_or(None),
+        packs=default_registry(), switches=switches, is_own=batch1.private_or(None),
         caps=caps or Caps(), per_day=per_day, clock=lambda: now,
     )  # fmt: skip

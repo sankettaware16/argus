@@ -4,7 +4,7 @@ The ARGUS web app is where people meet ARGUS's work (what needs attention, incid
 evidence, ARGUS's proposals, approvals and reports) and where an administrator runs ARGUS:
 the first-time setup, every setting, and the people who may sign in. This page is for whoever
 sets it up and administers it. The guide for the people who review alerts every day is
-[guide-ta-ra.md](guide-ta-ra.md) (written for reviewers: research and teaching assistants in the
+[guide-reviewers.md](guide-reviewers.md) (written for reviewers: research and teaching assistants in the
 original deployment, analysts anywhere).
 
 **Contents**
@@ -76,7 +76,8 @@ The sign-in page is `/signin`. People sign in with **local accounts** made in th
 
 ## Administration
 
-Administrators find these under **More → Administration**: **Settings**, **AI and agents**,
+Administrators find these in the menu under **Administration** (Costs and usage and the Design
+system under **More**): **Settings**, **AI and agents**,
 **Threat intel**, **Costs and usage**, **Users and roles** ([next section](#users-and-capabilities))
 and the **Design system** (the app's colours and components, for developers). The services are a
 panel on **System health**. Everything after the install is done here: the server is needed only
@@ -210,7 +211,7 @@ its daily limit (the dashed line). Amounts are in US dollars; days are UTC.
 
 ### Services
 
-At the bottom of **More → System health**, administrators see ARGUS's services and timers: what
+At the bottom of **System health**, administrators see ARGUS's services and timers: what
 each does, whether it is meant to run and whether it runs, when `argus-admin` last looked, and the
 badges *writes to the SIEM* and *deletes data*. **Switch on** and **Switch off** (for the optional
 ones) need your password again; switching on one that writes to the SIEM also needs the typed
@@ -220,7 +221,7 @@ words. **Restart** restarts a service (not `argus-admin` itself, which applies t
 
 ## Users and capabilities
 
-**More → Administration → Users and roles** lists everyone who can sign in, with their role, when
+**Administration → Users and roles** lists everyone who can sign in, with their role, when
 they were last seen, their open sessions and their status. Each change asks for your password
 again (within five minutes).
 
@@ -245,7 +246,7 @@ The roles:
 | Role | What it gives |
 |---|---|
 | Viewer | `view`: reads incidents, reports and Today; changes nothing |
-| Analyst (TA/RA) | `view`, `see_logs`, `review`, `answer_gold`, `manage_cases`: works the queue |
+| Analyst | `view`, `see_logs`, `review`, `answer_gold`, `manage_cases`: works the queue |
 | Lead | an analyst who may also `reopen` and `approve` (closures and Kibana posts) |
 | Administrator | everything, and ARGUS's settings and accounts (`admin`) |
 | Custom | exactly the capabilities you tick, when no role fits |
@@ -278,23 +279,27 @@ uv run argus sessions end-all                           # end every session
 
 ## The pages
 
-The menu is on the left (on a phone, the four main pages are a bar at the bottom):
+The menu is on the left, every entry with its glyph (on a phone, the four pages opened most are a
+bar at the bottom and the rest are under **More**):
 
 | Where | Page | What it is |
 |---|---|---|
 | **Main** | Today | What needs a person today, and what ARGUS handled on its own; until the setup is done, administrators see the setup card and everyone else a notice that an administrator still has to finish it |
 | | Incidents | Every incident and possible incident, by priority |
+| | Alerts | Every alert group ARGUS took in, newest first, each with the incident it belongs to; the ones in an incident and the ones in none are one click apart. An alert group opened from here or from an incident has a link back to its incident at the top |
+| | Dashboards | Four ready-made boards: **Security overview** (the alerts over time, what they were narrowed down to, the most active devices and outside addresses, what waits for a person, and the **response times**: the mean time to detect (MTTD), to a person's first decision (MTTA) and to close (MTTR), the share decided and closed within your targets by priority, and what is past its time now), **Detections** (every rule that fired, the loud ones that never found anything, the ones that did), **ARGUS operations** (what ARGUS takes in and handles alone, its AI calls) and, for administrators, **Costs** (the AI's spend against its caps and where the month is heading, by day, provider and task, and the threat-intel lookups against their limits). The first two share one time range. Charts can be read by pointing, with the arrow keys or as a table; most figures open the list behind them; the page refreshes every minute |
 | | Search | One box for an address, a host, an account, a domain, a rule or an incident |
 | | Reports | Incident reports first, then the daily and weekly summaries |
-| **More** | Overview | Alerts, alert groups and incidents at a glance |
-| | Approvals | Closures and merges waiting for a second person |
+| **Work** | Approvals | Closures and merges waiting for a second person |
 | | Rule tuning | Weekly per-rule suggestions to make noisy rules quieter (you apply them in Kibana) |
-| | ARGUS quality | How often ARGUS is right: its results, waiting work and cost, and the gold set |
+| | Account look-up | Who an account belongs to, where the site has an account directory |
+| **ARGUS** | ARGUS quality | How often ARGUS is right: its results, waiting work and cost, and the gold set |
 | | System health | Whether data is arriving, and any gaps (a gap is *unknown*, never *clean*); for administrators, the [services](#services) |
-| | Help & glossary | Every page and word explained |
-| **More queues** | Patterns | Groups of alike alert groups, to decide at once |
+| **Administration** (admins) | Settings, Users and roles, AI and agents, Threat intel | [Above](#administration) |
+| **More** (folded) | Patterns | Groups of alike alert groups, to decide at once |
 | | Proposals | Outcomes ARGUS proposes, grouped by what decided them, with an audit sample |
-| **Administration** (admins) | Settings, AI and agents, Threat intel, Costs and usage, Users and roles, Design system | [Above](#administration) |
+| | Costs and usage, Design system (admins) | [Above](#administration) |
+| | Help & glossary | Every page and word explained |
 | **Account** | Your access | What you may do and why (a server page) |
 
 ![Incidents: every incident and possible incident, by priority](images/screenshots/incidents.png)
@@ -306,7 +311,7 @@ closure), **New activity**, **Waiting for your approval**, **ARGUS is unsure abo
 
 **Incidents** is the queue, in tabs (**Needs you**, **Mine**, **Open**, **Owner told**,
 **Closed**, **All**) with filters. On a wide screen a row opens a **preview** beside the list
-(what happened, why, what was checked, the campus side and the other side) with the same two
+(what happened, why, what was checked, your side and the other side) with the same two
 decision buttons. Selected rows (`x`) can be closed together with one reason, merged (**Merge
 into one…**) or compared (**Review together**); confirming is always one at a time.
 
@@ -349,7 +354,7 @@ checked** (the rule's own steps), **Alerts** (chosen columns; the raw alert on d
 opens a possible incident, or adds it to the incident that holds its activity), Real but harmless,
 Allowed by policy, Wrong alert, Can't tell yet; *Come back to it* keeps it in Needs attention
 for a follow-up; then **Save decision** (or **Add note only**). **Accept ARGUS's call** does it in
-one click when ARGUS makes a call. **More → More queues** keeps two alert-group queues:
+one click when ARGUS makes a call. **More** keeps two alert-group queues:
 **Proposals** (ARGUS's proposed outcomes by group, with an audit sample and **Confirm all**) and
 **Patterns** (alike alert groups to decide at once).
 

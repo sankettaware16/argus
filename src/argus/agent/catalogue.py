@@ -21,7 +21,7 @@ from argus.outside import facts as outside
 from argus.reference.templates import LOOKUP_SIZE, TiLookup, lookup_params
 from argus.reference.ti import variants
 
-INTERNAL = frozenset({IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL})
+INTERNAL = frozenset({IpClass.ASSET, IpClass.OWN, IpClass.INTERNAL})
 # exactly one item's pseudonym (``I1.IP_2``), nothing around it
 ENTITY = re.compile(r"I\d+\.(?:IP|MAC|SITE|HOST|USER|EMAIL|ID|HASH|CRED)_\d+")
 # a public address or domain as the item shows it (the validator let it through: not internal)

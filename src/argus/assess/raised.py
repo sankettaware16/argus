@@ -18,6 +18,7 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from argus import site
 from argus.evaluation import gold
 from argus.outside import facts as outside
 from argus.outside import read as outside_read
@@ -32,7 +33,10 @@ THREAT_LIST = "on a threat list"
 OUTSIDE = outside.FLAG  # "flagged by outside threat intel"
 # set by ``argus.campaigns``, not by a dossier's signals
 OPERATOR = "same operator as a flagged destination"  # raises like a detection
-CAMPAIGN = "many campus devices reach one rare domain"  # raises nothing alone
+# raises nothing alone. A stored key (kept as it was first written, so stored rows still match);
+# people read it in the site's words (``SHOWN``)
+CAMPAIGN = "many campus devices reach one rare domain"
+SHOWN = {CAMPAIGN: "many {own:devices} reach one rare domain"}
 STRONG = (THREAT_LIST, OUTSIDE, OPERATOR)  # the flags that, with another flag, raise
 # Any single flag raised too many investigations, so a threat-list hit (an outside detection
 # counts as one, and so does a tie to the operator of one) needs another flag.
@@ -73,7 +77,7 @@ def flags_of(local_signals: Any, signals: Any) -> tuple[str, ...]:
 
 def words(flags: Sequence[str]) -> str:
     """The reason as the pages say it: "ARGUS raised it: regular traffic, like a beacon"."""
-    return PREFIX + "; ".join(flags)
+    return PREFIX + "; ".join(site.say(SHOWN.get(flag, flag)) for flag in flags)
 
 
 def raises(flags: Sequence[str]) -> bool:

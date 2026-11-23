@@ -175,7 +175,7 @@ class Bulk(_Model):
 class Shared(_Model):
     """At least ``sources`` outside addresses each got through on at least ``paths`` of the same
     rare paths of one site; a path is rare when at most ``rare_sources`` outside addresses got a
-    2xx for it on any campus site in the window."""
+    2xx for it on any own site in the window."""
 
     sources: int = Field(ge=2, le=50)
     paths: int = Field(ge=1, le=20)
@@ -183,7 +183,7 @@ class Shared(_Model):
 
 
 class Exposure(_Model):
-    """Inbound exposure (P4-F E3): the campus site is the thing at risk, and the checking lane's
+    """Inbound exposure (P4-F E3): the own site is the thing at risk, and the checking lane's
     few targeted checks tell a real leak from a soft-404. ``templates``: the checks the lane may
     send, each only after its first production run passed (none by default: nothing is sent)."""
 
@@ -208,7 +208,7 @@ class Outbound(_Model):
     """The engine's own evidence for its outbound incidents (D-323): on the checking lane, for
     each presented incident of ``bands`` (top band first, newest material version first), once a
     material version, the checks that decide it: the device's timing to its destination
-    (``proxy.pair``), how many campus devices reach that destination (``proxy.contact``) and,
+    (``proxy.pair``), how many internal devices reach that destination (``proxy.contact``) and,
     with no outside address to time, the device's lookups (``dns.host_domains``). Only the
     templates the evidence switch (``enrichment.templates``) holds are asked. At most
     ``pass_requests`` a pass and ``day_requests`` a day (each one heavy: the lane's heavy count

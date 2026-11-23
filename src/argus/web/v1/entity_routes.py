@@ -15,9 +15,10 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
 
+from argus import directory as site_directory
 from argus.web import auth, lookups
 from argus.web.capabilities import Capability
-from argus.web.deps import Conn, Surface, forbidden, need
+from argus.web.deps import Conn, Refusal, Surface, forbidden, need
 from argus.web.v1 import entity_models as m
 from argus.web.v1.models import CLEAN, SPACE
 
@@ -27,6 +28,7 @@ _CTRL = r"\x00-\x1f\x7f-\x9f"
 _ONE_LINE = rf"^[^{_CTRL}]*[^{_CTRL}{SPACE}][^{_CTRL}]*$"
 _ONE_VALUE = rf"^[^{_CTRL}/]*[^{_CTRL}/{SPACE}][^{_CTRL}/]*$"  # and no slash (a path part)
 Viewer = Annotated[auth.Reviewer, Depends(VIEW)]
+LogReader = Annotated[auth.Reviewer, Depends(need(Capability.SEE_LOGS, Surface.V1))]
 # a value from an alert: an address, a host, a domain or an account name (one line, no NUL)
 EntityValue = Annotated[
     str, Path(min_length=1, max_length=512, pattern=_ONE_VALUE,
@@ -40,6 +42,28 @@ SearchText = Annotated[
 
 def _classifier(request: Request) -> Any:
     return getattr(request.app.state.watch_context, "classifier", None)
+
+
+DirectoryAccount = Annotated[
+    str, Path(min_length=1, max_length=64, pattern=site_directory.ACCOUNT,
+              description="the account's name, as the site's directory knows it"),
+]  # fmt: skip
+
+
+def directory_label(request: Request, me: auth.Reviewer) -> str | None:
+    """The site's directory's name, for a person who may ask it; else None."""
+    found = getattr(request.app.state, "directory", None)
+    return found.label if found is not None and me.can(Capability.SEE_LOGS) else None
+
+
+def _person(found: site_directory.Person | None) -> m.DirectoryPersonOut | None:
+    if found is None:
+        return None
+    return m.DirectoryPersonOut(
+        name=found.name, kind=found.kind, department=found.department,
+        details=[m.DirectoryLineOut(label=label, value=value)
+                 for label, value in found.details[: site_directory.MAX_DETAILS]],
+    )  # fmt: skip
 
 
 def install(
@@ -56,7 +80,7 @@ def install(
     async def get_entity(
         kind: m.PageKind, value: EntityValue, request: Request, me: Viewer, conn: Conn
     ) -> m.EntityPageOut:
-        """What ARGUS knows of a device, an account, a campus site or an outside address: the
+        """What ARGUS knows of a device, an account, an own site or an outside address: the
         asset map's entry, its incidents and alert groups, a timeline, its days (and for an
         address, each day's host names and sign-ins: whether the host names show a different
         device on different days, ``dynamic``, and the most accounts in one day, ``shared_by``),
@@ -67,6 +91,27 @@ def install(
         return await lookups.entity_page(
             conn, kind, value.strip(), me.user_id, now=clock(), classifier=_classifier(request),
             show_names=me.can(Capability.SEE_LOGS),
+        )  # fmt: skip
+
+    @router.get("/directory/{account}", tags=["entities"], operation_id="getDirectoryAccount",
+                responses=errors(401, 403, 404, 422))  # fmt: skip
+    async def get_directory_account(
+        account: DirectoryAccount, request: Request, me: LogReader, conn: Conn
+    ) -> m.DirectoryOut:
+        """Who an account belongs to, from the site's own account directory (D-337): the name,
+        the kind of account and the department, with what the account's name alone says. Needs
+        ``see_logs``, as an account's page does; each question is audited (who asked, never the
+        answer). The answer is not stored. 404 when the site has no directory."""
+        found = getattr(request.app.state, "directory", None)
+        if found is None:
+            raise Refusal(404, "not_found", "this site has no account directory", Surface.V1)
+        answer = await found.lookup(account)
+        await auth.audit(conn, actor=f"user:{me.username}", action="directory_lookup",
+                         target_type="account", target_id=account,
+                         details={"result": answer.outcome})  # fmt: skip
+        return m.DirectoryOut(
+            account=account, directory=found.label, outcome=answer.outcome, why=answer.why,
+            person=_person(answer.person), described=_person(found.describe(account)),
         )  # fmt: skip
 
     @router.get("/search", tags=["entities"], operation_id="search", responses=read)

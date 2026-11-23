@@ -40,7 +40,7 @@ def states(found: list[alt.Alternative]) -> dict[str, str]:
 def test_a_rare_destination_rules_out_an_update_service_and_a_common_one_fits() -> None:
     rare = states(alt.alternatives(ev(kinds=frozenset({"beacon"}), reach={"ip:a": 1})))
     assert rare["A common service"] == "ruled_out"
-    assert rare["A research crawler or a student project"] == "ruled_out"
+    assert rare["A research crawler or a personal project"] == "ruled_out"
     assert rare["A rule's usual noise"] == "ruled_out"
     common = states(alt.alternatives(ev(reach={"domain:cdn.test": 40, "ip:b": 25})))
     assert common["A common service"] == "fits"

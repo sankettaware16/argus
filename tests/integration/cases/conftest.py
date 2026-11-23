@@ -1,6 +1,6 @@
 """Fixtures for the case record (Q-C1): investigations to put in cases, people with web
 sessions, and ``api_engine``, a login that is a member of ``argus_runtime`` and
-``argus_approvals`` (what the web's own login will be, Q-A2)."""
+``argus_approvals`` (what the web's own login will be)."""
 
 from __future__ import annotations
 

@@ -163,7 +163,7 @@ def test_resume_commands_log_in_as_the_owner(
         for command in (("siem", "resume", "--component", "collector"), ("llm", "resume")):
             code, out = _invoke(*command, *config)
             assert code == 2, out
-            assert "resuming needs the database owner (Q-A5)" in out
+            assert "resuming needs the database owner" in out
             assert f"sudo argus-owner {' '.join(command)}" in out
         # stopping still works without it
         assert _invoke("siem", "stop", "--component", "global", *config)[0] == 0

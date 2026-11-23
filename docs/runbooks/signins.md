@@ -16,7 +16,7 @@ what it was (the pages show a card that says ARGUS is not reading the sign-in lo
 Always with the wording: **"Probable user, from SSO sign-ins on this address — a lead, not proof:
 addresses can be reassigned."** For each internal device of the investigation or case, one of (a
 **device** is an internal address on the **source side** of the alerts, read from the grouping key:
-the infected host, not a campus server that an outside scanner only probed, D-226):
+the infected host, not an own server that an outside scanner only probed, D-226):
 
 | State | Meaning |
 |---|---|

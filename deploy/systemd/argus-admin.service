@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS admin (P4-H, D-327): applies the settings people change in the app
+Description=ARGUS admin: applies the settings people change in the app
 StartLimitIntervalSec=0
 
 [Service]

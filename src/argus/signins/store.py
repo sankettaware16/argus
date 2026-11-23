@@ -206,7 +206,7 @@ def source_devices(group_key: str, classifier: IpClassifier) -> list[str]:
         values = pair[1] if isinstance(pair[1], list) else [pair[1]]
         for value in values[: campaign_load.MAX_LISTED]:
             got = classifier.classify(value) if isinstance(value, str) else None
-            if got is not None and got.address is not None and got.ip_class in opener.CAMPUS:
+            if got is not None and got.address is not None and got.ip_class in opener.OWN_CLASSES:
                 found.update(ipv4([str(got.address)]))
     return ipv4(found)
 

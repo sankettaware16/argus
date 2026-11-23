@@ -363,6 +363,16 @@ def test_a_case_the_case_team_posted_to_kibana_is_not_dismissed() -> None:
     )
 
 
+def test_a_dismissal_keeps_its_reason_on_the_event() -> None:
+    """The history says why a possible incident was dismissed: the reason is on the event."""
+    case = opened(suspected=True).after
+    step = machine.decide(case, Dismiss("benign_expected", "a lab's backup"), person(), NOW)
+    assert step.details == {"reason": "benign_expected", "note": "a lab's backup"}
+    assert machine.decide(case, Dismiss("benign_policy"), person(), NOW).details == {
+        "reason": "benign_policy"
+    }
+
+
 # --------------------------------------------------------------------------- properties
 
 _ACTORS = st.sampled_from(

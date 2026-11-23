@@ -1,6 +1,6 @@
 """Step 7 of the engine (E2): the incident's lifecycle. Pure: the pass and the replay run it.
 
-An **incident** is a set of linked campus objects and the alert groups on them. Each pass:
+An **incident** is a set of linked internal objects and the alert groups on them. Each pass:
 
 1. **Match.** A component (``link.components``) holding an object of a live incident joins it;
    two live incidents a component touches merge, the older one keeps the id, unless a **merge

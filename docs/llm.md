@@ -380,7 +380,7 @@ queue: every claim must cite the incident's own facts, and code drops a claim th
 The **analyst brief** of an incident report (D-332; `incident.brief` in `config/argus.yaml`) is
 the task `brief`: the large tier, Anthropic first (Opus 5.5), then OpenAI, 12 attempts a day. It
 writes what is happening, the summary, why the incident is judged real, the impact and the steps
-asked for, from the report's own facts with every campus address, host and account replaced by a
+asked for, from the report's own facts with every internal address, host and account replaced by a
 token. Code keeps a line only when it cites facts it was given, names nothing else, states no
 number those facts do not hold and does not contradict the verdict. A case whose verdict and
 standing did not change keeps its brief for `incident.brief_every` (6 hours), so an active case
@@ -449,7 +449,7 @@ incident report, and there only as `USER_n` tokens like every other account name
 writes in a note is never sent. [Privacy](privacy.md) explains all of this in plain words, with
 an example of what a model receives and the limits you should know.
 
-Your own domains come from `site.own_domains`; `campus_domains` in `config/llm_data_policy.yaml`
+Your own domains come from `site.own_domains`; `own_domains` in `config/llm_data_policy.yaml`
 adds more. The asset map's generalisations (`site.type`, `site.zone`) may be sent, never its
 names.
 
@@ -524,7 +524,7 @@ uv run argus llm reconcile     # set this month's spending to the ledger's settl
 `config/llm.yaml` also holds a `local` provider entry, **disabled**, for an OpenAI-compatible
 server you run yourself (for example `llama-server` from llama.cpp) behind TLS, reached at
 `base_url`, trusted through its own certificate (`ca_file`) and keyed with `LOCAL_LLM_API_KEY`.
-Its `trust: campus` marks it as on your own network. As shipped it is limited to the evaluation
+Its `trust: self_hosted` marks it as on your own network. As shipped it is limited to the evaluation
 and ping tasks (`tasks: [evaluate, ping]`): a local model is used for real work only after it has
 been evaluated against the gold set for a task, and its model licence is recorded
 (`licence:`). Enabling it means editing `config/llm.yaml` (`enabled`, `base_url`, `ca_file`, the

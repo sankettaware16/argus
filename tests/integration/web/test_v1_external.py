@@ -121,7 +121,7 @@ include-name = "GET /api/v1/entities/{kind}/{value}"
 [operations.checks.positive_data_acceptance]
 expected-statuses = ["2xx", "3xx", "401", "403", "404", "409", "422", "429", "5xx"]
 
-# UI v2's four (P4-F): a bulk dismissal (a duplicate names the case it duplicates: a merge, one
+# UI v2's four: a bulk dismissal (a duplicate names the case it duplicates: a merge, one
 # at a time), a done action (the action is one of the catalogue's, a list the schema does not
 # hold), a hold (the time to come back is within two weeks of now) and a member review (the
 # groups are this incident's).

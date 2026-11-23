@@ -320,7 +320,7 @@ def test_without_a_complete_cycle_nothing_is_proved() -> None:
 def test_the_mirror_missing_the_case_teams_cases_is_pending_and_says_p4_b1() -> None:
     check = judge.judge_reconciliation(kit.reconcile(team_cases=3, team_cases_in_mirror=1))[3]
     assert check.verdict is PENDING
-    assert "P4-B1" in (check.needs or "")
+    assert "the mirror reads every" in (check.needs or "")
     assert "2 of 3" in check.detail
 
 

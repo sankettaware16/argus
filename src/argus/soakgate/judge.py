@@ -465,10 +465,10 @@ def judge_reconciliation(f: ReconcileFacts) -> list[Check]:
                 title,
                 PENDING,
                 f"{missing} of {f.team_cases} case-team cases are not in the read-back's mirror"
-                " yet (P4-B1): a person's edit, close or delete of them is not seen",
+                " yet: a person's edit, close or delete of them is not seen",
                 n=f.team_cases,
                 measured={"team_cases": f.team_cases, "in_mirror": f.team_cases_in_mirror},
-                needs="P4-B1: the mirror reads every ARGUS identity's cases",
+                needs="the mirror reads every ARGUS identity's cases",
             )
         )
     else:

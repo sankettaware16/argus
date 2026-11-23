@@ -276,7 +276,7 @@ async def _bootstrap(settings: Settings, engine: AsyncEngine) -> None:
     elif web_created:
         typer.echo(
             f"web group ready: {roles.API_ROLE}, {web_made}; the web's login"
-            f" ({database.api_user}) is made once ARGUS_DATABASE__API_PASSWORD is set (Q-A2)"
+            f" ({database.api_user}) is made once ARGUS_DATABASE__API_PASSWORD is set"
         )
     if writer_login:
         made_writer = f"created {', '.join(writer_created)}" if writer_created else "present"

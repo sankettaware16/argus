@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS Kibana sync (Phase 3, Q-D3: read-back and reconciliation)
+Description=ARGUS Kibana sync: read-back and reconciliation
 # Disabled: enabled at its production step (Q-D3's first live read, with the user). Until its
 # command exists the condition below skips a start instead of failing it again and again.
 # Restart=on-failure: `sync run` exits 0 while kibana.enabled or kibana.sync.enabled is false,

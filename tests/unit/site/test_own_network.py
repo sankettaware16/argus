@@ -53,7 +53,7 @@ def test_the_classifier_treats_the_sites_networks_as_campus(tmp_path: Path) -> N
 
     config = shipped_config_on_the_suites_site(tmp_path)
     classifier = IpClassifier(None, load_settings(config, env_file=None).site.own_networks)
-    assert classifier.classify("131.21.124.7").ip_class is IpClass.CAMPUS
+    assert classifier.classify("131.21.124.7").ip_class is IpClass.OWN
     assert classifier.classify("8.8.8.8").ip_class is IpClass.PUBLIC
 
 

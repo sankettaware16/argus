@@ -154,7 +154,7 @@ notified:
 #     citation checks (any refusal leaves the deterministic text).
 #   brief: the analyst brief that opens the report (D-332): a large model says what is
 #     happening, the summary, why it is judged real, the impact and the steps asked for, from the
-#     report's facts with every campus address and account hidden; code checks each line
+#     report's facts with every internal address and account hidden; code checks each line
 #     against the facts it cites. off | confirmed (the cases a person confirmed) | all.
 #     brief_every: a case whose verdict and standing did not change keeps its brief this long
 #     (each brief is a paid call; config/llm.yaml caps the task "brief").

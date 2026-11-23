@@ -4,6 +4,8 @@ import { useId, useState, type ReactNode } from "react";
 import { addEntityNote } from "../client/sdk.gen";
 import type { CaseRowOut, InvestigationOut } from "../client/types.gen";
 import { coverage, IncidentLine, TITLE_NAMES, useEntity, type EntityKind } from "../components/EntityDrawer";
+import { ownCapital, zoneLabel } from "../lib/site";
+import { DIRECTORY_ACCOUNT, DirectoryCard, useDirectory } from "../components/DirectoryCard";
 import { Loading, Problem } from "../components/Problem";
 import { UntrustedText } from "../components/UntrustedText";
 import { Button } from "../components/ui/button";
@@ -17,10 +19,11 @@ import { dayAndTime, shortDay } from "../lib/when";
 
 export { coverage, TITLE_NAMES };
 
-const NOUN: Record<EntityKind, string> = { device: "Device", account: "Account", site: "Campus site", outside: "Outside address" };
+const NOUN: Record<Exclude<EntityKind, "site">, string> = { device: "Device", account: "Account", outside: "Outside address" };
 
 /** The page's noun: an outside name that is not an address is an outside host; never "Device" (E-5). */
 export function entityNoun(kind: EntityKind, value: string): string {
+  if (kind === "site") return ownCapital("site");
   return kind === "outside" && !isIp(value) ? "Outside host" : NOUN[kind];
 }
 
@@ -34,7 +37,7 @@ export function ownerSummary(noun: string, value: string, groups: readonly Inves
   const last = lasts[0];
   const lines = [
     `Our security monitoring saw unusual activity from ${noun.toLowerCase()} ${value}.`,
-    first && last ? `It was seen from ${dayAndTime(first)} to ${dayAndTime(last)} IST (${count(alerts)} ${plural(alerts, "alert")}).` : `It raised ${count(alerts)} ${plural(alerts, "alert")}.`,
+    first && last ? `It was seen from ${dayAndTime(first)} to ${dayAndTime(last)} ${zoneLabel(last)} (${count(alerts)} ${plural(alerts, "alert")}).` : `It raised ${count(alerts)} ${plural(alerts, "alert")}.`,
     open ? `It is part of security incident #${open.number}.` : "",
     "Please check whether the activity is expected on this device, and tell the security team what you find. If it is not expected, please do not use the device until the security team says so.",
   ];
@@ -97,7 +100,7 @@ function NoteBox({ k, value }: { k: "ip" | "host" | "user" | "domain"; value: st
 }
 
 /**
- * An entity's page (docs/p4f-ui-spec.md §9): a device, an account, a campus site or an outside
+ * An entity's page (docs/p4f-ui-spec.md §9): a device, an account, an own site or an outside
  * address. Built from what ARGUS already serves (§9.6): the alert groups of the value, the
  * incidents whose title holds it, and its notes; each block says it is read from alert groups, so
  * nothing claims more than it read. The coverage line is always there.
@@ -111,6 +114,7 @@ export function EntityPage({ kind, value }: { kind: EntityKind; value: string })
   const first = g.map((x) => parse(x.first_event_at)).filter((d): d is Date => d !== null).sort((a, b) => a.getTime() - b.getTime())[0];
   const last = g.map((x) => parse(x.last_event_at)).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
   const newestNote = notes.data?.items[0];
+  const directory = useDirectory();
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
@@ -128,6 +132,11 @@ export function EntityPage({ kind, value }: { kind: EntityKind; value: string })
           {coverage()}
         </p>
       </header>
+      {kind === "account" && directory !== null && DIRECTORY_ACCOUNT.test(value) && (
+        <Block title={`Who this is (from ${directory})`} testId="entity-directory">
+          <DirectoryCard account={value} />
+        </Block>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         <Block title="What ARGUS knows (from alert groups)" testId="entity-knows">
           {groups.isPending ? (

@@ -91,7 +91,7 @@ def test_a_longer_wait_and_comments_are_fine(tmp_path: Path) -> None:
 def test_banned_packages_anywhere_in_the_lockfile(tmp_path: Path, key: str, shown: str) -> None:
     lock = {"lockfileVersion": 3, "packages": {"": {}, key: {}}}
     problems = frontend.policy_problems(project(tmp_path, lock=lock))
-    assert problems == [f"banned package in the lockfile: {shown} (plan §7.5)"]
+    assert problems == [f"banned package in the lockfile: {shown}"]
 
 
 def test_a_banned_package_under_an_npm_alias_is_found(tmp_path: Path) -> None:
@@ -109,8 +109,8 @@ def test_a_banned_package_under_an_npm_alias_is_found(tmp_path: Path) -> None:
     }
     problems = frontend.policy_problems(project(tmp_path, lock=lock))
     assert problems == [
-        "banned package in the lockfile: sonner (as toast-ui) (plan §7.5)",
-        "banned package in the lockfile: @radix-ui/react-dialog (as dialog) (plan §7.5)",
+        "banned package in the lockfile: sonner (as toast-ui)",
+        "banned package in the lockfile: @radix-ui/react-dialog (as dialog)",
     ]
 
 
@@ -120,7 +120,7 @@ def test_a_direct_alias_of_a_banned_package_is_named(tmp_path: Path, spec: str) 
     package = {"dependencies": {"toast": spec}, "scripts": scripts}
     problems = frontend.policy_problems(project(tmp_path, package=package))
     real = spec.removeprefix("npm:").rpartition("@")[0]
-    assert f"dependencies: toast is an alias of the banned package {real} (plan §7.5)" in problems
+    assert f"dependencies: toast is an alias of the banned package {real}" in problems
 
 
 def test_lookalikes_are_not_banned(tmp_path: Path) -> None:

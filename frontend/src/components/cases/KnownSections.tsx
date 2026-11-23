@@ -481,8 +481,8 @@ function BlockList({ detail, known }: { detail: CaseDetail; known: KnownOut }) {
                   { key: "evidence", header: "Evidence", cell: (e) => <Text value={e.evidence} max={300} lines={3} /> },
                   { key: "owner", header: "Network owner", cell: (e) => (e.owner ? <Text value={e.owner} max={120} lines={1} /> : "—") },
                   { key: "registered", header: "Registered", cell: (e) => e.registered ?? "—" },
-                  { key: "seen", header: `First seen on ${noun()}`, cell: (e) => <Time value={e.first_seen_on_campus} /> },
-                  { key: "devices", header: `${nounCapital()} devices`, numeric: true, cell: (e) => count(e.campus_devices) },
+                  { key: "seen", header: `First seen on ${noun()}`, cell: (e) => <Time value={e.first_seen_on_own_network} /> },
+                  { key: "devices", header: `${nounCapital()} devices`, numeric: true, cell: (e) => count(e.own_devices) },
                 ]}
               />
               {list.data.skipped > 0 && (

@@ -103,7 +103,7 @@ def test_the_repositorys_purposes() -> None:
 def test_a_campus_provider_never_serves_a_reading() -> None:
     data = config().model_dump(mode="json")
     local = {
-        "name": "local", "trust": "campus", "base_url": "https://127.0.0.1:18443/v1",
+        "name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:18443/v1",
         "keys": ["LOCAL_KEY"], "ca_file": "data/tls/x.crt", "tasks": ["story"],
         "models": {"small": {"name": "m", "limits": {"rpd": 10}}},
     }  # fmt: skip

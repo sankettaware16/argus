@@ -165,7 +165,7 @@ async def spans_of_case(
         {"c": case_id},
     )
     for (value,) in added:
-        if reading.classifier.classify(value).ip_class in opener.CAMPUS:
+        if reading.classifier.classify(value).ip_class in opener.OWN_CLASSES:
             for address in store.ipv4([value]):
                 spans.setdefault(address, whole)
     return spans

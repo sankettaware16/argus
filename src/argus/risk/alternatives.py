@@ -7,9 +7,9 @@ looked at: ``checked`` (it looked and found something that backs the incident), 
 looked and found nothing) or ``unknown`` (it could not look). The **certainty word** comes from
 the lanes, the strong facts and the alternatives; "Confirmed" comes only from a person.
 
-The tests key on evidence kinds, object kinds, the asset map's roles and how many campus objects
+The tests key on evidence kinds, object kinds, the asset map's roles and how many internal objects
 reach a destination: never on a rule's name. What the checking lane measured for an outbound
-incident (:class:`Measured`, D-323: the device's timing to its destination, how many campus
+incident (:class:`Measured`, D-323: the device's timing to its destination, how many internal
 devices reached it that day, its lookups) takes the place of ARGUS's own guess where it answers:
 it shows as a check and as an alternative that fits or is ruled out, so a ruling-out moves the
 certainty word, never the priority."""
@@ -27,7 +27,7 @@ CheckState = Literal["checked", "ruled_out", "unknown"]
 Certainty = Literal["Confirmed", "Likely", "Suspected", "Unclear", "Likely harmless"]
 CERTAINTY: tuple[Certainty, ...] = ("Confirmed", "Likely", "Suspected", "Unclear",
                                     "Likely harmless")  # fmt: skip
-RARE = 6  # a destination at most this many campus objects reach is rare
+RARE = 6  # a destination at most this many internal objects reach is rare
 COMMON = 20  # one at least this many reach is a common service
 SCATTERED = 50  # this many distinct destinations, with no regular timing, is a crawler's shape
 COMMON_SERVICE = "A common service (an update, telemetry or a popular site)"
@@ -50,7 +50,7 @@ class Check:
 @dataclass(frozen=True)
 class Measured:
     """One answer of the checking lane for an outbound incident (D-323): ``pair`` (a device's
-    requests to one destination over some hours), ``contact`` (the campus devices that reached a
+    requests to one destination over some hours), ``contact`` (the internal devices that reached a
     destination in a day) or ``dns`` (a device's lookups around its last alert), with its
     verdict and facts as stored."""
 
@@ -72,9 +72,9 @@ class Evidence:
     hubs: int = 0  # objects the asset map names a shared gateway (NAT, proxy, resolver)
     named_hosts: int = 0  # devices known by a host name
     objects: int = 1
-    reach: Mapping[str, int] = field(default_factory=dict)  # outside value -> campus objects
+    reach: Mapping[str, int] = field(default_factory=dict)  # outside value -> internal objects
     signals: frozenset[str] = frozenset()  # dossier signals read (known) for its alert groups
-    acting: bool = True  # its objects act (outbound); False: a campus site attacked from outside
+    acting: bool = True  # its objects act (outbound); False: an own site attacked from outside
     measured: tuple[Measured, ...] = ()  # what the checking lane measured for it (D-323)
 
 
@@ -146,7 +146,7 @@ def _on(m: Measured) -> str:
 
 
 def _contacts(e: Evidence) -> list[tuple[Measured, int]]:
-    """The measured contact counts (a destination's campus devices that day), fewest first."""
+    """The measured contact counts (a destination's internal devices that day), fewest first."""
     found = [(m, n) for m in _of(e, "contact") if m.verdict != "unknown"
              and (n := _int(m.facts, "devices")) is not None]  # fmt: skip
     return sorted(found, key=lambda c: (c[1], str(c[0].destination)))
@@ -162,8 +162,8 @@ def _hours(m: Measured) -> str:
 
 
 def _common(e: Evidence) -> Alternative:
-    """A destination many campus devices reach is a common service: the checking lane's count of
-    the day when it has one, else how many campus objects ARGUS's own alerts show reaching it."""
+    """A destination many internal devices reach is a common service: the checking lane's count of
+    the day when it has one, else how many internal objects ARGUS's own alerts show reaching it."""
     name = COMMON_SERVICE
     measured = _contacts(e)
     # judged: a whole day's count, or one already many; none (traffic the proxy never saw) or a
@@ -195,7 +195,9 @@ def _common(e: Evidence) -> Alternative:
         return Alternative(name, "unknown", "no outside destination is named in its alerts")
     rare = sorted(v for v, n in e.reach.items() if n <= RARE)
     common = [n for n in e.reach.values() if n >= COMMON]
-    if rare and common:  # one rare destination never outweighs those half the campus reaches
+    if (
+        rare and common
+    ):  # one rare destination never outweighs those half the organisation's network reaches
         many, verb = len(common), "is" if len(common) == 1 else "are"
         return Alternative(name, "unknown", site.say(f"{many} of its {len(e.reach)} destinations"
                            f" {verb} reached by {max(common)} or more {{own:objects}}, like a"
@@ -253,7 +255,7 @@ def _gateway(e: Evidence) -> Alternative:
 
 
 def _crawler(e: Evidence) -> Alternative:
-    name = "A research crawler or a student project"
+    name = "A research crawler or a personal project"
     if "beacon" in e.kinds or "persistence" in e.kinds:
         return Alternative(name, "ruled_out", "the contact is regular or repeats on several"
                            " days, not a crawl")  # fmt: skip
@@ -365,7 +367,7 @@ def _timing_check(e: Evidence) -> Check | None:
 
 
 def _contact_checks(e: Evidence) -> list[Check]:
-    """How many campus devices reached each destination the checking lane asked about."""
+    """How many internal devices reached each destination the checking lane asked about."""
     out: list[Check] = []
     for m in _of(e, "contact"):
         dst, n = m.destination, _int(m.facts, "devices")

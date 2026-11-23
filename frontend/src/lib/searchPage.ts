@@ -5,6 +5,7 @@
 import type { InboxSearch } from "./inboxQuery";
 import { isIp, isPrivateIp } from "./engine";
 import { first } from "./search";
+import { own, ownCapital } from "./site";
 
 export const GUESSES = ["number", "ir", "device", "outside", "domain", "name", "words"] as const;
 export type Guess = (typeof GUESSES)[number];
@@ -14,7 +15,10 @@ export const GUESS_WORDS: Readonly<Record<Guess, string>> = {
   ir: "an IR number",
   device: "a device address",
   outside: "an outside address",
-  domain: "a domain or campus site",
+  // the site's own word, read when shown
+  get domain() {
+    return `a domain or ${own("site")}`;
+  },
   name: "a host or account",
   words: "words (titles, rule names)",
 };
@@ -65,7 +69,7 @@ export function entitiesFor(guess: Guess, value: string): { kind: "device" | "ac
     case "outside":
       return [{ kind: "outside", noun: "Outside address" }];
     case "domain":
-      return [{ kind: "site", noun: "Campus site" }];
+      return [{ kind: "site", noun: ownCapital("site") }];
     case "name":
       return [
         { kind: "device", noun: "Device" },

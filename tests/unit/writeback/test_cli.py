@@ -87,3 +87,25 @@ def test_the_commands_exist_with_their_options() -> None:
     app = writeback_cli.writeback_app
     assert "--older" in plain(runner.invoke(app, ["plan", "--help"]).output)
     assert "--operator" in plain(runner.invoke(app, ["run", "--help"]).output)
+
+
+def test_the_timers_run_is_off_until_switched_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    out = invoke(monkeypatch, settings(), "--unattended", tty=False)
+    assert out.exit_code == 0  # nothing done; not a fault of the timer's unit
+    assert "writeback.auto is false" in out.output
+
+
+def test_the_timers_run_takes_no_operator(monkeypatch: pytest.MonkeyPatch) -> None:
+    auto = settings(writeback={"enabled": True, "auto": True})
+    out = invoke(monkeypatch, auto, "--unattended", "--operator", "ravi", tty=False)
+    assert out.exit_code == 2
+    assert "an operator signs in at a terminal" in out.output
+
+
+def test_the_timers_run_still_needs_every_other_condition(monkeypatch: pytest.MonkeyPatch) -> None:
+    off = settings(
+        writeback={"enabled": True, "auto": True}, kibana={**ON["kibana"], "write_classes": []}
+    )
+    out = invoke(monkeypatch, off, "--unattended", tty=False)
+    assert out.exit_code == 2
+    assert "WA is not switched on" in out.output

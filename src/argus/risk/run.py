@@ -108,7 +108,7 @@ class Setup:
     config: RiskConfig
     classifier: IpClassifier
     families: Sequence[LogFamily] = ()
-    campus_domains: Sequence[str] = ()
+    own_domains: Sequence[str] = ()
     feed_modes: dict[str, str] = field(default_factory=dict)  # TI source index -> mode
     shared: Shared = NO_SHARED
     view: outside_read.View | None = None  # the outside cache's view (None: stored flags only)
@@ -142,7 +142,7 @@ async def observe_pending(engine: AsyncEngine, setup: Setup, now: datetime, repo
                 outside = {i: any(f.get("flagged") for f in fs) for i, fs in facts.items()}
             groups = await store.groups(conn, ids, names, outside, flag, config.exposure)
             fresh = await feeds(conn, now, config, setup.feed_modes)
-            ctx = Context(config, setup.classifier, setup.campus_domains, fresh, setup.shared,
+            ctx = Context(config, setup.classifier, setup.own_domains, fresh, setup.shared,
                           setup.families, devices)  # fmt: skip
             rules = await rulemeta.load(conn)
             sigs = dict(found)
@@ -219,7 +219,7 @@ def evaluate_all(
         for ref, items in per.items()
         if recent is None or any(o.at >= recent for o in items)
     }  # fmt: skip
-    verdicts = exposure.lanes(verdicts, config.exposure)  # L5 on the campus sites (E3)
+    verdicts = exposure.lanes(verdicts, config.exposure)  # L5 on the own sites (E3)
     groups = {g: list(refs) for g, refs in by_group.items()}
     return Scored(verdicts, factors, groups, time.process_time() - started)
 
@@ -500,7 +500,7 @@ async def step(engine: AsyncEngine, setup: Setup, now: datetime) -> Report:
     if setup.presenter is not None and setup.linking is not None:  # E5: priorities and cases
         began = time.perf_counter()
         ctx = present.Context(setup.config, setup.presenter, setup.classifier,
-                              tuple(setup.campus_domains))  # fmt: skip
+                              tuple(setup.own_domains))  # fmt: skip
         try:
             presented = await present.run(engine, ctx, now, verdicts, rescored.ids,
                                           rescored.observations)  # fmt: skip

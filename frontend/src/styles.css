@@ -66,6 +66,22 @@
   --marker: oklch(0.42 0.13 330);
   --marker-soft: oklch(0.94 0.035 330);
   --shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.08), 0 16px 48px rgb(0 0 0 / 0.12);
+  /* Charts: series colours in a fixed order (told apart with any colour vision on a tile, checked),
+     one hue for severity (the more severe, the stronger), and the plot's own lines. */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-low: #e89b80;
+  --viz-medium: #e16f50;
+  --viz-high: #d03929;
+  --viz-critical: #9e1618;
+  --viz-rest: #b4b4bb;
+  --viz-track: #e3e3e8;
+  --viz-grid: #e3e3e8;
+  --viz-axis: #c7c7cc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -105,6 +121,20 @@
     --marker: oklch(0.84 0.09 330);
     --marker-soft: oklch(0.30 0.05 330);
     --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.14), 0 16px 48px rgb(0 0 0 / 0.6);
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-low: #854c3f;
+    --viz-medium: #b35949;
+    --viz-high: #e76957;
+    --viz-critical: #ff8879;
+    --viz-rest: #636366;
+    --viz-track: #2c2c2e;
+    --viz-grid: #2c2c2e;
+    --viz-axis: #48484a;
   }
 }
 
@@ -142,6 +172,20 @@
   --color-info-soft: var(--info-soft);
   --color-marker: var(--marker);
   --color-marker-soft: var(--marker-soft);
+  --color-viz-1: var(--viz-1);
+  --color-viz-2: var(--viz-2);
+  --color-viz-3: var(--viz-3);
+  --color-viz-4: var(--viz-4);
+  --color-viz-5: var(--viz-5);
+  --color-viz-6: var(--viz-6);
+  --color-viz-low: var(--viz-low);
+  --color-viz-medium: var(--viz-medium);
+  --color-viz-high: var(--viz-high);
+  --color-viz-critical: var(--viz-critical);
+  --color-viz-rest: var(--viz-rest);
+  --color-viz-track: var(--viz-track);
+  --color-viz-grid: var(--viz-grid);
+  --color-viz-axis: var(--viz-axis);
   --shadow-card: var(--shadow);
   /* the system's own face first (SF on Apple, Segoe on Windows), then Inter, served here (D-330) */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", "Inter",

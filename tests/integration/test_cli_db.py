@@ -45,6 +45,8 @@ def cli_env(
     # Environment beats .env, which beats YAML: this is the only reliable override.
     monkeypatch.setenv("ARGUS_DATABASE__NAME", test_database)
     monkeypatch.setenv("ARGUS_LOGGING__LEVEL", "WARNING")
+    # no units on this host to compare (a CI runner has none): empty runs none
+    monkeypatch.setenv("ARGUS_UNITS__RUN", "")
     # Remote modules off whatever the repo's config says (they are switched on after live
     # checks, D-068): a CLI test never prepares an SIEM request.
     for switch in ("REFERENCE__TI_SYNC", "ENRICHMENT__LOG_QUERIES",

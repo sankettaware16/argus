@@ -409,7 +409,7 @@ async def test_facts_the_privacy_check_refuses_are_never_sent() -> None:
     class Leaky(Privacy):
         pass
 
-    leaky = Leaky(PRIVACY.policy, PRIVACY.classifier, PRIVACY.campus)
+    leaky = Leaky(PRIVACY.policy, PRIVACY.classifier, PRIVACY.ours)
 
     class Raw:  # a scrub that lets a campus address through
         def __init__(self, *args: Any) -> None:

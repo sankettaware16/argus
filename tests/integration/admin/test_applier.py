@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.admin import applier, seal
 from argus.install import files
+from tests.conftest import suite_checkout
 
 pytestmark = pytest.mark.integration
 REPO = Path(__file__).resolve().parents[3]
@@ -57,6 +58,7 @@ class FakeServices:
 @pytest.fixture
 def root(tmp_path: Path) -> Path:
     shutil.copytree(REPO / "config", tmp_path / "config")
+    suite_checkout(tmp_path)  # the suite's site and local.yaml, never this checkout's
     (tmp_path / "config" / "admin.yaml").unlink(missing_ok=True)
     (tmp_path / "local").mkdir()
     files.update_env(tmp_path / ".env", {"ARGUS_OUTSIDE__VIRUSTOTAL_API_KEY": "old-vt"})

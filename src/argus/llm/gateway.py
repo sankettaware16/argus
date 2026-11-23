@@ -81,7 +81,7 @@ class Call:
     max_output: int = 1000  # the answer's tokens; a thinking model's room is added
     json: bool = True
     timeout_s: float | None = None  # None: the provider's; else at most the provider's
-    campus_only: bool = False  # never to a cloud provider
+    self_hosted_only: bool = False  # never to a cloud provider
     schema: Mapping[str, Any] | None = None  # a JSON schema, for providers that take one
     avoid: frozenset[str] = frozenset()  # providers to skip: the ones whose answer was unusable
 
@@ -340,10 +340,14 @@ class LlmGateway:
             if not provider.serves(call.purpose):
                 why.append(f"{provider.name}: not for {call.purpose}")
                 continue
-            if call.campus_only and provider.trust is not Trust.CAMPUS:
-                why.append(f"{provider.name}: not on campus")
+            if call.self_hosted_only and provider.trust is not Trust.SELF_HOSTED:
+                why.append(f"{provider.name}: not self-hosted")
                 continue
-            if provider.trust is Trust.CAMPUS and provider.licence is None and call.purpose != PING:
+            if (
+                provider.trust is Trust.SELF_HOSTED
+                and provider.licence is None
+                and call.purpose != PING
+            ):
                 # the licence must be confirmed before any call with real data; the
                 # connection test sends none
                 why.append(f"{provider.name}: its licence is not confirmed (licence: D-NNN)")

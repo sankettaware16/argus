@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from argus import site
+from argus.assess.engine import FEW_HOSTS
 from argus.llm.prompts import OUTCOMES
 
 UNDECIDED = "undecided"  # the answer was inconclusive
@@ -48,7 +49,7 @@ BLOCKED_WORDS = {
     "ports.risky not known": "the ports it used are not known",
     "regular like a beacon": "it repeats regularly, like a beacon",
     "proxy.regularity not known": "whether it repeats like a beacon is not known",
-    "a destination few campus hosts reach": "few {own:hosts} reach this destination",
+    FEW_HOSTS: "few {own:hosts} reach this destination",
     "destinations not known": "how many {own:hosts} reach the destination is not known",
     "severity high": "the severity is high",
     "severity critical": "the severity is critical",

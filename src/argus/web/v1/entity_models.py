@@ -74,16 +74,18 @@ class TimelineEventOut(Out):
 
 
 class EntityPageOut(Out):
-    """What ARGUS knows of a device, account, campus site or outside address: its incidents, its
+    """What ARGUS knows of a device, account, own site or outside address: its incidents, its
     alert groups, a timeline, the notes people wrote. ``history_days``: how far back ARGUS keeps
     alert detail (it keeps every incident and decision)."""
 
     kind: PageKind
     value: str
     stored_kind: StoredKind
-    noun: str  # "Device", "Account", "Campus site", "Outside address"
+    noun: str  # "Device", "Account", "Own site", "Outside address"
     history_days: int
-    address_class: str | None  # for an address: asset, campus, internal, public, special
+    address_class: (
+        str | None
+    )  # an address's class, as stored: asset, campus (an own public prefix), internal, ...
     asset: AssetOut | None
     first_seen: datetime | None  # in ARGUS's alert groups
     last_seen: datetime | None
@@ -103,6 +105,36 @@ class EntityPageOut(Out):
     reputation: list[ReputationOut]  # outside sources' answers (outside addresses and domains)
     notes: list[EntityNoteOut]  # newest first, at most 5
     notes_total: int
+
+
+class DirectoryLineOut(Out):
+    label: str
+    value: str
+
+
+class DirectoryPersonOut(Out):
+    """What the site's account directory says of an account. ``name`` is None in what the
+    account's name alone says (no request was made, or it failed)."""
+
+    name: str | None
+    kind: str | None  # a student, staff ...
+    department: str | None
+    details: list[DirectoryLineOut]  # the rest, in the directory's order
+
+
+class DirectoryOut(Out):
+    """One account in the site's directory (D-337). ``outcome``: ``found``; ``not_found`` (the
+    directory has no such account); ``expired`` (the directory no longer accepts the saved
+    session: an administrator saves a new one in Settings); ``error`` (no answer). ``person``
+    is set when found; ``described`` is what the account's name alone says, whatever the
+    outcome."""
+
+    account: str
+    directory: str  # the directory's name
+    outcome: Literal["found", "not_found", "expired", "error"]
+    why: str | None
+    person: DirectoryPersonOut | None
+    described: DirectoryPersonOut | None
 
 
 class SearchEntityOut(Out):

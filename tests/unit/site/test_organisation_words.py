@@ -13,14 +13,18 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+import yaml
 
 from argus import site
-from argus.agent import catalogue
+from argus.agent import catalogue, loader, registry
+from argus.assess import raised
+from argus.context import display
 from argus.evaluation import tasks
 from argus.incident import prose
 from argus.investigation import catalogue as checks_catalogue
 from argus.llm import privacy as privacy_module
 from argus.llm import prompts
+from argus.llm.providers import Trust
 from argus.notices import render as notices
 from argus.site import Organisation, SiteSettings, article, say
 from argus.tuning import advise
@@ -172,37 +176,29 @@ def test_a_own_or_reads_as_english_for_both_kinds_of_noun() -> None:
 # --------------------------------------------------------------------------- the scan
 
 SRC = REPO_ROOT / "src" / "argus"
-# Where a string literal may still hold one of the words, and why: the key of a stored decision or
-# flag, a trust class, an API field or the name of a configuration key.
+# Where a string literal may still hold one of the words, and why (D-338): a value stored as it
+# was first written, or the older name of a key or a value that a site's files may still use.
 ALLOWED: Mapping[str, tuple[str, ...]] = {
-    "agent/loader.py": ("campus",),  # the words the agents' pins were made with (D-289)
-    "agent/reading.py": ("a destination few campus hosts reach",),  # a stored floor part, keyed
-    "assess/engine.py": ("a destination few campus hosts reach",),
+    "agent/loader.py": ("campus",),  # the fixed words the agents' pins are hashed in (D-289)
+    "assess/engine.py": ("a destination few campus hosts reach",),  # a stored floor part
     "assess/raised.py": ("many campus devices reach one rare domain",),  # a stored flag
-    "cases/naming.py": ("many campus devices reach one rare domain",),  # the same flag, read
-    "assets/classify.py": ("campus",),  # IpClass.CAMPUS
-    "cases/blocklist.py": ("first_seen_on_campus", "campus_devices"),  # API field names
-    "cases/cli.py": ("campus-managed",),  # operator CLI labels
-    "cases/titling.py": (":campus", "campus"),  # a query parameter, a class name
-    "context/batch1.py": ("campus",),  # classes
-    "context/proxy.py": ("campus",),
-    "investigation/checks.py": ("campus",),
-    "evaluation/ladder.py": ("campus",),  # the trust class of a model's machine
-    "doctor.py": ("campus_domains",),  # a configuration key
-    "llm/privacy.py": ("campus_domains",),
-    "llm/providers.py": ("campus",),  # Trust.CAMPUS and its messages
-    "llm/cli.py": ("campus",),
-    "llm/doctor.py": ("campus",),
-    "llm/gateway.py": ("on campus",),
-    "llm/arms.py": ("campus", "hostel"),  # the comparison arms' stand-in names
-    "fixtures/policy.py": ("campus",),  # the sanitizer's own policy words
+    "assets/classify.py": ("campus",),  # IpClass.OWN, as every stored dossier holds it
+    "evaluation/ladder.py": ("campus",),  # the older word of the trust class, still read
+    "llm/providers.py": ("campus",),  # the same, in a provider's configuration
+    "llm/privacy.py": ("campus_domains",),  # the older name of own_domains, still read
+    "fixtures/policy.py": ("campus_domains", "campus_replacement"),  # the same, the sanitizer's
+    "llm/arms.py": ("hostel",),  # one of the service words a stand-in site name may keep
 }
+
+
+# A site's own provider (``directory.provider``): the site's code, kept out of the public tree.
+SITE_ONLY = frozenset({"directory/camp.py"})
 
 
 def sentences_with_organisation_words() -> list[tuple[str, str]]:
     found = []
     for path in sorted(SRC.rglob("*.py")):
-        if "migrations" in path.parts:
+        if "migrations" in path.parts or path.relative_to(SRC).as_posix() in SITE_ONLY:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         docs = {
@@ -250,3 +246,164 @@ def test_the_reason_a_check_is_asked_follows_the_site() -> None:
     with site.using(NEUTRAL):
         assert spec.said == "which hosts of your network reached the destination"
     assert Path(SRC / "site.py").exists()
+
+
+# --------------------------------------------------------------------------- beyond Python (D-338)
+
+PLANT = SiteSettings(
+    own_network_noun="the plant",
+    organisation=Organisation(kind="manufacturer", reviewers="shift engineers"),
+)
+UNIVERSITY = SiteSettings(
+    own_network_noun="campus",
+    organisation=Organisation(kind="university", reviewers="research and teaching assistants"),
+)
+# What a reviewer of the first site was called, in a label or a sentence.
+REVIEWER_WORDS = re.compile(r"\bTAs?\b|\bRAs?\b|TA/RA")
+AGENTS = REPO_ROOT / "config" / "agents"
+# The version each agent's file replaced: on a university site the new file reads as it did.
+REPLACED = {
+    "investigator": "coordinator@4",
+    "web": "specialist@1",
+    "proxy": "specialist@1",
+    "intel": "specialist@2",
+    "responder": "responder@1",
+    "reporter": "reporter@1",
+}
+
+
+def test_an_agents_instructions_name_no_organisation_and_follow_the_site() -> None:
+    for name in REPLACED:
+        path = AGENTS / f"{name}.md"
+        raw = path.read_text(encoding="utf-8")
+        assert not ORGANISATION_WORDS.search(raw), (name, ORGANISATION_WORDS.search(raw))
+        assert not REVIEWER_WORDS.search(raw), (name, REVIEWER_WORDS.search(raw))
+        with site.using(NEUTRAL):
+            neutral = loader.read(path).prompt
+        assert not ORGANISATION_WORDS.search(neutral), name
+        with site.using(PLANT):
+            plant = loader.read(path).prompt
+        assert "manufacturer" in plant, name
+    with site.using(PLANT):
+        assert (
+            "analyst for a manufacturer network" in loader.read(AGENTS / "investigator.md").prompt
+        )
+        assert "allowed by plant policy" in loader.read(AGENTS / "investigator.md").prompt
+        assert "a manufacturer's shift engineers" in loader.read(AGENTS / "reporter.md").prompt
+
+
+def test_on_a_university_site_a_model_reads_the_instructions_that_were_approved() -> None:
+    """D-338: the new versions are enabled without a new gold comparison because, on a site with
+    the first site's words, each one's text is byte for byte the version it replaced."""
+    for name, previous in REPLACED.items():
+        with site.using(UNIVERSITY):
+            text = loader.read(AGENTS / f"{name}.md").prompt
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        assert digest == registry.PINS[name][previous].prompt_sha256, name
+
+
+@pytest.mark.parametrize("word", ["{org}", "{team}", "{units}", "{logs}", "{anything}"])
+def test_an_agents_file_may_not_name_the_organisation_or_ask_for_other_words(
+    word: str, tmp_path: Path
+) -> None:
+    text = (AGENTS / "investigator.md").read_text(encoding="utf-8")
+    path = tmp_path / "investigator.md"
+    path.write_text(text.replace("{a_kind}", word, 1), encoding="utf-8")
+    with pytest.raises(loader.AgentError, match="site's words"):
+        loader.read(path)
+
+
+def _strings(node: object) -> list[str]:
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, Mapping):
+        return [s for k, v in node.items() for s in (*_strings(k), *_strings(v))]
+    if isinstance(node, (list, tuple)):
+        return [s for v in node for s in _strings(v)]
+    return []
+
+
+# A shipped file's value that holds one of the words on purpose.
+CONFIG_ALLOWED = {"fixtures.yaml": ("univ.example",)}  # the sanitised fixtures' stand-in domain
+# The site's own files (never shipped): they say the site's words.
+SITE_FILES = frozenset({"site.yaml", "local.yaml"})
+
+
+def test_no_shipped_configuration_text_says_the_organisation_words() -> None:
+    found = []
+    for path in sorted((REPO_ROOT / "config").glob("*.yaml")):
+        if path.name in SITE_FILES or path.name.endswith(".local.yaml"):
+            continue
+        for value in _strings(yaml.safe_load(path.read_text(encoding="utf-8"))):
+            allowed = CONFIG_ALLOWED.get(path.name, ())
+            if (ORGANISATION_WORDS.search(value) or REVIEWER_WORDS.search(value)) and not any(
+                a in value for a in allowed
+            ):
+                found.append((path.name, value[:80]))
+    assert found == []
+
+
+def test_the_signal_sentences_follow_the_site() -> None:
+    hosts = display.registry()["contact.hosts"]
+    last = display.registry()["contact.last"]
+    assert hosts.said(5) == "5 campus hosts reached the destination"
+    assert last.title() == "Last contact from campus"
+    with site.using(NEUTRAL):
+        assert hosts.said(5) == "5 hosts of your network reached the destination"
+        assert last.title() == "Last contact from your network"
+    with site.using(PLANT):
+        assert hosts.said(5) == "5 plant hosts reached the destination"
+        assert last.title() == "Last contact from the plant"
+
+
+def test_a_stored_flag_is_read_in_the_sites_words() -> None:
+    flags = [raised.THREAT_LIST, raised.CAMPAIGN]
+    assert raised.words(flags) == (
+        "ARGUS raised it: on a threat list; many campus devices reach one rare domain"
+    )
+    with site.using(NEUTRAL):
+        assert raised.words(flags) == (
+            "ARGUS raised it: on a threat list; many devices of your network reach one rare domain"
+        )
+
+
+def test_the_older_names_of_a_site_file_still_read(tmp_path: Path) -> None:
+    assert Trust("campus") is Trust.SELF_HOSTED
+    policy = tmp_path / "llm_data_policy.yaml"
+    shipped = yaml.safe_load((REPO_ROOT / "config" / "llm_data_policy.yaml").read_text())
+    older = {**{k: v for k, v in shipped.items() if k != "own_domains"},
+             "campus_domains": ["example.test"]}  # fmt: skip
+    policy.write_text(yaml.safe_dump(older), encoding="utf-8")
+    assert privacy_module.load_policy(policy).own_domains == ("example.test",)
+    policy.write_text(yaml.safe_dump({**older, "own_domains": []}), encoding="utf-8")
+    with pytest.raises(privacy_module.PrivacyConfigError, match="both own_domains and"):
+        privacy_module.load_policy(policy)
+
+
+FRONTEND = REPO_ROOT / "frontend" / "src"
+# A line of the frontend's source that holds one of the words on purpose.
+FRONTEND_ALLOWED = {
+    "components/investigation/Tabs.tsx": ("campus: own(",),  # the address class as it is stored
+    "pages/Setup.tsx": ("company, hospital, university",),  # examples of a kind of organisation
+    "lib/setup.ts": ("company, hospital, university",),
+}
+
+
+def test_the_frontend_writes_no_organisation_word_outside_its_comments() -> None:
+    """The pages take the words from the session's site (lib/site.ts); a literal "Campus side"
+    reads wrong everywhere else. Comments may give examples."""
+    found = []
+    for path in sorted(FRONTEND.rglob("*.ts*")):
+        name = path.relative_to(FRONTEND).as_posix()
+        if name.startswith("client/"):  # generated from the API's schema
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            code = line.strip()
+            if code.startswith(("//", "*", "/*")):
+                continue
+            code = code.split(" // ", 1)[0]
+            if (ORGANISATION_WORDS.search(code) or REVIEWER_WORDS.search(code)) and not any(
+                a in code for a in FRONTEND_ALLOWED.get(name, ())
+            ):
+                found.append((name, code[:100]))
+    assert found == []

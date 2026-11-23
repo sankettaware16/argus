@@ -33,7 +33,7 @@ def test_defaults() -> None:
     policy = FixturePolicy()
     assert policy.keep_names == DEFAULT_KEEP_NAMES
     assert "root" in policy.keep_names
-    assert policy.campus_replacement == "univ.example"
+    assert policy.own_replacement == "univ.example"
     assert policy.drop_top_level == ("fields", "_score", "_ignored", "highlight", "sort")
     assert policy.field_kinds() == {}
     assert policy.field_patterns() == ()
@@ -58,13 +58,13 @@ def test_exact_paths_win_over_patterns_and_patterns_keep_policy_order() -> None:
         ({"fields": {"person": ["user.name"]}}, "unknown field kinds"),
         ({"fields": {"host": ["host.name"], "user": ["host.name"]}}, "two kinds"),
         ({"literals": {"  ": "x"}}, "must not be blank"),
-        ({"campus_domains": ["a.ac.in", "cs.a.ac.in"]}, "is inside campus domain a.ac.in"),
-        ({"campus_domains": ["a.ac.in"], "keep_domains": ["ac.in"]}, "overlaps campus domain"),
-        ({"campus_domains": ["a.ac.in"], "keep_domains": ["www.A.ac.in."]}, "overlaps campus"),
-        ({"campus_domains": ["a.ac.in"], "keep_domains": ["a.ac.in"]}, "overlaps campus domain"),
+        ({"own_domains": ["a.ac.in", "cs.a.ac.in"]}, "is inside own domain a.ac.in"),
+        ({"own_domains": ["a.ac.in"], "keep_domains": ["ac.in"]}, "overlaps own domain"),
+        ({"own_domains": ["a.ac.in"], "keep_domains": ["www.A.ac.in."]}, "overlaps own"),
+        ({"own_domains": ["a.ac.in"], "keep_domains": ["a.ac.in"]}, "overlaps own domain"),
         (
-            {"campus_domains": ["a.ac.in"], "campus_replacement": "x.a.ac.in"},
-            "campus_replacement x.a.ac.in is inside",
+            {"own_domains": ["a.ac.in"], "own_replacement": "x.a.ac.in"},
+            "own_replacement x.a.ac.in is inside",
         ),
     ],
 )
@@ -79,8 +79,8 @@ def test_a_field_listed_twice_under_one_kind_is_fine() -> None:
 
 
 def test_unrelated_keep_and_campus_domains_are_fine() -> None:
-    policy = FixturePolicy(campus_domains=("a.ac.in", "b.org"), keep_domains=("ab.ac.in",))
-    assert policy.campus_domains == ("a.ac.in", "b.org")
+    policy = FixturePolicy(own_domains=("a.ac.in", "b.org"), keep_domains=("ab.ac.in",))
+    assert policy.own_domains == ("a.ac.in", "b.org")
 
 
 @pytest.mark.parametrize(
@@ -171,12 +171,12 @@ def test_a_blank_literal_is_named_in_the_error() -> None:
 
 @pytest.mark.parametrize("tld", ["example", "invalid", "test", "localhost"])
 def test_every_reserved_tld_is_a_valid_campus_replacement(tld: str) -> None:
-    assert FixturePolicy(campus_replacement=f"univ.{tld}").campus_replacement == f"univ.{tld}"
+    assert FixturePolicy(own_replacement=f"univ.{tld}").own_replacement == f"univ.{tld}"
 
 
 def test_the_campus_replacement_error_lists_the_reserved_tlds() -> None:
     with pytest.raises(ValueError, match=r"\(\.example, \.invalid, \.test, \.localhost\)"):
-        FixturePolicy(campus_replacement="univ.ac.in")
+        FixturePolicy(own_replacement="univ.ac.in")
 
 
 @pytest.mark.parametrize("pattern", ["messa*", "@time*", "event.ori*", "x*", "a.b.*"])
@@ -198,8 +198,8 @@ def test_a_literal_under_a_kept_domain_is_refused() -> None:
 
 
 def test_a_campus_replacement_may_have_more_than_two_labels() -> None:
-    policy = FixturePolicy(campus_replacement="campus.univ.example")
-    assert policy.campus_replacement == "campus.univ.example"
+    policy = FixturePolicy(own_replacement="campus.univ.example")
+    assert policy.own_replacement == "campus.univ.example"
 
 
 def test_a_recursive_policy_is_refused_by_validation_naming_the_field(tmp_path: Path) -> None:

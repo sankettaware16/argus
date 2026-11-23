@@ -19,6 +19,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
+from argus import site
 from argus.agent import catalogue, loader, registry
 from argus.agent.loader import AgentError, load
 from argus.agent.registry import BINDINGS, ENABLED, PINS, Kind, Limits, Pin, Trigger
@@ -84,7 +85,7 @@ def test_the_repositorys_agents_load_pinned_and_enabled() -> None:
     assert sorted(agents.by_name) == ["intel", "investigator", "proxy", "web"]
     lead = agents.coordinator
     assert (lead.name, lead.kind, lead.version, lead.task, lead.output, lead.tier) == (
-        "investigator", Kind.COORDINATOR, "coordinator@4", "assess.coordinator", "answer@1",
+        "investigator", Kind.COORDINATOR, "coordinator@5", "assess.coordinator", "answer@1",
         Tier.MEDIUM,
     )  # fmt: skip
     assert lead.tools == ("proxy.host", "proxy.destination", "web.followups", "ti.lookup",
@@ -96,7 +97,7 @@ def test_the_repositorys_agents_load_pinned_and_enabled() -> None:
     assert list(agents.specialists) == ["web", "proxy", "intel"]
     tools = {"web": ("web.followups",), "proxy": ("proxy.host", "proxy.destination"),
              "intel": ("ti.lookup", "outside.reputation", "outside.server")}  # fmt: skip
-    versions = {"web": "specialist@1", "proxy": "specialist@1", "intel": "specialist@2"}
+    versions = {"web": "specialist@2", "proxy": "specialist@2", "intel": "specialist@3"}
     for name, definition in agents.specialists.items():
         assert definition.kind is Kind.SPECIALIST
         assert (definition.version, definition.task, definition.output) == (
@@ -106,7 +107,7 @@ def test_the_repositorys_agents_load_pinned_and_enabled() -> None:
         assert definition.specialists == ()
         assert definition.triggers == {Trigger.COORDINATOR_CONSULT}
         assert definition.budget is None
-        assert definition.prompt == definition.instructions.replace(
+        assert definition.prompt == site.say(definition.instructions).replace(
             "{tools}", catalogue.lines(tools[name])
         )
     assert agents.takes(Trigger.ENGINE_NO_DECISION)
@@ -238,12 +239,17 @@ def test_bytes_size_and_encoding(tmp_path: Path) -> None:
         (lambda t: t.replace("\n---\nYou", "\n---\n\nYou", 1),
          "the instructions start with a blank line (line 14)"),
         (lambda t: t.replace("{tools}", "the tools"),
-         "the instructions must hold {tools} exactly once and no other {name} (found 0)"),
+         "the instructions must hold {tools} exactly once and no other {name} but the site's"
+         " words ({a_kind}, {kind}, {noun}, {reviewers}, {the}, {where})"
+         " (found 0)"),
         (lambda t: t.replace("{tools}", "{tools}\n{tools}"),
-         "the instructions must hold {tools} exactly once and no other {name} (found 2)"),
+         "the instructions must hold {tools} exactly once and no other {name} but the site's"
+         " words ({a_kind}, {kind}, {noun}, {reviewers}, {the}, {where})"
+         " (found 2)"),
         (lambda t: t.replace("{tools}", "{tools} {domain} {focus}"),
-         "the instructions must hold {tools} exactly once and no other {name} (found 1;"
-         " also {domain}, {focus})"),
+         "the instructions must hold {tools} exactly once and no other {name} but the site's"
+         " words ({a_kind}, {kind}, {noun}, {reviewers}, {the}, {where})"
+         " (found 1; also {domain}, {focus})"),
     ],
 )  # fmt: skip
 def test_the_layout(tmp_path: Path, change: Any, reason: str) -> None:
@@ -503,36 +509,36 @@ def test_an_unversioned_edit_is_refused(tmp_path: Path) -> None:
     text = FILES["investigator"].replace("Ask only for evidence", "Ask only for any evidence")
     got = refused(d, "investigator", text)
     assert re.fullmatch(
-        r"investigator.md: is not the file pinned for coordinator@4 \(sha256 [0-9a-f]{12},"
-        r" pinned 95984877dfc7\): an edited file needs a new version and its pin",
+        r"investigator.md: is not the file pinned for coordinator@5 \(sha256 [0-9a-f]{12},"
+        r" pinned 10b3fa550014\): an edited file needs a new version and its pin",
         got,
     )
     (d / "investigator.md").write_text(FILES["investigator"])
     narrower = header(FILES["web"], "tools", "[]")
-    assert refused(d, "web", narrower).startswith("web.md: is not the file pinned for specialist@1")
+    assert refused(d, "web", narrower).startswith("web.md: is not the file pinned for specialist@2")
 
 
 def test_a_new_version_needs_its_pin_then_its_switch(tmp_path: Path) -> None:
     d = copy(tmp_path / "agents")
-    text = header(FILES["investigator"], "version", "coordinator@5")
+    text = header(FILES["investigator"], "version", "coordinator@6")
     assert refused(d, "investigator", text) == (
-        "investigator.md: coordinator@5 is not pinned in code (argus.agent.registry.PINS): a"
+        "investigator.md: coordinator@6 is not pinned in code (argus.agent.registry.PINS): a"
         " new version needs its pin, and its approval"
     )
     candidate = loader.read(d / "investigator.md")
-    pins = {**PINS, "investigator": {**PINS["investigator"], "coordinator@5": Pin(
+    pins = {**PINS, "investigator": {**PINS["investigator"], "coordinator@6": Pin(
         candidate.file_sha256, candidate.prompt_sha256, "test")}}  # fmt: skip
     assert refused(d, "investigator", text, pins=pins) == (
-        "investigator.md: holds coordinator@5, but investigator runs coordinator@4"
+        "investigator.md: holds coordinator@6, but investigator runs coordinator@5"
         " (argus.agent.registry.ENABLED)"
     )
-    on = load(d, pins=pins, enabled={**ENABLED, "investigator": "coordinator@5"})
-    assert on.coordinator.version == "coordinator@5"
+    on = load(d, pins=pins, enabled={**ENABLED, "investigator": "coordinator@6"})
+    assert on.coordinator.version == "coordinator@6"
     shadow = load(d, pins=pins, enabled=None)  # pinned, not switched on: an evaluation's view
-    assert shadow.coordinator.version == "coordinator@5"
+    assert shadow.coordinator.version == "coordinator@6"
     others = {k: v for k, v in ENABLED.items() if k != "investigator"}
     assert refused(d, "investigator", text, pins=pins, enabled=others) == (
-        "investigator.md: holds coordinator@5, but investigator runs no version"
+        "investigator.md: holds coordinator@6, but investigator runs no version"
         " (argus.agent.registry.ENABLED)"
     )
 
@@ -546,16 +552,16 @@ def test_a_changed_tool_description_needs_a_new_version(
     with pytest.raises(AgentError) as caught:
         load(d)  # the coordinator's pin is checked first: its prompt lists every tool
     assert re.fullmatch(
-        r"investigator.md: the instructions coordinator@4 gives a model changed \(sha256"
-        r" [0-9a-f]{12}, pinned a90ac7cfa898\), so a tool's description changed: that needs a"
+        r"investigator.md: the instructions coordinator@5 gives a model changed \(sha256"
+        r" [0-9a-f]{12}, pinned 1927384dc5ae\), so a tool's description changed: that needs a"
         r" new version and its pin",
         str(caught.value),
     )
     with pytest.raises(AgentError) as caught:
         loader.pinned(loader.read(d / "intel.md"))
     assert re.fullmatch(
-        r"intel.md: the instructions specialist@2 gives a model changed \(sha256 [0-9a-f]{12},"
-        r" pinned f38633018afc\), so a tool's description changed: that needs a new version"
+        r"intel.md: the instructions specialist@3 gives a model changed \(sha256 [0-9a-f]{12},"
+        r" pinned b9d9471eeb1e\), so a tool's description changed: that needs a new version"
         r" and its pin",
         str(caught.value),
     )
@@ -705,7 +711,8 @@ def test_any_narrowing_loads_and_any_widening_is_refused(data: st.DataObject) ->
             if binding.kind is Kind.COORDINATOR:
                 assert got.specialists == tuple(specialists)
                 assert got.budget == Limits(**{**budget, "seconds": float(budget["seconds"])})
-            assert got.prompt == got.instructions.replace("{tools}", catalogue.lines(tools))
+            said = site.say(got.instructions)  # the site's words, then the tools' lines
+            assert got.prompt == said.replace("{tools}", catalogue.lines(tools))
             if text != FILES[name]:
                 with pytest.raises(AgentError, match="is not the file pinned"):
                     load(d)  # a narrowing is an edit: it needs a new version and its pin
@@ -754,7 +761,7 @@ def test_the_prompt_does_not_depend_on_the_order_tools_are_listed(order: list[st
         )
         got = structural(d).coordinator
         assert got.prompt == load().coordinator.prompt
-        assert got.prompt_sha256 == PINS["investigator"]["coordinator@4"].prompt_sha256
+        assert got.prompt_sha256 == PINS["investigator"]["coordinator@5"].prompt_sha256
 
 
 def test_every_file_in_the_repository_is_a_bound_agent() -> None:
@@ -1021,7 +1028,7 @@ def test_another_agent_never_refuses_agent_1(tmp_path: Path, state: str, survey:
         (d / "dns.md").unlink()
     agents = load(d, bindings=bindings, pins=pins, enabled=enabled)
     assert sorted(agents.by_name) == ["intel", "investigator", "proxy", "web"]
-    assert agents.coordinator.version == "coordinator@4"
+    assert agents.coordinator.version == "coordinator@5"
     found = loader.survey(d, bindings=bindings, pins=pins, enabled=enabled)
     assert sorted(found) == [
         "dns", "intel", "investigator", "proxy", "reporter", "responder", "web",
@@ -1043,11 +1050,11 @@ def test_an_agent_that_is_off_never_runs(tmp_path: Path) -> None:
     with pytest.raises(AgentError) as caught:
         load(d, enabled=off)
     assert str(caught.value) == (
-        "web.md: holds specialist@1, but web is off (argus.agent.registry.ENABLED)"
+        "web.md: holds specialist@2, but web is off (argus.agent.registry.ENABLED)"
     )
     checked = loader.survey(d, enabled=off)["web"]
     assert isinstance(checked, loader.Definition)
-    assert checked.version == "specialist@1"
+    assert checked.version == "specialist@2"
     bindings = {**BINDINGS, "hunter": BINDINGS["investigator"]}
     text = header(header(FILES["investigator"], "name", "hunter"), "version", "coordinator@1")
     (d / "hunter.md").write_text(text)
@@ -1109,7 +1116,7 @@ def test_the_survey_names_every_file_and_every_bound_agent(tmp_path: Path) -> No
 def test_takes_gives_the_agents_that_take_the_trigger(tmp_path: Path) -> None:
     got = loader.takes(Trigger.PERSON_REQUEST)
     assert got is not None
-    assert got.coordinator.version == "coordinator@4"
+    assert got.coordinator.version == "coordinator@5"
     assert got == load()
     assert loader.takes(Trigger.COORDINATOR_CONSULT) is None
     d = copy(tmp_path / "agents")
@@ -1127,10 +1134,10 @@ def test_the_agents_value_and_its_summary() -> None:
     assert loader.Agents(agents.by_name) == agents
     assert (
         agents.summary()
-        == "investigator coordinator@4; web, proxy specialist@1; intel specialist@2"
+        == "investigator coordinator@5; web, proxy specialist@2; intel specialist@3"
     )
     alone = loader.Agents({"investigator": replace(agents.coordinator, specialists=())})
-    assert alone.summary() == "investigator coordinator@4; no specialists"
+    assert alone.summary() == "investigator coordinator@5; no specialists"
 
 
 def test_an_io_error_while_reading_is_a_refusal(
@@ -1232,7 +1239,7 @@ def test_an_agent_switched_off_in_code_is_its_own_refusal(tmp_path: Path) -> Non
             loader.AgentOffError, match=rf"^{name}\.md: holds \S+, but {name} is off"
         ):
             load(d, enabled={**ENABLED, name: None})
-    for enabled in ({**ENABLED, "web": "specialist@2"},
+    for enabled in ({**ENABLED, "web": "specialist@9"},
                     {k: v for k, v in ENABLED.items() if k != "web"}):  # fmt: skip
         with pytest.raises(AgentError) as caught:
             load(d, enabled=enabled)

@@ -20,6 +20,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from argus import site
+from argus.assets.classify import IpClass
 from argus.context import batch1, proxy, web
 from argus.context.packs import TaskSpec
 from argus.investigation import catalogue, store
@@ -91,7 +92,7 @@ def _is_address(value: str) -> bool:
     return True
 
 
-def kind_of(value: str, is_campus: Callable[[str], bool]) -> str:
+def kind_of(value: str, is_own: Callable[[str], bool]) -> str:
     """internal, public or special (loopback, link-local, multicast, reserved ...) for an
     address; domain for a name."""
     if not _is_address(value):
@@ -100,7 +101,7 @@ def kind_of(value: str, is_campus: Callable[[str], bool]) -> str:
     if (address.is_loopback or address.is_link_local or address.is_multicast
             or address.is_reserved or address.is_unspecified):  # fmt: skip
         return "special"
-    if is_campus(value):
+    if is_own(value):
         return "internal"
     return "public" if address.is_global else "special"
 
@@ -110,7 +111,7 @@ def build(
     entity: str,
     material: catalogue.Material,
     switches: catalogue.Switches,
-    is_campus: Callable[[str], bool],
+    is_own: Callable[[str], bool],
 ) -> TaskSpec | batch1.Refusal:
     """The request of ``template`` about ``entity``, from the dossier's own window and
     subjects; a Refusal says why not (the rule does not read the log, the check is switched
@@ -124,7 +125,7 @@ def build(
     sources = catalogue.sources_of(material.indices)
     if not catalogue.reads_needed(spec, sources):
         return batch1.Refusal("no_subject", "the rule does not read the log this check needs")
-    kind = kind_of(value, is_campus)
+    kind = kind_of(value, is_own)
     takes = TAKES[template]
     if (takes == "internal" and kind != "internal") or (takes == "public" and kind != "public"):
         said = {"internal": "an internal", "public": "a public", "special": "a special"}
@@ -169,7 +170,7 @@ def build(
             facts,
             {**material.fields, "source.ip": {"top": [[host, 1]]},
              "destination.ip": {"top": [[dest, 1]]}},
-            {**material.ips, host: {"class": "campus"}, dest: {"class": "public"}},
+            {**material.ips, host: {"class": IpClass.OWN.value}, dest: {"class": "public"}},
             now,
             material.indices,
         )  # fmt: skip

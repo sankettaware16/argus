@@ -127,7 +127,7 @@ async def _check(settings: object, credential: Credential) -> int:
         identity, access = checked.identity, checked.access
         typer.echo(f"{identity.username}: a native ELK account, ARGUS id {identity.argus_uid}")
         if access.admin_account:
-            typer.echo("  an admin account, let in without custody (DQ15 (b))")
+            typer.echo("  an admin account, let in without custody")
         typer.echo(f"  capability map v{access.map_version}; in ARGUS this account may:")
         for capability in ordered(access.capabilities):
             typer.echo(f"  - {LABELS[capability]}")

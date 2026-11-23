@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS checking lane pass (P4-F E3, D-323): exposure checks and the evidence of the engine's outbound incidents
+Description=ARGUS checking lane pass: exposure checks and the evidence of the engine's outbound incidents
 
 [Service]
 Type=oneshot

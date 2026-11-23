@@ -35,7 +35,7 @@ from argus.llm.privacy import Privacy, Request
 from argus.llm.providers import (
     CONTEXT_OVERHEAD,
     HELPER_TASKS,
-    NEVER_ON_CAMPUS,
+    NEVER_SELF_HOSTED,
     TASKS,
     LlmConfig,
     Tier,
@@ -56,7 +56,7 @@ def cloud(**over: Any) -> dict[str, Any]:
 
 
 def local(**over: Any) -> dict[str, Any]:
-    return {"name": "local", "trust": "campus", "base_url": "https://127.0.0.1:28443/v1",
+    return {"name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:28443/v1",
             "keys": ["LOCAL_KEY"], "ca_file": "/nonexistent/local.crt", "timeout_s": 600,
             "concurrency": 1, "tasks": ["evaluate", "ping"], "probe": False,
             "models": {"small": {"name": "cp", "context_tokens": 16384, "thinking_tokens": 2048,
@@ -113,7 +113,7 @@ def make(
 
 
 def small(privacy: Privacy) -> Request:
-    return Request("Assess I1.", ("I1",), (), (), (), privacy.campus)
+    return Request("Assess I1.", ("I1",), (), (), (), privacy.ours)
 
 
 def reply(content: Any, finish: str | None = "stop", reasoning: str | None = None) -> LlmReply:
@@ -141,11 +141,11 @@ async def test_a_task_outside_a_providers_allowlist_never_goes_to_it(privacy: Pr
 
 async def test_a_campus_only_call_never_reaches_the_cloud(privacy: Privacy) -> None:
     gw, fake, _, _ = make(config(cloud(), local(**TRIAGE)))
-    done = await gw.complete(Call(small(privacy), "x", "triage", campus_only=True))
+    done = await gw.complete(Call(small(privacy), "x", "triage", self_hosted_only=True))
     assert done.provider == "local"
     gw, fake, _, _ = make(config(cloud()))
-    with pytest.raises(Refused, match="cloud: not on campus"):
-        await gw.complete(Call(small(privacy), "x", "triage", campus_only=True))
+    with pytest.raises(Refused, match="cloud: not self-hosted"):
+        await gw.complete(Call(small(privacy), "x", "triage", self_hosted_only=True))
     assert fake.sent == []
 
 
@@ -153,9 +153,9 @@ async def test_a_campus_only_call_waits_for_the_campus_machine(privacy: Privacy)
     fake = Fake({"local": [TransportError("ConnectError", reached=False)]})
     gw, fake, _, _ = make(config(cloud(), local(**TRIAGE)), fake)
     with pytest.raises(NoCapacity) as caught:
-        await gw.complete(Call(small(privacy), "x", "triage", campus_only=True))
+        await gw.complete(Call(small(privacy), "x", "triage", self_hosted_only=True))
     assert [w.provider for w in fake.sent] == ["local"]
-    assert "cloud: not on campus" in str(caught.value)
+    assert "cloud: not self-hosted" in str(caught.value)
     assert caught.value.until == NOW + timedelta(seconds=60)
 
 
@@ -503,9 +503,9 @@ async def test_tasks_stay_in_their_allowlists_and_campus_calls_on_campus(
     calls: list[tuple[str, bool]],
 ) -> None:
     specs = []
-    for i, (tasks, campus, _) in enumerate(providers):
-        if campus:  # Q-G2: never verdicts or tuning; a helper task only once promoted
-            allowed = [t for t in tasks or () if t not in NEVER_ON_CAMPUS] or ["ping"]
+    for i, (tasks, ours, _) in enumerate(providers):
+        if ours:  # Q-G2: never verdicts or tuning; a helper task only once promoted
+            allowed = [t for t in tasks or () if t not in NEVER_SELF_HOSTED] or ["ping"]
             earned = {t: "D-900" for t in allowed if t in HELPER_TASKS}
             spec = local(name=f"p{i}", tasks=allowed, promoted=earned,
                          licence="D-901" if earned else None)  # fmt: skip
@@ -516,14 +516,14 @@ async def test_tasks_stay_in_their_allowlists_and_campus_calls_on_campus(
     fake = Fake({f"p{i}": [reply_] for i, (_, _, reply_) in enumerate(providers)})
     gw, fake, _, clock = make(cfg, fake)
     by_name = {p.name: p for p in cfg.providers}
-    for purpose, campus_only in calls:
+    for purpose, self_hosted_only in calls:
         before = len(fake.sent)
         with contextlib.suppress(NoCapacity, Refused):
-            await gw.complete(Call(small(privacy), "x", purpose, campus_only=campus_only))
+            await gw.complete(Call(small(privacy), "x", purpose, self_hosted_only=self_hosted_only))
         for wire in fake.sent[before:]:
             provider = by_name[wire.provider]
             assert provider.serves(purpose)
-            assert not campus_only or provider.trust == "campus"
+            assert not self_hosted_only or provider.trust == "self_hosted"
         clock.now += timedelta(seconds=7)
 
 

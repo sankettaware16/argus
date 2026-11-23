@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from argus.assets.classify import IpClassifier
 from argus.config.settings import OutsideSettings
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.privacy import Privacy, load_policy
 from argus.outside.eligible import Eligibility
 from argus.outside.providers import Prepared, Reply, TransportError
@@ -79,8 +79,8 @@ def settings(*sources: str, **more: Any) -> OutsideSettings:
 def eligibility() -> Eligibility:
     """The check as production builds it: the privacy layer's own campus view per item."""
     classifier = IpClassifier(None, (CAMPUS_NET,))
-    campus = Campus(networks=(CAMPUS_NET,), domains=("example.edu",))
-    return Eligibility(classifier, campus, Privacy(load_policy(), classifier, campus).campus_for)
+    ours = OwnSpace(networks=(CAMPUS_NET,), domains=("example.edu",))
+    return Eligibility(classifier, ours, Privacy(load_policy(), classifier, ours).ours_for)
 
 
 @pytest.fixture

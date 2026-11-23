@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS case team (AR8, D-214): posts person-confirmed cases to Kibana
+Description=ARGUS case team: posts person-confirmed cases to Kibana
 # Started by argus-case-team.timer. Stop it: case_team.post false in its file, or
 # `argus siem stop --component cases` (docs/runbooks/kibana-case-team.md).
 StartLimitIntervalSec=0

@@ -1,9 +1,11 @@
 """A stand-in for the local model machine (Q-G1): Caddy and llama-server b11476 as ARGUS sees
 them through the tunnel, on a loopback port of its own (never 18443: the guard refuses it).
 
-The certificate is made by the exact ``openssl req`` command of
-``deploy/local-llm/setup-llm-machine.sh`` (read from the script), so the tests check the
-certificate the team's run makes: a self-signed CA:FALSE leaf for 127.0.0.1.
+The certificate is made by the exact ``openssl req`` command a self-hosted model's setup
+runs (``OPENSSL``), so the tests check the certificate a real run makes: a self-signed
+CA:FALSE leaf for 127.0.0.1. Where the first installation's setup script exists
+(``deploy/local-llm/setup-llm-machine.sh``, not in the public tree) a test holds its command
+to this one.
 
 The server checks the key as Caddy does (``Authorization: Bearer <key>``, else 401
 "refused"), lists the model on ``GET /v1/models`` and answers ``POST /v1/chat/completions`` the
@@ -32,16 +34,29 @@ from typing import Any
 from tests.conftest import private_text
 
 SCRIPT = Path(__file__).resolve().parents[3] / "deploy" / "local-llm" / "setup-llm-machine.sh"
+# The setup's certificate command: 3072-bit RSA, 825 days, the loopback address as its only
+# name, not a CA, for a server.
+OPENSSL = (
+    'openssl req -x509 -newkey rsa:3072 -nodes -days 825 -sha256 -subj "/CN=ARGUS local LLM"'
+    ' -addext "subjectAltName=IP:127.0.0.1" -addext "basicConstraints=critical,CA:FALSE"'
+    ' -addext "extendedKeyUsage=serverAuth" -keyout "$CERT_DIR/llm.key"'
+    ' -out "$CERT_DIR/llm.crt"'
+)
 MODEL = "cyber-prime-1.2"
 KEY = "0123456789abcdef" * 4  # 64 hex characters, as the setup's `openssl rand -hex 32`
 
 
-def openssl_command(cert_dir: Path) -> list[str]:
-    """The setup script's own certificate command, with its folder replaced."""
+def script_command() -> list[str]:
+    """The setup script's own certificate command (the test is skipped in the public tree)."""
     text = private_text(SCRIPT).replace("\\\n", " ")
     found = re.search(r"openssl req -x509 .*?-out \"\$CERT_DIR/llm\.crt\"", text)
     assert found is not None, "the setup script no longer makes its certificate this way"
-    return [a.replace("$CERT_DIR", str(cert_dir)) for a in shlex.split(found.group(0))]
+    return shlex.split(found.group(0))
+
+
+def openssl_command(cert_dir: Path) -> list[str]:
+    """The setup's certificate command, with its folder replaced."""
+    return [a.replace("$CERT_DIR", str(cert_dir)) for a in shlex.split(OPENSSL)]
 
 
 def make_certificate(cert_dir: Path) -> Path:

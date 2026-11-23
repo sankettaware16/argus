@@ -9,7 +9,7 @@ Lens FXI: break what fix round 2 changed:
   class, ``normalize_domain`` (NFC, punycode, the dots table), ``_unpuny``/``_squash``, sensitive
   last labels and campus aliases;
 * ``argus.fixtures.policy``: the load-time checks of the keep lists, field patterns,
-  ``campus_replacement`` and ``site_prefixes``.
+  ``own_replacement`` and ``site_prefixes``.
 
 Conventions, as in the sibling adversarial files: a docstring starting with **DEFECT** marks a test
 that fails on the current code on purpose and passes once the hole is closed; **LOCK-IN** tests
@@ -307,11 +307,11 @@ def test_fxi06_a_long_unicode_label_takes_quadratic_time() -> None:
             "literals": {"Campus University": "Example University"},
             "keep_names": ("root", "Campus-University"),
         },
-        {"campus_domains": ("campusu.ac.in",), "keep_names": ("root", "campusu-admin")},
-        {"campus_domains": (f"{DEVANAGARI}.भारत",), "keep_names": ("root", DEVANAGARI)},
+        {"own_domains": ("campusu.ac.in",), "keep_names": ("root", "campusu-admin")},
+        {"own_domains": (f"{DEVANAGARI}.भारत",), "keep_names": ("root", DEVANAGARI)},
         {"literals": {DEVANAGARI: "Univ"}, "keep_domains": (f"{DEVANAGARI}-cdn.com",)},
-        {"campus_domains": (f"{DEVANAGARI}.भारत",), "keep_domains": (f"{DEVANAGARI}-cdn.com",)},
-        {"campus_domains": ("iit.ac.in",), "keep_domains": ("iit-cdn.com",)},
+        {"own_domains": (f"{DEVANAGARI}.भारत",), "keep_domains": (f"{DEVANAGARI}-cdn.com",)},
+        {"own_domains": ("iit.ac.in",), "keep_domains": ("iit-cdn.com",)},
     ],
     ids=[
         "keep-name-is-a-literal-with-a-dash",
@@ -370,10 +370,10 @@ def test_fxi11_campus_replacement_is_checked_normalised_but_used_raw(replacement
     ``nj4xtrco.univ..example``: not domain-shaped, and (the first) not ASCII. Fix: refuse a
     replacement that is not already a lower-case LDH name, or store the normalised form."""
     try:
-        policy = FixturePolicy(campus_domains=("campus.ac.in",), campus_replacement=replacement)
+        policy = FixturePolicy(own_domains=("campus.ac.in",), own_replacement=replacement)
     except ValueError:
         return
-    mapper = DomainMapper(TOKENS, policy.campus_domains, (), policy.campus_replacement)
+    mapper = DomainMapper(TOKENS, policy.own_domains, (), policy.own_replacement)
     out = mapper.map("www.campus.ac.in")
     assert _LDH.fullmatch(out), f"campus pseudonym {out!r}"
 
@@ -737,13 +737,13 @@ def test_lockin_shipped_policy_keeps_real_suffixes_and_hides_campus_variants() -
     kept), while the campus name in a kept head, in dashes, dots, upper case or punycode, or as
     the last label, is tokenized."""
     shipped, _ = load_policy(REPO / "config" / "fixtures.yaml")
-    overlay = {"campus_domains": ["campus.ac.in"], "literals": {"Campus University": "UNIV"}}
+    overlay = {"own_domains": ["campus.ac.in"], "literals": {"Campus University": "UNIV"}}
     policy = FixturePolicy.model_validate({**shipped.model_dump(), **overlay})
     mapper = DomainMapper(
         TOKENS,
-        policy.campus_domains,
+        policy.own_domains,
         policy.keep_domains,
-        policy.campus_replacement,
+        policy.own_replacement,
         sensitive_terms=policy.literals,
     )
     tlds = [
@@ -752,13 +752,13 @@ def test_lockin_shipped_policy_keeps_real_suffixes_and_hides_campus_variants() -
     ]  # fmt: skip
     for suffix in [*sorted(MULTI_LABEL_SUFFIXES), *tlds]:
         assert mapper.map(f"shop.{suffix}").endswith(f".{suffix}"), suffix
-    campus_label = policy.campus_domains[0].split(".")[0]
+    campus_label = policy.own_domains[0].split(".")[0]
     for name in (
         f"{campus_label}-backups.s3.amazonaws.com",
         f"{campus_label.upper()}.backups.s3.amazonaws.com",
         f"{'.'.join(campus_label)}.s3.amazonaws.com",
         f"printer.{campus_label}",
-        f"x.{policy.campus_domains[0]}.cdn.github.com",
+        f"x.{policy.own_domains[0]}.cdn.github.com",
     ):
         out = mapper.map(name)
         assert campus_label not in _decoded(out).replace(".", "").replace("-", ""), (name, out)
@@ -768,8 +768,8 @@ def test_lockin_campus_aliases_follow_policy_order() -> None:
     """LOCK-IN: three campus domains map to ``univ.example``, ``c2.`` and ``c3.`` in policy
     order whatever their length, and a repeat in another case or with trailing dots does not
     take a number."""
-    campus = ["zz.example.org", "EXAMPLE.EDU.", "a-much-longer-campus.example.net", "example.edu"]
-    mapper = DomainMapper(TOKENS, campus, [])
+    ours = ["zz.example.org", "EXAMPLE.EDU.", "a-much-longer-campus.example.net", "example.edu"]
+    mapper = DomainMapper(TOKENS, ours, [])
     assert mapper.map("x.zz.example.org").endswith(".univ.example")
     assert mapper.map("x.example.edu").endswith(".c2.univ.example")
     assert mapper.map("x.a-much-longer-campus.example.net").endswith(".c3.univ.example")
@@ -779,13 +779,13 @@ def test_lockin_campus_aliases_follow_policy_order() -> None:
 @pytest.mark.parametrize(
     "data",
     [
-        {"campus_domains": ("Campus.AC.IN.",), "keep_domains": ("WWW.CAMPUS.AC.IN",)},
-        {"campus_domains": ("campus.ac.in",), "keep_domains": ("campus。ac。in",)},
-        {"campus_domains": ("campus.ac.in",), "campus_replacement": "u.CAMPUS.AC.IN."},
+        {"own_domains": ("Campus.AC.IN.",), "keep_domains": ("WWW.CAMPUS.AC.IN",)},
+        {"own_domains": ("campus.ac.in",), "keep_domains": ("campus。ac。in",)},
+        {"own_domains": ("campus.ac.in",), "own_replacement": "u.CAMPUS.AC.IN."},
         {"keep_domains": ("github.com",), "literals": {"GitHub.COM.": "vendor"}},
-        {"campus_domains": ("campusu.ac.in",), "keep_domains": ("cdn-Campus_U.example.com",)},
+        {"own_domains": ("campusu.ac.in",), "keep_domains": ("cdn-Campus_U.example.com",)},
         {"literals": {"Campus University": "U"}, "keep_domains": ("campus-university.net",)},
-        {"campus_domains": ("bücher.de",), "keep_domains": ("xn--bcher-kva.de",)},
+        {"own_domains": ("bücher.de",), "keep_domains": ("xn--bcher-kva.de",)},
     ],
 )
 def test_lockin_policy_refusals_hold_across_spellings(data: dict[str, object]) -> None:

@@ -99,7 +99,7 @@ async def test_every_line_on_a_clean_window(migrated_engine: AsyncEngine) -> Non
         " 0 assessments failed; the oldest waiting: none",
         "[OPEN] 5. tuning report reviewed for the 3 noisiest rules: 1 reports stored; the"
         " review is recorded in the exit report",
-        "[OPEN] 6. a TA/RA task test: walked through by the lead (D-092); a person's own time"
+        "[OPEN] 6. a reviewer task test: walked through by the lead (D-092); a person's own time"
         " needs the user",
     ]
 

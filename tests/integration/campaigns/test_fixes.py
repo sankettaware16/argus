@@ -155,13 +155,13 @@ async def test_a_spent_budget_does_no_work_for_the_next_candidate(
                 {"t": NOW},
             )  # fmt: skip
     prepared: list[uuid.UUID] = []
-    real = prefetch.campus_of
+    real = prefetch.ours_of
 
     async def spy(conn: Any, holder: uuid.UUID, outside_: Any) -> Any:
         prepared.append(holder)
         return await real(conn, holder, outside_)
 
-    monkeypatch.setattr(prefetch, "campus_of", spy)
+    monkeypatch.setattr(prefetch, "ours_of", spy)
     outside = make_outside(transport(), virustotal_per_minute=4, families_per_day=2)
     clock.now = NOW
     reports = await passes(app_engine, outside, clock, 3)

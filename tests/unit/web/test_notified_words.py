@@ -87,3 +87,17 @@ def test_a_viewer_is_told_which_capability_they_lack() -> None:
 def test_the_clock_the_tests_share_is_utc() -> None:
     assert NOW.tzinfo is UTC
     assert isinstance(NOW, datetime)
+
+
+def test_a_dismissal_names_its_reason_and_an_older_event_without_one_reads_plainly() -> None:
+    said, detail = casepages.event_words(
+        "dismissed", {"reason": "benign_expected", "note": "a lab's backup"}, "Mina", NAMES
+    )
+    assert said == "Mina dismissed the suspected case as benign: expected activity"
+    assert detail == "a lab's backup"
+    bare, none = casepages.event_words("dismissed", {"reason": "benign_expected"}, "Mina", NAMES)
+    assert bare == said
+    assert none is None
+    old, typed = casepages.event_words("dismissed", {"note": "a lab's backup"}, "Mina", NAMES)
+    assert old == "Mina dismissed the suspected case as not an incident"
+    assert typed == "a lab's backup"

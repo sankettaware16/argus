@@ -670,7 +670,8 @@ def decide(
                 case, state="closed", closed_at=now, closure_reason=reason, attention=None,
                 version=case.version + 1,
             )  # fmt: skip
-            return Step("dismissed", case, after, _extra(note=_text(note, "a note")), ())
+            details = _extra(reason=reason, note=_text(note, "a note"))
+            return Step("dismissed", case, after, details, ())
         case Take():
             _person(actor, Capability.MANAGE, "taking a case")
             _state(case, ("open", "assigned"), "take")

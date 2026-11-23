@@ -135,7 +135,7 @@ def kregister(template: type[KibanaTemplate]) -> type[KibanaTemplate]:
     if not template.classes and template.body_model is not None:
         raise ValueError(f"the read {template.name} sends no body")
     if template.cost is not CostClass.LIGHT:
-        raise ValueError(f"the Kibana template {template.name} is light (plan §7.8)")
+        raise ValueError(f"the Kibana template {template.name} is light")
     KREGISTRY[template.name] = template
     return template
 

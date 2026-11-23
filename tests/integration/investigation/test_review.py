@@ -120,7 +120,7 @@ async def test_r1_the_lanes_own_debt_is_a_wait_never_a_stored_timeout(
     gateway = Gateway(transport, memory, targets=Targets(log_sources=frozenset({"squid"})),
                       clock=clock, sleep=clock.sleep)  # fmt: skip
     e = wave.Env(engine=app_engine, state=memory, gateway=gateway, packs=default_registry(),
-                 switches=ON, is_campus=batch1.private_or(None), caps=Caps(), per_day=120,
+                 switches=ON, is_own=batch1.private_or(None), caps=Caps(), per_day=120,
                  clock=clock)  # fmt: skip
 
     def searches() -> int:

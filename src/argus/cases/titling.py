@@ -49,7 +49,7 @@ OUTSIDE_READ = 1500
 ASSESSMENTS_READ = 1200
 CHECKS_READ = 50  # stored web checks of each kind read: the first and the newest
 COALESCE = naming.COALESCE  # a count-only change waits this long after the last title change
-CAMPUS = frozenset({IpClass.ASSET, IpClass.CAMPUS, IpClass.INTERNAL})
+OWN_CLASSES = frozenset({IpClass.ASSET, IpClass.OWN, IpClass.INTERNAL})
 _PRIVATE = tuple(
     ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
 )
@@ -59,10 +59,10 @@ _PRIVATE = tuple(
 def _policy_domains() -> tuple[str, ...]:
     from argus.llm.privacy import load_policy
 
-    return load_policy(require_domains=False).campus_domains  # sends nothing to a model
+    return load_policy(require_domains=False).own_domains  # sends nothing to a model
 
 
-def default_campus_domains() -> tuple[str, ...]:
+def default_own_domains() -> tuple[str, ...]:
     """The organisation's own domains: ``site.own_domains``, and the extra ones the privacy
     policy (``config/llm_data_policy.yaml``) lists."""
     return site.own_domains(_policy_domains())
@@ -74,7 +74,7 @@ class Context:
     and the place the asset map names it in) and the internal domains (an internal web site)."""
 
     classifier: IpClassifier | None = None
-    campus_domains: tuple[str, ...] = field(default_factory=default_campus_domains)
+    own_domains: tuple[str, ...] = field(default_factory=default_own_domains)
 
 
 @dataclass(frozen=True)
@@ -124,9 +124,9 @@ def _member(row: MemberRow) -> Member:
     return Member(rule, tuple(flags), tuple(listed))
 
 
-def _campus(value: str, classifier: IpClassifier | None) -> bool:
+def _ours(value: str, classifier: IpClassifier | None) -> bool:
     if classifier is not None:
-        return classifier.classify(value).ip_class in CAMPUS
+        return classifier.classify(value).ip_class in OWN_CLASSES
     try:
         address = ipaddress.ip_address(value)
     except ValueError:
@@ -222,7 +222,7 @@ def facts_of(found: Found, ctx: Context) -> naming.Facts:
         if role == "actor":
             if kind == "user":
                 accounts += 1
-            elif kind == "host" or (kind == "ip" and _campus(value, classifier)):
+            elif kind == "host" or (kind == "ip" and _ours(value, classifier)):
                 devices.append(_device(value, kind, classifier))
             elif kind == "ip":
                 outsiders.append(value)
@@ -244,19 +244,19 @@ def facts_of(found: Found, ctx: Context) -> naming.Facts:
     c2 = sorted(value for kind, value, role in others if role == "c2" and kind in ("ip", "domain"))
     held = {value for kind, value, _ in others if kind in ("ip", "domain")}
     servers = list(dict.fromkeys([*c2, *sorted(v for v in flagged_values if v in held)]))
-    servers = [v for v in servers if not _campus(v, classifier)]
+    servers = [v for v in servers if not _ours(v, classifier)]
     servers += [v for v in listed if v in held and v not in servers and v not in set(outsiders)
-                and not _campus(v, classifier)]  # fmt: skip
-    campus_domains = ctx.campus_domains
+                and not _ours(v, classifier)]  # fmt: skip
+    own_domains = ctx.own_domains
     names = sorted({v for k, v, role in others if k == "domain" and role != "c2"})
     checked = [s for s, _ in found.answered] + [s for s, _, _ in found.outcomes]
     sites = list(dict.fromkeys(found.sites))
-    sites += [v for v in names if _is_campus_domain(v, campus_domains) and v not in sites]
+    sites += [v for v in names if _is_own_domain(v, own_domains) and v not in sites]
     sites += [v for v in dict.fromkeys(checked) if v and v not in sites
-              and _is_campus_domain(v, campus_domains)]  # fmt: skip
-    campus_servers = sum(
+              and _is_own_domain(v, own_domains)]  # fmt: skip
+    own_servers = sum(
         1 for kind, value, role in others
-        if kind == "ip" and role != "c2" and _campus(value, classifier)
+        if kind == "ip" and role != "c2" and _ours(value, classifier)
     )  # fmt: skip
     labels = [
         label
@@ -291,8 +291,8 @@ def facts_of(found: Found, ctx: Context) -> naming.Facts:
                         campaign.setdefault(value, set()).update(mine)
     named = set(servers)
     destinations = sorted(
-        (v for v in reaches if v not in named and not _campus(v, classifier)
-         and not _is_campus_domain(v, campus_domains)),
+        (v for v in reaches if v not in named and not _ours(v, classifier)
+         and not _is_own_domain(v, own_domains)),
         key=lambda v: (-len(reaches[v]), v),
     )  # fmt: skip
     destinations = sticky(destinations, {v: len(reaches[v]) for v in destinations}, found.current)
@@ -305,9 +305,9 @@ def facts_of(found: Found, ctx: Context) -> naming.Facts:
         outsiders=tuple(sorted(set(outsiders))),
         accounts=accounts,
         servers=tuple(servers),
-        domains=tuple(n for n in names if not _is_campus_domain(n, campus_domains)),
+        domains=tuple(n for n in names if not _is_own_domain(n, own_domains)),
         sites=tuple(sites),
-        campus_servers=campus_servers,
+        own_servers=own_servers,
         listed=listed,
         labels=tuple(labels),
         follows=found.follows,
@@ -333,7 +333,7 @@ def _paired(table: dict[str, set[str]] | None) -> Mapping[str, frozenset[str]] |
     return None if table is None else MappingProxyType({k: frozenset(v) for k, v in table.items()})
 
 
-def _is_campus_domain(name: str, domains: Iterable[str]) -> bool:
+def _is_own_domain(name: str, domains: Iterable[str]) -> bool:
     low = name.lower().rstrip(".")
     return any(low == d or low.endswith("." + d) for d in domains)
 
@@ -394,7 +394,7 @@ _OUTSIDE = text(
 ).bindparams(bindparam("ips", type_=ARRAY(Text)), bindparam("domains", type_=ARRAY(Text)))
 _SITES = text(
     "SELECT e.value FROM investigation_entities e WHERE e.investigation_id = ANY(:ids)"
-    " AND e.kind = 'domain' AND e.value ~* :campus GROUP BY e.value"
+    " AND e.kind = 'domain' AND e.value ~* :ours GROUP BY e.value"
     " ORDER BY count(*) DESC, e.value LIMIT :n"
 ).bindparams(_IDS)
 _CHECKS = (
@@ -473,7 +473,7 @@ def best_said(rows: Iterable[Any]) -> dict[Any, tuple[str, str]]:
     return {k: (kind, outcome) for k, (_, kind, outcome) in best.items()}
 
 
-def _campus_pattern(domains: Iterable[str]) -> str:
+def _own_pattern(domains: Iterable[str]) -> str:
     return r"(^|\.)(" + "|".join(re.escape(d) for d in domains) + r")$" if domains else "$^"
 
 
@@ -577,10 +577,10 @@ async def read(
     sites: list[str] = []
     checks = WebChecks()
     if ids:
-        pattern = _campus_pattern(ctx.campus_domains)
+        pattern = _own_pattern(ctx.own_domains)
         sites = [
             str(v) for v in (await conn.execute(
-                _SITES, {"ids": ids, "campus": pattern, "n": SITES_READ}
+                _SITES, {"ids": ids, "ours": pattern, "n": SITES_READ}
             )).scalars()
         ]  # fmt: skip
         checks = await web_checks(conn, ids)

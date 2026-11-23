@@ -20,7 +20,7 @@ from argus.agent.agent import Limits
 from argus.agent.catalogue import OutsideAsk, Refusal
 from argus.agent.reading import BLOCKED_WORDS
 from argus.config.settings import OutsideSettings
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.llm.privacy import Privacy
 from argus.outside import facts
 from argus.outside.eligible import Eligibility
@@ -43,14 +43,14 @@ class FakeOutside(Outside):
         super().__init__(None, settings, None, Eligibility(CLASSIFIER, None))  # type: ignore[arg-type]
         self.answers = answers or {}
         self.asked: list[tuple[str, str, str, str]] = []
-        self.campuses: list[Campus | None] = []
+        self.campuses: list[OwnSpace | None] = []
 
     async def lookup(
         self, source: str, kind: str, value: str, *, purpose: str = "agent",
-        day_cap: int | None = None, campus: Campus | None = None,
+        day_cap: int | None = None, ours: OwnSpace | None = None,
     ) -> Outcome:  # fmt: skip
         self.asked.append((source, kind, value, purpose))
-        self.campuses.append(campus)
+        self.campuses.append(ours)
         got = self.answers.get((source, value))
         if isinstance(got, Outcome):
             return got
@@ -333,11 +333,11 @@ async def test_the_lookup_is_checked_against_the_campus_view_of_the_item(
     campus (its host and user names), so a name that holds one is refused there."""
     outside = FakeOutside({("virustotal", ASKED): answered("virustotal", VT_CLEAN)})
     await agent(privacy, Model(reputation(), say()), outside=outside).run(INV, body(), False, False)
-    (campus,) = outside.campuses
-    assert campus is not None
-    assert "tp8" in campus.hosts
-    assert "alice" in campus.users  # the item's entities (tests/unit/llm/test_privacy.py)
-    mine = Eligibility(CLASSIFIER, campus)
+    (ours,) = outside.campuses
+    assert ours is not None
+    assert "tp8" in ours.hosts
+    assert "alice" in ours.users  # the item's entities (tests/unit/llm/test_privacy.py)
+    mine = Eligibility(CLASSIFIER, ours)
     assert mine.check("domain", "alice.c2.com") == "a campus name"
     assert mine.check("domain", "tp8.c2.com") == "a campus name"
-    assert Eligibility(CLASSIFIER, privacy.campus).check("domain", "alice.c2.com") is None
+    assert Eligibility(CLASSIFIER, privacy.ours).check("domain", "alice.c2.com") is None

@@ -1,0 +1,46 @@
+[Unit]
+Description=ARGUS write-back: people's decisions as alert status in Kibana (custody layout)
+# Started by argus-writeback.timer. Sends only with writeback.enabled, writeback.auto and class WA
+# switched on in /etc/argus/argus.env (docs/runbooks/writeback.md). This account sends and cannot
+# plan: the plan is the runtime's (`argus writeback plan`, from a svc account).
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=argus-writer
+Group=argus-writer
+SupplementaryGroups=argus
+WorkingDirectory=/opt/argus/current
+EnvironmentFile=/etc/argus/argus.env
+Environment=ARGUS_CUSTODY__ROLE=writer
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=database.writer_password:/etc/argus/credentials/database.writer_password
+LoadCredential=siem.api_key:/etc/argus/credentials/siem.api_key
+LoadCredential=kibana.reader_api_key:/etc/argus/credentials/kibana.reader_api_key
+LoadCredential=kibana.alert_writer_api_key:/etc/argus/credentials/kibana.alert_writer_api_key
+ExecStart=/opt/argus/current/.venv/bin/argus writeback run --unattended
+TimeoutStartSec=3h
+MemoryMax=512M
+Nice=10
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+

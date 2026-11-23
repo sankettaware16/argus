@@ -18,7 +18,7 @@ from argus import site as profile
 from argus.assets.classify import IpClassifier
 from argus.incident import evidence
 from argus.incident import model as m
-from argus.incident.scene import Scene, campus, is_ip
+from argus.incident.scene import Scene, is_ip, ours
 from argus.normalize.fields import values
 from argus.responder.facts import answered_by_alert, outcomes_of
 
@@ -197,7 +197,7 @@ def _place(classifier: IpClassifier | None, ip: str) -> str | None:
     return None
 
 
-def is_campus_domain(name: str, domains: Iterable[str]) -> bool:
+def is_own_domain(name: str, domains: Iterable[str]) -> bool:
     low = name.lower().rstrip(".")
     return any(low == d or low.endswith("." + d) for d in domains)
 
@@ -211,18 +211,18 @@ def targets(scene: Scene) -> tuple[tuple[m.ReportTarget, ...], int]:
     found: dict[tuple[str, str], set[uuid.UUID]] = defaultdict(set)
     for x in scene.f.members:
         for kind, value in scene.entity_of[x.id]:
-            if kind == "domain" and is_campus_domain(value, scene.ctx.campus_domains):
+            if kind == "domain" and is_own_domain(value, scene.ctx.own_domains):
                 found[("site", value.lower())].add(x.id)
     classifier = scene.ctx.classifier
     for doc in scene.f.docs:
         sources = doc.fields.get("source.ip", ())
-        if not sources or any(campus(s, classifier) for s in sources):
+        if not sources or any(ours(s, classifier) for s in sources):
             continue  # only an outside address aiming at the internal network makes a target
         for site in doc.fields.get("url.domain", ()):
             if not is_ip(site):
                 found[("site", site.lower())].add(doc.investigation_id)
         for ip in doc.fields.get("destination.ip", ()):
-            if campus(ip, classifier):
+            if ours(ip, classifier):
                 found[("host", ip)].add(doc.investigation_id)
     ans = answers(scene)
     outsiders = set(scene.outsiders)

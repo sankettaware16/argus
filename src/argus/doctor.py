@@ -140,7 +140,7 @@ async def database_checks(settings: Settings) -> list[CheckResult]:
                 CheckResult(
                     "switches resumed by the owner only",
                     not unguarded,
-                    "triggers present and always enabled (Q-A5)"
+                    "triggers present and always enabled"
                     if not unguarded
                     else f"triggers missing, disabled or not ENABLE ALWAYS: {', '.join(unguarded)}",
                 )
@@ -243,7 +243,7 @@ async def shadow_check(engine: AsyncEngine, settings: Settings) -> CheckResult:
             name,
             False,
             f"llm_shadow holds shadow answers and the web logs in as {settings.database.user},"
-            " which may read them: set web.database_role: api (Q-A2) and restart argus-web",
+            " which may read them: set web.database_role: api and restart argus-web",
         )
     return CheckResult(
         name,
@@ -290,7 +290,7 @@ async def web_login_check(settings: Settings) -> CheckResult:
             name,
             True,
             f"the web logs in as {database.user}, with more grants than it needs; its own login"
-            f" {database.api_user} is not set up (Q-A2: set ARGUS_DATABASE__API_PASSWORD, run"
+            f" {database.api_user} is not set up (set ARGUS_DATABASE__API_PASSWORD, run"
             " `argus db bootstrap`, then web.database_role: api)",
             warn=True,
         )
@@ -316,7 +316,7 @@ async def web_login_check(settings: Settings) -> CheckResult:
             name,
             True,
             f"{database.api_user} has exactly the web's grants, but the web still logs in as"
-            f" {database.user}: set web.database_role: api and restart argus-web (Q-A2)",
+            f" {database.user}: set web.database_role: api and restart argus-web",
             warn=True,
         )
     return CheckResult(name, True, f"{database.api_user}: exactly the web's grants, in use")
@@ -720,7 +720,7 @@ async def agents_check(settings: Settings) -> list[CheckResult]:
 @register_check
 async def privacy_domains_check(settings: Settings) -> list[CheckResult]:
     """The privacy layer's own domains: ``site.own_domains`` and the policy's
-    ``campus_domains`` must name at least one, or no text for a model can be built. FAIL while a
+    ``own_domains`` must name at least one, or no text for a model can be built. FAIL while a
     provider is enabled and none is listed; WARN while none is enabled (nothing is sent, but the
     first one switched on would be refused)."""
     from pydantic import ValidationError
@@ -734,7 +734,7 @@ async def privacy_domains_check(settings: Settings) -> list[CheckResult]:
     except (OSError, ValueError, ValidationError) as exc:
         return [CheckResult("privacy domains", False, redact_text(f"data policy: {exc}")[:300])]
     with site.using(settings.site):
-        domains = site.own_domains(policy.campus_domains)
+        domains = site.own_domains(policy.own_domains)
     if domains:
         return [CheckResult("privacy domains", True, f"{len(domains)} own domains are replaced")]
     try:
@@ -742,7 +742,7 @@ async def privacy_domains_check(settings: Settings) -> list[CheckResult]:
     except (OSError, ValueError, ValidationError):
         enabled = []  # the llm check says why
     detail = (
-        "no domain of the organisation is listed (site.own_domains, or campus_domains in"
+        "no domain of the organisation is listed (site.own_domains, or own_domains in"
         " config/llm_data_policy.yaml): the privacy layer refuses to build a request until one is"
     )
     if enabled:

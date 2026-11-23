@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS incident engine pass every 10 minutes (P4-F)
+Description=ARGUS incident engine pass every 10 minutes
 
 [Timer]
 OnBootSec=5min

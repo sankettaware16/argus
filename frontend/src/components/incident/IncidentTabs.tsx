@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { addCaseNote } from "../../client/sdk.gen";
-import type { CaseDetail, CaseMemberOut, CaseReportOut, HistoryItemOut, IncidentReport, ReportEvidenceLine } from "../../client/types.gen";
+import type { CaseDetail, CaseMemberOut, CaseReportOut, HistoryItemOut, IncidentReport, ReportEvidenceLine, SigninDeviceOut } from "../../client/types.gen";
 import { useAnnounce } from "../../lib/announce";
 import { unwrap } from "../../lib/call";
 import { entityKind, isPrivateIp, nounFor, side, sidesWithoutEngine, stateWords, type Engine, type EngineObject } from "../../lib/engine";
@@ -12,6 +12,7 @@ import { count, plural } from "../../lib/format";
 import { OUTCOMES } from "../../lib/labels";
 import { changed, changedCase, investigationOptions } from "../../lib/queries";
 import { can, useSession } from "../../lib/session";
+import { own, ownSide } from "../../lib/site";
 import { parse } from "../../lib/time";
 import { clock, dayAndTime, weekdayDay } from "../../lib/when";
 import { CaseActions } from "../cases/CaseActions";
@@ -23,6 +24,7 @@ import { ReportSection } from "../cases/ReportSection";
 import { TeamSection } from "../cases/TeamSection";
 import { CheckMore } from "../investigation/CheckMore";
 import { sendShown } from "../decide/target";
+import { DeviceUser, SigninsCard, signinsOf, WhoThisIs } from "../signins/SigninsCard";
 import { Time } from "../Time";
 import { UntrustedText } from "../UntrustedText";
 import { Button } from "../ui/button";
@@ -101,7 +103,7 @@ function TalkedTo({ engine, report }: { engine: Engine | null; report: IncidentR
         <table className="w-full max-w-2xl border-collapse text-sm" data-testid="talked-list">
           <thead>
             <tr className="border-b border-border text-left text-muted">
-              <th className="py-1 font-medium">Campus side</th>
+              <th className="py-1 font-medium">{ownSide()}</th>
               <th className="py-1 font-medium">Other side</th>
             </tr>
           </thead>
@@ -115,7 +117,7 @@ function TalkedTo({ engine, report }: { engine: Engine | null; report: IncidentR
           </tbody>
         </table>
       ) : (
-        <svg viewBox={`0 0 600 ${h}`} width="100%" height={h} role="img" aria-label={`${left.length} campus ${plural(left.length, "object")} and ${right.length} outside ${plural(right.length, "object")}; the list has the names`} className="max-w-2xl">
+        <svg viewBox={`0 0 600 ${h}`} width="100%" height={h} role="img" aria-label={`${left.length} ${own(plural(left.length, "object"))} and ${right.length} outside ${plural(right.length, "object")}; the list has the names`} className="max-w-2xl">
           {L.map((_, i) => R.map((__, j) => <line key={`${i}-${j}`} x1="200" y1={y(i, L.length)} x2="400" y2={y(j, R.length)} className="stroke-border-strong" strokeWidth="1" />))}
           {L.map((o, i) => (
             <text key={o.label} x="192" y={y(i, L.length) + 4} textAnchor="end" className="fill-text text-xs">
@@ -291,6 +293,7 @@ export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: Re
           ))}
         </ul>
       </section>
+      <SigninsCard signins={detail.signins} id="evidence-signins" level={2} />
       {detail.lead_investigation_id && lead.data && (
         <section aria-label="Ask ARGUS to check something else" className="flex flex-col gap-2">
           <h2 className="m-0 text-base font-semibold">Ask ARGUS to check something else</h2>
@@ -303,12 +306,17 @@ export function EvidenceTab({ detail, report }: { detail: CaseDetail; report: Re
 
 // ------------------------------------------------------------------ Entities (§7.6)
 
-function EntityCard({ o, facts, did, note }: { o: EngineObject; facts: string[]; did: string | null; note: string | null }) {
+/** How many cards ask the directory in place; the rest answer from the account chip's drawer. */
+const DIRECTORY_INLINE = 5;
+
+function EntityCard({ o, facts, did, note, user, directory }: { o: EngineObject; facts: string[]; did: string | null; note: string | null; user: SigninDeviceOut | null; directory: boolean }) {
   return (
     <li className="flex flex-col gap-1 rounded-card bg-surface p-3 text-sm" data-testid="entity-card" data-role={o.role}>
       <p className="m-0">
         <span className="text-muted">{nounFor(o)}</span> <strong className="break-all"><UntrustedText value={o.label} limits={{ maxChars: 120, maxLines: 1 }} /></strong>
       </p>
+      {user && <DeviceUser device={user} directory={directory} />}
+      {o.kind === "account" && directory && <WhoThisIs account={o.label} />}
       {facts.length > 0 && <p className="m-0 italic">{facts.join(" · ")}</p>}
       {did && <p className="m-0 text-muted">{did}</p>}
       {note && (
@@ -328,7 +336,7 @@ function EntityCard({ o, facts, did, note }: { o: EngineObject; facts: string[];
 export function EntitiesTab({ detail, engine, report }: { detail: CaseDetail; engine: Engine | null; report: ReportRead }) {
   const body = (report.data?.report ?? null) as IncidentReport | null;
   const sides = engine ? engine.objects : sidesWithoutEngine(detail.indicators, body);
-  const campus = sides.filter((o) => o.role === "affected");
+  const ours = sides.filter((o) => o.role === "affected");
   const other = sides.filter((o) => o.role === "actor");
   const factsOf = (o: EngineObject): string[] => {
     const out: string[] = [];
@@ -351,8 +359,8 @@ export function EntitiesTab({ detail, engine, report }: { detail: CaseDetail; en
         <p className="m-0 text-sm text-muted">None known.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
-          {items.map((o) => (
-            <EntityCard key={`${o.role}:${o.label}`} o={o} facts={factsOf(o)} did={didOf(o)} note={noteOf(o)} />
+          {items.map((o, i) => (
+            <EntityCard key={`${o.role}:${o.label}`} o={o} facts={factsOf(o)} did={didOf(o)} note={noteOf(o)} user={o.role === "affected" && o.kind === "device" ? signinsOf(detail.signins, o.label) : null} directory={i < DIRECTORY_INLINE} />
           ))}
         </ul>
       )}
@@ -360,7 +368,7 @@ export function EntitiesTab({ detail, engine, report }: { detail: CaseDetail; en
   );
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {column("Campus side", campus, "campus-side")}
+      {column(ownSide(), ours, "own-side")}
       {column("Other side", other, "other-side")}
     </div>
   );

@@ -2,6 +2,8 @@
 const TITLES: Record<string, string> = {
   "/": "Today",
   "/incidents": "Incidents",
+  "/alerts": "Alerts",
+  "/dashboards": "Dashboards",
   "/search": "Search",
   "/overview": "Overview",
   "/quality": "ARGUS quality",
@@ -24,6 +26,7 @@ const TITLES: Record<string, string> = {
   "/patterns": "Patterns",
   "/health": "Health",
   "/glossary": "Glossary",
+  "/account-lookup": "Account look-up",
   "/metrics": "Metrics",
   "/tuning": "Rule tuning",
   "/gold": "Gold set",

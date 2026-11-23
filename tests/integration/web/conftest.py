@@ -1,5 +1,5 @@
 """The Inbox under test: the real app on a throwaway database, logged in as a throwaway web login
-(``argus_web``'s grants only, Q-A2), seeded as the runtime role through the real collector store
+(``argus_web``'s grants only), seeded as the runtime role through the real collector store
 and grouper, with two reviewers."""
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ async def seeded(app_engine: AsyncEngine) -> AsyncEngine:
 
 @pytest.fixture
 async def client(seeded: AsyncEngine, web_engine: AsyncEngine) -> AsyncIterator[httpx.AsyncClient]:
-    """The app on the web's own login (Q-A2: argus_web's grants only), over the seeded data."""
+    """The app on the web's own login (argus_web's grants only), over the seeded data."""
     app = create_app(web_engine, clock=lambda: NOW + timedelta(hours=1))
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url=BASE, headers=SAME_ORIGIN) as http:

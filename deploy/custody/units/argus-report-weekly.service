@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS weekly report (Q-H3: the figures of the last complete Monday-to-Sunday UTC week, and of any other week of the last 4 that a missed run left out; custody layout, Q-A5)
+Description=ARGUS weekly report: the figures of the last complete Monday-to-Sunday UTC week, and of any other week of the last 4 that a missed run left out, from ARGUS's own database (custody layout)
 # Started by argus-report-weekly.timer. Reads the local database only (no SIEM request, no model call) and
 # stores the report once. Off until the user has read two reports.
 After=network-online.target docker.service

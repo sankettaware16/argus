@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus.admin import ai, catalogue, homes, jobs, outside_check, seal, services
 from argus.admin.catalogue import Entry, Risk
 from argus.config.settings import ADMIN_FILE, ConfigError, Settings, load_settings
+from argus.directory import check as directory_check
 from argus.install import files
 from argus.llm.providers import ADMIN_OVERLAY
 from argus.web.capabilities import Capability
@@ -377,6 +378,11 @@ class Applier:
                 try:
                     return await outside_check.check(self.engine, self.root, target[8:],
                                                      self.clock())  # fmt: skip
+                except ValueError as exc:
+                    raise RefusedError(str(exc)) from None
+            if target == directory_check.TARGET:
+                try:
+                    return await directory_check.check(self.root)
                 except ValueError as exc:
                     raise RefusedError(str(exc)) from None
             return await asyncio.to_thread(jobs.check, self.root, found.params, self.argus)

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from argus.assess.raised import HORIZON
 from argus.cases.membership import Shared
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 from argus.outside import facts, service, store
 
 BEACON = "regular traffic, like a beacon"  # evaluation.gold.flags's words
@@ -82,16 +82,16 @@ class Report:
 class Pick:
     kind: str
     value: str
-    campus: Campus | None = field(default=None, repr=False)  # the view it was cleared under
+    ours: OwnSpace | None = field(default=None, repr=False)  # the view it was cleared under
 
 
-async def campus_of(
+async def ours_of(
     conn: AsyncConnection, investigation_id: uuid.UUID, outside: service.Outside
-) -> Campus | None:  # fmt: skip
+) -> OwnSpace | None:  # fmt: skip
     """The internal view of one investigation: the base view plus its host and user names, built
     by the privacy layer from the same parts of the dossier its model view is (the host and user
     entities, the grouping key and the fields). None when the layer's view is not set up."""
-    build = outside.eligibility.campus_for
+    build = outside.eligibility.ours_for
     if build is None:
         return None
     entities: dict[str, list[str]] = {"host": [], "user": []}
@@ -146,7 +146,7 @@ async def pick(
     for investigation_id in ids:  # the priority order the database gave
         for pair in by_investigation.get(investigation_id, []):
             holders.setdefault(pair, []).append(investigation_id)
-    views: dict[uuid.UUID, Campus | None] = {}  # each investigation's internal view, built once
+    views: dict[uuid.UUID, OwnSpace | None] = {}  # each investigation's internal view, built once
     cleared: dict[tuple[str, str], Pick | None] = {}
 
     async def clear(pair: tuple[str, str]) -> Pick | None:
@@ -155,10 +155,10 @@ async def pick(
             cleared[pair] = None
             for holder in holders[pair]:
                 if holder not in views:
-                    views[holder] = await campus_of(conn, holder, outside)
+                    views[holder] = await ours_of(conn, holder, outside)
                 view = views[holder]
                 eligibility = (
-                    outside.eligibility if view is None else outside.eligibility.with_campus(view)
+                    outside.eligibility if view is None else outside.eligibility.with_ours(view)
                 )
                 if eligibility.check(*pair) is not None:
                     break
@@ -209,7 +209,7 @@ async def run(
     report = Report(picked=[(p.kind, p.value) for p in picks])
     for p in picks:
         got = await outside.lookup(facts.VIRUSTOTAL, p.kind, p.value, purpose="prefetch",
-                                   day_cap=s.prefetch_per_day, campus=p.campus)  # fmt: skip
+                                   day_cap=s.prefetch_per_day, ours=p.ours)  # fmt: skip
         if got.status == service.FETCHED:
             report.asked += 1
             report.found += got.answer_status == facts.FOUND

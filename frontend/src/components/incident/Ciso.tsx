@@ -1,5 +1,5 @@
 import { Dialog } from "@base-ui/react/dialog";
-import { own, teamName } from "../../lib/site";
+import { own, teamName, zoneLabel } from "../../lib/site";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { CaseDetail, CaseReportOut, IncidentReport } from "../../client/types.gen";
@@ -81,7 +81,7 @@ export function cisoDraft(detail: CaseDetail, data: CaseReportOut | undefined, e
   }
   const first = parse(report?.header.first_alert_at ?? engine?.first_seen ?? detail.case.first_alert_at);
   const last = parse(report?.header.last_alert_at ?? engine?.last_seen ?? detail.case.last_alert_at);
-  if (first && last) lines.push("Time window", `${dayAndTime(first)} to ${dayAndTime(last)} IST`, "");
+  if (first && last) lines.push("Time window", `${dayAndTime(first)} to ${dayAndTime(last)} ${zoneLabel(last)}`, "");
   if (seeLogs && report !== null && report.users.devices.some((d) => d.accounts.length > 0)) {
     const accounts = accountLines(report);
     lines.push("Accounts (from the sign-in logs: a lead, not proof)", ...(accounts.length > 0 ? accounts : ["Accounts: in the attached PDF"]), "");

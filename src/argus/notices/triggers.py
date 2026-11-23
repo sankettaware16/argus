@@ -315,7 +315,7 @@ async def ioc_hit(
         ).all()
         for row in rows:
             sure = high_confidence(_ti(row.body))
-            if not sure or not opener.is_campus_actor(row.group_key, classifier):
+            if not sure or not opener.is_own_actor(row.group_key, classifier):
                 continue
             severity: Severity = "critical" if str(row.severity).lower() == "critical" else "high"
             out.append(

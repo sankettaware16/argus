@@ -32,6 +32,7 @@ import {
 } from "../lib/incidents";
 import { casesOptions } from "../lib/queries";
 import { can, useSession } from "../lib/session";
+import { ownSide } from "../lib/site";
 import { parse } from "../lib/time";
 import { usePaneWide, usePhone } from "../lib/viewport";
 import { useShortcuts } from "../lib/useShortcuts";
@@ -107,7 +108,7 @@ function Filters({ search, set, me }: { search: IncidentsSearch; set: (patch: Pa
     <div className="flex flex-wrap items-center gap-2">
       <Chip label="Priority" values={BANDS} chosen={search.band} onChange={(band) => set({ band: band as IncidentsSearch["band"] })} />
       <Chip label="Certainty" values={CERTAINTY_FILTERS} chosen={search.certainty} onChange={(certainty) => set({ certainty })} />
-      <Chip label="Campus side" values={SIDE_FILTERS} words={SIDE_WORDS} chosen={search.side} onChange={(side) => set({ side })} />
+      <Chip label={ownSide()} values={SIDE_FILTERS} words={SIDE_WORDS} chosen={search.side} onChange={(side) => set({ side })} />
       <Chip label="Taken by" values={["me", "nobody"]} words={{ me: me ? "Me" : "Me", nobody: "Nobody" }} chosen={search.taken ? [search.taken] : undefined} onChange={(t) => set({ taken: t?.at(-1) })} />
       <label className="flex items-center gap-1.5 text-sm">
         <input type="checkbox" className="size-4 accent-accent" checked={search.active === "1"} onChange={(e) => set({ active: e.target.checked ? "1" : undefined })} />
@@ -152,7 +153,7 @@ function RowView({ r, view, active, selected, selectable, onSelect, onOpen, onFo
   const { row, engine } = r;
   const certainty = shownCertainty(row.state, row.closure_reason, engine);
   const top = engine ? topWhy(engine, 1).shown[0] : undefined;
-  const campus = engine?.objects.filter((o) => o.role === "affected") ?? [];
+  const ours = engine?.objects.filter((o) => o.role === "affected") ?? [];
   const last = parse(engine?.last_seen ?? row.last_alert_at);
   const first = parse(engine?.first_seen ?? row.first_alert_at);
   const waiting = parse((row as typeof row & { waiting_since?: string | null }).waiting_since ?? null);
@@ -195,8 +196,8 @@ function RowView({ r, view, active, selected, selectable, onSelect, onOpen, onFo
         <span className="line-clamp-2 font-semibold">{title}</span>
         {top && <span className="truncate text-sm">{top}</span>}
         <span className="text-sm text-muted">
-          {campus[0]?.label ?? ""}
-          {campus.length > 1 ? ` +${campus.length - 1}` : ""} · {engine?.active ? "active" : last ? `quiet ${waited(last, now)}` : ""}
+          {ours[0]?.label ?? ""}
+          {ours.length > 1 ? ` +${ours.length - 1}` : ""} · {engine?.active ? "active" : last ? `quiet ${waited(last, now)}` : ""}
         </span>
       </li>
     );
@@ -224,8 +225,8 @@ function RowView({ r, view, active, selected, selectable, onSelect, onOpen, onFo
         {second}
       </Cell>
       <Cell className="truncate">
-        {campus[0] ? <UntrustedText value={campus[0].label} limits={{ maxChars: 60, maxLines: 1 }} /> : "—"}
-        {campus.length > 1 && <span className="text-muted"> +{campus.length - 1}</span>}
+        {ours[0] ? <UntrustedText value={ours[0].label} limits={{ maxChars: 60, maxLines: 1 }} /> : "—"}
+        {ours.length > 1 && <span className="text-muted"> +{ours.length - 1}</span>}
       </Cell>
       <Cell>
         <span title={first ? `first seen ${shortDay(first)}` : undefined}>{engine?.active ? "active" : last ? `quiet ${waited(last, now).replace(" days", " d").replace(" day", " d")}` : "—"}</span>
@@ -249,7 +250,7 @@ function Header({ view }: { view: IncidentView }) {
       <span>Pri</span>
       <span />
       <span>Incident</span>
-      <span>Campus side</span>
+      <span>{ownSide()}</span>
       <span>Activity</span>
       <span>{third}</span>
     </div>
@@ -382,9 +383,9 @@ export function Incidents({ search }: { search: IncidentsSearch }) {
       </div>
       <nav aria-label="Views" className="-mx-1 flex gap-1 overflow-x-auto px-1" data-testid="view-tabs">
         {INCIDENT_VIEWS.map((v) => (
-          <Link key={v} to="/incidents" search={{ view: v }} aria-current={search.view === v ? "page" : undefined} activeOptions={{ includeSearch: true }} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm whitespace-nowrap text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg">
+          <Link key={v} to="/incidents" search={{ view: v }} aria-current={search.view === v ? "page" : undefined} activeOptions={{ includeSearch: true }} className="group inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm whitespace-nowrap text-text no-underline hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:font-medium aria-[current=page]:text-bg">
             {VIEW_TITLES[v]}
-            {countOf[v] !== undefined && <span className="text-xs text-muted tabular-nums" data-testid={`count-${v}`}>{countOf[v]}</span>}
+            {countOf[v] !== undefined && <span className="text-xs text-muted tabular-nums group-aria-[current=page]:text-bg" data-testid={`count-${v}`}>{countOf[v]}</span>}
           </Link>
         ))}
       </nav>

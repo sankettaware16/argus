@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS weekly restore drill, Monday 03:30 IST (Q-A2)
+Description=ARGUS weekly restore drill, Sunday 22:00 UTC
 
 [Timer]
 OnCalendar=Sun *-*-* 22:00:00 UTC

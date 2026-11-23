@@ -191,7 +191,7 @@ async def test_a_report_that_cannot_be_sent(
     from argus.llm.privacy import Request
 
     monkeypatch.setattr(privacy, "request", lambda bodies, max_chars=60_000: Request(
-        "", (), (), ("I1",), (), privacy.campus))  # fmt: skip
+        "", (), (), ("I1",), (), privacy.ours))  # fmt: skip
     model = Model(reply(ok()))
     got = await advise.advise(REP, privacy, model)
     assert got.dropped == ["the report could not be sent"]

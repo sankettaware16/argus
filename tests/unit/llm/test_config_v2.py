@@ -24,8 +24,8 @@ from argus.llm.providers import (
 pytestmark = pytest.mark.unit
 
 
-def campus(**over: Any) -> dict[str, Any]:
-    return {"name": "local", "trust": "campus", "base_url": "https://127.0.0.1:18443/v1",
+def ours(**over: Any) -> dict[str, Any]:
+    return {"name": "local", "trust": "self_hosted", "base_url": "https://127.0.0.1:18443/v1",
             "keys": ["LOCAL_LLM_API_KEY"], "ca_file": "data/tls/local-llm.crt",
             "tasks": ["evaluate"], "models": {"small": {"name": "cp"}},
             "limits": {"rpd": 300}, **over}  # fmt: skip
@@ -61,19 +61,19 @@ def test_a_campus_provider_must_be_local_pinned_limited_and_capped(
     over: dict[str, Any], message: str
 ) -> None:
     with pytest.raises(ValidationError, match=message):
-        cfg(campus(**over))
+        cfg(ours(**over))
 
 
 def test_a_campus_provider_capped_per_model_and_a_cloud_one_with_tasks() -> None:
-    per_model = campus(
+    per_model = ours(
         limits=None,
         models={
             "small": {"name": "cp", "limits": {"rpd": 9}},
             "medium": {"name": "cp", "limits": {"rpd": 9}},
         },
     )
-    assert cfg(per_model).providers[0].trust is Trust.CAMPUS
-    half = campus(limits=None, models={"small": {"name": "cp", "limits": {"rpd": 9}},
+    assert cfg(per_model).providers[0].trust is Trust.SELF_HOSTED
+    half = ours(limits=None, models={"small": {"name": "cp", "limits": {"rpd": 9}},
                                        "medium": {"name": "cp"}})  # fmt: skip
     with pytest.raises(ValidationError, match="daily cap"):
         cfg(half)
@@ -82,8 +82,8 @@ def test_a_campus_provider_capped_per_model_and_a_cloud_one_with_tasks() -> None
     assert cfg(cloud()).providers[0].serves("anything")
     with pytest.raises(ValidationError, match="tasks must be"):
         cfg(cloud(tasks=["nope"]))
-    ipv6 = cfg(campus(base_url="https://[::1]:18443/v1")).providers[0]
-    assert ipv6.trust is Trust.CAMPUS
+    ipv6 = cfg(ours(base_url="https://[::1]:18443/v1")).providers[0]
+    assert ipv6.trust is Trust.SELF_HOSTED
 
 
 def test_the_defaults_keep_phase_2s_behaviour() -> None:
@@ -112,15 +112,15 @@ def test_output_cap_and_context() -> None:
 
 
 def test_the_certificate_path_is_relative_to_the_repository(tmp_path: Path) -> None:
-    p = cfg(campus()).providers[0]
+    p = cfg(ours()).providers[0]
     assert p.ca_path() == ROOT / "data" / "tls" / "local-llm.crt"
-    absolute = cfg(campus(ca_file=str(tmp_path / "x.crt"))).providers[0]
+    absolute = cfg(ours(ca_file=str(tmp_path / "x.crt"))).providers[0]
     assert absolute.ca_path() == tmp_path / "x.crt"
     assert p.lease_for(600).total_seconds() == 660
 
 
 def test_pinning_one_provider() -> None:
-    both = cfg(cloud(), campus(enabled=False))
+    both = cfg(cloud(), ours(enabled=False))
     assert [p.name for p in pinned(both, "c").providers] == ["c"]
     with pytest.raises(ValueError, match="no provider 'x'"):
         pinned(both, "x")
@@ -136,7 +136,7 @@ def test_the_shipped_local_entry_is_disabled_campus_and_pinned() -> None:
     llm = load_config(DEFAULT_PATH)
     (local,) = [p for p in llm.providers if p.name == "local"]
     assert local.enabled is False
-    assert local.trust is Trust.CAMPUS
+    assert local.trust is Trust.SELF_HOSTED
     assert local.base_url == "https://127.0.0.1:18443/v1"
     assert local.keys == ("LOCAL_LLM_API_KEY",)
     assert local.ca_file == Path("data/tls/local-llm.crt")  # where the import stores it

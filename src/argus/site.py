@@ -825,10 +825,10 @@ class SiteSettings(_Model):
     """How a time in that zone is labelled ("IST"). Left out, the zone's offset at the moment
     shown ("UTC-05:00" in winter, "UTC-04:00" in summer, "UTC" at none), the same on every page."""
     own_network_noun: str = Field(default="your network", pattern=_NOUN, max_length=40)
-    """The word for the organisation's own network in sentences ("campus", "the plant"): letters,
+    """The word for the organisation's own network in sentences ("the plant", "campus"): letters,
     digits, spaces, hyphens and apostrophes, beginning with a lower-case letter (it is used in the
     middle of a sentence). A noun that needs "the" carries it ("the plant"); one used after "on"
-    ("on campus") is written as it reads there."""
+    ("on site") is written as it reads there."""
     organisation: Organisation = Organisation()
     quiet_hours: QuietHours = QuietHours()
 
@@ -1041,21 +1041,21 @@ def article(word: str) -> str:
 
 
 def noun() -> str:
-    """The word for the organisation's own network as a modifier: "campus" in "a campus device"
+    """The word for the organisation's own network as a modifier: "plant" in "a plant device"
     ("your network" by default, "plant" for "the plant")."""
     word = _ACTIVE.own_network_noun
     return word[4:] if word.lower().startswith("the ") else word
 
 
 def the_noun() -> str:
-    """With "the": "the campus"; a noun that begins with the, your, our or my is used as it
+    """With "the": "the plant"; a noun that begins with the, your, our or my is used as it
     stands ("your network")."""
     word = _ACTIVE.own_network_noun
     return word if word.lower().startswith(_DETERMINERS) else f"the {word}"
 
 
 def a_noun() -> str:
-    """With "a": "a campus", "an office network"; none before the, your, our or my."""
+    """With "a": "a plant", "an office network"; none before the, your, our or my."""
     word = _ACTIVE.own_network_noun
     if word.lower().startswith(_DETERMINERS):
         return word
@@ -1069,7 +1069,7 @@ def noun_capital() -> str:
 
 
 def own(thing: str) -> str:
-    """``thing`` that belongs to the organisation's own network: "campus device", "device
+    """``thing`` that belongs to the organisation's own network: "plant device", "device
     of your network" (a noun that begins with your, our or my), "office network device"."""
     word = _ACTIVE.own_network_noun
     if word.lower().startswith(("your ", "our ", "my ")):
@@ -1078,7 +1078,7 @@ def own(thing: str) -> str:
 
 
 def a_own_or(thing: str, *others: str) -> str:
-    """``thing`` of the organisation's own network or of another kind, as one phrase: "a campus,
+    """``thing`` of the organisation's own network or of another kind, as one phrase: "a plant,
     private or special-use address"; "an address in your network, or a private or
     special-use one" (a noun that begins with the, your, our or my)."""
     word = _ACTIVE.own_network_noun
@@ -1091,13 +1091,13 @@ def a_own_or(thing: str, *others: str) -> str:
 
 
 def where() -> str:
-    """The word as the site gave it, for "on campus", "on the plant", "on your network":
+    """The word as the site gave it, for "on the plant", "on site", "on your network":
     no "the" is added, so a noun that needs one ("the plant") carries it in its setting."""
     return _ACTIVE.own_network_noun
 
 
 def a_own(thing: str) -> str:
-    """``own(thing)`` with its article: "a campus device", "an office network device", "a
+    """``own(thing)`` with its article: "a plant device", "an office network device", "a
     device of your network"."""
     phrase = own(thing)
     return f"{article(phrase)} {phrase}"
@@ -1115,7 +1115,7 @@ _SAY = re.compile(
 
 def say(text: str) -> str:
     """``text`` with the site's words put in for the tokens a module writes its sentences with, so
-    a sentence held as data still follows the site: ``{own:host}`` / ``{a_own:host}`` (a campus
+    a sentence held as data still follows the site: ``{own:host}`` / ``{a_own:host}`` (a plant
     host), ``{the}``, ``{noun}``, ``{where}`` (the word as given), ``{source:proxy}`` (the name of
     the site's family of that role), ``{team}``, ``{org}``, ``{kind}``, ``{units}``,
     ``{reviewers}``, ``{logs}`` and ``{quiet}``; capitalised forms start a sentence. Text without

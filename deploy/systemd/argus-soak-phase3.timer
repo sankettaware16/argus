@@ -1,5 +1,5 @@
 [Unit]
-Description=ARGUS soak gate every day at 06:30 UTC (P4-A1; installed disabled)
+Description=ARGUS soak gate every day at 06:30 UTC (installed disabled)
 
 [Timer]
 OnCalendar=*-*-* 06:30:00 UTC

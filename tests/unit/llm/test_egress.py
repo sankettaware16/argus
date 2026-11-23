@@ -12,7 +12,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from argus.llm import egress
-from argus.llm.detect import Campus
+from argus.llm.detect import OwnSpace
 
 pytestmark = pytest.mark.unit
 
@@ -22,8 +22,8 @@ def body(content: str, *, ascii_only: bool = False) -> bytes:
     return json.dumps(payload, ensure_ascii=ascii_only).encode()
 
 
-def test_a_clean_request_is_allowed(campus: Campus) -> None:
-    verdict = egress.check(body("I1.IP_1 talked to 8.8.8.8 at evil.example"), campus)
+def test_a_clean_request_is_allowed(ours: OwnSpace) -> None:
+    verdict = egress.check(body("I1.IP_1 talked to 8.8.8.8 at evil.example"), ours)
     assert verdict.allowed
     assert verdict.findings == ()
     assert verdict.audit() == {"allowed": True, "kinds": {}, "error": None}
@@ -33,30 +33,30 @@ def test_a_clean_request_is_allowed(campus: Campus) -> None:
     "content",
     ["host 10.20.3.4", "tp8 is down", "see moodle.example.edu", "key sk-abcdefghijklmnopqrstuv"],
 )
-def test_identifiers_are_blocked(campus: Campus, content: str) -> None:
-    verdict = egress.check(body(content), campus)
+def test_identifiers_are_blocked(ours: OwnSpace, content: str) -> None:
+    verdict = egress.check(body(content), ours)
     assert not verdict.allowed
     assert verdict.findings
 
 
-def test_json_escapes_hide_nothing(campus: Campus) -> None:
+def test_json_escapes_hide_nothing(ours: OwnSpace) -> None:
     raw = b'{"content": "10\\u002e20\\u002e3\\u002e4"}'
-    verdict = egress.check(raw, campus)
+    verdict = egress.check(raw, ours)
     assert not verdict.allowed
     assert {f.part for f in verdict.findings} >= {"json"}
 
 
-def test_non_ascii_escaped_by_json_is_still_read(campus: Campus) -> None:
-    verdict = egress.check(body("\uff11\uff10.20.3.4", ascii_only=True), campus)
+def test_non_ascii_escaped_by_json_is_still_read(ours: OwnSpace) -> None:
+    verdict = egress.check(body("\uff11\uff10.20.3.4", ascii_only=True), ours)
     assert not verdict.allowed
 
 
-def test_keys_are_checked_too(campus: Campus) -> None:
-    assert not egress.check(json.dumps({"10.20.3.4": 1}), campus).allowed
+def test_keys_are_checked_too(ours: OwnSpace) -> None:
+    assert not egress.check(json.dumps({"10.20.3.4": 1}), ours).allowed
 
 
-def test_the_audit_holds_kinds_and_counts_only(campus: Campus) -> None:
-    verdict = egress.check(body("10.20.3.4 and tp8 and 10.20.3.4"), campus)
+def test_the_audit_holds_kinds_and_counts_only(ours: OwnSpace) -> None:
+    verdict = egress.check(body("10.20.3.4 and tp8 and 10.20.3.4"), ours)
     audit = verdict.audit()
     assert audit["allowed"] is False
     assert audit["kinds"]["ip"] >= 2
@@ -70,8 +70,8 @@ def test_the_audit_holds_kinds_and_counts_only(campus: Campus) -> None:
     ("payload", "error"),
     [(b"\xff\xfe not utf-8", "UnicodeDecodeError"), (b"a" * (egress.MAX_BYTES + 1), "too large")],
 )
-def test_it_fails_closed(campus: Campus, payload: bytes, error: str) -> None:
-    verdict = egress.check(payload, campus)
+def test_it_fails_closed(ours: OwnSpace, payload: bytes, error: str) -> None:
+    verdict = egress.check(payload, ours)
     assert not verdict.allowed
     assert verdict.error == error
 
@@ -81,14 +81,14 @@ def test_an_error_inside_the_check_blocks(monkeypatch: pytest.MonkeyPatch) -> No
         raise RuntimeError("x")
 
     monkeypatch.setattr(egress, "find", boom)
-    verdict = egress.check("plain", Campus())
+    verdict = egress.check("plain", OwnSpace())
     assert not verdict.allowed
     assert verdict.error == "RuntimeError"
 
 
-def test_text_that_is_not_json_is_still_checked(campus: Campus) -> None:
-    assert not egress.check("not json 10.20.3.4", campus).allowed
-    assert egress.check("not json at all", campus).allowed
+def test_text_that_is_not_json_is_still_checked(ours: OwnSpace) -> None:
+    assert not egress.check("not json 10.20.3.4", ours).allowed
+    assert egress.check("not json at all", ours).allowed
 
 
 def test_foreign_pseudonyms() -> None:
@@ -100,64 +100,64 @@ def test_foreign_pseudonyms() -> None:
 
 @given(st.text(max_size=300))
 def test_check_never_raises(text: str) -> None:
-    verdict = egress.check(text, Campus(hosts=frozenset({"tp8"})))
+    verdict = egress.check(text, OwnSpace(hosts=frozenset({"tp8"})))
     assert verdict.allowed == (not verdict.findings and verdict.error is None)
 
 
 def test_ordinary_words_are_exempt_only_outside_quotes() -> None:
-    campus = Campus(hosts=frozenset({"web", "tp8"}))
+    ours = OwnSpace(hosts=frozenset({"web", "tp8"}))
     words = frozenset({"web"})
-    assert egress.check("Web: 2 user agents", campus, ordinary=words).allowed
-    assert not egress.check("Web: 2 user agents", campus).allowed
-    blocked = egress.check('Rule: "scan on web"', campus, ordinary=words)
+    assert egress.check("Web: 2 user agents", ours, ordinary=words).allowed
+    assert not egress.check("Web: 2 user agents", ours).allowed
+    blocked = egress.check('Rule: "scan on web"', ours, ordinary=words)
     assert not blocked.allowed
     assert {f.part for f in blocked.findings} == {"quoted"}
-    assert not egress.check("tp8: down", campus, ordinary=words).allowed
+    assert not egress.check("tp8: down", ours, ordinary=words).allowed
 
 
 def test_quoted_strings_inside_a_json_body_are_checked_strictly() -> None:
-    campus = Campus(hosts=frozenset({"web"}))
+    ours = OwnSpace(hosts=frozenset({"web"}))
     payload = json.dumps({"messages": [{"content": 'Web: x\nRule: "the web box"'}]})
-    verdict = egress.check(payload, campus, ordinary=["web"])
+    verdict = egress.check(payload, ours, ordinary=["web"])
     assert not verdict.allowed
     assert "quoted" in {f.part for f in verdict.findings}
 
 
-def test_a_json_scalar_is_checked_as_text(campus: Campus) -> None:
-    assert egress.check('"plain"', campus).allowed
-    assert not egress.check('"10.20.3.4"', campus).allowed
-    assert egress.check("42", campus).allowed
+def test_a_json_scalar_is_checked_as_text(ours: OwnSpace) -> None:
+    assert egress.check('"plain"', ours).allowed
+    assert not egress.check('"10.20.3.4"', ours).allowed
+    assert egress.check("42", ours).allowed
 
 
 def test_a_provider_body_keeps_template_words_exempt_outside_quotes() -> None:
-    campus = Campus(hosts=frozenset({"web"}))
+    ours = OwnSpace(hosts=frozenset({"web"}))
     clean = json.dumps({"messages": [{"content": "Web: 2 user agents"}]})
-    assert egress.check(clean, campus, ordinary=["web"]).allowed
+    assert egress.check(clean, ours, ordinary=["web"]).allowed
     dirty = json.dumps({"messages": [{"content": 'Web: 2\nRule: "web down"'}]})
-    verdict = egress.check(dirty, campus, ordinary=["web"])
+    verdict = egress.check(dirty, ours, ordinary=["web"])
     assert {f.part for f in verdict.findings} == {"quoted"}
 
 
 def test_keys_and_list_items_of_a_body_are_checked() -> None:
-    campus = Campus(hosts=frozenset({"web"}))
+    ours = OwnSpace(hosts=frozenset({"web"}))
     for body in ({'"web box"': 1}, {"a": ['"web box"']}, {"a": {"b": '"web box"'}}):
-        assert not egress.check(json.dumps(body), campus, ordinary=["web"]).allowed, body
+        assert not egress.check(json.dumps(body), ours, ordinary=["web"]).allowed, body
 
 
 def test_a_quoted_string_json_cannot_read_is_still_checked_strictly() -> None:
-    campus = Campus(hosts=frozenset({"tp8"}))
-    verdict = egress.check('note: "tp8 \\q"', campus, ordinary=["tp8"])
+    ours = OwnSpace(hosts=frozenset({"tp8"}))
+    verdict = egress.check('note: "tp8 \\q"', ours, ordinary=["tp8"])
     assert {f.part for f in verdict.findings} == {"quoted"}
 
 
 def test_the_size_limit_is_exact() -> None:
-    assert egress.check(b"z" * egress.MAX_BYTES, Campus()).allowed
-    assert egress.check(b"z" * (egress.MAX_BYTES + 1), Campus()).error == "too large"
+    assert egress.check(b"z" * egress.MAX_BYTES, OwnSpace()).allowed
+    assert egress.check(b"z" * (egress.MAX_BYTES + 1), OwnSpace()).error == "too large"
     assert egress.MAX_BYTES == 128 * 1024
 
 
 def test_verdicts_are_frozen_and_audited_by_kind() -> None:
-    verdict = egress.check("x " + base64.b64encode(b"10.1.2.3").decode(), Campus())
+    verdict = egress.check("x " + base64.b64encode(b"10.1.2.3").decode(), OwnSpace())
     assert verdict.audit()["kinds"] == {"ip (encoded)": 1}
     assert {f.part for f in verdict.findings} == {"bytes"}
     with pytest.raises(AttributeError):
@@ -167,13 +167,13 @@ def test_verdicts_are_frozen_and_audited_by_kind() -> None:
 
 
 def test_an_unreadable_quoted_string_keeps_its_last_character() -> None:
-    campus = Campus(hosts=frozenset({"tp8"}))
-    verdict = egress.check('note: "\\q tp8"', campus, ordinary=["tp8"])
+    ours = OwnSpace(hosts=frozenset({"tp8"}))
+    verdict = egress.check('note: "\\q tp8"', ours, ordinary=["tp8"])
     assert {f.part for f in verdict.findings} == {"quoted"}
 
 
-def test_a_body_is_checked_as_bytes_and_as_strings(campus: Campus) -> None:
-    verdict = egress.check(json.dumps({"a": "10.20.3.4"}), campus)
+def test_a_body_is_checked_as_bytes_and_as_strings(ours: OwnSpace) -> None:
+    verdict = egress.check(json.dumps({"a": "10.20.3.4"}), ours)
     assert {f.part for f in verdict.findings} == {"bytes", "json"}
 
 
@@ -186,5 +186,5 @@ def test_json_escapes_do_not_lengthen_a_url_token(privacy: Any) -> None:
     wrapped = json.dumps({"messages": [{"content": request.text}]})
     from argus.llm.privacy import template_words
 
-    assert egress.check(wrapped, request.campus, ordinary=template_words()).allowed
-    assert not egress.check(json.dumps({"c": "/?api_key=abcd1234"}), Campus()).allowed
+    assert egress.check(wrapped, request.ours, ordinary=template_words()).allowed
+    assert not egress.check(json.dumps({"c": "/?api_key=abcd1234"}), OwnSpace()).allowed

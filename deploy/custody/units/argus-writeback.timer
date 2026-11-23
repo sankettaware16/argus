@@ -1,0 +1,9 @@
+[Unit]
+Description=ARGUS write-back every 10 minutes, paced by the Kibana write lane (custody layout)
+
+[Timer]
+OnBootSec=7min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target

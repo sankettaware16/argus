@@ -118,11 +118,13 @@ def certificate_check(provider: ProviderConfig, now: datetime) -> Finding | None
     host = urlsplit(provider.base_url).hostname or ""
     if not _names(decoded, host):
         return Finding(name, False, f"the certificate does not name {host}")
-    if provider.trust is Trust.CAMPUS and decoded.get("subject") != decoded.get("issuer"):
-        return Finding(name, False, "a campus certificate is the setup's own, self-signed one")
+    if provider.trust is Trust.SELF_HOSTED and decoded.get("subject") != decoded.get("issuer"):
+        return Finding(
+            name, False, "a self-hosted provider's certificate is the setup's own, self-signed one"
+        )
     if days < CERT_WARN_DAYS:
         return Finding(name, False, f"expires {not_after:%Y-%m-%d}: run the setup again")
-    trust = "campus" if provider.trust is Trust.CAMPUS else "cloud"
+    trust = "self-hosted" if provider.trust is Trust.SELF_HOSTED else "cloud"
     return Finding(name, True, f"{trust}, for {host}, valid until {not_after:%Y-%m-%d}")
 
 

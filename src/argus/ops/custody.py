@@ -92,7 +92,13 @@ ACCOUNTS: dict[str, Account] = {
             "outside.censys_api_key",
         ),
     ),
-    "web": Account("web", "argus-web", ("database.api_password", "web-tls.key")),
+    # the account directory's session is optional: a site without a directory has none (D-337)
+    "web": Account(
+        "web",
+        "argus-web",
+        ("database.api_password", "web-tls.key", "directory.session"),
+        optional=("directory.session",),
+    ),
     # the Kibana keys are made when Kibana access is set up: the writer is off until
     # its canary, and the svc units get the Kibana reader key at the first live read
     "writer": Account(
@@ -209,6 +215,8 @@ UNITS: dict[str, tuple[str | None, Role]] = {
     "argus-kibana-sync.service": ("svc", Role.RUN),
     "argus-case-team.service": ("writer", Role.TRIGGERED),
     "argus-case-team.timer": (None, Role.RUN),
+    "argus-writeback.service": ("writer", Role.TRIGGERED),
+    "argus-writeback.timer": (None, Role.OFF),
     "argus-web.service": ("web", Role.RUN),
     "argus-writer.service": ("writer", Role.OFF),
     "argus-backup.service": ("owner", Role.TRIGGERED),
@@ -245,6 +253,12 @@ UNIT_CREDENTIALS: dict[str, tuple[str, ...]] = {
         "siem.api_key",
         "kibana.reader_api_key",
         *TEAM_KEYS,
+    ),
+    "argus-writeback.service": (
+        "database.writer_password",
+        "siem.api_key",
+        "kibana.reader_api_key",
+        "kibana.alert_writer_api_key",
     ),
 }
 
@@ -403,7 +417,7 @@ def split_env(env_file: Path) -> tuple[dict[str, str], dict[str, str], list[str]
 
 def env_file_text(plain: Mapping[str, str], report: Report) -> bytes:
     lines = [
-        "# ARGUS settings for the custody layout (Q-A5): written by deploy/custody/install.sh",
+        "# ARGUS settings for the custody layout: written by deploy/custody/install.sh",
         "# from the shared .env (its non-secret ARGUS_ settings) and the custody paths. No",
         "# secret here: each is a credential in /etc/argus/credentials.",
     ]
@@ -943,7 +957,7 @@ def custody_results(
                 "custody",
                 True,
                 "not installed: every service is a user unit of this account with its secrets"
-                " in .env (Q-A5's production step: deploy/custody/install.sh,"
+                " in .env (deploy/custody/install.sh,"
                 " docs/runbooks/custody.md)",
                 warn=True,
             )

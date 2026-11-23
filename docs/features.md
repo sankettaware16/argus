@@ -157,15 +157,16 @@ setting, keyboard navigation):
 
 | Menu | Pages |
 |---|---|
-| **Main** | **Today** (what needs a person today, and what ARGUS handled on its own), **Incidents**, **Search**, **Reports** |
-| **More** | Overview, **Approvals**, Rule tuning, ARGUS quality (what the AI did, what it cost, the gold set), System health (whether data is arriving; a gap is *unknown*, never *clean*), Help & glossary |
-| **More queues** | **Patterns**, **Proposals** |
-| **Administration** (administrators) | **Settings**, **Users and roles**, Design system |
+| **Main** | **Today** (what needs a person today, and what ARGUS handled on its own), **Incidents**, **Alerts** (every alert group, with the incident it belongs to), **Dashboards** (four ready-made boards: a security overview with response times and SLA targets, detections, ARGUS operations, costs), **Search**, **Reports** |
+| **Work** | **Approvals**, Rule tuning, Account look-up (where the site has an account directory) |
+| **ARGUS** | ARGUS quality (what the AI did, what it cost, the gold set), System health (whether data is arriving; a gap is *unknown*, never *clean*) |
+| **Administration** (administrators) | **Settings**, **Users and roles**, AI and agents, Threat intel |
+| **More** (folded) | **Patterns**, **Proposals**, Costs and usage, Design system, Help & glossary |
 
 Every change ARGUS composes for a person shows **the exact request first**; if someone else changed
 the item meanwhile nothing is saved. Text from logs, alerts, Kibana or a model is always shown as
 text. Details: [web-ui-guide.md](web-ui-guide.md); the reviewers' one-page guide:
-[guide-ta-ra.md](guide-ta-ra.md).
+[guide-reviewers.md](guide-reviewers.md).
 
 ![Incidents: every incident and possible incident, by priority](images/screenshots/incidents.png)
 

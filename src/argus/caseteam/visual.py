@@ -49,7 +49,7 @@ INTRO = (
 class Seen:
     """What a posted glance showed: the report version it was made for and its counts, what
     the next glance says is new against (kept in the glance step's payload). ``targets_title``
-    names the list its targets were counted from ("Campus sites reached", "Servers reached"):
+    names the list its targets were counted from ("Own sites reached", "Servers reached"):
     a count of another list is not compared with it ("" in an older payload: not known)."""
 
     version: int

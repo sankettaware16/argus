@@ -7,7 +7,7 @@ decides. Two kinds, each cached per incident version:
   engine's case and the check that would settle it.
 
 The model sees the incident's own facts (:func:`facts_of`, in ARGUS's words, numbered F1, F2,
-...) pseudonymised by the privacy layer (campus addresses, hosts, accounts and sites become
+...) pseudonymised by the privacy layer (internal addresses, hosts, accounts and sites become
 tokens) and checked by the egress validator before any call. Its answer is data: every claim must
 cite the facts it rests on, and code drops a claim that cites none or an unknown one, names a
 token it was not given or an identifier no cited fact holds, states a number its facts do not
@@ -28,7 +28,7 @@ from typing import Any, Literal
 
 from argus import site
 from argus.llm import egress
-from argus.llm.detect import LOOKALIKE, TOKEN, Campus
+from argus.llm.detect import LOOKALIKE, TOKEN, OwnSpace
 from argus.llm.gateway import Call, Completion, LlmError, NoCapacity
 from argus.llm.privacy import Privacy, Request
 from argus.llm.providers import Tier
@@ -41,7 +41,7 @@ MIN_CITED = 2  # distinct facts the whole answer rests on
 MAX_FACTS = 40
 MAX_FACT = 400  # characters of one fact's text
 MEMBERS = 12  # alert groups described
-OBJECTS = 10  # campus objects described
+OBJECTS = 10  # internal objects described
 SPLITS = ("one", "two", "unsure")
 # The answer's room by the tier asked (the investigation agent's): a story's nine claims of up to
 # 300 characters come near 900 tokens on their own, and a reasoning model's thinking counts
@@ -366,17 +366,17 @@ def shown(
     facts: Sequence[Fact], privacy: Privacy, bodies: Sequence[Any] = (),
     names: Sequence[tuple[str, str]] = (),
 ) -> Shown:  # fmt: skip
-    """The facts pseudonymised for one item: every campus address, host, account and site in
+    """The facts pseudonymised for one item: every internal address, host, account and site in
     them (the asset map's, the alert groups' and the incident's objects' own names too, ``names``
     from :func:`names_of`) becomes a token."""
-    campus: Campus = privacy.campus_for(bodies)
+    ours: OwnSpace = privacy.ours_for(bodies)
     users = {n for k, n in names if k == "account"}
     hosts = {n for k, n in names if k == "device" or (k == "site" and not _DOMAIN.match(n))}
     sites = {n.lower().rstrip(".") for k, n in names if k == "site" and _DOMAIN.match(n)}
-    campus = replace(campus, hosts=campus.hosts | hosts, users=campus.users | users,
-                     domains=(*campus.domains, *sorted(sites - set(campus.domains))))  # fmt: skip
+    ours = replace(ours, hosts=ours.hosts | hosts, users=ours.users | users,
+                     domains=(*ours.domains, *sorted(sites - set(ours.domains))))  # fmt: skip
     space = privacy.space(ITEM)
-    scrub = privacy.scrub(privacy, campus, space, None, False)
+    scrub = privacy.scrub(privacy, ours, space, None, False)
     sent: dict[str, str] = {}
     for f in facts:
         text = "".join(scrub.text(p, MAX_FACT // 2) if isinstance(p, Quoted)
@@ -384,7 +384,7 @@ def shown(
         sent[f.id] = text
     lines = [f'<item id="{ITEM}">', "facts:", *(f"{k}: {v}" for k, v in sent.items()), "</item>"]
     request = Request(text="\n".join(lines), items=(ITEM,), omitted=(), failed=(), truncated=(),
-                      campus=campus, _maps={ITEM: space})  # fmt: skip
+                      ours=ours, _maps={ITEM: space})  # fmt: skip
     return Shown({f.id: f for f in facts}, sent, request)
 
 

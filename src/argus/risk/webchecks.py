@@ -1,8 +1,8 @@
 """The checking lane's web templates (P4-F E3): three aggregations on the web servers' logs,
 each one daily index, a 10 s timeout and a bounded answer. With ``web.path_outcomes`` (batch 1)
-they tell whether an inbound attack on a campus site got something.
+they tell whether an inbound attack on an own site got something.
 
-- ``web.source_sites``: for up to 50 outside addresses, which campus sites they reached, and
+- ``web.source_sites``: for up to 50 outside addresses, which own sites they reached, and
   which of them and which sites had a successful (2xx) answer at all (the site of a thin
   inbound alert, which names only the source);
 - ``web.catchall``: the **soft-404 check**: one site's 2xx answers to the probe paths, by body
@@ -100,7 +100,7 @@ class SitesParams(SourcedParams):
 
 @register
 class WebSourceSites(Template):
-    """Which campus sites some outside addresses reached, and where they got a 2xx."""
+    """Which own sites some outside addresses reached, and where they got a 2xx."""
 
     name = "web.source_sites"
     version = 1
@@ -346,7 +346,7 @@ class SiteHit:
 
 
 def read_sites(body: Any, ips: Sequence[str]) -> dict[str, list[SiteHit]]:
-    """Each asked address's campus sites (most requests first). ``ok`` is False when the address
+    """Each asked address's own sites (most requests first). ``ok`` is False when the address
     got no 2xx anywhere or the site gave none to any asked address; True when both did (a 2xx
     between them is then likely, and the checks tell); None when the sites that gave a 2xx were
     more than the answer lists."""
