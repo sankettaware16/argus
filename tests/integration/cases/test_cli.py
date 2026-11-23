@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from typer.testing import Result
 
+from tests.conftest import plain
 from tests.integration.cases.conftest import Person, investigation
 from tests.integration.cases.test_opener import BEACON, _dossier, _review
 from tests.integration.test_cli_db import _run, cli_env  # noqa: F401 - the fixture
@@ -101,7 +102,7 @@ def test_argus_approvals_at_the_terminal(
     assert again.exit_code == 1
     assert "exists" in again.stderr
     missing = _run("approvals", "check-send")
-    assert (missing.exit_code, "--key" in missing.stderr) == (2, True)
+    assert (missing.exit_code, "--key" in plain(missing.stderr)) == (2, True)
     key.chmod(0o644)
     loose = _run("approvals", "check-send", "--key", str(key))
     assert (loose.exit_code, "read by others" in loose.stderr) == (1, True)

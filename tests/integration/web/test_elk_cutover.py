@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from argus.identity import cli as identity_cli
 from argus.web import auth, breakglass
 from argus.web.app import create_app
+from tests.conftest import plain
 from tests.integration.test_cli_db import cli_env  # noqa: F401
 from tests.integration.web.conftest import BASE, NOW, SAME_ORIGIN, first_investigation, log_in
 from tests.integration.web.conftest import PASSWORD as LOCAL_PASSWORD
@@ -111,7 +112,7 @@ async def test_identity_link_refuses_what_cannot_be_linked(
 ) -> None:
     await link(elk_on, "asha", "Taken.Name")
     got, out = await run(elk_on, "identity", "link", *args)
-    assert (got, message in out) == (code, True), out
+    assert (got, message in plain(out)) == (code, True), out
     assert "Traceback" not in out
 
 

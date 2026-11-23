@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from typer.testing import Result
 
 from argus.responder import store
+from tests.conftest import plain
 from tests.integration.cases.conftest import Person
 from tests.integration.responder.kit import Scene
 from tests.integration.test_cli_db import _run, cli_env  # noqa: F401 - the fixture
@@ -130,7 +131,7 @@ def test_refusals_are_one_plain_line_each(
 
     needs_a_person = _run("case", "actions", "1", "--request", ISOLATE)
     assert needs_a_person.exit_code == 2
-    assert "--as" in needs_a_person.stderr
+    assert "--as" in plain(needs_a_person.stderr)
     assert _run("case", "actions", "1", "--done", ISOLATE, "--as", "asha").exit_code == 2
     two = _run("case", "actions", "1", "--recommend", "--request", ISOLATE, "--as", "asha")
     assert two.exit_code == 2
